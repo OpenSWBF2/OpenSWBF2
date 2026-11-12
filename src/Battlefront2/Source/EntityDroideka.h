@@ -59,10 +59,22 @@ public:
     virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual void PostReadSetup();
-    virtual int GetVehicleType() const;
+    virtual GameObjectClass::VehicleType GetVehicleType() const;
     virtual const ControllableClass* GetControllableClass() const;
-    virtual int GetWeaponCount() const;
-    virtual const WeaponClass* GetWeaponClass(int iIndex) const;
+    // FUNCTION: SWBF2 0x0049ea70
+    virtual int GetWeaponCount() const
+    {
+        if (!mWeaponClass[0])
+        {
+            return 0;
+        }
+        return mWeaponClass[1] ? 2 : 1;
+    }
+    // FUNCTION: SWBF2 0x0049ea90
+    virtual const WeaponClass* GetWeaponClass(int iIndex) const
+    {
+        return mWeaponClass[iIndex];
+    }
     virtual bool InitAnimations(const char* pszBank);
 
 protected:
@@ -100,11 +112,11 @@ public:
     float mCollisionInflict;
     AimerClass mAimerClass[4];
     WeaponClass* mWeaponClass[4];
-    WeaponAmmoDesc mWeaponAmmo[4];
-    int mWeaponChannel[4];
+    WeaponAmmoDesc mWeaponAmmo[kMaxWeapons];
+    int mWeaponChannel[kMaxWeapons];
     int mWeaponCount;
     unsigned int mStompEffect;
-    int mVehicleType;
+    GameObjectClass::VehicleType mVehicleType;
     float mNoiseFactor;
     float mAnimRateMove;
     float mAnimRateTurn;
@@ -323,8 +335,16 @@ public:
     virtual Entity* GetEntity();
     virtual const GameObject* GetGameObject() const;
     virtual GameObject* GetGameObject();
-    virtual const PblVector3& GetVelocity() const;
-    virtual void SetVelocity(const PblVector3& vVelocity);
+    // FUNCTION: SWBF2 0x0049e6f0
+    virtual const PblVector3& GetVelocity() const
+    {
+        return mVelocity;
+    }
+    // FUNCTION: SWBF2 0x0049e700
+    virtual void SetVelocity(const PblVector3& vVelocity)
+    {
+        mVelocity = vVelocity;
+    }
     virtual float GetMaxSpeed() const;
     virtual float GetMaxStrafe() const;
     virtual const Controllable* GetControllable() const;
@@ -334,7 +354,11 @@ public:
     virtual const PblVector3& GetAttachOffset() const;
     virtual void ActivatePhysics();
     virtual void DeactivatePhysics();
-    virtual GameObjectType GetGameObjectType();
+    // FUNCTION: SWBF2 0x0049e800
+    virtual GameObjectType GetGameObjectType()
+    {
+        return (GameObjectType)(GO_VEHICLE | GO_WALKER);
+    }
     virtual EntityType GetEntityType() const;
     virtual void WriteObject(NetPktGroup& group, NetObjState* pState);
     virtual void ReadObject(NetPktGroup& group, NetObjState* pState);
@@ -383,7 +407,11 @@ public:
     virtual bool CollideTrisWithAllPrimitives() const;
 
     virtual const PblMatrix& GetMatrix() const;
-    virtual const RedPose* GetPose() const;
+    // FUNCTION: SWBF2 0x0049e690
+    virtual const RedPose* GetPose() const
+    {
+        return &mPose;
+    }
 
     virtual void Render(unsigned char ucViewport, float fDist, unsigned int uiFlags);
 
@@ -398,11 +426,31 @@ public:
     virtual float GetSoundRadius() const;
     virtual float GetAimTurnRate() const;
     virtual int GetWeaponCount() const;
-    virtual int GetWeaponIndex(int iChannel) const;
-    virtual Weapon* GetWeaponPtr(int iIndex) const;
-    virtual EnergyBar* GetEnergyBar();
+    // FUNCTION: SWBF2 0x0049e790
+    virtual int GetWeaponIndex(int iChannel) const
+    {
+        return mWeaponIndex[iChannel];
+    }
+    // FUNCTION: SWBF2 0x0049e7b0
+    virtual Weapon* GetWeaponPtr(int iIndex) const
+    {
+        return mWeapon[iIndex];
+    }
+    // FUNCTION: SWBF2 0x0049e990
+    virtual EnergyBar* GetEnergyBar()
+    {
+        return &mEnergyBar;
+    }
     virtual void SetWeaponIndex(int iChannel, int iIndex);
-    virtual const Aimer* GetAimer(int iIndex) const;
+    // FUNCTION: SWBF2 0x0049e7d0
+    virtual const Aimer* GetAimer(int iIndex) const
+    {
+        if (mState == IdleToRoll || mState == Rolling || mState == RollToIdle)
+        {
+            return 0;
+        }
+        return mAimer[iIndex];
+    }
     virtual ControllableClass* GetControllableClass();
     virtual const ControllableClass* GetControllableClass() const;
     virtual void SetupController();
@@ -447,7 +495,11 @@ public:
     void TurnOffEffects();
     FoleyFX* GetFoleyFX() const;
 
-    bool IsRollingOrTransition() const;
+    // FUNCTION: SWBF2 0x00524070
+    bool IsRollingOrTransition() const
+    {
+        return mState == Rolling || mState == IdleToRoll || mState == RollToIdle;
+    }
 
     bool Smooth(float fDeltaTime) const;
 
@@ -469,8 +521,66 @@ public:
     void TriggerHealthGainEffect();
     void TriggerEnergyGainEffect();
 
-    void MoveForward(float fDistance);
-    void RotateY(const PblAngle& rAngle);
+    // FUNCTION: SWBF2 0x0049e3e0
+    void MoveForward(float fDistance)
+    {
+        PblVector3 vPos = mMatrix.GetTranslation();
+        if (mTurnOffset.mCos < 1.0f)
+        {
+            float fCos = mTurnOffset.mCos * mTurnOffset.mCos - mTurnOffset.mSin * mTurnOffset.mSin;
+            float fSin = mTurnOffset.mCos * 2.0f * mTurnOffset.mSin;
+            if (mState != Rolling)
+            {
+                float f4Cos2 = fCos * fCos * 4.0f;
+                fCos = fCos * (f4Cos2 - 3.0f);
+                fSin = (f4Cos2 - 1.0f) * fSin;
+            }
+    
+            PblMatrix kTurn(PblVector3(fCos, 0.0f, -fSin), PblVector3(0.0f, 1.0f, 0.0f),
+                            PblVector3(fSin, 0.0f, fCos), PblVector3(0.0f, 0.0f, 0.0f));
+            kTurn *= mMatrix;
+    
+            PblVector3 vMove(kTurn.m[2][0] * fDistance, kTurn.m[2][1] * fDistance,
+                             kTurn.m[2][2] * fDistance);
+            vPos.x += vMove.x;
+            vPos.y += vMove.y;
+            vPos.z += vMove.z;
+        }
+        else
+        {
+            PblVector3 vMove(mMatrix.m[2][0] * fDistance, mMatrix.m[2][1] * fDistance,
+                             mMatrix.m[2][2] * fDistance);
+            vPos.x += vMove.x;
+            vPos.y += vMove.y;
+            vPos.z += vMove.z;
+        }
+        SetPosition(vPos);
+    }
+    // FUNCTION: SWBF2 0x0049e5d0
+    void RotateY(const PblAngle& rAngle)
+    {
+        PblMatrix kRot;
+        kRot.m[1][0] = 0.0f;
+        kRot.m[1][1] = 1.0f;
+        kRot.m[1][2] = 0.0f;
+        kRot.m[1][3] = 0.0f;
+        kRot.m[0][0] = rAngle.mCos;
+        kRot.m[0][1] = 0.0f;
+        kRot.m[0][2] = -rAngle.mSin;
+        kRot.m[0][3] = 0.0f;
+        kRot.m[2][0] = rAngle.mSin;
+        kRot.m[2][1] = 0.0f;
+        kRot.m[2][2] = rAngle.mCos;
+        kRot.m[2][3] = 0.0f;
+        kRot.m[3][0] = 0.0f;
+        kRot.m[3][1] = 0.0f;
+        kRot.m[3][2] = 0.0f;
+        kRot.m[3][3] = 1.0f;
+    
+        PblMatrix kOut;
+        kOut = kRot * mMatrix;
+        mMatrix = kOut;
+    }
     float UpdateMouseDecay(float fDeltaTime, float fInput);
     void UpdateWalkingGroundNormal();
     int GetFirstPersonIndex();
@@ -488,8 +598,8 @@ public:
     GameModel* mBallLowRes;
     float mPitchValue;
     Aimer* mAimer[4];
-    Weapon* mWeapon[4];
-    int mWeaponIndex[2];
+    Weapon* mWeapon[kMaxWeapons];
+    int mWeaponIndex[kNumWeaponChannels];
     ZephyrSkeleton<32> mZephyrSkeleton;
     ZephyrPoseDyn<32> mZephyrPoseDyn;
     float mTime;
@@ -639,5 +749,12 @@ inline const char* EntityDroidekaClass::GetDerivedRttiName() const
 {
     return rttiNameEntityDroidekaClass;
 }
+
+// FUNCTION: SWBF2 0x0049ea60
+inline GameObjectClass::VehicleType EntityDroidekaClass::GetVehicleType() const
+{
+    return mVehicleType;
+}
+
 
 

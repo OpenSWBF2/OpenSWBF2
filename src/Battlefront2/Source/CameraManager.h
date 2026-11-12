@@ -2,6 +2,8 @@
 
 #include <stddef.h>
 
+#include "ChaseCamera.h"
+#include "DeathCamera.h"
 #include "Thread.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblQuaternion.h"
@@ -98,6 +100,29 @@ public:
     PblQuaternion mShotRotation[16];
     PblVector3 mShotPosition[16];
 };
+
+// FUNCTION: SWBF2 0x0044e330
+inline void CameraManager::SetChaseCameraRotation(const PblQuaternion& qRot, int iCam)
+{
+    mChaseCamera[iCam]->SetRotation(qRot);
+}
+
+// FUNCTION: SWBF2 0x004a9db0
+inline Trackable* CameraManager::GetChaseCameraTarget(int iCam)
+{
+    if (mCurGameCamera[iCam] == mDeathCamera[iCam])
+    {
+        return mDeathCamera[iCam]->mOwner;
+    }
+    return mChaseCamera[iCam]->mOwner;
+}
+
+// FUNCTION: SWBF2 0x0051ecb0
+inline PblMatrix CameraManager::GetChaseCameraTransform(int iCam)
+{
+    return mChaseCamera[iCam]->GetMatrix();
+}
+
  
  
  

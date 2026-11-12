@@ -63,13 +63,13 @@ void PropModel::ReadData(unsigned int uiHash, int iVersion, PblFileChunk& chunk)
 {
     switch (uiHash)
     {
-    case 0x2fb31c01:
+    case 0x2fb31c01: /* "Frequency" */
         mFrequency = chunk._pFile->ReadFloat();
         break;
-    case 0x39f85b7d:
+    case 0x39f85b7d: /* "MaxDist" */
         mMaxDist = chunk._pFile->ReadFloat();
         break;
-    case 0x495f91ae:
+    case 0x495f91ae: /* "Stiffness" */
         mStiffness = chunk._pFile->ReadFloat();
         break;
     }

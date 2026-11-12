@@ -12,10 +12,10 @@ void HUD::ElementBar::Factory::Setup(HUD::Item::Factory* pFactory)
                      HUD::Item::Factory::Property::type_Event);
 }
 
-static const unsigned int kValueHash      = 0x425ed3ca;
-static const unsigned int kMinValueHash   = 0xf1a5a54c;
-static const unsigned int kMaxValueHash   = 0x7332c626;
-static const unsigned int kEventValueHash = 0x8500add4;
+static const unsigned int kValueHash      = 0x425ed3ca /* "Value" */;
+static const unsigned int kMinValueHash   = 0xf1a5a54c /* "MinValue" */;
+static const unsigned int kMaxValueHash   = 0x7332c626 /* "MaxValue" */;
+static const unsigned int kEventValueHash = 0x8500add4 /* "EventValue" */;
 
 // FUNCTION: SWBF2 0x0054a150
 const char* HUD::ElementBar::PropertyTranslateEnum(const unsigned int, const unsigned int)

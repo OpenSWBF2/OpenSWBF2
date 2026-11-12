@@ -448,7 +448,7 @@ void Voice::UpdateSample()
 // FUNCTION: SWBF2 0x00745cf0
 void Voice::SourceResampler::UnlockAll()
 {
-    while (mPackets[0].mRefCount > 0)
+    while (mPackets[0].IsLocked())
     {
         mPackets[0].Unlock();
     }
@@ -462,13 +462,13 @@ namespace Snd
 // FUNCTION: SWBF2 0x00745a90
 void Voice::SourceResampler::ClearAll()
 {
-    if (mPackets[0].mRefCount > 0)
+    if (mPackets[0].IsLocked())
     {
     }
     else
     {
-        mPackets[0].mBuffer = 0;
-        mPackets[0].mBufferUsed = 0;
+        mPackets[0].SetBuffer(0);
+        mPackets[0].SetUsed(0);
     }
 }
 

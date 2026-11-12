@@ -72,7 +72,7 @@ public:
 
     bool IsLanded();
 
-    Controllable* GetPassengerSlot(int);
+    Controllable* GetPassengerSlot(bool);
 
     void EnablePost(bool bEnable);
 

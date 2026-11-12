@@ -105,7 +105,7 @@ EntityPropAnimated::~EntityPropAnimated()
 // FUNCTION: SWBF2 0x004db670
 void EntityPropAnimated::Render(unsigned char ucLod, float fAlpha, unsigned int uFlags)
 {
-    if (!static_cast<EntityPropAnimatedClass*>(mEntityClass)->m_bDynamicLighting)
+    if (!((EntityPropAnimatedClass*)mEntityClass)->m_bDynamicLighting)
     {
         uFlags |= 0x80u;
     }
@@ -205,11 +205,11 @@ void EntityPropAnimatedClass::SetProperty(unsigned int uProperty, const char* ps
 {
     switch (uProperty)
     {
-    case 0x98557a5e:
+    case 0x98557a5e: /* "AnimationName" */
         InitAnimations(pszValue);
         break;
 
-    case 0xe145ee5d:
+    case 0xe145ee5d: /* "Animation" */
         if (mAnimObj)
         {
             for (int i = 0; i < 5; i++)
@@ -223,7 +223,7 @@ void EntityPropAnimatedClass::SetProperty(unsigned int uProperty, const char* ps
         }
         break;
 
-    case 0x762ecc6a:
+    case 0x762ecc6a: /* "AnimationTriggerSound" */
     {
         char acAnimation[256];
         char acSound[256];
@@ -240,7 +240,7 @@ void EntityPropAnimatedClass::SetProperty(unsigned int uProperty, const char* ps
         break;
     }
 
-    case 0x72306628:
+    case 0x72306628: /* "AttachTrigger" */
     {
         char acAttachPoint[256];
         char acAnimation[256];
@@ -274,7 +274,7 @@ void EntityPropAnimatedClass::SetProperty(unsigned int uProperty, const char* ps
         }
     }
 
-    case 0x1d56b73b:
+    case 0x1d56b73b: /* "AnimationTrigger" */
     {
         char acAnimation[256];
         char acTriggerPoint[256];
@@ -300,19 +300,19 @@ void EntityPropAnimatedClass::SetProperty(unsigned int uProperty, const char* ps
         break;
     }
 
-    case 0x6b014234:
+    case 0x6b014234: /* "DisableForCloneWars" */
         mDisableForCloneWars = atoi(pszValue) != 0;
         break;
 
-    case 0x0550a3b2:
+    case 0x0550a3b2: /* "TrackDeathOnAttach" */
         mTrackDeathOnAttach = atoi(pszValue) != 0;
         break;
 
-    case 0xf949d898:
+    case 0xf949d898: /* "KillSoldierSound" */
         mKillSoldierSound.SetID(pszValue, false, false);
         break;
 
-    case 0xff701082:
+    case 0xff701082: /* "IdleDelay" */
         sscanf(pszValue, "%f", &mIdleDelay);
         break;
 
@@ -494,7 +494,7 @@ bool EntityPropAnimated::Update(float fDeltaTime)
                 continue;
             }
 
-            EntitySoldier* pSoldier = static_cast<EntitySoldier*>(pFound);
+            EntitySoldier* pSoldier = (EntitySoldier*)pFound;
             mAttachedSoldier = pFound;
             mAttachEvent = mAnimatedClass->mAttachTriggers[i].mPostAttachEvent;
             mAttachedSoldierAnimation = mAnimatedClass->mAttachTriggers[i].mSoldierAnimation;
@@ -560,12 +560,12 @@ bool EntityPropAnimated::Update(float fDeltaTime)
         D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mWorld), reinterpret_cast<const D3DXMATRIX*>(mAttachMatrix), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
         RedPose kPose;
         mAttachedSoldier->SetupPose(kPose);
-        const PblMatrix* pRoot = kPose.Find(0x16E27226u);
+        const PblMatrix* pRoot = kPose.Find(0x16E27226u /* "bone_root" */);
         if (pRoot)
         {
             mWorld = pRoot->GetInverseFast() * mWorld;
         }
-        static_cast<EntitySoldier*>((GameObject*)mAttachedSoldier)
+        ((EntitySoldier*)(GameObject*)mAttachedSoldier)
             ->SetPilotInfo(mWorld, PblVector3(0.0f, 0.0f, 0.0f),
                            (SoldierAnimationBank::ANIMATION)mAttachedSoldierAnimation, true, -1.0f, -1.0f, -1.0f,
                            fDeltaTime);

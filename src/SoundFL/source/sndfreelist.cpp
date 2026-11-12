@@ -68,8 +68,8 @@ void* FreeList::Alloc()
     for (PblListSingle::Itor itor(mBlockList);
          itor.GetNode() != mBlockList.GetTerminator(); ++itor)
     {
-        Block* const pBlock = static_cast<Block*>(itor.GetNode()->GetObjectA(&mBlockList, offsetof(Block, mNode)));
-        void* const pEntry = UnpoisonEntry(pBlock->AllocEntry(mEntrySize, mEntriesPerBlock), mEntrySize);
+        Block* const pBlock = (Block*)itor.GetNode()->GetObjectA(&mBlockList, offsetof(Block, mNode));
+        void* const pEntry = pBlock->AllocEntry(mEntrySize, mEntriesPerBlock);
         if (pEntry)
         {
             return pEntry;
@@ -95,7 +95,7 @@ void FreeList::Free(void* p)
     {
         for (; itor.GetNode() != mBlockList.GetTerminator(); ++itor)
         {
-            Block* const pBlock = static_cast<Block*>(itor.GetNode()->GetObjectA(&mBlockList, offsetof(Block, mNode)));
+            Block* const pBlock = (Block*)itor.GetNode()->GetObjectA(&mBlockList, offsetof(Block, mNode));
             if (pBlock->IsValid(p, mEntrySize, mEntriesPerBlock))
             {
                 pBlock->FreeEntry(p, mEntrySize, mEntriesPerBlock);
@@ -121,7 +121,7 @@ void FreeList::PurgeBlocks()
 
     while (itor.GetNode() != mBlockList.GetTerminator())
     {
-        Block* const pBlock = static_cast<Block*>(itor.GetNode()->GetObjectA(&mBlockList, offsetof(Block, mNode)));
+        Block* const pBlock = (Block*)itor.GetNode()->GetObjectA(&mBlockList, offsetof(Block, mNode));
         ++itor;
 
         if (pBlock->GetAllocator().GetFreeEntries() == mEntriesPerBlock)

@@ -57,12 +57,12 @@ class LightningBoltEffect : public FLEffect
 public:
 
     LightningBoltEffect()
-        : FLEffect(0x1F678786u, 6)
+        : FLEffect(0x1F678786u /* "LightningBolt" */, RENDERABLE_POSTTRANSPARENT)
     {
     }
 
     virtual ~LightningBoltEffect();
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual FLEffectClass* BuildClass(PblConfig& config) const;
 
     static void Create();
@@ -83,6 +83,7 @@ public:
 class LightningBoltEffectObject : public FLEffectObject, public RedSceneObject
 {
 public:
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
     LightningBoltEffectObject(const LightningBoltEffectClass* pClass);
     virtual ~LightningBoltEffectObject();
 

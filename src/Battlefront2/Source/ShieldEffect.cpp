@@ -23,7 +23,7 @@ void ShieldEffectManager::Create()
 
 // FUNCTION: SWBF2 0x00636610
 ShieldEffectManager::ShieldEffectManager()
-    : FLEffect(0x337519B0u, 3)
+    : FLEffect(0x337519B0u /* "shield" */, RENDERABLE_POSTWORLD)
 {
 }
 
@@ -45,7 +45,7 @@ void ShieldEffectManager::Destroy()
 }
 
 // FUNCTION: SWBF2 0x00636530
-void ShieldEffectManager::Render(int)
+void ShieldEffectManager::Render(unsigned int) const
 {
 }
 
@@ -129,37 +129,37 @@ ShieldEffectClass::ShieldEffectClass(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x5127F14Du:
+        case 0x5127F14Du: /* "Type" */
             if (data.GetStringArg(0)[0] == 'f')
             {
                 m_type = 1;
             }
             break;
-        case 0x3C6468F4u:
+        case 0x3C6468F4u: /* "Texture" */
             m_uiTextureHash = PblHash(data.GetStringArg(0));
             break;
-        case 0x3D7E6258u:
+        case 0x3D7E6258u: /* "Color" */
             ReadColor(data, m_color);
             break;
-        case 0x01E4AAF7u:
+        case 0x01E4AAF7u: /* "SpecularColor" */
             ReadColor(data, m_colorSpecular);
             break;
-        case 0x0DBA4CB3u:
+        case 0x0DBA4CB3u: /* "Radius" */
             m_fRadius = data.GetFloatArg(0);
             break;
-        case 0xD5BDBB42u:
+        case 0xD5BDBB42u: /* "Height" */
             m_fHeight = data.GetFloatArg(0);
             break;
-        case 0xB28AF6F4u:
+        case 0xB28AF6F4u: /* "ViewAngleFactor" */
             m_fViewAngleFactor = data.GetFloatArg(0);
             break;
-        case 0x08AAB3AAu:
+        case 0x08AAB3AAu: /* "TurnOnTime" */
             m_fTurnOnTime = data.GetFloatArg(0);
             break;
-        case 0xC8A9E3C6u:
+        case 0xC8A9E3C6u: /* "TurnOffTime" */
             m_fTurnOffTime = data.GetFloatArg(0);
             break;
-        case 0xD8BB237Eu:
+        case 0xD8BB237Eu: /* "ScrollRate" */
             m_fScrollRate = data.GetFloatArg(0);
             break;
         }

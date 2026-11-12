@@ -13,7 +13,7 @@ class LightsaberTrailEffect : public FLEffect
 public:
 
     LightsaberTrailEffect()
-        : FLEffect(0xFBAB1AF0u, 3)
+        : FLEffect(0xFBAB1AF0u /* "LightsaberTrail" */, RENDERABLE_POSTWORLD)
     {
         m_pShader = 0;
     }
@@ -22,7 +22,7 @@ public:
 
     // SYNTHETIC: SWBF2 0x00573d30
     // LightsaberTrailEffect::`scalar deleting destructor'
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Init();
     virtual void Cleanup();
     virtual void ReadConfig(PblConfig& config);
@@ -93,9 +93,12 @@ public:
     {
         m_bEffectActive = false;
     }
-    virtual bool IsEffectActive() const;
-    virtual void ActivateEffect();
-    virtual void DeactivateEffect();
+    // FUNCTION: SWBF2 0x00573da0
+    virtual bool IsEffectActive() const {return m_bEffectActive;}
+    // FUNCTION: SWBF2 0x00573db0
+    virtual void ActivateEffect() {m_bEffectActive = true;}
+    // FUNCTION: SWBF2 0x00573dc0
+    virtual void DeactivateEffect() {m_bEffectActive = false;}
 protected:
     virtual void UpdatedWorldMatrix();
     virtual void AddToRenderList();
@@ -103,7 +106,18 @@ protected:
 
 public:
 
+    void Render(unsigned int uiFlags) const
+    {
+        if (m_uiNumSamples)
+        {
+            LightsaberTrailEffect* pEffect = LightsaberTrailEffect::s_pInstance;
+            s_uiSamplePrev = 0;
+            s_uiSample = 0;
+            pEffect->RenderLightsaberTrail(this, uiFlags);
+        }
+    }
     bool IsTrailOn() const { return m_bTrailWasOn; }
+    void SetTrailOn(bool bTrailOn) { m_bTrailOn = bTrailOn; }
     unsigned int GetNumSamples() const { return m_uiNumSamples; }
     float GetTime(unsigned int iSample) const { return m_afTime[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }
     const PblVector3& GetPos(unsigned int iSample) const { return m_avPos[(m_uiSampleNext - m_uiNumSamples + iSample) & 7]; }

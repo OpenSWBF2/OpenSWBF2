@@ -1,4 +1,5 @@
 #include <string.h>
+#include "PopupText.h"
 #include "FLJoystick.h"
 #include "FLInputManager.h"
 #include "GameSoundEngine.h"
@@ -14,14 +15,6 @@
 #include "PebbleFL/Common/PblUnicode.h"
 #include "SoundFL/source/sndbus.h"
 
-namespace PopupText
-{
-    extern void DisablePopup();
-}
-namespace PopupText
-{
-    void __fastcall ShowPopup(int iType, unsigned int uTextId);
-}
 namespace HUD
 {
 namespace GameEvents
@@ -47,7 +40,6 @@ bool GUIInputs::IsRightPressed() const
 namespace PopupText
 {
 
-enum PopupType { DISABLED = 0, HINT = 1, OBJECTIVE = 2, SELECTION = 3, MAX_POPUP_TYPES = 4 };
 
 // GLOBAL: SWBF2 0x01eaedfb
 bool gMapEnabled[1];
@@ -79,16 +71,10 @@ bool gPreventJump;
 // GLOBAL: SWBF2 0x01ef7fcc
 Trigger gButtonTrigger;
 
-void Init();
-bool IsEnabled();
-bool GetPreventJump();
-void SetPreventJump(bool bPrevent);
-void Update(float fDeltaTime);
-void ShowPopup(PopupType eType, unsigned int uTextId);
 }
 
 // FUNCTION: SWBF2 0x00620af0
-void __fastcall PopupText::ShowPopup(int iType, unsigned int uTextId)
+void PopupText::ShowPopup(PopupText::PopupType iType, unsigned int uTextId)
 {
     using namespace PopupText;
     if (GameLoop::mNumCameras != 1 || (iType == HINT && gHints[gCurHint] == 0))
@@ -102,13 +88,13 @@ void __fastcall PopupText::ShowPopup(int iType, unsigned int uTextId)
     }
     else
     {
-        Snd::Bus* pBus = Snd::Bus::FindByHashID(0xB38617C5);
+        Snd::Bus* pBus = Snd::Bus::FindByHashID(0xB38617C5 /* "mainmain" */);
         if (pBus)
         {
             pBus->Fade(0.5f, 0.0f, -1.0f);
         }
         HUD::ElementMap* pMap = HUD::ElementMap::FindByPlayerIndex(0);
-        gMapEnabled[0] = pMap && static_cast<RedInterfaceElement*>(static_cast<RedGroupElement*>(pMap))->IsEnabled();
+        gMapEnabled[0] = pMap && ((RedInterfaceElement*)(RedGroupElement*)pMap)->IsEnabled();
         HUD::GameEvents::DisableAllForObjectiveDisplay(0, true);
         SpawnDisplay* pSpawn = SpawnDisplay::Instance(0);
         if (pSpawn->mVisible && pSpawn->mMode == SpawnDisplay::eCHANGECLASS)
@@ -171,9 +157,91 @@ void __fastcall PopupText::ShowPopup(int iType, unsigned int uTextId)
     gAcceptReleased = false;
 }
 
-void PopupText::ShowPopup(PopupType eType, unsigned int uTextId)
+namespace ObjectiveManager
 {
-    PopupText::ShowPopup((int)eType, uTextId);
+unsigned int GetCurrentPopupText();
+}
+
+// FUNCTION: SWBF2 0x00620d20
+void PopupText::DisablePopup()
+{
+    if (!PopupText::IsEnabled())
+    {
+        return;
+    }
+
+    const unsigned int uNumCameras = GameLoop::mNumCameras;
+    Snd::Bus* pBus = Snd::Bus::FindByHashID(0xB38617C5 /* "mainmain" */);
+    if (pBus)
+    {
+        pBus->Fade(0.5f, 1.0f, -1.0f);
+    }
+    if (GameLoop::sPauseMode)
+    {
+        GameLoop::Resume();
+    }
+
+    for (unsigned int i = 0; i < uNumCameras; ++i)
+    {
+        if (PopupText::gMapEnabled[i])
+        {
+            HUD::Event mapEvent(HUD::GameEvents::gPlayerEvents[i].mapEnable, true);
+            mapEvent.Send();
+        }
+        if (PopupText::gSpawnDisplayEnabled[i])
+        {
+            Character* pPlayer = NetGame::GetLocalPlayer(NetGame::GetLocalIndex(i));
+            SpawnDisplay::Instance(i)->ChangeClass(pPlayer);
+        }
+    }
+
+    switch (PopupText::gType)
+    {
+    case PopupText::HINT:
+        {
+            HUD::Event popupEvent(HUD::GameEvents::gObjectiveEvents.hintPopupDisable, true);
+            popupEvent.Send();
+        }
+        break;
+    case PopupText::OBJECTIVE:
+        {
+            HUD::Event popupEvent(HUD::GameEvents::gObjectiveEvents.objectivePopupDisable, true);
+            popupEvent.Send();
+        }
+        break;
+    case PopupText::SELECTION:
+        {
+            HUD::Event popupEvent(HUD::GameEvents::gObjectiveEvents.selectionPopupDisable, true);
+            popupEvent.Send();
+        }
+        break;
+    default: break;
+    }
+
+    if (uNumCameras == 1)
+    {
+        HUD::ElementMap* pMap = HUD::ElementMap::FindByPlayerIndex(0);
+        if (pMap && pMap->mMode == HUD::ElementMap::mode_Large)
+        {
+            HUD::Event listEvent(HUD::GameEvents::gPlayerEvents[0].objectiveListEnable, true);
+            listEvent.Send();
+            HUD::Event returnEvent(HUD::GameEvents::gPlayerEvents[0].pressSelectToReturn, true);
+            returnEvent.Send();
+            if (ObjectiveManager::GetCurrentPopupText())
+            {
+                HUD::Event detailsEvent(HUD::GameEvents::gPlayerEvents[0].objectiveDetails, true);
+                detailsEvent.Send();
+            }
+            if (PopupText::gNumHints > 0)
+            {
+                HUD::Event hintsEvent(HUD::GameEvents::gPlayerEvents[0].hintsAvailable, true);
+                hintsEvent.Send();
+            }
+        }
+    }
+
+    PopupText::gType = PopupText::DISABLED;
+    PopupText::gButtonTrigger.Clear();
 }
 
 // FUNCTION: SWBF2 0x006210d0
@@ -184,6 +252,15 @@ void PopupText::SetPreventJump(bool bPrevent)
 
 namespace PopupText
 {
+
+// FUNCTION: SWBF2 0x00620ec0
+void AddHint(unsigned int uHint)
+{
+    if (PopupText::gNumHints < 64)
+    {
+        PopupText::gHints[PopupText::gNumHints++] = uHint;
+    }
+}
 
 // FUNCTION: SWBF2 0x00620f00
 void Update(float fDeltaTime)
@@ -239,7 +316,7 @@ void Update(float fDeltaTime)
             {
                 gCurHint = gNumHints - 1;
             }
-            ShowPopup((int)HINT, 0);
+            ShowPopup(HINT, 0);
         }
         else if (pGui->IsRightPressed() && !gDirectionPressedLastUpdate)
         {
@@ -247,7 +324,7 @@ void Update(float fDeltaTime)
             {
                 gCurHint = 0;
             }
-            ShowPopup((int)HINT, 0);
+            ShowPopup(HINT, 0);
         }
         gDirectionPressedLastUpdate = pGui->IsRightPressed() || pGui->IsLeftPressed();
         break;
@@ -280,10 +357,6 @@ bool PopupText::GetPreventJump()
     return gPreventJump;
 }
 
-namespace PopupText
-{
-    int GetNumHints();
-}
 
 // FUNCTION: SWBF2 0x00620ee0
 int PopupText::GetNumHints()

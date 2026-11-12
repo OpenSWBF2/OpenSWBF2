@@ -189,15 +189,15 @@ void StreamDSDMO::Update()
         else
         {
 
-            const bool bLastPacket = (pInPacket->mFlags & 1) != 0;
-            const bool bDiscontinuity = ((pInPacket->mFlags >> 1) & 1) != 0;
+            const bool bLastPacket = pInPacket->GetLast();
+            const bool bDiscontinuity = pInPacket->GetDiscontinuity();
 
             if (pBuffer != 0)
             {
                 if (mBuffer.GetDataLeft() != 0)
                 {
 
-                    const unsigned int uiUsed = pInPacket->mBufferUsed;
+                    const unsigned int uiUsed = pInPacket->GetUsed();
                     const unsigned int uiLeft =
                         pInputIO->GetDataLeft(uiUsed);
                     void* const pSrc = pInputIO->GetData();
@@ -238,8 +238,8 @@ void StreamDSDMO::Update()
             else
             {
 
-                pDeliver = pInPacket->mBuffer;
-                uiDeliverSize = pInPacket->mBufferUsed;
+                pDeliver = pInPacket->GetBuffer();
+                uiDeliverSize = pInPacket->GetUsed();
             }
 
             if (bLastPacket)
@@ -362,7 +362,7 @@ StreamPacket* StreamDSDMO::GetPacket(unsigned int uiOutput)
         pPacket = StreamSourceProducer::GetPacket(uiOutput);
     }
 
-    if (pPacket != 0 && (pPacket->mFlags & 0x01) != 0)
+    if (pPacket != 0 && pPacket->GetLast())
     {
 
         StreamNode::Stop();

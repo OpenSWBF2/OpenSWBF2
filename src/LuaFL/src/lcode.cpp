@@ -640,6 +640,8 @@ int o1, int o2)
     res->k = VRELOCABLE;
   }
   else {
+    // GLOBAL: SWBF2 0x00771b88
+    // ops
     static const OpCode ops[] = {OP_EQ, OP_EQ, OP_LT, OP_LE, OP_LT, OP_LE};
     int cond = 1;
     if (op >= OPR_GT) {

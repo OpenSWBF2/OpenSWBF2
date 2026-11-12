@@ -1,39 +1,7 @@
 #pragma once
 
 #include <stddef.h>
-
-class RedLodData
-{
-public:
-
-    RedLodData()
-    {
-        _LodBitmask = 0;
-        mLowRezFlags = 0;
-        mMaxDist = 1000.0f;
-    }
-
-    int GetCost(int iLod) const { return _LodCost[iLod]; }
-    bool HasLod(int iLod) const { return (_LodBitmask & (1 << iLod)) != 0; }
-
-    int GetLodClass() const { return _LodClass; }
-    void SetMaxDist(float fMaxDist) { mMaxDist = fMaxDist; }
-    int HasLowRes() const { return mLowRezFlags & 1; }
-    int CrossFadeLowRes() const { return mLowRezFlags & 2; }
-    int HasTransparentSegment() const { return mLowRezFlags & 4; }
-
-    int _LodCost[4];
-    int _LodBitmask;
-    int _LodClass;
-    unsigned char mLowRezFlags;
-    float mMaxDist;
-};
- 
- 
- 
- 
- 
- 
+#include "RedEngineFL/Util/RedSceneObject.h"
 
 class OrdnanceLodData : public RedLodData
 {

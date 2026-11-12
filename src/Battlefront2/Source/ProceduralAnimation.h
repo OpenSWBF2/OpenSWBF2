@@ -120,8 +120,8 @@ public:
     void ReadObject(NetPktGroup& group);
     void WriteObject(NetPktGroup& group);
 
-    bool* EnterClient();
-    bool* LeaveClient();
+    void EnterClient();
+    void LeaveClient();
 
     static void __cdecl ReadHierarchy(PblFileChunk& chunk);
     PAAnimationGroup();

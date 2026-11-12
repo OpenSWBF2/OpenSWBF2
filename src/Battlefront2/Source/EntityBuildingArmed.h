@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "EntityBuilding.h"
+#include "MountedTurret.h"
 #include "Thread.h"
 
 class MountedTurretClass;
@@ -13,6 +14,7 @@ class MountedTurretClass;
 class EntityBuildingArmedClass : public EntityBuildingClass
 {
 public:
+    static const int kMaxTurrets = 8;
     EntityBuildingArmedClass(unsigned int uHash);
 
     EntityBuildingArmedClass(EntityBuildingArmedClass* pBase, unsigned int uHash);
@@ -28,7 +30,7 @@ public:
 
     const MountedTurretClass* GetTurretClass(int iIndex) const;
 
-    MountedTurretClass* mTurretClass[8];
+    MountedTurretClass* mTurretClass[kMaxTurrets];
 
     static PblHash rttiHashEntityBuildingArmedClass;
 
@@ -57,6 +59,7 @@ class FLEffectObject;
 class EntityBuildingArmed : public EntityBuilding, public Thread
 {
 public:
+    static const int kMaxTurrets = EntityBuildingArmedClass::kMaxTurrets;
 
     EntityBuildingArmed(EntityBuildingArmedClass* pClass, const EntityDesc& desc);
 
@@ -70,23 +73,43 @@ public:
     virtual Controllable* GetControllable();
     virtual void ActivatePhysics();
     virtual void DeactivatePhysics();
-    virtual GameObjectType GetGameObjectType();
-    virtual EntityType GetEntityType() const;
     virtual void AddSends(void (*pfnSend)(GameObject*, int), int iArg);
     virtual void WriteObject(NetPktGroup& group, NetObjState* pState);
     virtual void ReadObject(NetPktGroup& group, NetObjState* pState);
     virtual GameObject* AddToClient();
     virtual Trackable* GetTrackable();
-    virtual int GetTurretCount() const;
-    virtual const Controllable* GetTurretPtr(int iIndex) const;
-    virtual const RedPose* GetPose() const;
+    // FUNCTION: SWBF2 0x00476e00
+    virtual int GetTurretCount() const
+    {
+        return mNumTurrets;
+    }
+    // FUNCTION: SWBF2 0x00476e10
+    virtual const Controllable* GetTurretPtr(int iIndex) const
+    {
+        return mTurret[iIndex];
+    }
+    // FUNCTION: SWBF2 0x00476e70
+    virtual GameObjectType GetGameObjectType()
+    {
+        return (GameObjectType)(GO_BUILDING | GO_ARMEDBUILDING);
+    }
+    // FUNCTION: SWBF2 0x004959e0
+    virtual EntityType GetEntityType() const
+    {
+        return ENT_ARMED;
+    }
+    // FUNCTION: SWBF2 0x00476e80
+    virtual const RedPose* GetPose() const
+    {
+        return &mPose;
+    }
     virtual void Render(unsigned char uFlags, float fDist, unsigned int uMask);
     virtual void Kill();
     virtual void Respawn();
     virtual bool Update(float fDeltaTime);
 
     RedPose mPose;
-    MountedTurret* mTurret[8];
+    MountedTurret* mTurret[kMaxTurrets];
     int mNumTurrets;
     PblHandle<FLEffectObject> mSmokePlume;
     bool mNoAIBoard : 1;

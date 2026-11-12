@@ -3,6 +3,7 @@
 #include <d3dx9math.h>
 
 #include "LeafEffect.h"
+#include "CollisionManager.h"
 #include "Battlefront2Lod.h"
 #include "NetGame.h"
 #include "CameraManager.h"
@@ -22,12 +23,7 @@ extern PblMatrix gMatrixIdentity;
 static const float EPSILON = 0.0001f;
 
 class GameObject;
-class CollisionManager
-{
-public:
-    static int GetObjectsInRect(const PblVector3& vMin, const PblVector3& vMax, GameObject** const ppObjects,
-                                int iMaxObjects, const GameObject* pIgnore, int iMask);
-};
+
 
 
 
@@ -36,7 +32,7 @@ FallingLeafParticle::FallingLeafParticle()
     : RedSceneObject(&noloddata)
 {
     mIsValid = false;
-    mTextureHash = 0x2648CD55u;
+    mTextureHash = 0x2648CD55u /* "LEAF" */;
     PlatformInit();
 }
 
@@ -302,7 +298,7 @@ FallingLeafParticle* LeafParticleManager::GetFreeLeaf()
     FallingLeafParticle* pLeaf = sInstance->mNextFreeLeaf;
     if (pLeaf)
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < kMaxLeaves; ++i)
         {
             FallingLeafParticle* pOther = &sInstance->mLeafParticles[i];
             if (!pOther->IsValid() && pOther != pLeaf)
@@ -319,7 +315,7 @@ bool LeafParticleManager::CreateClient()
 {
     if (sInstance)
     {
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < kMaxLeaves; ++i)
         {
             if (sInstance->mLeafParticles[i].IsValid())
             {
@@ -327,7 +323,7 @@ bool LeafParticleManager::CreateClient()
             }
         }
         NetGame::EnterClient();
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < kMaxLeaves; ++i)
         {
             if (sInstance->mLeafParticles[i].IsValid())
             {
@@ -347,7 +343,7 @@ bool LeafParticleManager::CreateClient()
 // FUNCTION: SWBF2 0x0056c810
 bool LeafParticleManager::Update(float fDeltaTime)
 {
-    for (int i = 0; i < 100; ++i)
+    for (int i = 0; i < kMaxLeaves; ++i)
     {
         mLeafParticles[i].Update(fDeltaTime);
         if (!mLeafParticles[i].IsValid())
@@ -369,9 +365,7 @@ bool LeafParticleManager::Update(float fDeltaTime)
             PblVector3 vWind;
             D3DXVec3Normalize((D3DXVECTOR3*)&vWind, (const D3DXVECTOR3*)&FogCloudEffect::Instance()->GetVelocity());
 
-            PblVector3 vBack(vPos.x - (vDir.x + vWind.x) * 30.0f + 0.0f,
-                             vPos.y - (vDir.y + vWind.y) * 30.0f + 1024.0f,
-                             vPos.z - (vDir.z + vWind.z) * 30.0f + 0.0f);
+            PblVector3 vBack = vPos - (vDir + vWind) * 30.0f + PblVector3(0.0f, 1024.0f, 0.0f);
             PblVector3 vMin(vBack.x > vPos.x ? vPos.x : vBack.x,
                             vBack.y > vPos.y ? vPos.y : vBack.y,
                             vBack.z > vPos.z ? vPos.z : vBack.z);
@@ -390,8 +384,8 @@ bool LeafParticleManager::Update(float fDeltaTime)
                         float fWindDist = PblRandom::GetGlobalFloatRange(30.0f, 30.0f);
                         float fDirDist = PblRandom::GetGlobalFloatRange(30.0f, 30.0f);
                         PblVector3 vSpawn;
-                        vSpawn.x = vPos.x - vDir.x * fDirDist - fWindDist * vWind.x;
                         vSpawn.z = vPos.z - vDir.z * fDirDist - vWind.z * fWindDist;
+                        vSpawn.x = vPos.x - vDir.x * fDirDist - fWindDist * vWind.x;
                         vSpawn.y = RedTerrain::GetInterpolatedHeight(vSpawn.x, vSpawn.z);
                         PblVector3 vDrop(vSpawn.x + 0.0f,
                                          PblRandom::_Global.GetFloat() + 1.0f + vSpawn.y,
@@ -406,8 +400,8 @@ bool LeafParticleManager::Update(float fDeltaTime)
                         float fWindDist = PblRandom::GetGlobalFloatRange(30.0f, 30.0f);
                         float fDirDist = PblRandom::GetGlobalFloatRange(30.0f, 30.0f);
                         PblVector3 vSpawn;
-                        vSpawn.x = vPos.x - vDir.x * fDirDist - fWindDist * vWind.x;
                         vSpawn.z = vPos.z - vDir.z * fDirDist - vWind.z * fWindDist;
+                        vSpawn.x = vPos.x - vDir.x * fDirDist - fWindDist * vWind.x;
                         vSpawn.y = RedTerrain::GetInterpolatedHeight(vSpawn.x, vSpawn.z);
                         PblVector3 vDrop(vSpawn.x + 0.0f,
                                          PblRandom::_Global.GetFloat() + 1.0f + vSpawn.y,

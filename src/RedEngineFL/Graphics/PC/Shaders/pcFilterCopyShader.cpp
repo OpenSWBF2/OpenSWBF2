@@ -10,6 +10,8 @@
 #include <string.h>
 #include "PebbleFL/Common/PblMatrix.h"
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
 class PblMatrix;
@@ -18,20 +20,21 @@ extern PblMatrix gMatrixIdentity;
 // GLOBAL: SWBF2 0x007e2110
 unsigned int s_numSimultaneousTextures = 1;
 
+// GLOBAL: SWBF2 0x009ca6d8
+// pcFilterCopyShader::s_uiID
 unsigned int pcFilterCopyShader::s_uiID;
+// GLOBAL: SWBF2 0x009ca6dc
+// pcFilterCopyShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcFilterCopyShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca6e8
+// pcFilterCopyShader::BeginFuncArray
 pcRedShader::BeginFuncT pcFilterCopyShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca6f4
+// pcFilterCopyShader::EndFuncArray
 pcRedShader::EndFuncT pcFilterCopyShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca700
+// pcFilterCopyShader::RenderFuncArray
 pcRedShader::RenderFuncT pcFilterCopyShader::RenderFuncArray[MAX_PIPELINES];
-
-// SYNTHETIC: SWBF2 0x0040a490
-// `dynamic initializer for 'pcFilterCopyShader::s_shaderDef''
-// SYNTHETIC: SWBF2 0x00769fb0
-// `dynamic atexit destructor for 'pcFilterCopyShader::s_shaderDef''
-
-// GLOBAL: SWBF2 0x009ca720
-// pcFilterCopyShader::s_shaderDef
-pcRedShaderDef pcFilterCopyShader::s_shaderDef("filtercopy_shader.xml");
 
 // FUNCTION: SWBF2 0x0070f810
 pcFilterCopyShader::pcFilterCopyShader()
@@ -161,12 +164,6 @@ void pcFilterCopyShader::Begin_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetSamplerState(3, D3DSAMP_MIPFILTER, D3DTEXF_POINT);
 }
 
-// FUNCTION: SWBF2 0x0070fd00
-void pcFilterCopyShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x0070fd20
 void pcFilterCopyShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -177,28 +174,10 @@ void pcFilterCopyShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x0070fd40
-unsigned int pcFilterCopyShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x0070fd60
 RenderPhaseT pcFilterCopyShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_TRANSPARENT;
-}
-
-// FUNCTION: SWBF2 0x0070fd70
-unsigned int pcFilterCopyShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x0070fd80
-pcRedShaderDef* pcFilterCopyShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x0070fd90
@@ -355,21 +334,6 @@ void pcFilterCopyShader::Render_Prog1(const RenderItem* pItem, unsigned int uiPa
     RedRenderer::pcSetViewport(viewport);
 }
 
-// FUNCTION: SWBF2 0x007102b0
-void pcFilterCopyShader::SetSamples(unsigned int uiNumSamples,
-                                    FilterCopyShaderSample* const pSamples)
-{
-    memcpy(m_samples, pSamples, uiNumSamples * sizeof(FilterCopyShaderSample));
-    m_numSamples = uiNumSamples;
-}
-
-// FUNCTION: SWBF2 0x007102e0
-void pcFilterCopyShader::SetTextures(RedTexture* pSrc, RedTexture* pDest)
-{
-    m_srcTex = pSrc;
-    m_destTex = pDest;
-}
-
 // FUNCTION: SWBF2 0x00710300
 pcRedShader* pcFilterCopyShader::_Create(unsigned int uiFlags,
                                          const unsigned int* pParams,
@@ -401,22 +365,22 @@ void pcFilterCopyShader::_Init(unsigned int uiFlags,
 void pcFilterCopyShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcFilterCopyShader::GetState_Fixed);
+        (GetStateFuncT)(&pcFilterCopyShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcFilterCopyShader::Begin_Fixed);
+        (BeginFuncT)(&pcFilterCopyShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcFilterCopyShader::End_Fixed);
+        (EndFuncT)(&pcFilterCopyShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcFilterCopyShader::Render_Fixed);
+        (RenderFuncT)(&pcFilterCopyShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcFilterCopyShader::GetState_Prog1);
+        (GetStateFuncT)(&pcFilterCopyShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcFilterCopyShader::Begin_Prog1);
+        (BeginFuncT)(&pcFilterCopyShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcFilterCopyShader::End_Prog1);
+        (EndFuncT)(&pcFilterCopyShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcFilterCopyShader::Render_Prog1);
+        (RenderFuncT)(&pcFilterCopyShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x00710420
@@ -425,7 +389,7 @@ void pcFilterCopyShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -483,6 +447,15 @@ unsigned int pcFilterCopyShader::s_uiRenderTypeHash = PblHash("FilterCopy");
 // GLOBAL: SWBF2 0x009ca750
 // pcFilterCopyShader::s_Factory
 pcFilterCopyShader pcFilterCopyShader::s_Factory;
+
+// SYNTHETIC: SWBF2 0x0040a490
+// `dynamic initializer for 'pcFilterCopyShader::s_shaderDef''
+// SYNTHETIC: SWBF2 0x00769fb0
+// `dynamic atexit destructor for 'pcFilterCopyShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009ca720
+// pcFilterCopyShader::s_shaderDef
+pcRedShaderDef pcFilterCopyShader::s_shaderDef("filtercopy_shader.xml");
 
 // GLOBAL: SWBF2 0x009ca710
 unsigned int g_pcFilterCopyShader;

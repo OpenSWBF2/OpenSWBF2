@@ -11,7 +11,11 @@ public:
     {
     }
 
-    virtual void Kill();
+    // FUNCTION: SWBF2 0x0050b400
+    virtual void Kill()
+    {
+        mAliveFlag = 0;
+    }
 
     // SYNTHETIC: SWBF2 0x0050b410
     // PblRef::~PblRef

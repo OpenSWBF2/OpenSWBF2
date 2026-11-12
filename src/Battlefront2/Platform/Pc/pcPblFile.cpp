@@ -375,15 +375,3 @@ int PblFile::Tell() const
     }
     return ((Snd::FilePlatform*)_Buffer)->GetPos();
 }
-
-namespace RedMissionLog
-{
-    // GLOBAL: SWBF2 0x00964f78
-    bool mEnabled;
-}
-
-// FUNCTION: SWBF2 0x006ccca0
-bool RedMissionLog::Enabled()
-{
-    return RedMissionLog::mEnabled;
-}

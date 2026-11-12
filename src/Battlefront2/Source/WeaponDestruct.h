@@ -6,7 +6,8 @@
 
 #include "OrbitalStrike.h"
 #include "Weapon.h"
-#include "WeaponCannonInstance.h"
+#include "PebbleFL/Common/PblRtti.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
 class ExplosionClass;
@@ -46,9 +47,13 @@ public:
     WeaponDestruct(const WeaponDestructClass* pClass, const WeaponDesc& desc);
     virtual ~WeaponDestruct();
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
+    // FUNCTION: SWBF2 0x00681a10
+    // WeaponDestruct::IsRtti
+    // FUNCTION: SWBF2 0x00681a40
+    // WeaponDestruct::GetDerivedRtti
+    // FUNCTION: SWBF2 0x00681a50
+    // WeaponDestruct::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(WeaponDestruct, Weapon)
     virtual bool IsBusy() const;
 
 protected:
@@ -61,35 +66,11 @@ protected:
     virtual bool FireDone() const;
 
 public:
-    static PblHash rttiHashWeaponDestruct;
-    static const char rttiNameWeaponDestruct[];
 
     PblHandle<OrbitalStrike> mStrike;
 };
  
  
-
-// FUNCTION: SWBF2 0x00681a10
-inline bool WeaponDestruct::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashWeaponDestruct == uRtti)
-    {
-        return true;
-    }
-    return Weapon::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x00681a40
-inline unsigned int WeaponDestruct::GetDerivedRtti() const
-{
-    return rttiHashWeaponDestruct;
-}
-
-// FUNCTION: SWBF2 0x00681a50
-inline const char* WeaponDestruct::GetDerivedRttiName() const
-{
-    return rttiNameWeaponDestruct;
-}
 
 // FUNCTION: SWBF2 0x00681a60
 inline bool WeaponDestructClass::IsRtti(unsigned int uRtti) const

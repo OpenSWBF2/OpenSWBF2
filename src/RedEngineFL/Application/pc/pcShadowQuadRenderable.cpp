@@ -36,13 +36,6 @@
 // GLOBAL: SWBF2 0x009c893c
 pcShadowQuadRenderable* pcShadowQuadRenderable::s_pInstance;
 
-// SYNTHETIC: SWBF2 0x004094a0
-// `dynamic initializer for 'kuiClearShader''
-
-// GLOBAL: SWBF2 0x009c8944
-// kuiClearShader
-static const unsigned int kuiClearShader = PblHash("Clear");
-
 // SYNTHETIC: SWBF2 0x004094c0
 // `dynamic initializer for 'kuiFilterShader''
 
@@ -51,37 +44,16 @@ static const unsigned int kuiClearShader = PblHash("Clear");
 // STRING: SWBF2 0x00784420
 static const unsigned int kuiFilterShader = PblHash("FilterCopy");
 
-static void __cdecl ShadowQuadReset(ResetFlagsT eFlags)
-{
-    pcShadowQuadRenderable* pQuad = pcShadowQuadRenderable::Instance();
-    RedTexture* pSky = RedRenderer::pcGetBuffer(PC_BUFFER_SKY);
-    if (!pQuad || !pSky)
-    {
-        return;
-    }
-    if (eFlags & RESETFLAGS_FREE_RESOURCES)
-    {
-        delete pQuad->m_pShadowTex;
-        pQuad->m_pShadowTex = 0;
-    }
-    if (eFlags & RESETFLAGS_CREATE_RESOURCES)
-    {
-        const D3DPRESENT_PARAMETERS& pp = RedRenderer::pcGetPresentParameters();
-        if (!pQuad->m_pShadowTex &&
-            !DisplayLogic::ShadowQuadSharesSky(pp.BackBufferWidth, pp.BackBufferHeight,
-                                               (unsigned int)pp.MultiSampleType,
-                                               RedVideoConfig::VidMode_IsDriverMultisampling(),
-                                               pSky->m_uiWidth, pSky->m_uiHeight))
-        {
-            pQuad->m_pShadowTex = new RedTexture(pSky->m_uiWidth, pSky->m_uiHeight, pSky->m_format,
-                                                 1, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
-        }
-    }
-}
+// SYNTHETIC: SWBF2 0x004094a0
+// `dynamic initializer for 'kuiClearShader''
+
+// GLOBAL: SWBF2 0x009c8944
+// kuiClearShader
+static const unsigned int kuiClearShader = PblHash("Clear");
 
 // FUNCTION: SWBF2 0x006fbdf0
 pcShadowQuadRenderable::pcShadowQuadRenderable()
-    : Renderable(4)
+    : Renderable(RENDERABLE_POSTSHADOW)
 {
     m_pPrimitive = 0;
     m_pShadowShader = 0;
@@ -159,7 +131,7 @@ void pcShadowQuadRenderable::Cleanup()
 // FUNCTION: SWBF2 0x006fc0a0
 void pcShadowQuadRenderable::Init()
 {
-    m_pShadowShader = pcRedShader::Create(0x9296fc1a, 2, 0, 0, 0,
+    m_pShadowShader = pcRedShader::Create(0x9296fc1a /* "ShadowQuad" */, 2, 0, 0, 0,
                                           RedColor::WHITE, RedColor::BLACK, 32.0f);
     m_pFilterShader = (pcFilterCopyShader*)pcRedShader::Create(
         kuiFilterShader, 0x202, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
@@ -222,7 +194,7 @@ void pcShadowQuadRenderable::Init()
  
 
 // FUNCTION: SWBF2 0x006fc2e0
-void pcShadowQuadRenderable::Render(int value)
+void pcShadowQuadRenderable::Render(unsigned int value) const
 {
     if (!RedStencilShadow::GetShadowEnable())
     {
@@ -230,7 +202,7 @@ void pcShadowQuadRenderable::Render(int value)
         return;
     }
 
-    if (RedRenderer::pcGetRenderCaps().pipeline == 0)
+    if (RedRenderer::pcGetRenderCaps().pipeline == PIPELINE_FIXED)
     {
         RedRenderer::pcRenderPrimitive(m_pPrimitive,
                                        m_pShadowShader,
@@ -247,6 +219,7 @@ void pcShadowQuadRenderable::Render(int value)
     IDirect3DSurface9* pSavedDepth = RedRenderer::pcGetDepthTarget();
 
     RedTexture* target = (RedTexture*)m_pShadowTex;
+
     if (!target)
     {
         target = RedRenderer::pcGetBuffer(PC_BUFFER_SKY);
@@ -305,7 +278,7 @@ void pcShadowQuadRenderable::Render(int value)
                                    0, 0);
     RedDropShadowManager::Render(value | 0x200);
 
-    if (m_pShadowTex)
+    if (target == (RedTexture*)m_pShadowTex)
     {
         RECT source = { (int)left, (int)top, (int)right, (int)bottom };
         RECT dest = { 0, 0, (int)target->m_uiWidth, (int)target->m_uiHeight };

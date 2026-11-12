@@ -8,7 +8,7 @@
 #include "CollisionObject.h"
 #include "GameSound.h"
 #include "Weapon.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
 class CollisionBodyPrimitive;

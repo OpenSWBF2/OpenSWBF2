@@ -2,6 +2,7 @@
 #include "CollisionManager.h"
 #include "GameModel.h"
 #include "NetGame.h"
+#include "PassengerSlot.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
 // SYNTHETIC: SWBF2 0x00402680
@@ -21,6 +22,44 @@ MemoryPool CommandFlyer::sMemoryPool("CommandFlyer", sizeof(CommandFlyer));
 // CommandFlyer::rttiHashCommandFlyer
 PblHash CommandFlyer::rttiHashCommandFlyer("CommandFlyer");
 const char CommandFlyer::rttiNameCommandFlyer[] = "CommandFlyer";
+
+// FUNCTION: SWBF2 0x00477f10
+Controllable* CommandFlyer::GetPassengerSlot(bool)
+{
+    if (EntityFlyer::mClass->mPassengerSlotClass)
+    {
+        Controllable* pLast = 0;
+        for (int i = 0; i < EntityFlyer::mClass->mNumPassengerSlots; ++i)
+        {
+            PassengerSlot* pCraft = mPassengerSlots[i];
+            if (!pCraft)
+            {
+                continue;
+            }
+            Controllable* pThis = (Controllable*)this;
+            Controllable* pCurrent = (pThis->mPilotType == PILOT_SELF ||
+                                     (pThis->mPilotType == PILOT_VEHICLESELF && pThis->mPilot == pThis))
+                                        ? 0 : pThis->mPilot;
+            if (pCurrent == (Controllable*)pCraft || pCraft->mPlayerId >= 0)
+            {
+                continue;
+            }
+            pLast = (Controllable*)pCraft;
+            if (!((Trackable*)pCraft)->GetControllable())
+            {
+                return (Controllable*)pCraft;
+            }
+        }
+        return pLast;
+    }
+    return 0;
+}
+
+// FUNCTION: SWBF2 0x00477fd0
+bool CommandFlyer::IsLanded()
+{
+    return mState == LANDED;
+}
 
 // FUNCTION: SWBF2 0x00478040
 CommandFlyerClass::CommandFlyerClass(unsigned int uHash)
@@ -57,6 +96,17 @@ CommandFlyerClass::CommandFlyerClass(CommandFlyerClass* pBase, unsigned int uHas
     : EntityFlyerClass(pBase, uHash), CommandPostClass(pBase, uHash)
 {
 }
+
+// SYNTHETIC: SWBF2 0x004780b0
+// CommandFlyerClass::`scalar deleting destructor'
+
+// FUNCTION: SWBF2 0x00478160
+CommandFlyerClass::~CommandFlyerClass()
+{
+}
+
+// SYNTHETIC: SWBF2 0x004785f1
+// ??_ECommandFlyerClass@@WBAKA@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x004781c0
 void CommandFlyerClass::SetProperty(unsigned int uProperty, const char* pszValue)

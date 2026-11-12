@@ -31,7 +31,7 @@ void ParticleEmitterEffect::Create()
 
 
 // FUNCTION: SWBF2 0x00618610
-void ParticleEmitterEffect::Render(int)
+void ParticleEmitterEffect::Render(unsigned int) const
 {
 }
 
@@ -75,13 +75,13 @@ void PE_ChunkLoader::LoadSpreadData(ParticleSpawner::SpreadData& data, PblConfig
         PblConfig::Data line = config.ReadNextData();
         switch (line.GetId())
         {
-        case 0x57d87d76u:
+        case 0x57d87d76u: /* "PositionX" */
             ReadVarianceValue(data.mPositionX, line, 1.0f);
             break;
-        case 0x58d87f09u:
+        case 0x58d87f09u: /* "PositionY" */
             ReadVarianceValue(data.mPositionY, line, 1.0f);
             break;
-        case 0x55d87a50u:
+        case 0x55d87a50u: /* "PositionZ" */
             ReadVarianceValue(data.mPositionZ, line, 1.0f);
             break;
         }
@@ -96,15 +96,15 @@ void PE_ChunkLoader::LoadRotationData(ParticleSpawner::RotationData& data, PblCo
         PblConfig::Data line = config.ReadNextData();
         switch (line.GetId())
         {
-        case 0xe9b852e5u: ReadVarianceValue(data.mStartX, line, 1.0f); break;
-        case 0xf102de8au: ReadVarianceValue(data.mStartMoveX, line, 1.0f); break;
-        case 0xaa11aa04u: ReadVarianceValue(data.mMoveX, line, 1.0f); break;
-        case 0xe8b85152u: ReadVarianceValue(data.mStartY, line, 1.0f); break;
-        case 0xab11ab97u: ReadVarianceValue(data.mMoveY, line, 1.0f); break;
-        case 0xf202e01du: ReadVarianceValue(data.mStartMoveY, line, 1.0f); break;
-        case 0xe7b84fbfu: ReadVarianceValue(data.mStartZ, line, 1.0f); break;
-        case 0xac11ad2au: ReadVarianceValue(data.mMoveZ, line, 1.0f); break;
-        case 0xef02db64u: ReadVarianceValue(data.mStartMoveZ, line, 1.0f); break;
+        case 0xe9b852e5u: /* "StartX" */ ReadVarianceValue(data.mStartX, line, 1.0f); break;
+        case 0xf102de8au: /* "StartMoveX" */ ReadVarianceValue(data.mStartMoveX, line, 1.0f); break;
+        case 0xaa11aa04u: /* "MoveX" */ ReadVarianceValue(data.mMoveX, line, 1.0f); break;
+        case 0xe8b85152u: /* "StartY" */ ReadVarianceValue(data.mStartY, line, 1.0f); break;
+        case 0xab11ab97u: /* "MoveY" */ ReadVarianceValue(data.mMoveY, line, 1.0f); break;
+        case 0xf202e01du: /* "StartMoveY" */ ReadVarianceValue(data.mStartMoveY, line, 1.0f); break;
+        case 0xe7b84fbfu: /* "StartZ" */ ReadVarianceValue(data.mStartZ, line, 1.0f); break;
+        case 0xac11ad2au: /* "MoveZ" */ ReadVarianceValue(data.mMoveZ, line, 1.0f); break;
+        case 0xef02db64u: /* "StartMoveZ" */ ReadVarianceValue(data.mStartMoveZ, line, 1.0f); break;
         }
     }
 }
@@ -117,78 +117,78 @@ void PE_ChunkLoader::LoadSpawner(ParticleSpawner& spawner, PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x14c8d3cau:
+        case 0x14c8d3cau: /* "Offset" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             LoadSpreadData(spawner.mOffset, scope);
             break;
         }
-        case 0x494a00ceu:
+        case 0x494a00ceu: /* "Spread" */
         {
             spawner.mDirectionType = ParticleSpawner::SPAWN_SPREAD;
             PblConfig scope(config.ReadNextScope(), true);
             LoadSpreadData(spawner.mDirectionData.mSpreadData, scope);
             break;
         }
-        case 0xd8760e19u:
+        case 0xd8760e19u: /* "Vortex" */
         {
             spawner.mDirectionType = ParticleSpawner::SPAWN_VORTEX;
             PblConfig scope(config.ReadNextScope(), true);
             LoadRotationData(spawner.mDirectionData.mRotationData, scope);
             break;
         }
-        case 0x28217089u:
+        case 0x28217089u: /* "Circle" */
         {
             spawner.mDirectionType = ParticleSpawner::SPAWN_CIRCLE;
             PblConfig scope(config.ReadNextScope(), true);
             LoadSpreadData(spawner.mDirectionData.mSpreadData, scope);
             break;
         }
-        case 0xc091789au:
+        case 0xc091789au: /* "Rotator" */
         {
             spawner.mDirectionType = ParticleSpawner::SPAWN_ROTATOR;
             PblConfig scope(config.ReadNextScope(), true);
             LoadRotationData(spawner.mDirectionData.mRotationData, scope);
             break;
         }
-        case 0x9ff363c0u:
+        case 0x9ff363c0u: /* "PositionScale" */
             ReadVarianceValue(spawner.mPositionDirectionScale, data, 1.0f);
             break;
-        case 0x983c4168u:
+        case 0x983c4168u: /* "VelocityScale" */
             ReadVarianceValue(spawner.mVelocityDirectionScale, data, 1.0f);
             break;
-        case 0xb9a4157cu:
+        case 0xb9a4157cu: /* "InheritVelocityFactor" */
             ReadVarianceValue(spawner.mInheritVelocityFactor, data, 1.0f);
             break;
-        case 0x23a0d95cu:
+        case 0x23a0d95cu: /* "Size" */
             ReadVarianceValue(spawner.mSize, data, 1.0f);
             break;
-        case 0x40f480dcu:
+        case 0x40f480dcu: /* "Red" */
             spawner.mUseHSV = false;
             ReadVarianceValue(spawner.mRed, data, 1.0f / 255.0f);
             break;
-        case 0xe38d6359u:
+        case 0xe38d6359u: /* "Hue" */
             spawner.mUseHSV = true;
             ReadVarianceValue(spawner.mRed, data, 1.0f / 255.0f);
             break;
-        case 0x011decbcu:
-        case 0xf5a2e289u:
+        case 0x011decbcu: /* "Green" */
+        case 0xf5a2e289u: /* "Saturation" */
             ReadVarianceValue(spawner.mGreen, data, 1.0f / 255.0f);
             break;
-        case 0x82fbf5cdu:
-        case 0x425ed3cau:
+        case 0x82fbf5cdu: /* "Blue" */
+        case 0x425ed3cau: /* "Value" */
             ReadVarianceValue(spawner.mBlue, data, 1.0f / 255.0f);
             break;
-        case 0x5d8b6dabu:
+        case 0x5d8b6dabu: /* "Alpha" */
             ReadVarianceValue(spawner.mAlpha, data, 1.0f / 255.0f);
             break;
-        case 0x5083ecd9u:
+        case 0x5083ecd9u: /* "FadeInTime" */
             spawner.mFadeInTime = data.GetFloatArg(0);
             break;
-        case 0x3d4cef81u:
+        case 0x3d4cef81u: /* "StartRotation" */
             ReadVarianceValue(spawner.mStartRotation, data, 1.0f);
             break;
-        case 0x164b5138u:
+        case 0x164b5138u: /* "RotationVelocity" */
             ReadVarianceValue(spawner.mRotVelocity, data, 1.0f);
             break;
         }
@@ -211,16 +211,16 @@ ParticleEmitterClass* PE_ChunkLoader::LoadEmitter(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x826cd95eu:
+        case 0x826cd95eu: /* "StartDelay" */
             ReadVarianceValue(pClass->mStartDelay, data, 1.0f);
             break;
-        case 0x78fc3314u:
+        case 0x78fc3314u: /* "BurstDelay" */
             ReadVarianceValue(pClass->mBurstDelay, data, 1.0f);
             break;
-        case 0x33cbb418u:
+        case 0x33cbb418u: /* "BurstCount" */
             ReadVarianceValue(pClass->mBurstCount, data, 1.0f);
             break;
-        case 0x865d5c88u:
+        case 0x865d5c88u: /* "MaxParticles" */
             ReadVarianceValue(pClass->mMaxParticles, data, 1.0f);
             if (CameraManager::Instance()->GetNumCameras() > 1 && pClass->mMaxParticles.GetMin() > 0.0f &&
                 pClass->mMaxParticles.GetMax() != 0.0f)
@@ -233,59 +233,59 @@ ParticleEmitterClass* PE_ChunkLoader::LoadEmitter(PblConfig& config)
                 pClass->mMaxParticles.Setup(fMin, util::Max_(fHalfMax, fOne2));
             }
             break;
-        case 0x40f480dcu:
+        case 0x40f480dcu: /* "Red" */
             pClass->mUseHSV = false;
             ReadVarianceValue(pClass->mRed, data, 1.0f / 255.0f);
             break;
-        case 0xe38d6359u:
+        case 0xe38d6359u: /* "Hue" */
             pClass->mUseHSV = true;
             ReadVarianceValue(pClass->mRed, data, 1.0f / 255.0f);
             break;
-        case 0x011decbcu:
-        case 0xf5a2e289u:
+        case 0x011decbcu: /* "Green" */
+        case 0xf5a2e289u: /* "Saturation" */
             ReadVarianceValue(pClass->mGreen, data, 1.0f / 255.0f);
             break;
-        case 0x82fbf5cdu:
-        case 0x425ed3cau:
+        case 0x82fbf5cdu: /* "Blue" */
+        case 0x425ed3cau: /* "Value" */
             ReadVarianceValue(pClass->mBlue, data, 1.0f / 255.0f);
             break;
-        case 0x5d8b6dabu:
+        case 0x5d8b6dabu: /* "Alpha" */
             ReadVarianceValue(pClass->mAlpha, data, 1.0f / 255.0f);
             break;
-        case 0x23a0d95cu:
+        case 0x23a0d95cu: /* "Size" */
             ReadVarianceValue(pClass->mSize, data, 1.0f);
             break;
-        case 0x4936726fu:
+        case 0x4936726fu: /* "Spawner" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             LoadSpawner(pClass->mSpawner, scope);
             break;
         }
-        case 0xf1773bf8u:
+        case 0xf1773bf8u: /* "Transformer" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             LoadTransformer(pClass->mTransformer, scope);
             break;
         }
-        case 0x2a6d8591u:
+        case 0x2a6d8591u: /* "Geometry" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             LoadGeometry(pClass->mGeometry, scope);
             break;
         }
-        case 0xcebb215fu:
+        case 0xcebb215fu: /* "ParticleEmitter" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             pClass->mNext = LoadEmitter(scope);
             break;
         }
-        case 0x6245ae9eu:
+        case 0x6245ae9eu: /* "MinLodDist" */
             pClass->mMinDistLOD = data.GetFloatArg(0);
             break;
-        case 0xb9d61dccu:
+        case 0xb9d61dccu: /* "MaxLodDist" */
             pClass->mMaxDistLOD = data.GetFloatArg(0);
             break;
-        case 0xcbbfdf2bu:
+        case 0xcbbfdf2bu: /* "BoundingRadius" */
         {
             float fRadius = data.GetFloatArg(0);
             pClass->mBoundingRadius = fRadius;
@@ -303,13 +303,13 @@ ParticleEmitterClass* PE_ChunkLoader::LoadEmitter(PblConfig& config)
             }
             break;
         }
-        case 0xa7fc4de1u:
+        case 0xa7fc4de1u: /* "NoRegisterStep" */
             pClass->mNoRegisterStep = true;
             break;
-        case 0x33bbef79u:
+        case 0x33bbef79u: /* "WorldAligned" */
             pClass->mWorldAlignedFlag = true;
             break;
-        case 0x7a5ff18fu:
+        case 0x7a5ff18fu: /* "SoundName" */
             if (data.GetNumArgs() == 1)
             {
                 pClass->mAmbientSound.SetID(data.GetStringArg(0), false, false);
@@ -341,7 +341,7 @@ void PE_ChunkLoader::LoadTransformer(ParticleTransformer& transformer, PblConfig
 
         switch (data.GetId())
         {
-        case 0x23a0d95cu:
+        case 0x23a0d95cu: /* "Size" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             int iIndex = (int)fArg;
@@ -350,7 +350,7 @@ void PE_ChunkLoader::LoadTransformer(ParticleTransformer& transformer, PblConfig
             transformer.mNumSizeTrans = transformer.mNumSizeTrans > iCount ? transformer.mNumSizeTrans : iCount;
             break;
         }
-        case 0x21ac415fu:
+        case 0x21ac415fu: /* "Rotation" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             int iIndex = (int)fArg;
@@ -359,7 +359,7 @@ void PE_ChunkLoader::LoadTransformer(ParticleTransformer& transformer, PblConfig
             transformer.mNumRotationTrans = transformer.mNumRotationTrans > iCount ? transformer.mNumRotationTrans : iCount;
             break;
         }
-        case 0x3d7e6258u:
+        case 0x3d7e6258u: /* "Color" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             int iIndex = (int)fArg;
@@ -368,13 +368,13 @@ void PE_ChunkLoader::LoadTransformer(ParticleTransformer& transformer, PblConfig
             transformer.mNumColorTrans = transformer.mNumColorTrans > iCount ? transformer.mNumColorTrans : iCount;
             break;
         }
-        case 0x934f4e0au:
+        case 0x934f4e0au: /* "Position" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             transformer.mPositionTrans = LoadPositionTrans(scope);
             break;
         }
-        case 0x5212abeeu:
+        case 0x5212abeeu: /* "LifeTime" */
             transformer.mLifeTime = fArg;
             break;
         }
@@ -389,28 +389,28 @@ void PE_ChunkLoader::LoadGeometry(ParticleGeometry& geometry, PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x5127f14du:
+        case 0x5127f14du: /* "Type" */
             switch (PblHash(data.GetStringArg(0)))
             {
-            case 0x596f63f3u:
+            case 0x596f63f3u: /* "STREAK" */
                 geometry.mType = ParticleGeometry::PT_STREAK;
                 break;
-            case 0x576b09cdu:
+            case 0x576b09cdu: /* "Emitter" */
                 geometry.mType = ParticleGeometry::PT_EMITTER;
                 break;
-            case 0x6f35dfbcu:
+            case 0x6f35dfbcu: /* "ANIMATED" */
                 geometry.mType = ParticleGeometry::PT_ANIMATED;
                 break;
-            case 0x2a6d8591u:
+            case 0x2a6d8591u: /* "Geometry" */
                 geometry.mType = ParticleGeometry::PT_GEOMETRY;
                 break;
-            case 0xe506fa64u:
+            case 0xe506fa64u: /* "BILLBOARD" */
                 geometry.mType = ParticleGeometry::PT_BILLBOARD;
                 break;
-            case 0x3f2f216au:
+            case 0x3f2f216au: /* "SPARK" */
                 geometry.mType = ParticleGeometry::PT_SPARK;
                 break;
-            case 0x8a8743bfu:
+            case 0x8a8743bfu: /* "PARTICLE" */
                 geometry.mType = ParticleGeometry::PT_PARTICLE;
                 break;
             default:
@@ -418,12 +418,12 @@ void PE_ChunkLoader::LoadGeometry(ParticleGeometry& geometry, PblConfig& config)
                 break;
             }
             break;
-        case 0xfa784eabu:
+        case 0xfa784eabu: /* "BlendMode" */
         {
             unsigned int uiMode = PblHash(data.GetStringArg(0));
-            if (uiMode != 0x06a6a0a5u)
+            if (uiMode != 0x06a6a0a5u /* "ADDITIVE" */)
             {
-                geometry.mBlendMode = uiMode != 0x6bfbd198u ? BLEND_NORMAL : BLEND_BLUR;
+                geometry.mBlendMode = uiMode != 0x6bfbd198u /* "BLUR" */ ? BLEND_NORMAL : BLEND_BLUR;
             }
             else
             {
@@ -431,7 +431,7 @@ void PE_ChunkLoader::LoadGeometry(ParticleGeometry& geometry, PblConfig& config)
             }
             break;
         }
-        case 0x3c6468f4u:
+        case 0x3c6468f4u: /* "Texture" */
         {
             geometry.mTextureHash = PblHash(data.GetStringArg(0));
             RedTexture* pTexture = RedTexture::Find(geometry.mTextureHash);
@@ -464,19 +464,19 @@ void PE_ChunkLoader::LoadGeometry(ParticleGeometry& geometry, PblConfig& config)
             }
             break;
         }
-        case 0xb08b665au:
+        case 0xb08b665au: /* "Model" */
             geometry.mTextureHash = PblHash(data.GetStringArg(0));
             break;
-        case 0xcebb215fu:
+        case 0xcebb215fu: /* "ParticleEmitter" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             geometry.mEmitterClass = LoadEmitter(scope);
             break;
         }
-        case 0x413495b0u:
+        case 0x413495b0u: /* "TimePerFrame" */
             geometry.mTimePerFrame = data.GetFloatArg(0);
             break;
-        case 0xfaf59ea7u:
+        case 0xfaf59ea7u: /* "FrameSize" */
         {
             int iSize = data.GetInt32Arg(0);
             geometry.mFrameSizeLog = 0.0f;
@@ -486,19 +486,19 @@ void PE_ChunkLoader::LoadGeometry(ParticleGeometry& geometry, PblConfig& config)
             }
             break;
         }
-        case 0x55799c97u:
+        case 0x55799c97u: /* "TotalFrames" */
             geometry.mTotalFrames = data.GetFloatArg(0);
             break;
-        case 0xfc1fd229u:
+        case 0xfc1fd229u: /* "blurValue" */
             geometry.mBlurValue = data.GetFloatArg(0);
             break;
-        case 0x7971e4d6u:
+        case 0x7971e4d6u: /* "BlurRes" */
             geometry.mBlurParam = data.GetInt32Arg(0);
             break;
-        case 0x530aaa4eu:
+        case 0x530aaa4eu: /* "SparkLength" */
             geometry.mSparkLength = data.GetFloatArg(0);
             break;
-        case 0x7593992du:
+        case 0x7593992du: /* "Looping" */
             geometry.mLooping = data.GetFloatArg(0) != 0.0f;
             break;
         }
@@ -515,7 +515,7 @@ ParticleTransformer::PositionTransformer* PE_ChunkLoader::LoadPositionTrans(PblC
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x5212abeeu:
+        case 0x5212abeeu: /* "LifeTime" */
         {
             float fLifeTime = data.GetFloatArg(0);
             pTrans->mLifeTime = fLifeTime;
@@ -529,25 +529,25 @@ ParticleTransformer::PositionTransformer* PE_ChunkLoader::LoadPositionTrans(PblC
             }
             break;
         }
-        case 0x5cb68de8u:
+        case 0x5cb68de8u: /* "Next" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             pTrans->mNextState = LoadPositionTrans(scope);
             break;
         }
-        case 0x9d9f16f0u:
+        case 0x9d9f16f0u: /* "Accelerate" */
             pTrans->mData.mAccelerate.mAccX = data.GetFloatArg(0);
             pTrans->mData.mAccelerate.mAccY = data.GetFloatArg(1);
             pTrans->mType = ParticleTransformer::PositionTransformer::ACCELERATE;
             pTrans->mData.mAccelerate.mAccZ = data.GetFloatArg(2);
             break;
-        case 0x4cfd5078u:
+        case 0x4cfd5078u: /* "Reach" */
             pTrans->mData.mReach.mVelX = data.GetFloatArg(0);
             pTrans->mData.mReach.mVelY = data.GetFloatArg(1);
             pTrans->mType = ParticleTransformer::PositionTransformer::REACH;
             pTrans->mData.mReach.mVelZ = data.GetFloatArg(2);
             break;
-        case 0x82971c71u:
+        case 0x82971c71u: /* "Scale" */
             pTrans->mType = ParticleTransformer::PositionTransformer::SCALE;
             pTrans->mData.mScale.mScale = data.GetFloatArg(0);
             break;
@@ -565,7 +565,7 @@ ParticleTransformer::SizeTransformer* PE_ChunkLoader::LoadSizeTrans(PblConfig& c
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x5212abeeu:
+        case 0x5212abeeu: /* "LifeTime" */
         {
             float fLifeTime = data.GetFloatArg(0);
             pTrans->mLifeTime = fLifeTime;
@@ -579,7 +579,7 @@ ParticleTransformer::SizeTransformer* PE_ChunkLoader::LoadSizeTrans(PblConfig& c
             }
             break;
         }
-        case 0x5cb68de8u:
+        case 0x5cb68de8u: /* "Next" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             pTrans->mNextState = LoadSizeTrans(scope);
@@ -602,7 +602,7 @@ ParticleTransformer::RotationTransformer* PE_ChunkLoader::LoadRotationTrans(PblC
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x5212abeeu:
+        case 0x5212abeeu: /* "LifeTime" */
         {
             float fLifeTime = data.GetFloatArg(0);
             pTrans->mLifeTime = fLifeTime;
@@ -616,7 +616,7 @@ ParticleTransformer::RotationTransformer* PE_ChunkLoader::LoadRotationTrans(PblC
             }
             break;
         }
-        case 0x5cb68de8u:
+        case 0x5cb68de8u: /* "Next" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             pTrans->mNextState = LoadRotationTrans(scope);
@@ -639,21 +639,21 @@ ParticleTransformer::ColorTransformer* PE_ChunkLoader::LoadColorTrans(PblConfig&
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x184b0014u:
+        case 0x184b0014u: /* "Move" */
             pTrans->mType = ParticleTransformer::ColorTransformer::MOVE;
             pTrans->mR = data.GetFloatArg(0) * (1.0f / 255.0f);
             pTrans->mG = data.GetFloatArg(1) * (1.0f / 255.0f);
             pTrans->mB = data.GetFloatArg(2) * (1.0f / 255.0f);
             pTrans->mA = data.GetFloatArg(3) * (1.0f / 255.0f);
             break;
-        case 0x4cfd5078u:
+        case 0x4cfd5078u: /* "Reach" */
             pTrans->mType = ParticleTransformer::ColorTransformer::REACH;
             pTrans->mR = data.GetFloatArg(0) * (1.0f / 255.0f);
             pTrans->mG = data.GetFloatArg(1) * (1.0f / 255.0f);
             pTrans->mB = data.GetFloatArg(2) * (1.0f / 255.0f);
             pTrans->mA = data.GetFloatArg(3) * (1.0f / 255.0f);
             break;
-        case 0x5212abeeu:
+        case 0x5212abeeu: /* "LifeTime" */
         {
             float fLifeTime = data.GetFloatArg(0);
             pTrans->mLifeTime = fLifeTime;
@@ -667,7 +667,7 @@ ParticleTransformer::ColorTransformer* PE_ChunkLoader::LoadColorTrans(PblConfig&
             }
             break;
         }
-        case 0x5cb68de8u:
+        case 0x5cb68de8u: /* "Next" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             pTrans->mNextState = LoadColorTrans(scope);
@@ -683,15 +683,15 @@ void PE_ChunkLoader::LoadDataTrans(ParticleTransformer::DataTransformer& trans, 
 {
     switch (data.GetId())
     {
-    case 0x184b0014u:
+    case 0x184b0014u: /* "Move" */
         trans.mType = ParticleTransformer::DataTransformer::MOVE;
         trans.mData = data.GetFloatArg(0);
         break;
-    case 0x4cfd5078u:
+    case 0x4cfd5078u: /* "Reach" */
         trans.mType = ParticleTransformer::DataTransformer::REACH;
         trans.mData = data.GetFloatArg(0);
         break;
-    case 0x82971c71u:
+    case 0x82971c71u: /* "Scale" */
         trans.mType = ParticleTransformer::DataTransformer::SCALE;
         trans.mData = data.GetFloatArg(0);
         break;

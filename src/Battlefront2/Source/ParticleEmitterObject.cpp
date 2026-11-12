@@ -108,13 +108,6 @@ void ParticleEmitterObject::StopNow()
     }
 }
 
-// FUNCTION: SWBF2 0x006371c0
-void ParticleEmitterObject::PermaRemoveParticleEffect()
-{
-    RedSceneObject::RemoveFromScene();
-    mbAddedToScene = false;
-}
-
 // FUNCTION: SWBF2 0x0060c400
 bool ParticleEmitterObject::IsEffectActive() const
 {
@@ -363,7 +356,7 @@ void ParticleEmitterObject::Render_(unsigned char ucViewport, float fDist, unsig
         vMax.y += 450.0f;
         vMax.z += 450.0f;
         if (!ParticleSystem::PrepareForRender(mEmitter, GetRenderPos(), ucViewport, fDist, uiFlags, _Sphere.w, vMin,
-                                              vMax, GetLodData()->mMaxDist))
+                                              vMax, GetLodData()->GetMaxDist()))
         {
             return;
         }

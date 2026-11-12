@@ -9,8 +9,8 @@
 // HUD::Transform::sList
 PblListSingle HUD::Transform::sList;
 
-static const unsigned int kEventInputHash = 0xcce718ed;
-static const unsigned int kEventOutputHash = 0x6903ed32;
+static const unsigned int kEventInputHash = 0xcce718ed /* "EventInput" */;
+static const unsigned int kEventOutputHash = 0x6903ed32 /* "EventOutput" */;
 
 // FUNCTION: SWBF2 0x00567200
 bool HUD::Transform::SetProperty(const unsigned int, const void* const)

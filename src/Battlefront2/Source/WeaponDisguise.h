@@ -31,7 +31,7 @@ public:
   
  
 
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 
 class Controllable;
 class GameModel;

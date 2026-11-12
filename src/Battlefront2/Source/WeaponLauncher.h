@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 #include "WeaponCannon.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
 #include "PebbleFL/Common/PblHandle.h"
@@ -23,9 +23,12 @@ public:
     bool IsRtti(unsigned int uRtti) const;
     unsigned int GetDerivedRtti() const;
     const char* GetDerivedRttiName() const;
-    bool IsLocked() const;
-    const GameObject* GetLocked() const;
-    int GetLockedTargetBodyId() const;
+    // FUNCTION: SWBF2 0x006872f0
+    bool IsLocked() const { return mLocked; }
+    // FUNCTION: SWBF2 0x00687300
+    const GameObject* GetLocked() const { return const_cast<WeaponLauncher*>(this)->mCurTarget; }
+    // FUNCTION: SWBF2 0x00687330
+    int GetLockedTargetBodyId() const { return mCurTargetBodyID; }
     void Write(NetPktGroup& group);
     void Read(NetPktGroup& group);
 

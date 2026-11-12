@@ -1,3 +1,4 @@
+#include "SkyManager.h"
 #include "SkyDome.h"
 
 #include "SkyObject.h"
@@ -11,8 +12,6 @@
 
 namespace SkyManager
 {
-    void Init();
-    void Read(PblFileChunk& chunk);
     RedColor ReadColor(const PblConfig::Data& data);
     void ReadSkyInfo_(PblConfig& config, PblConfig::Data& data);
 
@@ -57,20 +56,20 @@ void SkyManager::ReadSkyInfo_(PblConfig& config, PblConfig::Data& data)
 {
     switch (data.GetId())
     {
-    case 0x23E10337u:
+    case 0x23E10337u: /* "SplitOptions" */
     {
         PblConfig scope(config.ReadNextScope(), true);
         ReadSplitOptions(scope);
         break;
     }
-    case 0x023B1FCEu:
+    case 0x023B1FCEu: /* "FogColor" */
     {
         RedColor color = ReadColor(data);
         color.a = 0xFF;
         FLRenderer::SetFogColor(color);
         break;
     }
-    case 0x01192B7Bu:
+    case 0x01192B7Bu: /* "FarSceneRange" */
         if (data.GetNumArgs() == 1)
         {
             FLRenderer::SetFarSceneRange(data.GetFloatArg(0) * 0.5f, data.GetFloatArg(0) * 1.5f);
@@ -80,10 +79,10 @@ void SkyManager::ReadSkyInfo_(PblConfig& config, PblConfig::Data& data)
             FLRenderer::SetFarSceneRange(data.GetFloatArg(0), data.GetFloatArg(1));
         }
         break;
-    case 0x30C322FEu:
+    case 0x30C322FEu: /* "PropClusterDensity" */
         PropModelMesh::SetDensity(data.GetFloatArg(0));
         break;
-    case 0x50551C9Au:
+    case 0x50551C9Au: /* "NearSceneRange" */
         if (data.GetNumArgs() == 3)
         {
             FLRenderer::SetNearSceneRange(0.5f,
@@ -102,35 +101,35 @@ void SkyManager::ReadSkyInfo_(PblConfig& config, PblConfig::Data& data)
                                           data.GetFloatArg(4));
         }
         break;
-    case 0x89796252u:
+    case 0x89796252u: /* "OldTerrainShader" */
         if (data.GetNumArgs() == 1)
         {
             pcTerrainShader2::SetEnabled(!data.GetBoolArg(0));
         }
         break;
-    case 0x91B20CC9u:
+    case 0x91B20CC9u: /* "PropClusterFadeAdj" */
         PropModelMesh::SetFadeAdj(data.GetFloatArg(0));
         break;
-    case 0xB1BFDD49u:
+    case 0xB1BFDD49u: /* "PropClusterEnable" */
         if (data.GetFloatArg(0) == 0.0f)
         {
             PropModelMesh::SetEnable(false);
         }
         break;
-    case 0x91E9C28Bu:
+    case 0x91E9C28Bu: /* "ReflectionFogColor" */
     {
         RedColor color = ReadColor(data);
         color.a = 0xFF;
         FLRenderer::SetReflectionFogColor(color);
         break;
     }
-    case 0xC15D0860u:
+    case 0xC15D0860u: /* "EnableFadeAdjustWithZoom" */
         FLRenderer::SetFadeAdjustWithZoom(data.GetInt32Arg(0) != 0);
         break;
-    case 0xCF49A8D4u:
+    case 0xCF49A8D4u: /* "FogRange" */
         FLRenderer::SetFogRange(data.GetFloatArg(0), data.GetFloatArg(1));
         break;
-    case 0xD6C706F2u:
+    case 0xD6C706F2u: /* "WorldFogRange" */
         FLRenderer::SetWorldFogRange(data.GetFloatArg(0), data.GetFloatArg(1));
         break;
     }
@@ -164,19 +163,19 @@ void SkyManager::Read(PblFileChunk& chunk)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x3780C8F9u:
+        case 0x3780C8F9u: /* "SunInfo" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             ReadSunInfo(scope);
             break;
         }
-        case 0x06C0D3E6u:
+        case 0x06C0D3E6u: /* "SkyInfo" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             ReadSkyInfo(scope);
             break;
         }
-        case 0x185AB6C2u:
+        case 0x185AB6C2u: /* "DomeInfo" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             SkyDome* pDome = SkyDome::sInstance;
@@ -186,13 +185,13 @@ void SkyManager::Read(PblFileChunk& chunk)
             }
             break;
         }
-        case 0xB7E0C3F5u:
+        case 0xB7E0C3F5u: /* "SkyObject" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             SkyObjectManager::Load(scope);
             break;
         }
-        case 0xA99AEB4Fu:
+        case 0xA99AEB4Fu: /* "EnvTexture" */
         {
             PblHash hash(data.GetStringArg(0));
             break;
@@ -213,6 +212,15 @@ namespace SkyManager
 void Reset()
 {
     SkyDome::Destroy();
+}
+
+// FUNCTION: SWBF2 0x00638d30
+void Activate()
+{
+    if (SkyDome::sInstance)
+    {
+        SkyDome::sInstance->Build();
+    }
 }
 
 }

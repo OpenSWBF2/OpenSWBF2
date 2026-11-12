@@ -12,6 +12,8 @@
 
 #include "PebbleFL/Common/PblMatrix.h"
 
+#pragma init_seg(lib)
+
 // GLOBAL: SWBF2 0x007849d0
 // __xmm@3f800000bf8000000000000000000000
 
@@ -20,20 +22,21 @@ void __cdecl PblTraceP(const char* Format, ...);
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
+// GLOBAL: SWBF2 0x009c98c4
+// pcSkyFogShader::s_uiID
 unsigned int pcSkyFogShader::s_uiID;
+// GLOBAL: SWBF2 0x009c98c8
+// pcSkyFogShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcSkyFogShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c98d4
+// pcSkyFogShader::BeginFuncArray
 pcRedShader::BeginFuncT pcSkyFogShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c98e0
+// pcSkyFogShader::EndFuncArray
 pcRedShader::EndFuncT pcSkyFogShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c98ec
+// pcSkyFogShader::RenderFuncArray
 pcRedShader::RenderFuncT pcSkyFogShader::RenderFuncArray[MAX_PIPELINES];
-
-// SYNTHETIC: SWBF2 0x00409aa0
-// `dynamic initializer for 'pcSkyFogShader::s_shaderDef''
-// SYNTHETIC: SWBF2 0x00769d10
-// `dynamic atexit destructor for 'pcSkyFogShader::s_shaderDef''
-
-// GLOBAL: SWBF2 0x009c9904
-// pcSkyFogShader::s_shaderDef
-pcRedShaderDef pcSkyFogShader::s_shaderDef("skyfog_shader.xml");
 
 // FUNCTION: SWBF2 0x00703cb0
 pcSkyFogShader::pcSkyFogShader()
@@ -59,12 +62,6 @@ pcSkyFogShader::pcSkyFogShader(unsigned int uiFlags,
 {
     _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
     _Init(uiFlags, pParams, uiNumParams, uiMaterialFlags, color0, color1, fArg7);
-}
-
-// FUNCTION: SWBF2 0x007040c0
-pcRedShaderDef* pcSkyFogShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x007040f0
@@ -109,22 +106,22 @@ void pcSkyFogShader::_Init(unsigned int uiFlags,
 void pcSkyFogShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcSkyFogShader::GetState_Fixed);
+        (GetStateFuncT)(&pcSkyFogShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcSkyFogShader::Begin_Fixed);
+        (BeginFuncT)(&pcSkyFogShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcSkyFogShader::End_Fixed);
+        (EndFuncT)(&pcSkyFogShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcSkyFogShader::Render_Fixed);
+        (RenderFuncT)(&pcSkyFogShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcSkyFogShader::GetState_Prog1);
+        (GetStateFuncT)(&pcSkyFogShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcSkyFogShader::Begin_Prog1);
+        (BeginFuncT)(&pcSkyFogShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcSkyFogShader::End_Prog1);
+        (EndFuncT)(&pcSkyFogShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcSkyFogShader::Render_Prog1);
+        (RenderFuncT)(&pcSkyFogShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x00704390
@@ -133,7 +130,7 @@ void pcSkyFogShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -161,28 +158,10 @@ RenderPhaseT pcSkyFogShader::GetRenderPhase(const RenderItem*, unsigned int) con
     return RENDERPHASE_TRANSPARENT;
 }
 
-// FUNCTION: SWBF2 0x00704080
-unsigned int pcSkyFogShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
-// FUNCTION: SWBF2 0x007040b0
-unsigned int pcSkyFogShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
 // FUNCTION: SWBF2 0x00704050
 RedShadingState* pcSkyFogShader::CreateShadingState() const
 {
     return 0;
-}
-
-// FUNCTION: SWBF2 0x00704030
-void pcSkyFogShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
 }
 
 // FUNCTION: SWBF2 0x007040d0
@@ -314,6 +293,15 @@ unsigned int pcSkyFogShader::s_uiRenderTypeHash = PblHash("SkyFog");
 // GLOBAL: SWBF2 0x009c9938
 // pcSkyFogShader::s_Factory
 pcSkyFogShader pcSkyFogShader::s_Factory;
+
+// SYNTHETIC: SWBF2 0x00409aa0
+// `dynamic initializer for 'pcSkyFogShader::s_shaderDef''
+// SYNTHETIC: SWBF2 0x00769d10
+// `dynamic atexit destructor for 'pcSkyFogShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9904
+// pcSkyFogShader::s_shaderDef
+pcRedShaderDef pcSkyFogShader::s_shaderDef("skyfog_shader.xml");
 
 // GLOBAL: SWBF2 0x009c98fc
 unsigned int g_pcSkyFogShader;

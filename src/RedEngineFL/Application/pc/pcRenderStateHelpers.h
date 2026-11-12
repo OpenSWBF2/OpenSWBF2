@@ -16,11 +16,11 @@ public:
     void RenderReflections(unsigned int uiFlags) const;
 };
 
-extern RenderableList _RenderableLists[10];
+extern RenderableList _RenderableLists[NUM_RENDERABLE_PHASES];
 }
  
 
-#include "RedEngineFL/Application/pc/pcRedDropShadow.h"
+#include "RedEngineFL/Application/RedDropShadow.h"
 namespace FLRenderer
 {
 
@@ -32,8 +32,8 @@ namespace FLRenderer
 extern unsigned int m_numPotentialReflections;
 extern Renderable* m_potentialReflections[50];
 
-void AddRenderable(Renderable* pRenderable, int ePhase, int iOrder);
-bool IsRenderableActive(const Renderable* pRenderable, int ePhase);
+void AddRenderable(Renderable* pRenderable, RENDERABLE_PHASE ePhase, int iOrder);
+bool IsRenderableActive(const Renderable* pRenderable, RENDERABLE_PHASE ePhase);
 void RemoveRenderable(Renderable* pRenderable);
 }
 

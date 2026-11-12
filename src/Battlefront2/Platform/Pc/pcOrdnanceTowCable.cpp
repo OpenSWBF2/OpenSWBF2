@@ -19,10 +19,10 @@ pcRedShader* OrdnanceTowCable::sShader;
 // FUNCTION: SWBF2 0x00424ce0
 void OrdnanceTowCable::PlatformInit()
 {
-    sTextureHash = 0xde020766;
+    sTextureHash = 0xde020766 /* "white" */;
     unsigned int uiFormat =
         RedRenderer::pcGetGeometryMode() != GEOMETRYMODE_UNCOMPRESSED ? 0x9282 : 0x282;
-    sShader = pcRedShader::Create(0x8a8743bf, uiFormat,
+    sShader = pcRedShader::Create(0x8a8743bf /* "PARTICLE" */, uiFormat,
                                   &sTextureHash, 1, 0x10004, RedColor::WHITE, RedColor::BLACK,
                                   32.0f);
 }

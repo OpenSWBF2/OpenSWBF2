@@ -85,6 +85,7 @@ public:
 class LeafParticleManager : public Thread
 {
 public:
+    static const int kMaxLeaves = 100;
     LeafParticleManager();
     virtual ~LeafParticleManager();
 
@@ -98,7 +99,7 @@ public:
     GameSound mLeafFallSound;
     float mGroundLeavesTimer;
     FallingLeafParticle* mNextFreeLeaf;
-    FallingLeafParticle mLeafParticles[100];
+    FallingLeafParticle mLeafParticles[kMaxLeaves];
 
     static LeafParticleManager* sInstance;
 

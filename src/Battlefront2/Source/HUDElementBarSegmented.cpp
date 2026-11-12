@@ -11,7 +11,7 @@
 HUD::ElementBarSegmented::Factory::Factory()
 {
     mName = "BarSegmented";
-    mHashID = 0x4B4BF31Au;
+    mHashID = 0x4B4BF31Au /* "BarSegmented" */;
 
     mAngleStart.Init("AngleStart", mProperties, -360.0f, 360.0f, 0.1f);
     mAngleEnd.Init("AngleEnd", mProperties, -360.0f, 360.0f, 0.1f);
@@ -82,10 +82,10 @@ bool HUD::ElementBarSegmented::Segment::SetProperty(const unsigned int uHashID, 
     return bResult;
 }
 
-static const unsigned int kAngleStart = 0x04507e24;
-static const unsigned int kAngleEnd = 0x7197bcbd;
-static const unsigned int kNumSegments = 0x40fbdebd;
-static const unsigned int kCircular = 0x026723e0;
+static const unsigned int kAngleStart = 0x04507e24 /* "AngleStart" */;
+static const unsigned int kAngleEnd = 0x7197bcbd /* "AngleEnd" */;
+static const unsigned int kNumSegments = 0x40fbdebd /* "NumSegments" */;
+static const unsigned int kCircular = 0x026723e0 /* "Circular" */;
 
 
 
@@ -104,7 +104,7 @@ HUD::ElementBarSegmented::ElementBarSegmented(const char* const pName, Factory::
     HUD::Item* pSegmentAll = &mSegmentAll;
     if (pSegmentAll)
     {
-        pSegmentAll->SetFactory(HUD::Item::Factory::FindByHashID(0x46544626u));
+        pSegmentAll->SetFactory(HUD::Item::Factory::FindByHashID(0x46544626u /* "Bitmap" */));
     }
     mSegmentAll.SetDynamicallyAllocated(false);
     mSegmentAll.SetWriteEnabled(false);
@@ -326,7 +326,7 @@ void HUD::ElementBarSegmented::Read(PblConfig& config, Factory::ItemCallback pCa
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (config.m_pChunk->PeekNextChildId() == 0x504f4353)
+        if (config.m_pChunk->PeekNextChildId() == CHUNK_ID('S', 'C', 'O', 'P'))
         {
             if (mSegmentAll.GetNameHash() == data.GetId())
             {

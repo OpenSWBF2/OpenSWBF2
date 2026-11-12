@@ -143,7 +143,7 @@ static bool sHasMines(const WeaponDispenser* pWpn)
         return false;
     }
 
-    int iMaxItems = static_cast<const WeaponDispenserClass*>(pWpn->mClass)->mMaxItems;
+    int iMaxItems = ((const WeaponDispenserClass*)pWpn->mClass)->mMaxItems;
     return !iMaxItems || *pWpn->GetItemCount() < iMaxItems;
 }
 
@@ -158,9 +158,9 @@ bool MineHelper::IsValidMineLayer(const Controllable* pMe) const
             continue;
         }
         EntityClass* pDispense =
-            static_cast<const WeaponDispenserClass*>(pWpn->mClass)->mDispenseClass;
+            ((const WeaponDispenserClass*)pWpn->mClass)->mDispenseClass;
         if (pDispense && pDispense->IsRtti(EntityMineClass::rttiHashEntityMineClass)
-            && sHasMines(static_cast<const WeaponDispenser*>(pWpn)))
+            && sHasMines((const WeaponDispenser*)pWpn))
         {
             return true;
         }
@@ -244,7 +244,7 @@ bool MineHelper::HELPERIsMinePosNearby(const MinefieldHint** ppHint, PblVector3*
                                                     100, 3, apHints);
     for (int i = 0; i < iCount; ++i)
     {
-        const MinefieldHint* pHint = static_cast<const MinefieldHint*>(apHints[i]);
+        const MinefieldHint* pHint = (const MinefieldHint*)apHints[i];
         if (pHint->IsReserved(GetMe()->GetGameObject()->GetTeam()))
         {
             continue;
@@ -330,9 +330,9 @@ bool MineHelper::SetMineWpn(bool* pbSwitching)
         Weapon* pWeapon = GetMe()->GetWeaponPtr(iWeapon);
         if (pWeapon->IsRtti(WeaponDispenser::rttiHashWeaponDispenser))
         {
-            EntityClass* pDispenseClass = static_cast<const WeaponDispenserClass*>(pWeapon->mClass)->mDispenseClass;
+            EntityClass* pDispenseClass = ((const WeaponDispenserClass*)pWeapon->mClass)->mDispenseClass;
             if (pDispenseClass->IsRtti(EntityMineClass::rttiHashEntityMineClass) &&
-                sHasMines(static_cast<WeaponDispenser*>(pWeapon)))
+                sHasMines((WeaponDispenser*)pWeapon))
             {
                 if (pCurrentWeapon != pWeapon)
                 {

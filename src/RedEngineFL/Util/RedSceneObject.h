@@ -23,16 +23,35 @@ public:
     RedSceneObject(const RedLodData* pLodData);
     virtual ~RedSceneObject();
 
-    virtual void GetAABound(geo::Box& box) const;
-    virtual void GetSphereBound(geo::Sphere& sphere) const;
+    // FUNCTION: SWBF2 0x00444000
+    virtual void GetAABound(geo::Box&) const
+    {
+    }
+    // FUNCTION: SWBF2 0x00444010
+    virtual void GetSphereBound(geo::Sphere& rSphere) const
+    {
+        rSphere = geo::Sphere(geo::Vector3<float>(_Sphere.x, _Sphere.y, _Sphere.z), _Sphere.w);
+    }
 
     virtual void Activate();
     virtual void Deactivate();
     virtual void Render(unsigned char ucViewport, float fDist, unsigned int uiFlags) = 0;
 
-    virtual const PblMatrix& GetBBoxMatrix() const;
-    virtual const PblBox& GetBBox() const;
-    virtual bool IsReflected() const;
+    // FUNCTION: SWBF2 0x00444060
+    virtual const PblMatrix& GetBBoxMatrix() const
+    {
+        return gMatrixIdentity;
+    }
+    // FUNCTION: SWBF2 0x00427110
+    virtual const PblBox& GetBBox() const
+    {
+        return *(const PblBox*)0;
+    }
+    // FUNCTION: SWBF2 0x00444070
+    virtual bool IsReflected() const
+    {
+        return true;
+    }
 
     bool IsClipped() const;
 
@@ -105,6 +124,34 @@ public:
  
  
  
+
+class RedLodData
+{
+public:
+
+    RedLodData()
+    {
+        _LodBitmask = 0;
+        mLowRezFlags = 0;
+        mMaxDist = 1000.0f;
+    }
+
+    int GetCost(int iLod) const { return _LodCost[iLod]; }
+    bool HasLod(int iLod) const { return (_LodBitmask & (1 << iLod)) != 0; }
+
+    int GetLodClass() const { return _LodClass; }
+    float GetMaxDist() const { return mMaxDist; }
+    void SetMaxDist(float fMaxDist) { mMaxDist = fMaxDist; }
+    int HasLowRes() const { return mLowRezFlags & 1; }
+    int CrossFadeLowRes() const { return mLowRezFlags & 2; }
+    int HasTransparentSegment() const { return mLowRezFlags & 4; }
+
+    int _LodCost[4];
+    int _LodBitmask;
+    int _LodClass;
+    unsigned char mLowRezFlags;
+    float mMaxDist;
+};
 
 bool BoxClipsNearPlane(const RedCamera* pCamera, const PblVector3& vCenter,
                        const PblVector3& vExtents);

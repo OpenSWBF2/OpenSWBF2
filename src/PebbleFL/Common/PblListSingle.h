@@ -80,6 +80,11 @@ public:
         pNode->mNext = mHead.mNext;
         mHead.mNext = pNode;
     }
+    void Add(Node* pNode)
+    {
+        AddLast(pNode);
+    }
+
     void AddLast(Node* pNode)
     {
         Node* pPrev = mHead.GetPrevious();

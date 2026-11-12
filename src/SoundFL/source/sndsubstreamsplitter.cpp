@@ -58,13 +58,13 @@ StreamPacket* SubstreamSplitter::GetPacket(unsigned int uiSubstream)
     {
         unsigned short& rPos = mLockPos[uiSubstream];
         StreamPacket* pPacket = &mPackets[rPos + uiSubstream * mPacketsPerSubstream];
-        if (pPacket->mBufferUsed != 0 && pPacket->mRefCount <= 0)
+        if (pPacket->GetUsed() != 0 && !pPacket->IsLocked())
         {
             if (++rPos == mPacketsPerSubstream)
             {
                 rPos = 0;
             }
-            ++pPacket->mRefCount;
+            pPacket->Lock();
             return pPacket;
         }
     }
@@ -82,7 +82,7 @@ bool SubstreamSplitter::IsQueueFull() const
     bool bFull = false;
     for (unsigned int i = 0; i < mNumSubstreams; ++i)
     {
-        bFull |= mPackets[mReadPos[i] + i * mPacketsPerSubstream].mBufferUsed != 0;
+        bFull |= mPackets[mReadPos[i] + i * mPacketsPerSubstream].GetUsed() != 0;
     }
     return bFull;
 }
@@ -91,7 +91,7 @@ bool SubstreamSplitter::IsQueueFull() const
 void __cdecl SubstreamSplitter::PacketCompleteCallback(StreamPacket* const  ,
                                                        void* const pData)
 {
-    static_cast<StreamPacket*>(pData)->Unlock();
+    ((StreamPacket*)pData)->Unlock();
 }
 
 // FUNCTION: SWBF2 0x0074b0d0
@@ -136,7 +136,7 @@ fill:
         }
 
         const unsigned int uiShort =
-            (mSubstreamBlockSize - pPacket->mBufferUsed) / mNumSubstreams;
+            (mSubstreamBlockSize - pPacket->GetUsed()) / mNumSubstreams;
 
         for (unsigned int i = 0; i < mNumSubstreams; ++i)
         {
@@ -144,27 +144,26 @@ fill:
             StreamPacket& rSub = mPackets[rPos + i * mPacketsPerSubstream];
 
             pPacket->Lock();
-            rSub.mCallback = PacketCompleteCallback;
-            rSub.mCallbackData = pPacket;
-            rSub.mBuffer = (char*)pPacket->mBuffer + i * mSubstreamInterleave;
-            rSub.mBufferUsed = mSubstreamInterleave - uiShort;
+            rSub.SetCallback(PacketCompleteCallback, pPacket);
+            rSub.SetBuffer((char*)pPacket->GetBuffer() + i * mSubstreamInterleave);
+            rSub.SetUsed(mSubstreamInterleave - uiShort);
             if (pPacket->GetDiscontinuity())
             {
-                rSub.mFlags |= 2;
+                rSub.SetDiscontinuity(true);
             }
             else
             {
-                rSub.mFlags &= ~2;
+                rSub.SetDiscontinuity(false);
             }
             if (pPacket->GetLast())
             {
-                rSub.mFlags |= 1;
+                rSub.SetLast(true);
             }
             else
             {
-                rSub.mFlags &= ~1;
+                rSub.SetLast(false);
             }
-            rSub.mPos = pPacket->mPos / mNumSubstreams;
+            rSub.SetPosition(pPacket->GetPosition() / mNumSubstreams);
 
             if (++rPos == mPacketsPerSubstream)
             {

@@ -4,6 +4,7 @@
 
 #include "PebbleFL/Common/PblHandle.h"
 #include "GameSound.h"
+#include "PebbleFL/Common/PblVector.h"
 
 class Character;
 class EntityClass;
@@ -72,6 +73,29 @@ public:
  
  
 
+struct DamageEffectClass
+{
+
+    DamageEffectClass(float fPercent = 0.0f, float fPercentStop = 0.0f, unsigned int uNameHash = 0,
+                      unsigned int uHardPoint = 0,
+                      const PblVector3& vAttachOffset = PblVector3(0.0f, 0.0f, 0.0f),
+                      float fScale = 1.0f, float fInheritVelocity = 0.0f)
+        : mPercent(fPercent), mPercentStop(fPercentStop), mNameHash(uNameHash),
+          mHardPoint(uHardPoint), mAttachOffset(vAttachOffset), mScale(fScale),
+          mInheritVelocity(fInheritVelocity)
+    {
+    }
+
+    float mPercent;
+    float mPercentStop;
+    unsigned int mNameHash;
+    unsigned int mHardPoint;
+    PblVector3 mAttachOffset;
+    float mScale;
+    float mInheritVelocity;
+    GameSound mSound;
+};
+
 // VTABLE: SWBF2 0x00798dcc
 class Damageable
 {
@@ -112,7 +136,7 @@ public:
     float GetMaxShield() const { return mMaxShield; }
     void SetMaxShield(float fShield) { mMaxShield = fShield; }
     void SetAddHealth(float fHealth) { mAddHealth = fHealth; }
-    HealthType GetHealthType() const { return static_cast<HealthType>(mHealthType); }
+    HealthType GetHealthType() const { return (HealthType)mHealthType; }
     void SetHealthType(HealthType eType) { mHealthType = eType; }
     void SetAddShield(float fShield) { mAddShield = fShield; }
     bool IsShielded() const { return mIsShielded; }

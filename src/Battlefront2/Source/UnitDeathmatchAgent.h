@@ -61,8 +61,7 @@ inline bool UnitDeathmatchAgent::IsRtti(unsigned int uRtti) const
     {
         return true;
     }
-    return UnitAgent::rttiHashUnitAgent == uRtti ||
-           Agent::rttiHashAgent == uRtti;
+    return UnitAgent::IsRtti(uRtti);
 }
 
 // FUNCTION: SWBF2 0x006653d0

@@ -63,44 +63,36 @@ namespace PblBuildType
 }
 namespace PblBuildType
 {
-    // GLOBAL: SWBF2 0x009cef73
-    bool gDemoHasSplitscreen;
+    extern bool gDemoHasSplitscreen;
 }
 namespace PblBuildType
 {
-    // GLOBAL: SWBF2 0x009cef74
-    bool gDemoHost;
+    extern bool gDemoHost;
 }
 namespace PblBuildType
 {
-    // GLOBAL: SWBF2 0x009cef77
-    bool gDemoNoInputRebind;
+    extern bool gDemoNoInputRebind;
 }
 namespace PblBuildType
 {
-    // GLOBAL: SWBF2 0x007e2e0c
-    bool gFinalBuild = true;
+    extern bool gFinalBuild;
 }
 namespace PblBuildType
 {
-    // GLOBAL: SWBF2 0x007e2e0d
-    bool gXBox_DVDDemo = true;
+    extern bool gXBox_DVDDemo;
 }
 namespace PblBuildType
 {
-    // GLOBAL: SWBF2 0x007e2e0e
-    bool gE3Demo = true;
+    extern bool gE3Demo;
 }
 namespace PblBuildType
 {
-    // GLOBAL: SWBF2 0x007e2e0f
-    bool gDemoAutoAssign = true;
+    extern bool gDemoAutoAssign;
 }
 
-namespace GameLoop
-{
-    extern bool mbHistoricalRules;
-}
+
+    
+
 extern bool gAttractMode;
 extern bool gDemoMode;
 
@@ -122,7 +114,7 @@ int ShellLoop::Init()
     NetGame::ClearAllCDKeyInfo();
     EntityEx::InitFind();
     FLInputManager::s_instance.SetHotController(-1);
-    GameLoop::mbMetagameRules = false;
+    GameLoop::SetMetagameRulesOn(false);
     if (FLInputManager::Instance()->GetSecondaryPort() < 0)
     {
         GameLoop::mNumCameras = 1;
@@ -201,7 +193,7 @@ int ShellLoop::Init()
     NetGame::CreateClient();
     NetGame::EnterClient();
 
-    sMissionTime.Mark(&GameState::_SystemTimeBase);
+    sMissionTime.Mark(GameState::GetSystemTimeBase());
     sDeltaTime = 0.0f;
     ShellLoop::sSystemDeltaTime = 0;
     ShellLoop::clientInputAcc = 0.0f;
@@ -319,7 +311,7 @@ int ShellLoop::Update(float fDeltaTime)
                 iTimer = mbNetCableErrorTimer;
             }
         }
-        if (uiScreen == 0xDE500916)
+        if (uiScreen == 0xDE500916 /* "ifs_movietrans" */)
         {
             iTimer = 0;
         }
@@ -334,7 +326,7 @@ void ShellLoop::SetNetCableErrorOnEnter(int severity, const char* message)
     mbNetCableErrorOnEnter = true;
     mbNetCableErrorTimer = 0;
     sIngameErrorSeverity = severity;
-    mpNoCableMessageHash = message ? (unsigned int)PblHash(message) : 0x7d77adfe;
+    mpNoCableMessageHash = message ? (unsigned int)PblHash(message) : 0x7d77adfe /* "common.mp.errors.nocable" */;
     NetSetup::mNoticeNoCable = false;
     if (severity >= 8)
     {

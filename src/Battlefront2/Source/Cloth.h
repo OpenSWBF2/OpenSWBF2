@@ -167,7 +167,7 @@ class ClothData
 {
 public:
 
-    void PlatformBindInit(EntityClothClass* pClass);
+    void PlatformBindInit(const EntityClothClass* pClass);
     unsigned int GetNumParticles_() const;
     unsigned int GetNumFixedPoints_() const;
 

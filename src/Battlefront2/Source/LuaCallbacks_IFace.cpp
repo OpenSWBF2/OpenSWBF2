@@ -1,5 +1,6 @@
 #include <d3dx9math.h>
 #include "LuaCallbacks_IFace.h"
+#include "StatsManager.h"
 #include "LuaHelper.h"
 #include "LuaWideString.h"
 #include "LuaHandleArg.h"
@@ -50,7 +51,7 @@
 #include "RedEngineFL/Interface/RedTextElement.h"
 #include "RedEngineFL/Util/RedCommandConsole.h"
 #include "RedEngineFL/Util/RedConsole.h"
-#include "RedEngineFL/Graphics/RedAmbientLight.h"
+#include "RedEngineFL/Graphics/RedLight.h"
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
 #include "SoundFL/source/sndqueue.h"
 #include "Entity.h"
@@ -197,12 +198,6 @@ extern char netGameName[64];
 // GLOBAL: SWBF2 0x01fa88e0
 unsigned __int64 netLocalGSID;
 
-// FUNCTION: SWBF2 0x00414990
-int __fastcall RawControllerInputs::IndexToRedKey(int iIndex)
-{
-    return RedKeyTo_BindID[iIndex];
-}
-
 // FUNCTION: SWBF2 0x00585a10
 static void fnErrorBoxOk(bool)
 {
@@ -254,10 +249,9 @@ bool GetServicePlayerID(const char* pcName, unsigned __int64* puId)
 }
 }
 
-namespace GameLoop
-{
-extern bool gUnlimitedAmmo;
-}
+
+
+
 extern bool gLowResModelsEnabled;
 
 // FUNCTION: SWBF2 0x00617070
@@ -309,7 +303,7 @@ bool EvaluateCheatCode(const char* pcName, char* pcResult)
         }
 
         GameSound sound;
-        sound.SetID(0x6a942216u, false, false);
+        sound.SetID(0x6a942216u /* "shell_menu_accept" */, false, false);
         sound.Play(0, 0, false, true);
         bool bOn = gCheatToggles[i].pfnToggle();
         if (!pcResult)
@@ -373,7 +367,7 @@ static IFaceSoldierAnimator* GetIFaceSoldierAnimator(Red3DModelElement* pModel)
     Red3DModelAnimator* pAnimator = pModel->GetAnimator();
     if (pAnimator && pAnimator->IsRtti(IFaceSoldierAnimator::rttiHashIFaceSoldierAnimator))
     {
-        return static_cast<IFaceSoldierAnimator*>(pAnimator);
+        return (IFaceSoldierAnimator*)pAnimator;
     }
 
     IFaceSoldierAnimator* pSoldier = new IFaceSoldierAnimator(pAnimator);
@@ -1382,13 +1376,13 @@ int ScriptCB_IFText_SetJustify(lua_State* L)
         }
         switch ((unsigned int)PblHash(luaL_checklstring(LuaHelper::mState, i, 0)))
         {
-        case 0x124aec70: eHAlign = RedTextElement::TEXT_HALIGN_LEFT; break;
-        case 0x78e32de5: eHAlign = RedTextElement::TEXT_HALIGN_RIGHT; break;
-        case 0x931be59a: eHAlign = RedTextElement::TEXT_HALIGN_CENTER; break;
-        case 0xa710dc3c: eVAlign = RedTextElement::TEXT_VALIGN_TOP; break;
-        case 0x4ea76b2a: eVAlign = RedTextElement::TEXT_VALIGN_BOTTOM; break;
-        case 0x36928608: eVAlign = RedTextElement::TEXT_VALIGN_CENTER; break;
-        case 0xabf8de42: eVAlign = RedTextElement::TEXT_VALIGN_BASELINE; break;
+        case 0x124aec70: /* "Left" */ eHAlign = RedTextElement::TEXT_HALIGN_LEFT; break;
+        case 0x78e32de5: /* "Right" */ eHAlign = RedTextElement::TEXT_HALIGN_RIGHT; break;
+        case 0x931be59a: /* "hcenter" */ eHAlign = RedTextElement::TEXT_HALIGN_CENTER; break;
+        case 0xa710dc3c: /* "top" */ eVAlign = RedTextElement::TEXT_VALIGN_TOP; break;
+        case 0x4ea76b2a: /* "bottom" */ eVAlign = RedTextElement::TEXT_VALIGN_BOTTOM; break;
+        case 0x36928608: /* "vcenter" */ eVAlign = RedTextElement::TEXT_VALIGN_CENTER; break;
+        case 0xabf8de42: /* "baseline" */ eVAlign = RedTextElement::TEXT_VALIGN_BASELINE; break;
         }
     }
     pText->SetTextAlign(eHAlign, eVAlign);
@@ -1416,10 +1410,10 @@ int ScriptCB_IFText_SetTextBreak(lua_State* L)
     RedTextElement* pText = (RedTextElement*)pElement;
     switch ((unsigned int)PblHash(luaL_checklstring(LuaHelper::mState, iArg, 0)))
     {
-    case 0xada7afdb: pText->SetTextBreak(RedTextElement::TEXT_BREAK_NONE); break;
-    case 0x6a98e9fd: pText->SetTextBreak(RedTextElement::TEXT_BREAK_WORD); break;
-    case 0x6317ba9a: pText->SetTextBreak(RedTextElement::TEXT_BREAK_NONE_REFORMAT); break;
-    case 0x30df2cc4: pText->SetTextBreak(RedTextElement::TEXT_BREAK_WORD_REFORMAT); break;
+    case 0xada7afdb: /* "none" */ pText->SetTextBreak(RedTextElement::TEXT_BREAK_NONE); break;
+    case 0x6a98e9fd: /* "word" */ pText->SetTextBreak(RedTextElement::TEXT_BREAK_WORD); break;
+    case 0x6317ba9a: /* "none_reformat" */ pText->SetTextBreak(RedTextElement::TEXT_BREAK_NONE_REFORMAT); break;
+    case 0x30df2cc4: /* "word_reformat" */ pText->SetTextBreak(RedTextElement::TEXT_BREAK_WORD_REFORMAT); break;
     }
     return 0;
 }
@@ -1572,15 +1566,15 @@ int ScriptCB_IFText_SetTextStyle(lua_State* L)
     RedTextElement* pText = (RedTextElement*)pElement;
     switch ((unsigned int)PblHash(luaL_checklstring(LuaHelper::mState, iArg, 0)))
     {
-    case 0x3a43c561:
-    case 0x5b02d9ef:
-    case 0x6a3827bc:
+    case 0x3a43c561: /* "shadow" */
+    case 0x5b02d9ef: /* "big_glow" */
+    case 0x6a3827bc: /* "glow" */
         pText->SetTextStyle(RedGlyphCacheElement::TEXT_STYLE_SHADOW);
         break;
-    case 0x4e0a1774:
+    case 0x4e0a1774: /* "selected" */
         pText->SetTextStyle(RedGlyphCacheElement::TEXT_STYLE_SELECTED);
         break;
-    case 0xe68b9c52:
+    case 0xe68b9c52: /* "normal" */
         pText->SetTextStyle(RedGlyphCacheElement::TEXT_STYLE_NORMAL);
         break;
     }
@@ -2407,7 +2401,7 @@ static bool sMoviePlayingLastFrame;
 int ScriptCB_IsMoviePlaying(lua_State* L)
 {
     bool bPlaying = GameMovie::IsPlaying();
-    if (GameState::GetState() != 0x11e1fc01)
+    if (GameState::GetState() != 0x11e1fc01 /* "shell" */)
     {
         if (bPlaying || sMoviePlayingLastFrame)
         {
@@ -2693,25 +2687,25 @@ static ePROCESSEDINPUT_TYPE sKeyboardCmdsPerMode[5][43] =
 
 static unsigned int sIndexToButtonName[76] =
 {
-    0xe7f720c1u, 0xe6f71f2eu, 0xe5f71d9bu, 0xe4f71c08u,
-    0xebf7270du, 0xeaf7257au, 0xe9f723e7u, 0xe8f72254u,
-    0xdff71429u, 0xdef71296u, 0xb505fc3au, 0xb605fdcdu,
-    0xb305f914u, 0xb405faa7u, 0xb105f5eeu, 0xb205f781u,
-    0xaf05f2c8u, 0xb005f45bu, 0xad05efa2u, 0xae05f135u,
-    0xaf03b431u, 0xae03b29eu, 0xad03b10bu, 0xac03af78u,
-    0xb303ba7du, 0xb203b8eau, 0xb103b757u, 0xb003b5c4u,
-    0xa703a799u, 0xa603a606u, 0xa9016c28u, 0xaa016dbbu,
-    0xb186059fu, 0xbe97c2e0u, 0xf454413au, 0xcd39a9efu,
-    0x14053ad0u, 0x74c623f5u, 0x88e98c65u, 0xd20096c0u,
-    0xe4921c01u, 0xac4516e6u, 0x82045768u, 0x8d72f1adu,
-    0x5724f21au, 0x3aec917bu, 0xd70e04dbu, 0xe7af60c6u,
-    0x9deab321u, 0x9feab647u, 0x7decbf58u, 0x83ecc8cau,
-    0xa5ef3ce7u, 0xa3ef39c1u, 0x6412664bu, 0x6a126fbdu,
-    0x8c14e3dau, 0x8614da68u, 0x0c0d5e95u, 0x060d5523u,
-    0x66c23ee9u, 0x68c2420fu, 0xc6c514a0u, 0xccc51e12u,
-    0xad968f70u, 0xae969103u, 0xe4b75d5cu, 0xe5b75eefu,
-    0xe6b76082u, 0xe7b76215u, 0xe0b75710u, 0xe1b758a3u,
-    0xe2b75a36u, 0xe3b75bc9u, 0x414699eeu, 0x2d715b79u,
+    0xe7f720c1u /* "ifs.controls.btn0" */, 0xe6f71f2eu /* "ifs.controls.btn1" */, 0xe5f71d9bu /* "ifs.controls.btn2" */, 0xe4f71c08u /* "ifs.controls.btn3" */,
+    0xebf7270du /* "ifs.controls.btn4" */, 0xeaf7257au /* "ifs.controls.btn5" */, 0xe9f723e7u /* "ifs.controls.btn6" */, 0xe8f72254u /* "ifs.controls.btn7" */,
+    0xdff71429u /* "ifs.controls.btn8" */, 0xdef71296u /* "ifs.controls.btn9" */, 0xb505fc3au /* "ifs.controls.btn10" */, 0xb605fdcdu /* "ifs.controls.btn11" */,
+    0xb305f914u /* "ifs.controls.btn12" */, 0xb405faa7u /* "ifs.controls.btn13" */, 0xb105f5eeu /* "ifs.controls.btn14" */, 0xb205f781u /* "ifs.controls.btn15" */,
+    0xaf05f2c8u /* "ifs.controls.btn16" */, 0xb005f45bu /* "ifs.controls.btn17" */, 0xad05efa2u /* "ifs.controls.btn18" */, 0xae05f135u /* "ifs.controls.btn19" */,
+    0xaf03b431u /* "ifs.controls.btn20" */, 0xae03b29eu /* "ifs.controls.btn21" */, 0xad03b10bu /* "ifs.controls.btn22" */, 0xac03af78u /* "ifs.controls.btn23" */,
+    0xb303ba7du /* "ifs.controls.btn24" */, 0xb203b8eau /* "ifs.controls.btn25" */, 0xb103b757u /* "ifs.controls.btn26" */, 0xb003b5c4u /* "ifs.controls.btn27" */,
+    0xa703a799u /* "ifs.controls.btn28" */, 0xa603a606u /* "ifs.controls.btn29" */, 0xa9016c28u /* "ifs.controls.btn30" */, 0xaa016dbbu /* "ifs.controls.btn31" */,
+    0xb186059fu /* "ifs.controls.pov0up" */, 0xbe97c2e0u /* "ifs.controls.pov0right" */, 0xf454413au /* "ifs.controls.pov0down" */, 0xcd39a9efu /* "ifs.controls.pov0left" */,
+    0x14053ad0u /* "ifs.controls.pov1up" */, 0x74c623f5u /* "ifs.controls.pov1right" */, 0x88e98c65u /* "ifs.controls.pov1down" */, 0xd20096c0u /* "ifs.controls.pov1left" */,
+    0xe4921c01u /* "ifs.controls.pov2up" */, 0xac4516e6u /* "ifs.controls.pov2right" */, 0x82045768u /* "ifs.controls.pov2down" */, 0x8d72f1adu /* "ifs.controls.pov2left" */,
+    0x5724f21au /* "ifs.controls.pov3up" */, 0x3aec917bu /* "ifs.controls.pov3right" */, 0xd70e04dbu /* "ifs.controls.pov3down" */, 0xe7af60c6u /* "ifs.controls.pov3left" */,
+    0x9deab321u /* "ifs.controls.joyaxisx+" */, 0x9feab647u /* "ifs.controls.joyaxisx-" */, 0x7decbf58u /* "ifs.controls.joyaxisy+" */, 0x83ecc8cau /* "ifs.controls.joyaxisy-" */,
+    0xa5ef3ce7u /* "ifs.controls.joyaxisz+" */, 0xa3ef39c1u /* "ifs.controls.joyaxisz-" */, 0x6412664bu /* "ifs.controls.joyaxisrx+" */, 0x6a126fbdu /* "ifs.controls.joyaxisrx-" */,
+    0x8c14e3dau /* "ifs.controls.joyaxisry+" */, 0x8614da68u /* "ifs.controls.joyaxisry-" */, 0x0c0d5e95u /* "ifs.controls.joyaxisrz+" */, 0x060d5523u /* "ifs.controls.joyaxisrz-" */,
+    0x66c23ee9u /* "ifs.controls.joyslider0+" */, 0x68c2420fu /* "ifs.controls.joyslider0-" */, 0xc6c514a0u /* "ifs.controls.joyslider1+" */, 0xccc51e12u /* "ifs.controls.joyslider1-" */,
+    0xad968f70u /* "ifs.controls.mousex" */, 0xae969103u /* "ifs.controls.mousey" */, 0xe4b75d5cu /* "ifs.controls.mbtn0" */, 0xe5b75eefu /* "ifs.controls.mbtn1" */,
+    0xe6b76082u /* "ifs.controls.mbtn2" */, 0xe7b76215u /* "ifs.controls.mbtn3" */, 0xe0b75710u /* "ifs.controls.mbtn4" */, 0xe1b758a3u /* "ifs.controls.mbtn5" */,
+    0xe2b75a36u /* "ifs.controls.mbtn6" */, 0xe3b75bc9u /* "ifs.controls.mbtn7" */, 0x414699eeu /* "ifs.controls.mwheelup" */, 0x2d715b79u /* "ifs.controls.mwheeldn" */,
 };
 
 // FUNCTION: SWBF2 0x00587330
@@ -2804,7 +2798,7 @@ int ScriptCB_GetKeyBoardCmds(lua_State* L)
         if (!usKeys[0])
         {
 
-            RedLocalizeDB::GetLocalizedString(usKey, sizeof(usKey) / sizeof(usKey[0]), 0x6054a42du);
+            RedLocalizeDB::GetLocalizedString(usKey, sizeof(usKey), 0x6054a42du /* "ifs.controls.General.None" */);
             PblUnicode::ustrlcat(usKeys, usKey, 256);
         }
 
@@ -2843,23 +2837,23 @@ unsigned int GetActionName(int iAction, int iMode)
         switch (iMode)
         {
         case 3:
-            return 0xce22c384u;
+            return 0xce22c384u /* "ifs.controls.LightsaberAttack" */;
         case 4:
-            return 0x4813f4c9u;
+            return 0x4813f4c9u /* "ifs.controls.Attack" */;
         default:
-            return 0x21ecf289u;
+            return 0x21ecf289u /* "ifs.controls.primaryfire" */;
         }
     case ePROCESSEDINPUT_secondaryFireButtonDown:
-        return iMode != 3 ? 0x95067ca9u : 0x47d420e9u;
+        return iMode != 3 ? 0x95067ca9u /* "ifs.controls.secondaryfire" */ : 0x47d420e9u /* "ifs.controls.LightsaberBlock" */;
     case ePROCESSEDINPUT_jumpButtonDown:
         switch (iMode)
         {
         case 2:
-            return 0xd97027fdu;
+            return 0xd97027fdu /* "ifs.controls.General.Land_Takeoff" */;
         case 3:
-            return 0x5fb1e4fcu;
+            return 0x5fb1e4fcu /* "ifs.controls.ForceJump" */;
         default:
-            return 0xa9f6dc69u;
+            return 0xa9f6dc69u /* "ifs.controls.Jump" */;
         }
     case ePROCESSEDINPUT_sprintButtonDown:
         if (iMode > 0)
@@ -2868,30 +2862,30 @@ unsigned int GetActionName(int iAction, int iMode)
             {
                 if (iMode == 3)
                 {
-                    return 0xeb047957u;
+                    return 0xeb047957u /* "ifs.controls.JediSprint" */;
                 }
             }
             else
             {
-                return 0x9468cb58u;
+                return 0x9468cb58u /* "ifs.controls.boost" */;
             }
         }
-        return 0x7efc5a41u;
+        return 0x7efc5a41u /* "ifs.controls.sprint" */;
     case ePROCESSEDINPUT_crouchButtonDown:
         switch (iMode)
         {
         case 1:
-            return 0xbdb6f1f3u;
+            return 0xbdb6f1f3u /* "ifs.controls.DroidekaDeploy" */;
         case 2:
-            return 0xc34823b0u;
+            return 0xc34823b0u /* "ifs.controls.trick" */;
         default:
-            return 0x4f860e97u;
+            return 0x4f860e97u /* "ifs.controls.Crouch" */;
         }
     case ePROCESSEDINPUT_zoomButtonDown:
         switch (iMode)
         {
         case 2:
-            return 0xfce0ab1du;
+            return 0xfce0ab1du /* "ifs.controls.RollLock" */;
         default:
             return 0x01808c66u;
         }
@@ -2899,157 +2893,157 @@ unsigned int GetActionName(int iAction, int iMode)
         switch (iMode)
         {
         case 1:
-            return 0x494c4741u;
+            return 0x494c4741u /* "ifs.controls.DroidekaView" */;
         default:
-            return 0x04c5f38cu;
+            return 0x04c5f38cu /* "ifs.controls.view" */;
         }
     case ePROCESSEDINPUT_reloadButtonDown:
-        return iMode != 3 ? 0x05f51058u : 0xd05bcadcu;
+        return iMode != 3 ? 0x05f51058u /* "ifs.controls.Reload" */ : 0xd05bcadcu /* "ifs.controls.UseForcePower" */;
     case ePROCESSEDINPUT_useButtonPressed:
         switch (iMode)
         {
         case 1:
-            return 0x96520d93u;
+            return 0x96520d93u /* "ifs.controls.ExitVehicle" */;
         case 2:
-            return 0x36cda1c2u;
+            return 0x36cda1c2u /* "ifs.controls.ExitStarfighter" */;
         case 4:
-            return 0xbb01e263u;
+            return 0xbb01e263u /* "ifs.controls.ExitTurret" */;
         default:
-            return 0x58f98b3fu;
+            return 0x58f98b3fu /* "ifs.controls.General.Enter" */;
         }
-    case ePROCESSEDINPUT_lockTargetButtonPressed:   return 0x2968b3afu;
+    case ePROCESSEDINPUT_lockTargetButtonPressed:   return 0x2968b3afu /* "ifs.controls.locktarget" */;
     case ePROCESSEDINPUT_STRAFE_AXIS:
         switch (iMode)
         {
         case 2:
-            return 0x10241b37u;
+            return 0x10241b37u /* "ifs.controls.RollAxis" */;
         default:
-            return 0x72deaafau;
+            return 0x72deaafau /* "ifs.controls.lraxis" */;
         }
     case ePROCESSEDINPUT_MOVE_AXIS:
         switch (iMode)
         {
         case 2:
-            return 0x37c51c28u;
+            return 0x37c51c28u /* "ifs.controls.ThrottleAxis" */;
         case 4:
-            return 0x72189cdbu;
+            return 0x72189cdbu /* "ifs.controls.zoomaxis" */;
         default:
-            return 0x96139f99u;
+            return 0x96139f99u /* "ifs.controls.udaxis" */;
         }
     case ePROCESSEDINPUT_TURN_AXIS:
         switch (iMode)
         {
         case 2:
-            return 0x8928fdf3u;
+            return 0x8928fdf3u /* "ifs.controls.TurnAxis" */;
         default:
-            return 0xa2d9a4d1u;
+            return 0xa2d9a4d1u /* "ifs.controls.looklraxis" */;
         }
     case ePROCESSEDINPUT_PITCH_AXIS:
         switch (iMode)
         {
         case 2:
-            return 0x0378be5cu;
+            return 0x0378be5cu /* "ifs.controls.PitchAxis" */;
         default:
-            return 0xca189fa6u;
+            return 0xca189fa6u /* "ifs.controls.lookudaxis" */;
         }
     case ePROCESSEDINPUT_primaryNextButtonPressed:
-        return (iMode > 0 && (iMode <= 2 || iMode == 4)) ? 0x60f5b57fu : 0xcff83738u;
+        return (iMode > 0 && (iMode <= 2 || iMode == 4)) ? 0x60f5b57fu /* "ifs.controls.NextPosition" */ : 0xcff83738u /* "ifs.controls.PrimaryNext" */;
     case ePROCESSEDINPUT_primaryPrevButtonPressed:
-        return (iMode > 0 && (iMode <= 2 || iMode == 4)) ? 0xadf4d65fu : 0x5de79e60u;
+        return (iMode > 0 && (iMode <= 2 || iMode == 4)) ? 0xadf4d65fu /* "ifs.controls.PrevPosition" */ : 0x5de79e60u /* "ifs.controls.PrimaryPrev" */;
     case ePROCESSEDINPUT_secondaryNextButtonPressed:
-        return iMode != 3 ? 0x4311c158u : 0xda9424a5u;
-    case ePROCESSEDINPUT_secondaryPrevButtonPressed: return 0xba2edc80u;
+        return iMode != 3 ? 0x4311c158u /* "ifs.controls.SecondaryNext" */ : 0xda9424a5u /* "ifs.controls.SwitchForcePower" */;
+    case ePROCESSEDINPUT_secondaryPrevButtonPressed: return 0xba2edc80u /* "ifs.controls.SecondaryPrev" */;
     case ePROCESSEDINPUT_STRAFE_POS:
         switch (iMode)
         {
         case 2:
-            return 0x6790dafcu;
+            return 0x6790dafcu /* "ifs.controls.RollCW" */;
         default:
-            return 0x1b620c12u;
+            return 0x1b620c12u /* "ifs.controls.moveright" */;
         }
     case ePROCESSEDINPUT_STRAFE_NEG:
         switch (iMode)
         {
         case 2:
-            return 0x83d7e5d5u;
+            return 0x83d7e5d5u /* "ifs.controls.RollCCW" */;
         default:
-            return 0xd152a071u;
+            return 0xd152a071u /* "ifs.controls.moveleft" */;
         }
     case ePROCESSEDINPUT_MOVE_POS:
         switch (iMode)
         {
         case 2:
-            return 0x335b2dcbu;
+            return 0x335b2dcbu /* "ifs.controls.ThrottleInc" */;
         case 4:
-            return 0x88971f89u;
+            return 0x88971f89u /* "ifs.controls.zoomin" */;
         default:
-            return 0xdaadd13du;
+            return 0xdaadd13du /* "ifs.controls.moveforward" */;
         }
     case ePROCESSEDINPUT_MOVE_NEG:
         switch (iMode)
         {
         case 2:
-            return 0xd381684fu;
+            return 0xd381684fu /* "ifs.controls.ThrottleDec" */;
         case 4:
-            return 0x77270a8au;
+            return 0x77270a8au /* "ifs.controls.zoomout" */;
         default:
-            return 0x92ebb24bu;
+            return 0x92ebb24bu /* "ifs.controls.moveback" */;
         }
     case ePROCESSEDINPUT_TURN_POS:
         switch (iMode)
         {
         case 2:
-            return 0xce820494u;
+            return 0xce820494u /* "ifs.controls.TurnRight" */;
         default:
-            return 0x50a56d68u;
+            return 0x50a56d68u /* "ifs.controls.lookright" */;
         }
     case ePROCESSEDINPUT_TURN_NEG:
         switch (iMode)
         {
         case 2:
-            return 0x7ac3d78bu;
+            return 0x7ac3d78bu /* "ifs.controls.TurnLeft" */;
         default:
-            return 0x05718b77u;
+            return 0x05718b77u /* "ifs.controls.lookleft" */;
         }
     case ePROCESSEDINPUT_PITCH_POS:
         switch (iMode)
         {
         case 2:
-            return 0xbd3f9428u;
+            return 0xbd3f9428u /* "ifs.controls.PitchUp" */;
         default:
-            return 0xaf1aa3f7u;
+            return 0xaf1aa3f7u /* "ifs.controls.lookup" */;
         }
     case ePROCESSEDINPUT_PITCH_NEG:
         switch (iMode)
         {
         case 2:
-            return 0xf032a54eu;
+            return 0xf032a54eu /* "ifs.controls.PitchDwn" */;
         default:
-            return 0x7ded0392u;
+            return 0x7ded0392u /* "ifs.controls.lookdown" */;
         }
-    case ePROCESSEDINPUT_chat:           return 0xfd43d7cfu;
-    case ePROCESSEDINPUT_friendChat:     return 0x4c1553e6u;
-    case ePROCESSEDINPUT_playerList:     return 0x5625eba4u;
-    case ePROCESSEDINPUT_Comm_Chat_0:    return 0x1b12d399u;
-    case ePROCESSEDINPUT_Comm_Chat_1:    return 0x1a12d206u;
-    case ePROCESSEDINPUT_Comm_Chat_2:    return 0x1912d073u;
-    case ePROCESSEDINPUT_Comm_Chat_3:    return 0x1812cee0u;
-    case ePROCESSEDINPUT_Comm_Chat_4:    return 0x1f12d9e5u;
-    case ePROCESSEDINPUT_Comm_Chat_5:    return 0x1e12d852u;
-    case ePROCESSEDINPUT_Comm_Chat_6:    return 0x1d12d6bfu;
-    case ePROCESSEDINPUT_Comm_Chat_7:    return 0x1c12d52cu;
-    case ePROCESSEDINPUT_Map:            return 0xf5b9358du;
+    case ePROCESSEDINPUT_chat:           return 0xfd43d7cfu /* "ifs.controls.chat" */;
+    case ePROCESSEDINPUT_friendChat:     return 0x4c1553e6u /* "ifs.controls.teamchat" */;
+    case ePROCESSEDINPUT_playerList:     return 0x5625eba4u /* "ifs.controls.playerlist" */;
+    case ePROCESSEDINPUT_Comm_Chat_0:    return 0x1b12d399u /* "ifs.controls.commchat0" */;
+    case ePROCESSEDINPUT_Comm_Chat_1:    return 0x1a12d206u /* "ifs.controls.commchat1" */;
+    case ePROCESSEDINPUT_Comm_Chat_2:    return 0x1912d073u /* "ifs.controls.commchat2" */;
+    case ePROCESSEDINPUT_Comm_Chat_3:    return 0x1812cee0u /* "ifs.controls.commchat3" */;
+    case ePROCESSEDINPUT_Comm_Chat_4:    return 0x1f12d9e5u /* "ifs.controls.commchat4" */;
+    case ePROCESSEDINPUT_Comm_Chat_5:    return 0x1e12d852u /* "ifs.controls.commchat5" */;
+    case ePROCESSEDINPUT_Comm_Chat_6:    return 0x1d12d6bfu /* "ifs.controls.commchat6" */;
+    case ePROCESSEDINPUT_Comm_Chat_7:    return 0x1c12d52cu /* "ifs.controls.commchat7" */;
+    case ePROCESSEDINPUT_Map:            return 0xf5b9358du /* "ifs.controls.map" */;
     case ePROCESSEDINPUT_TakeScreenshot:
         switch (iMode)
         {
         case 2:
-            return 0x502ce55du;
+            return 0x502ce55du /* "ifs.controls.immelmann" */;
         default:
-            return 0x98aef712u;
+            return 0x98aef712u /* "ifs.controls.Roll" */;
         }
-    case ePROCESSEDINPUT_squadCommandButtonPressed: return 0x510446aeu;
-    case ePROCESSEDINPUT_acceptHeroPressed:         return 0x1f1d54b5u;
-    case ePROCESSEDINPUT_declineHeroPressed:        return 0xc22f1315u;
+    case ePROCESSEDINPUT_squadCommandButtonPressed: return 0x510446aeu /* "ifs.controls.squadcom" */;
+    case ePROCESSEDINPUT_acceptHeroPressed:         return 0x1f1d54b5u /* "ifs.controls.Accept" */;
+    case ePROCESSEDINPUT_declineHeroPressed:        return 0xc22f1315u /* "ifs.controls.Decline" */;
     }
     return 0;
 }
@@ -3077,15 +3071,10 @@ int ScriptCB_IFModel_SetModel(lua_State* L)
     int iArg;
     if (Util_GetRedInterfaceElement(1, pElement, iArg, true) && pElement->IsModel())
     {
-        Red3DModelElementLite* pModel = static_cast<Red3DModelElementLite*>(pElement);
+        Red3DModelElementLite* pModel = (Red3DModelElementLite*)pElement;
         if (lua_type(LuaHelper::mState, iArg) == LUA_TLIGHTUSERDATA)
         {
-            const RedModel* pRedModel = (const RedModel*)LuaHandleArg::Get(LuaHelper::mState, iArg);
-            if (!RedModel::_HashTable.HasValue(pRedModel))
-            {
-                pRedModel = 0;
-            }
-            pModel->SetModel(pRedModel);
+            pModel->SetModel((const RedModel*)lua_topointer(LuaHelper::mState, iArg));
         }
         else if (lua_isstring(LuaHelper::mState, iArg))
         {
@@ -3093,7 +3082,7 @@ int ScriptCB_IFModel_SetModel(lua_State* L)
         }
         else if (lua_type(LuaHelper::mState, iArg) == LUA_TNIL)
         {
-            pModel->SetModel(static_cast<const RedModel*>(0));
+            pModel->SetModel((const RedModel*)0);
         }
     }
     return 0;
@@ -3111,7 +3100,7 @@ int ScriptCB_IFText_SetIntercharacterSpacing(lua_State* L)
     if ((pElement->IsText() || pElement->IsFlashyText()) && lua_isnumber(LuaHelper::mState, iArg))
     {
         float fSpacing = (float)luaL_checknumber(LuaHelper::mState, iArg);
-        static_cast<RedTextElement*>(pElement)->SetIntercharacterSpacing((int)fSpacing);
+        ((RedTextElement*)pElement)->SetIntercharacterSpacing((int)fSpacing);
     }
     return 0;
 }
@@ -3129,7 +3118,7 @@ int ScriptCB_IFText_GetIntercharacterSpacing(lua_State* L)
     {
         return 0;
     }
-    lua_pushnumber(LuaHelper::mState, static_cast<RedTextElement*>(pElement)->m_iSpacing);
+    lua_pushnumber(LuaHelper::mState, ((RedTextElement*)pElement)->m_iSpacing);
     return 1;
 }
 
@@ -3147,7 +3136,7 @@ int ScriptCB_IFText_GetTextBox(lua_State* L)
         return 0;
     }
     unsigned int uiWidth, uiHeight;
-    static_cast<RedTextElement*>(pElement)->GetTextBox(uiWidth, uiHeight);
+    ((RedTextElement*)pElement)->GetTextBox(uiWidth, uiHeight);
     lua_pushnumber(LuaHelper::mState, (float)(int)uiWidth);
     lua_pushnumber(LuaHelper::mState, (float)(int)uiHeight);
     return 2;
@@ -3168,7 +3157,7 @@ int ScriptCB_IFText_SetLeading(lua_State* L)
     }
     if (lua_isnumber(LuaHelper::mState, iArg))
     {
-        static_cast<RedTextElement*>(pElement)->m_leading =
+        ((RedTextElement*)pElement)->m_leading =
             (short)(int)luaL_checknumber(LuaHelper::mState, iArg);
     }
     return 0;
@@ -3187,7 +3176,7 @@ int ScriptCB_IFText_GetLeading(lua_State* L)
     {
         return 0;
     }
-    lua_pushnumber(LuaHelper::mState, static_cast<RedTextElement*>(pElement)->m_leading);
+    lua_pushnumber(LuaHelper::mState, ((RedTextElement*)pElement)->m_leading);
     return 1;
 }
 
@@ -3202,7 +3191,7 @@ int ScriptCB_IFImage_GetRect(lua_State* L)
         return 0;
     }
     float fLeft, fTop, fRight, fBottom;
-    static_cast<RedBitmapElement*>(pElement)->GetRect(fLeft, fTop, fRight, fBottom);
+    ((RedBitmapElement*)pElement)->GetRect(fLeft, fTop, fRight, fBottom);
     lua_pushnumber(LuaHelper::mState, fLeft);
     lua_pushnumber(LuaHelper::mState, fTop);
     lua_pushnumber(LuaHelper::mState, fRight);
@@ -3221,7 +3210,7 @@ int ScriptCB_IFImage_GetTexCoords(lua_State* L)
         return 0;
     }
     float fU0, fV0, fU1, fV1;
-    static_cast<RedBitmapElement*>(pElement)->GetTexCoords(fU0, fV0, fU1, fV1);
+    ((RedBitmapElement*)pElement)->GetTexCoords(fU0, fV0, fU1, fV1);
     lua_pushnumber(LuaHelper::mState, fU0);
     lua_pushnumber(LuaHelper::mState, fV0);
     lua_pushnumber(LuaHelper::mState, fU1);
@@ -3240,7 +3229,7 @@ int ScriptCB_IFMaskImage_SetMaskTexture(lua_State* L)
     }
     if (pElement->IsMaskedBitmap() && lua_isstring(LuaHelper::mState, iArg))
     {
-        static_cast<RedMaskedBitmapElement*>(pElement)->SetMaskTexture(
+        ((RedMaskedBitmapElement*)pElement)->SetMaskTexture(
             PblHash(luaL_checkstring(LuaHelper::mState, iArg)));
     }
     return 0;
@@ -3279,7 +3268,7 @@ int ScriptCB_IFMaskImage_SetMaskTexCoords(lua_State* L)
     float fV0 = LuaHelper::GetFloat(iArg + 1);
     float fU1 = LuaHelper::GetFloat(iArg + 2);
     float fV1 = LuaHelper::GetFloat(iArg + 3);
-    static_cast<RedBitmapElement*>(pElement)->SetTexCoords(fU0, fV0, fU1, fV1, false);
+    ((RedBitmapElement*)pElement)->SetTexCoords(fU0, fV0, fU1, fV1, false);
     return 0;
 }
 
@@ -3294,7 +3283,7 @@ int ScriptCB_IFMaskImage_GetMaskTexCoords(lua_State* L)
         return 0;
     }
     float fU0, fU1, fV0, fV1;
-    static_cast<RedMaskedBitmapElement*>(pElement)->GetMaskTexCoords(fU0, fU1, fV0, fV1);
+    ((RedMaskedBitmapElement*)pElement)->GetMaskTexCoords(fU0, fU1, fV0, fV1);
     lua_pushnumber(LuaHelper::mState, fU0);
     lua_pushnumber(LuaHelper::mState, fU1);
     lua_pushnumber(LuaHelper::mState, fV0);
@@ -3315,7 +3304,7 @@ int ScriptCB_IFModel_GetScale(lua_State* L)
     {
         return 0;
     }
-    lua_pushnumber(LuaHelper::mState, static_cast<Red3DModelElement*>(pElement)->m_scale);
+    lua_pushnumber(LuaHelper::mState, ((Red3DModelElement*)pElement)->m_scale);
     return 1;
 }
 
@@ -3328,7 +3317,7 @@ int ScriptCB_IFModel_GetRotation(lua_State* L)
     {
         return 0;
     }
-    const PblQuaternion rRotation = static_cast<Red3DModelElement*>(pElement)->m_rotation;
+    const PblQuaternion rRotation = ((Red3DModelElement*)pElement)->m_rotation;
     lua_pushnumber(LuaHelper::mState, rRotation._fS);
     lua_pushnumber(LuaHelper::mState, rRotation._fX);
     lua_pushnumber(LuaHelper::mState, rRotation._fY);
@@ -3350,7 +3339,7 @@ int ScriptCB_IFModel_GetTranslation(lua_State* L)
         return 0;
     }
     PblVector3 rTranslation;
-    rTranslation = static_cast<Red3DModelElement*>(pElement)->m_translation;
+    rTranslation = ((Red3DModelElement*)pElement)->m_translation;
     lua_pushnumber(LuaHelper::mState, rTranslation.x);
     lua_pushnumber(LuaHelper::mState, rTranslation.y);
     lua_pushnumber(LuaHelper::mState, rTranslation.z);
@@ -3370,7 +3359,7 @@ int ScriptCB_IFModel_GetDepth(lua_State* L)
     {
         return 0;
     }
-    lua_pushnumber(LuaHelper::mState, static_cast<Red3DModelElementLite*>(pElement)->GetDepth());
+    lua_pushnumber(LuaHelper::mState, ((Red3DModelElementLite*)pElement)->GetDepth());
     return 1;
 }
 
@@ -3392,7 +3381,7 @@ int ScriptCB_IFModel_SetAnimationLooping(lua_State* L)
         return 0;
     }
     float fLoop = (float)luaL_checknumber(LuaHelper::mState, iArg);
-    static_cast<Red3DModelElement*>(pElement)->mAnimator->mLooping = (int)fLoop != 0;
+    ((Red3DModelElement*)pElement)->mAnimator->mLooping = (int)fLoop != 0;
     return 0;
 }
 
@@ -3414,7 +3403,7 @@ int ScriptCB_IFModel_UpdateAnimation(lua_State* L)
         return 0;
     }
     float fElapsed = (float)luaL_checknumber(LuaHelper::mState, iArg);
-    static_cast<Red3DModelElement*>(pElement)->mAnimator->Update(fElapsed);
+    ((Red3DModelElement*)pElement)->mAnimator->Update(fElapsed);
     return 0;
 }
 
@@ -3439,14 +3428,12 @@ int ScriptCB_IFModel_AttachModel(lua_State* L)
     {
         return 0;
     }
-    RedInterfaceElement* pAttachedElement = Util_GetLuaElement(iArg);
-    if (pAttachedElement && pAttachedElement->IsModel())
-    {
-        Red3DModelElement* pAttached = static_cast<Red3DModelElement*>(pAttachedElement);
-        Red3DModelElement* pModel = static_cast<Red3DModelElement*>(pElement);
-        const unsigned int uiHash = PblTEMPHash(luaL_checkstring(LuaHelper::mState, iArg + 1));
-        pModel->AttachModel(pAttached, uiHash);
-    }
+    Red3DModelElement* pAttached = (Red3DModelElement*)(
+        const_cast<void*>(lua_topointer(LuaHelper::mState, iArg)));
+    Red3DModelElement* pModel = (Red3DModelElement*)pElement;
+    pModel->m_AttachedObj = pAttached;
+    pModel->m_uiHardpointHash = PblTEMPHash(luaL_checkstring(LuaHelper::mState, iArg + 1));
+    pAttached->m_bAmAttached = true;
     return 0;
 }
 
@@ -3681,7 +3668,7 @@ int ScriptCB_IFBorder_GetRect(lua_State* L)
         return 0;
     }
     float fLeft, fTop, fRight, fBottom, fBorderX, fBorderY;
-    static_cast<RedBorderElement*>(pElement)->GetBorderRect(fLeft, fTop, fRight, fBottom, fBorderX, fBorderY);
+    ((RedBorderElement*)pElement)->GetBorderRect(fLeft, fTop, fRight, fBottom, fBorderX, fBorderY);
     lua_pushnumber(LuaHelper::mState, fLeft);
     lua_pushnumber(LuaHelper::mState, fTop);
     lua_pushnumber(LuaHelper::mState, fRight);
@@ -3701,7 +3688,7 @@ int ScriptCB_IFBorder_GetTexCoords(lua_State* L)
         return 0;
     }
     float fU0, fV0, fU1, fV1, fBorderU, fBorderV;
-    static_cast<RedBorderElement*>(pElement)->GetBorderTexCoords(fU0, fV0, fU1, fV1, fBorderU, fBorderV);
+    ((RedBorderElement*)pElement)->GetBorderTexCoords(fU0, fV0, fU1, fV1, fBorderU, fBorderV);
     lua_pushnumber(LuaHelper::mState, fU0);
     lua_pushnumber(LuaHelper::mState, fV0);
     lua_pushnumber(LuaHelper::mState, fU1);
@@ -3718,7 +3705,7 @@ int ScriptCB_IFModel_SetAnimation(lua_State* L)
     int iArg;
     if (Util_GetRedInterfaceElement(2, pElement, iArg, true) && pElement->IsModel())
     {
-        Red3DModelElement* pModel = static_cast<Red3DModelElement*>(pElement);
+        Red3DModelElement* pModel = (Red3DModelElement*)pElement;
 
         float fTransitionTime = 0.0f;
         if (lua_isnumber(LuaHelper::mState, iArg + 1))
@@ -3754,7 +3741,7 @@ int ScriptCB_IFModel_QueueAnimation(lua_State* L)
     int iArg;
     if (Util_GetRedInterfaceElement(1, pElement, iArg, true) && pElement->IsModel())
     {
-        Red3DModelElement* pModel = static_cast<Red3DModelElement*>(pElement);
+        Red3DModelElement* pModel = (Red3DModelElement*)pElement;
 
         if (lua_isstring(LuaHelper::mState, iArg))
         {
@@ -3793,8 +3780,9 @@ int ScriptCB_IFModel_SetAnimationBanks(lua_State* L)
     int iNumArgs = lua_gettop(LuaHelper::mState);
     if (iArg < iNumArgs + 1)
     {
+        int i = 0;
         unsigned int* pHash = sAnimationBankHashes;
-        for (int i = 0; iArg < iNumArgs + 1; ++iArg, ++i)
+        for (; iArg < iNumArgs + 1; ++iArg, ++i)
         {
             if (i >= 5)
             {
@@ -3803,7 +3791,7 @@ int ScriptCB_IFModel_SetAnimationBanks(lua_State* L)
             *pHash++ = PblHash(luaL_optlstring(LuaHelper::mState, iArg, "", 0));
         }
     }
-    static_cast<Red3DModelElement*>(pElement)->SetAnimationBanks(sAnimationBankHashes);
+    ((Red3DModelElement*)pElement)->SetAnimationBanks(sAnimationBankHashes);
     return 0;
 }
 
@@ -3824,7 +3812,7 @@ int ScriptCB_IFModel_SetAnimationTime(lua_State* L)
     {
         return 0;
     }
-    static_cast<Red3DModelElement*>(pElement)->SetAnimationTime((float)luaL_checknumber(LuaHelper::mState, iArg));
+    ((Red3DModelElement*)pElement)->SetAnimationTime((float)luaL_checknumber(LuaHelper::mState, iArg));
     return 0;
 }
 
@@ -3866,7 +3854,7 @@ int ScriptCB_PlayInGameMovie(lua_State* L)
     case eLANG_UK: pcFile = "ingame.mvs"; break;
     default: pcFile = "ingame.mvs"; break;
     }
-    GameMovie::StartInGameMoviePlay(pcFile, luaL_checklstring(LuaHelper::mState, 2, 0));
+    StartInGameMoviePlay(pcFile, luaL_checklstring(LuaHelper::mState, 2, 0));
     return 0;
 }
 
@@ -4061,9 +4049,9 @@ int ScriptCB_GetLeaderBoardPlayerData(lua_State* L)
 int ScriptCB_DownloadLeaderBoardData(lua_State* L)
 {
     const char* pcName = luaL_optlstring(LuaHelper::mState, 1, 0, 0);
-    luaL_checknumber(LuaHelper::mState, 2);
+    const int iSelectedIdx = (int)luaL_checknumber(LuaHelper::mState, 2) - 1;
     unsigned __int64 uId;
-    if (Lua_Callbacks::GetServicePlayerID(pcName, &uId) || StatsManager::FindServicePlayerID())
+    if (Lua_Callbacks::GetServicePlayerID(pcName, &uId) || StatsManager::FindServicePlayerID(pcName, iSelectedIdx, uId))
     {
         StatsManager::Stop();
         return 0;
@@ -4076,7 +4064,7 @@ int ScriptCB_DownloadLeaderBoardData(lua_State* L)
 int ScriptCB_ResetLeaderBoardPlayerData(lua_State* L)
 {
     unsigned __int64 uId;
-    if (Lua_Callbacks::GetServicePlayerID(luaL_optlstring(LuaHelper::mState, 1, 0, 0), &uId) && StatsManager::ResetPlayer())
+    if (Lua_Callbacks::GetServicePlayerID(luaL_optlstring(LuaHelper::mState, 1, 0, 0), &uId) && StatsManager::ResetPlayer(uId))
     {
         return 0;
     }
@@ -4292,33 +4280,41 @@ int ScriptCB_SetBinding(lua_State* L)
         {
             continue;
         }
-        const int iEnd = ucDevice ? 64 : 76;
+        const int iEnd = ucDevice == 0 ? 76 : 64;
 
         for (int iInput = pJoystick->mAttachedJoysticks[ucDevice] ? 0 : 64; iInput < iEnd; ++iInput)
         {
             unsigned short usOpposite = 0;
-            const float fValue = pJoystick->mRawInputFloat[ucDevice][iInput];
             switch (iInput)
             {
             case 48: case 49: case 50: case 51: case 52: case 53: case 54: case 55:
             case 56: case 57: case 58: case 59: case 60: case 61: case 62: case 63:
 
-                if (fValue <= 0.4f || fValue - pJoystick->mLastRawInputFloat[ucDevice][iInput] <= 0.03f)
+                if (!(pJoystick->mRawInputFloat[ucDevice][iInput] > 0.4f && pJoystick->mRawInputFloat[ucDevice][iInput] - pJoystick->mLastRawInputFloat[ucDevice][iInput] > 0.03f))
                 {
                     continue;
                 }
-                usOpposite = RawInputToActionKey(
-                    (unsigned char)(int)((float)iInput + ((iInput & 1) ? -1.0f : 1.0f)));
+                float fStep;
+                switch (iInput)
+                {
+                case 48: case 50: case 52: case 54: case 56: case 58: case 60: case 62:
+                    fStep = 1.0f;
+                    break;
+                default:
+                    fStep = -1.0f;
+                    break;
+                }
+                usOpposite = RawInputToActionKey((unsigned char)(int)((float)iInput + fStep));
                 break;
             case 64:
             case 65:
-                if ((fValue < 0.0f ? -fValue : fValue) <= 0.5f)
+                if (!((pJoystick->mRawInputFloat[ucDevice][iInput] < 0.0f ? -pJoystick->mRawInputFloat[ucDevice][iInput] : pJoystick->mRawInputFloat[ucDevice][iInput]) > 0.5f))
                 {
                     continue;
                 }
                 break;
             default:
-                if (fValue <= 0.4f || fValue - pJoystick->mLastRawInputFloat[ucDevice][iInput] <= 0.03f)
+                if (!(pJoystick->mRawInputFloat[ucDevice][iInput] > 0.4f && pJoystick->mRawInputFloat[ucDevice][iInput] - pJoystick->mLastRawInputFloat[ucDevice][iInput] > 0.03f))
                 {
                     continue;
                 }
@@ -4458,7 +4454,7 @@ int ScriptCB_GetEntityMesh(lua_State* L)
     EntityClass* pClass = EntityClass::Find(PblHash(luaL_checklstring(LuaHelper::mState, 1, 0)));
     if (pClass && pClass->IsRtti(EntityGeometryClass::rttiHashEntityGeometryClass))
     {
-        const GameModel* pModel = static_cast<EntityGeometryClass*>(pClass)->GetModel();
+        const GameModel* pModel = ((EntityGeometryClass*)pClass)->GetModel();
         if (pModel && pModel->GetRedModel(0))
         {
             lua_pushlightuserdata(LuaHelper::mState, (void*)pModel->GetRedModel(0));
@@ -4474,9 +4470,9 @@ int ScriptCB_GetEntityWeaponMesh(lua_State* L)
 {
     lua_gettop(LuaHelper::mState);
     EntityClass* pClass = EntityClass::Find(PblHash(luaL_checklstring(LuaHelper::mState, 1, 0)));
-    if (pClass && pClass->IsRtti(GameObjectClass::rttiHashGameObjectClass))
+    if (pClass && pClass->IsRtti(GameObjectClass::GetRtti()))
     {
-        GameObjectClass* pObjectClass = static_cast<GameObjectClass*>(pClass);
+        GameObjectClass* pObjectClass = (GameObjectClass*)pClass;
         if (pObjectClass->GetWeaponCount() > 0)
         {
             const WeaponClass* pWeapon = pObjectClass->GetWeaponClass(0);

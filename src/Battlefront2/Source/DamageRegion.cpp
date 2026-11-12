@@ -9,7 +9,7 @@
 
 static inline Damageable* GetDamageable(GameObject* pObject)
 {
-    return static_cast<Damageable*>(pObject);
+    return (Damageable*)pObject;
 }
 
 // GLOBAL: SWBF2 0x007eb788

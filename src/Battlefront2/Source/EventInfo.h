@@ -85,7 +85,17 @@ public:
     {
     }
 
-    EventInfo(EventType eType, float fFloat, int iInt);
+    // FUNCTION: SWBF2 0x004de4e0
+    EventInfo(EventType eType, float fFloat, int iInt)
+        : mNextCmd(CMD_NONE, 0, PblVector3(0, 0, 0), 0),
+          mType(eType),
+          mGameObject(0),
+          mPos(0, 0, 0),
+          mFloat(fFloat),
+          mInt(iInt),
+          mVoidPtr(0)
+    {
+    }
 
     // FUNCTION: SWBF2 0x0043edf0
     EventInfo(EventType eType, GameObject* pObject)

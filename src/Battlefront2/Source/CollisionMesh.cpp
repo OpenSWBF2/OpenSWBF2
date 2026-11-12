@@ -20,7 +20,7 @@
 #include "PebbleFL/Common/PblConfig.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
-#include "RedEngineFL/Graphics/RedAmbientLight.h"
+#include "RedEngineFL/Graphics/RedLight.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
 #include "RedEngineFL/Graphics/RedLight.h"
@@ -171,26 +171,12 @@ unsigned int u8tof32_hex[256] = {
     0x3f70f0f1, 0x3f71f1f2, 0x3f72f2f3, 0x3f73f3f4, 0x3f74f4f5, 0x3f75f5f6, 0x3f76f6f7, 0x3f77f7f8,
     0x3f78f8f9, 0x3f79f9fa, 0x3f7afafb, 0x3f7bfbfc, 0x3f7cfcfd, 0x3f7dfdfe, 0x3f7efeff, 0x3f800000,
 };
-static float* const u8tof32_lut = (float*)u8tof32_hex;
+float* u8tof32_lut = (float*)u8tof32_hex;
 
 // GLOBAL: SWBF2 0x01e30394
 CollisionTreeLeaf* sDrawThisLeaf;
 // GLOBAL: SWBF2 0x01eb336c
 CollisionAABB sDrawThisAABB;
-
-// FUNCTION: SWBF2 0x004609e0
-void CollisionAABB::Init(const CollisionAABB& parent, const CompressedAABB& compressed)
-{
-    PblVector3 dim = parent.GetDim();
-    PblVector3 fltmin(u8tof32_lut[compressed.boxmin.x],
-                            u8tof32_lut[compressed.boxmin.y],
-                            u8tof32_lut[compressed.boxmin.z]);
-    PblVector3 fltmax(u8tof32_lut[compressed.boxmax.x],
-                            u8tof32_lut[compressed.boxmax.y],
-                            u8tof32_lut[compressed.boxmax.z]);
-    boxmin = parent.boxmin + dim * fltmin;
-    boxmax = parent.boxmin + dim * fltmax;
-}
 
 // FUNCTION: SWBF2 0x00460b10
 int RayConvexPoly_intersect(const PblVector3& vStart, const PblVector3& vDir, const PblVector3* const pVerts, int iNumVerts,
@@ -254,14 +240,6 @@ float BoxDistSq(const PblVector3& vPoint, const CollisionAABB& aabb)
 {
     PblVector3 Vector = vPoint - aabb.GetMidPoint();
     return DotProduct(Vector, Vector);
-}
-
-// FUNCTION: SWBF2 0x004615e0
-CollisionAABB* CopyCollisionAABB(CollisionAABB* pThis, const CollisionAABB& src)
-{
-    pThis->boxmin = src.boxmin;
-    pThis->boxmax = src.boxmax;
-    return pThis;
 }
 
 // FUNCTION: SWBF2 0x00461610
@@ -434,7 +412,7 @@ CollisionTreeNode* ReadTree(PblFileChunk& chunk)
     PblFileChunk child = chunk.ReadNextChild();
     switch (child._iId)
     {
-    case 0x45444F4E:
+    case CHUNK_ID('N', 'O', 'D', 'E'):
     {
         CollisionTreeBranch* pBranch = new CollisionTreeBranch;
         child._pFile->ReadData(&pBranch->aabb, 6);
@@ -442,7 +420,7 @@ CollisionTreeNode* ReadTree(PblFileChunk& chunk)
         pBranch->SetGChild(ReadTree(chunk));
         return pBranch;
     }
-    case 0x4641454C:
+    case CHUNK_ID('L', 'E', 'A', 'F'):
     {
         unsigned char uNumVerts = child._pFile->Read8();
         CollisionTreeLeaf* pLeaf = new CollisionTreeLeaf(uNumVerts);
@@ -478,7 +456,7 @@ void CollisionMesh::_Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x454D414E:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
         {
             char acName[128];
             child.ReadString(acName, 128);
@@ -490,7 +468,7 @@ void CollisionMesh::_Read(PblFileChunk& chunk)
             }
             break;
         }
-        case 0x45455254:
+        case CHUNK_ID('T', 'R', 'E', 'E'):
         {
             int iBytes = 2 * (iNumIndices + 6 * (iNumNodes + iNumLeafs));
             if (iBytes > mTopCollision[0].mSize)
@@ -503,13 +481,13 @@ void CollisionMesh::_Read(PblFileChunk& chunk)
             mRoot = ReadTree(child);
             break;
         }
-        case 0x45444F4E:
+        case CHUNK_ID('N', 'O', 'D', 'E'):
         {
             char acName[128];
             child.ReadString(acName, 128);
             break;
         }
-        case 0x49534F50:
+        case CHUNK_ID('P', 'O', 'S', 'I'):
             mPoslList = new PblVector3[mPoslCount];
             for (unsigned int i = 0; i < mPoslCount; ++i)
             {
@@ -521,10 +499,10 @@ void CollisionMesh::_Read(PblFileChunk& chunk)
                 mPoslList[i].z = z;
             }
             break;
-        case 0x4B53414D:
+        case CHUNK_ID('M', 'A', 'S', 'K'):
             mMask = child._pFile->Read8();
             break;
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
         {
             mPoslCount = child._pFile->Read32();
             iNumNodes = child._pFile->Read32();

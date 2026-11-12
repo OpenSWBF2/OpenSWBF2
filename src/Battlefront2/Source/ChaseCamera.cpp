@@ -5,6 +5,7 @@
 #include "CameraManager.h"
 #include "Character.h"
 #include "CollisionObject.h"
+#include "CollisionManager.h"
 #include "Controllable.h"
 #include "GameObject.h"
 #include "GameLoop.h"
@@ -21,14 +22,6 @@
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
-class CollisionManager
-{
-public:
-    static float RayHit(const PblVector3& vStart, const PblVector3& vDir, float fLength,
-                        CollisionObject*& pObject, PblVector3* pvPoint,
-                        const GameObject** const ppIgnore, int iNumIgnore, int iMask, bool bFlag);
-};
-
 namespace FLRenderer
 {
 unsigned int GetViewWidth(unsigned int uView);
@@ -42,11 +35,7 @@ float GetWidescreenFOVAdjustment(float fFOV);
 namespace AIUtil
 {
 
-// FUNCTION: SWBF2 0x0043ef40
-bool IsDebugOutputVisible()
-{
-    return false;
-}
+bool IsDebugOutputVisible();
 }
 
 // GLOBAL: SWBF2 0x01e5605f
@@ -70,7 +59,7 @@ int sTeamIndex = 1;
 
 static inline CollisionObject* GetCollisionObject(GameObject* pObject)
 {
-    return static_cast<CollisionObject*>(pObject);
+    return (CollisionObject*)pObject;
 }
 
 

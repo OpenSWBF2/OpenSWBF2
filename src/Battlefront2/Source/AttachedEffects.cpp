@@ -95,7 +95,7 @@ AttachedEffects* AttachedEffectsClass::BuildEffects(const EntityGeometry* pGeome
             Entity* pEntity = m_aAttachClassData[i].pOdfClass->Build(desc);
             if (pEntity->IsRtti(EntityLight::GetRtti()))
             {
-                pEffects->m_aAttachData[i].pEffect = static_cast<EntityLight*>(pEntity);
+                pEffects->m_aAttachData[i].pEffect = (EntityLight*)pEntity;
             }
             pEffects->m_aAttachData[i].fTimer = 0.0f;
             if (pEffects->m_aAttachData[i].pEffect && m_aAttachClassData[i].uiNumParams >= 1)
@@ -103,7 +103,7 @@ AttachedEffects* AttachedEffectsClass::BuildEffects(const EntityGeometry* pGeome
                 char acBuffer[64];
                 sprintf(acBuffer, "%f",
                         m_aAttachClassData[i].afParam[0] > 0.0f ? m_aAttachClassData[i].afParam[0] : 0.0f);
-                pEntity->SetProperty(0xE6915CF6, acBuffer);
+                pEntity->SetProperty(0xE6915CF6 /* "MaxDistance" */, acBuffer);
             }
         }
         else
@@ -143,11 +143,11 @@ bool AttachedEffectsClass::SetProperty(unsigned int uiProperty, const char* pszV
 {
     switch (uiProperty)
     {
-    case 0x51e2c845:
+    case 0x51e2c845: /* "AttachDynamic" */
         s_bDynamic = atoi(pszValue) != 0;
         return true;
 
-    case 0x3be7b80a:
+    case 0x3be7b80a: /* "AttachToHardPoint" */
         if (s_uiNumAttached < MAX_ATTACHED && s_aAttachClassData[s_uiNumAttached].pOdfClass)
         {
             char acBone[256];
@@ -172,7 +172,7 @@ bool AttachedEffectsClass::SetProperty(unsigned int uiProperty, const char* pszV
         }
         return true;
 
-    case 0x576b09cd:
+    case 0x576b09cd: /* "Emitter" */
         if (s_uiNumAttached < MAX_ATTACHED)
         {
             char acEffect[256];
@@ -198,7 +198,7 @@ bool AttachedEffectsClass::SetProperty(unsigned int uiProperty, const char* pszV
         }
         return true;
 
-    case 0xa9d0d48b:
+    case 0xa9d0d48b: /* "AttachOdf" */
         if (s_uiNumAttached < MAX_ATTACHED)
         {
             s_aAttachClassData[s_uiNumAttached].bIsOdf = 1;
@@ -212,7 +212,7 @@ bool AttachedEffectsClass::SetProperty(unsigned int uiProperty, const char* pszV
         }
         return true;
 
-    case 0x6a6c7e0d:
+    case 0x6a6c7e0d: /* "AttachEffect" */
         if (s_uiNumAttached < MAX_ATTACHED)
         {
             s_aAttachClassData[s_uiNumAttached].bIsOdf = 0;

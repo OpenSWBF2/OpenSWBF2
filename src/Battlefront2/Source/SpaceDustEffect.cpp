@@ -61,7 +61,7 @@ float SpaceDustEffect::mReferenceSpeed = 70.0f;
 float SpaceDustEffect::mDustParticleSpeed = 50.0f;
 
 // GLOBAL: SWBF2 0x007e9a4c
-unsigned int SpaceDustEffect::mTextureHash = 0x72F9433Cu;
+unsigned int SpaceDustEffect::mTextureHash = 0x72F9433Cu /* "spacedust1" */;
 // GLOBAL: SWBF2 0x007e9434
 float SpaceDustEffect::mMinParticleScale = 0.5f;
 // GLOBAL: SWBF2 0x007e9a44
@@ -99,7 +99,7 @@ void SpaceDustEffect::Destroy()
 
 // FUNCTION: SWBF2 0x0064d0d0
 SpaceDustEffect::SpaceDustEffect()
-    : FLEffect(0x3757A565u, 3)
+    : FLEffect(0x3757A565u /* "SpaceDust" */, RENDERABLE_POSTWORLD)
 {
     Enable(false);
 }
@@ -141,50 +141,50 @@ void SpaceDustEffect::ReadConfig(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0xAF8BB8CEu:
+        case 0xAF8BB8CEu: /* "Enable" */
         {
             bool bEnable = data.GetUint32Arg(0) != 0;
             Enable(bEnable);
             Init(bEnable);
             break;
         }
-        case 0x5C980BB3u:
+        case 0x5C980BB3u: /* "SpawnDistance" */
             mSpawnDistance = data.GetFloatArg(0);
             break;
-        case 0x0DC9368Au:
+        case 0x0DC9368Au: /* "MaxRandomSideOffset" */
             mMaxRandomSideOffset = data.GetFloatArg(0);
             break;
-        case 0x1C5D2DDAu:
+        case 0x1C5D2DDAu: /* "CenterDeadZoneRadius" */
             mCenterDeadZoneRadius = data.GetFloatArg(0);
             break;
-        case 0xA4C9A8D7u:
+        case 0xA4C9A8D7u: /* "SpawnDelay" */
             mSpawnDelay = data.GetFloatArg(0);
             break;
-        case 0x23B8373Du:
+        case 0x23B8373Du: /* "ReferenceSpeed" */
             mReferenceSpeed = data.GetFloatArg(0);
             break;
-        case 0x0E0C9EFAu:
+        case 0x0E0C9EFAu: /* "DustParticleSpeed" */
             mDustParticleSpeed = data.GetFloatArg(0);
             break;
-        case 0x3C6468F4u:
+        case 0x3C6468F4u: /* "Texture" */
             mTextureHash = PblHash(data.GetStringArg(0));
             break;
-        case 0x7EFE380Du:
+        case 0x7EFE380Du: /* "MinParticleScale" */
             mMinParticleScale = data.GetFloatArg(0);
             break;
-        case 0xDE77E423u:
+        case 0xDE77E423u: /* "MaxParticleScale" */
             mMaxParticleScale = data.GetFloatArg(0);
             break;
-        case 0xE26BA52Au:
+        case 0xE26BA52Au: /* "SpeedParticleMinLength" */
             mSpeedParticleMinLength = data.GetFloatArg(0);
             break;
-        case 0x006E0A20u:
+        case 0x006E0A20u: /* "SpeedParticleMaxLength" */
             mSpeedParticleMaxLength = data.GetFloatArg(0);
             break;
-        case 0xD9F25D54u:
+        case 0xD9F25D54u: /* "ParticleLengthMinSpeed" */
             mParticleLengthMinSpeed = data.GetFloatArg(0);
             break;
-        case 0x7BF23692u:
+        case 0x7BF23692u: /* "ParticleLengthMaxSpeed" */
             mParticleLengthMaxSpeed = data.GetFloatArg(0);
             break;
         }
@@ -240,7 +240,7 @@ void SpaceDustEffect::Update(float fDeltaTime)
                 particle.mLifeLeft = -1.0f;
             }
         }
-        if (particle.mLifeLeft >= 0.0f)
+        if (!(particle.mLifeLeft < 0.0f))
         {
             ++iNumAlive;
             particle.mCoord += mCamera.GetZAxis() * (mDustParticleSpeed * fDeltaTime);
@@ -350,7 +350,7 @@ void SpaceDustEffect::Update(float fDeltaTime)
 }
 
 // FUNCTION: SWBF2 0x0064dc60
-void SpaceDustEffect::Render(int value)
+void SpaceDustEffect::Render(unsigned int value) const
 {
     if (value & 0x20000)
     {
@@ -393,7 +393,7 @@ void SpaceDustEffect::Render(int value)
             {
                 fT = 1.0f;
             }
-            mTextureHash = 0x72F9433Cu;
+            mTextureHash = 0x72F9433Cu /* "spacedust1" */;
             const float fLength = (1.0f - fT) * mSpeedParticleMinLength + mSpeedParticleMaxLength * fT;
 
             RedParticleRenderer::TexCoords texCoords;

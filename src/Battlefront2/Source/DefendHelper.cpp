@@ -5,6 +5,7 @@
 #include "AILowLevel.h"
 #include "AIUtil.h"
 #include "Character.h"
+#include "EntitySoldier.h"
 #include "Controllable.h"
 #include "Entity.h"
 #include "HintManager.h"
@@ -14,11 +15,6 @@
 #include "UnitController.h"
 #include "PebbleFL/Common/PblRandom.h"
 
-class EntitySoldier
-{
-public:
-    static PblHash rttiHashEntitySoldier;
-};
 
 namespace
 {
@@ -303,7 +299,7 @@ bool DefendHelper::ChooseHint(const BaseHint** ppHints, int iCount, const PblVec
 // FUNCTION: SWBF2 0x0048bfe0
 bool DefendHelper::CheckEnterFortification(float dt, const PblVector3& vPos)
 {
-    if (!GetMe()->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
+    if (!GetMe()->GetEntity()->IsRtti(EntitySoldier::GetRtti()))
     {
         return false;
     }

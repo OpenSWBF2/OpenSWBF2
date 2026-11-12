@@ -25,27 +25,24 @@ public:
     // SYNTHETIC: SWBF2 0x007045d0
     // pcLightBeamShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x00704890
+    // pcLightBeamShader::GetID
+    // FUNCTION: SWBF2 0x007048c0
+    // pcLightBeamShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x00704850
+    // pcLightBeamShader::Bind
+    // FUNCTION: SWBF2 0x007048d0
+    // pcLightBeamShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcLightBeamShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
-    virtual void Bind();
 
 private:
-    virtual void _Read(PblFileChunk& chunk) const;
 
     virtual void _StaticInit() const;
 
-    virtual void InitFixedFunctionShaderDef() const;
 
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                                 const unsigned int* pParams,
-                                 unsigned int uiNumParams,
-                                 unsigned int uiMaterialFlags,
-                                 const RedColor& color0,
-                                 const RedColor& color1,
-                                 float fArg7) const;
 
-    virtual pcRedShaderDef* GetShaderDef() const;
 
 public:
 
@@ -61,29 +58,6 @@ public:
     pcRedVertexFormat* m_pVertexFormat;
     unsigned int m_uiMaterialFlags;
 
-    // GLOBAL: SWBF2 0x009c995c
-    static unsigned int s_uiID;
-
-    // GLOBAL: SWBF2 0x009c9960
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c996c
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9978
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9984
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9994
-    static unsigned int s_uiRenderTypeHash;
-
-    // GLOBAL: SWBF2 0x009c999c
-    static pcRedShaderDef s_shaderDef;
-
-    static pcLightBeamShader s_Factory;
-
 private:
 
     pcLightBeamShader();
@@ -96,7 +70,6 @@ private:
                const RedColor& color1,
                float fArg7);
 
-    void _InitPipelineFuncArray();
 };
  
  

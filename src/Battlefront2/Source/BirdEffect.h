@@ -101,7 +101,7 @@ public:
     static void SetNumBirdTypes(int iNum);
     static void SetBirdType(int iIndex, float fSize, const char* pTexture);
 
-    static void __fastcall SetPotentialScatterPoint(const PblVector3* pPosition, unsigned char ucNumBirds);
+    static void SetPotentialScatterPoint(const PblVector3& vPosition, unsigned char ucNumBirds);
     static BirdParticle* GetFreeBird();
     static void ScatterRandomBirds(int iNum, const PblVector3& vPos);
     static void FlockRandomBirds(const PblVector3& vPos, const PblVector3& vVelocity);

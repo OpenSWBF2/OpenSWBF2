@@ -12,11 +12,6 @@
 #include "UnitController.h"
 
 
-// FUNCTION: SWBF2 0x0050b400
-void PblRef::Kill()
-{
-    mAliveFlag = 0;
-}
 
 // SYNTHETIC: SWBF2 0x00405e30
 // `dynamic initializer for 'AIPathNode::sMemoryPool''
@@ -254,7 +249,7 @@ namespace PathManager
 
 // FUNCTION: SWBF2 0x00614730
 PathRequest::PathRequest(UnitController* pUnit, const PblVector3& vStart, const PblVector3& vGoal,
-                         float fRadius, int eProhibit, unsigned char uPriority,
+                         float fRadius, ConnectivityGraph::ProhibitFlag eProhibit, unsigned char uPriority,
                          const ConnectivityArc*  ,
                          const Obstacle** ppIgnore, int iIgnoreCount)
 {
@@ -356,7 +351,7 @@ void LowerRequestPriority(UnitController* pCtrl)
 
 // FUNCTION: SWBF2 0x00614a60
 bool RequestPath(UnitController* pUnit, const PblVector3& vStart, const PblVector3& vGoal,
-                 float fRadius, int eProhibit, unsigned char uPriority,
+                 float fRadius, ConnectivityGraph::ProhibitFlag eProhibit, unsigned char uPriority,
                  const ConnectivityArc* pArc, const Obstacle** ppIgnore, int iIgnoreCount)
 {
     AILowLevel* pLow = &pUnit->mLowLevel;

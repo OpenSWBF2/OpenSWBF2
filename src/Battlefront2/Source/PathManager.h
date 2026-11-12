@@ -6,6 +6,7 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "PerformanceTimer.h"
+#include "ConnectivityGraph.h"
 
 class MemoryPool;
 class UnitController;
@@ -33,7 +34,7 @@ public:
 
     AIPathNode() : mFlags(0) {}
 
-    static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
+    static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     PblList<AIPathNode>::Node* GetListNode();
@@ -90,7 +91,7 @@ class PathRequest
 public:
 
     PathRequest(UnitController* pUnit, const PblVector3& vStart, const PblVector3& vGoal,
-                float fRadius, int eProhibit, unsigned char uPriority,
+                float fRadius, ConnectivityGraph::ProhibitFlag eProhibit, unsigned char uPriority,
                 const ConnectivityArc* pArc, const Obstacle** ppIgnore, int iIgnoreCount);
 
     PblList<PathRequest>::Node mNode;
@@ -98,7 +99,7 @@ public:
     PblVector3 mStart;
     PblVector3 mGoal;
     float mRadius;
-    int mProhibit;
+    ConnectivityGraph::ProhibitFlag mProhibit;
     unsigned char mPriority;
     const Obstacle* mObstacles[2];
     int mObstacleCount;
@@ -116,7 +117,7 @@ void RemovePathRequest(UnitController* pCtrl);
 void ForgetBarrier(const Obstacle* pBarrier);
 void LowerRequestPriority(UnitController* pCtrl);
 bool RequestPath(UnitController* pUnit, const PblVector3& vStart, const PblVector3& vGoal,
-                 float fRadius, int eProhibit, unsigned char uPriority,
+                 float fRadius, ConnectivityGraph::ProhibitFlag eProhibit, unsigned char uPriority,
                  const ConnectivityArc* pArc, const Obstacle** ppIgnore, int iIgnoreCount);
 PathRequest* GetNextPathRequest();
 bool IsDone();

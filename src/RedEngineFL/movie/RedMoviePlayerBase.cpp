@@ -751,60 +751,6 @@ void RedMoviePlayerBase::Update()
     }
 }
 
-namespace Snd
-{
-
-// FUNCTION: SWBF2 0x00738950
-void* QueueBase::Add(unsigned int uiElementSize, void* const pElements,
-                     unsigned short usCapacity)
-{
-    if (mFull)
-    {
-        return 0;
-    }
-    unsigned short i = mHead++;
-    void* pResult = (char*)pElements + i * uiElementSize;
-    if (mHead == usCapacity)
-    {
-        mHead = 0;
-    }
-    mFull = mHead == mTail;
-    return pResult;
-}
-
-// FUNCTION: SWBF2 0x00745080
-void* QueueLockBase::Get(QueueBase* const pQueue, unsigned int uiElementSize,
-                         void* const pElements, unsigned short usCapacity)
-{
-    if (mLock == pQueue->mHead)
-    {
-        return 0;
-    }
-    unsigned short i = mLock++;
-    void* pResult = (char*)pElements + i * uiElementSize;
-    if (mLock == usCapacity)
-    {
-        mLock = 0;
-    }
-    return pResult;
-}
-
-// FUNCTION: SWBF2 0x007450c0
-void QueueLockBase::Unlock(QueueBase* const pQueue, const void* const pElement,
-                           unsigned int uiElementSize, void* const pElements,
-                           unsigned short usCapacity)
-{
-    (void)pElement;
-    (void)uiElementSize;
-    (void)pElements;
-    ++pQueue->mTail;
-    if (pQueue->mTail == usCapacity)
-    {
-        pQueue->mTail = 0;
-    }
-}
-}
-
 // TEMPLATE: SWBF2 0x007253f0
 // Snd::Queue<RedMoviePlayerBase::SegmentSequence,10>::~Queue<RedMoviePlayerBase::SegmentSequence,10>
 
@@ -908,11 +854,11 @@ bool RedMoviePlayerBase::OpenHeader(PblFileChunk& chunk, int iHeap, unsigned int
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x0fb40705:
+        case 0x0fb40705: /* "info" */
             mInfo = Info::Read(child, iHeap);
             break;
 
-        case 0xd872e2a5:
+        case 0xd872e2a5: /* "Data" */
         {
             unsigned int uiDataPos = child._pFile->Tell();
             if (mInfo)
@@ -926,7 +872,7 @@ bool RedMoviePlayerBase::OpenHeader(PblFileChunk& chunk, int iHeap, unsigned int
         }
 
         case 0x2f1f7060:
-        case 0xf9f40518:
+        case 0xf9f40518: /* "RedMovie" */
             if (OpenHeader(child, iHeap, uiArg4))
             {
                 return true;
@@ -953,11 +899,11 @@ RedMoviePlayerBase::Info* RedMoviePlayerBase::Info::Read(PblFileChunk& chunk, in
     {
         switch ((unsigned int)chunk._pFile->Read32())
         {
-        case 0x40fbdebd:
+        case 0x40fbdebd: /* "NumSegments" */
             uiNumSegments = chunk._pFile->Read32();
             break;
 
-        case 0x8d39bde6:
+        case 0x8d39bde6: /* "name" */
         {
             uiHashID = chunk._pFile->Read32();
             Info* pInfo = const_cast<Info*>(FindByHashID(uiHashID));
@@ -969,7 +915,7 @@ RedMoviePlayerBase::Info* RedMoviePlayerBase::Info::Read(PblFileChunk& chunk, in
             break;
         }
 
-        case 0xb969be96:
+        case 0xb969be96: /* "SegmentInfo" */
         {
             void* pMem = RedAllocFromHeap(iHeap, sizeof(Info) + uiNumSegments * sizeof(Segment), 0);
             if (!pMem)
@@ -998,7 +944,7 @@ bool RedMoviePlayerBase::Info::ReadSegments(PblFileChunk& chunk, unsigned int ui
 
     while (!chunk.IsDone() && uiNumSegments)
     {
-        if ((unsigned int)chunk._pFile->Read32() != 0xf3c342e6)
+        if ((unsigned int)chunk._pFile->Read32() != 0xf3c342e6 /* "Segment" */)
         {
             continue;
         }
@@ -1011,13 +957,13 @@ bool RedMoviePlayerBase::Info::ReadSegments(PblFileChunk& chunk, unsigned int ui
         {
             switch ((unsigned int)chunk._pFile->Read32())
             {
-            case 0x8d39bde6:
+            case 0x8d39bde6: /* "name" */
                 uiHashID = chunk._pFile->Read32();
                 break;
-            case 0x83d03615:
+            case 0x83d03615: /* "Length" */
                 uiLength = chunk._pFile->Read32();
                 break;
-            case 0x809608b6:
+            case 0x809608b6: /* "padding" */
                 uiGap = chunk._pFile->Read32();
                 break;
             case 0x7db1d043:

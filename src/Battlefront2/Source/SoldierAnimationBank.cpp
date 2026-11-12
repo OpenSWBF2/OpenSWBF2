@@ -31,23 +31,23 @@ int SoldierAnimationBank::s_iNumComboAnimationsInPool;
 // GLOBAL: SWBF2 0x007e9440
 SoldierAnimationBank::Bank SoldierAnimationBank::s_aBank[MAX_BANKS] =
 {
-    { "human", 0x714daa7au, HUMAN, HUMANLZ },
+    { "human", 0x714daa7au /* "human" */, HUMAN, HUMANLZ },
 };
 
 // GLOBAL: SWBF2 0x007e97f0
 SoldierAnimationBank::LowResBank SoldierAnimationBank::s_aLowResBank[MAX_LOWRESBANKS] =
 {
-    { "humanlz", 0x4a159408u, HUMANLZ },
+    { "humanlz", 0x4a159408u /* "humanlz" */, HUMANLZ },
 };
 
 // GLOBAL: SWBF2 0x007e9070
 SoldierAnimationBank::Weapon SoldierAnimationBank::s_aWeapon[MAX_WEAPONS] =
 {
-    { "rifle",   0x0bb9a971u, INVALID_COMBO, RIFLE, 1 },
-    { "bazooka", 0xed24a788u, INVALID_COMBO, RIFLE, 1 },
-    { "tool",    0x51750ec7u, INVALID_COMBO, RIFLE, 0 },
-    { "pistol",  0x12019e56u, INVALID_COMBO, TOOL,  1 },
-    { "melee",   0x79ca637bu, INVALID_COMBO, TOOL,  0 },
+    { "rifle",   0x0bb9a971u /* "Rifle" */, INVALID_COMBO, RIFLE, 1 },
+    { "bazooka", 0xed24a788u /* "bazooka" */, INVALID_COMBO, RIFLE, 1 },
+    { "tool",    0x51750ec7u /* "tool" */, INVALID_COMBO, RIFLE, 0 },
+    { "pistol",  0x12019e56u /* "Pistol" */, INVALID_COMBO, TOOL,  1 },
+    { "melee",   0x79ca637bu /* "melee" */, INVALID_COMBO, TOOL,  0 },
 };
 
 // GLOBAL: SWBF2 0x007e9700
@@ -147,7 +147,7 @@ SoldierAnimationBank::BANK SoldierAnimationBank::AddBank(const char* pcName, con
     if (pcParent)
     {
         unsigned int uiParentHash = PblHash(pcParent);
-        if (uiParentHash == uiNameHash || uiParentHash == 0x20FD0E45u  )
+        if (uiParentHash == uiNameHash || uiParentHash == 0x20FD0E45u /* "Root" */  )
         {
             eParent = (BANK)s_iNumBanks;
         }
@@ -209,7 +209,7 @@ SoldierAnimationBank::LOWRESBANK SoldierAnimationBank::AddLowResBank(BANK eBank,
     if (pcParent)
     {
         unsigned int uiParentHash = PblHash(pcParent);
-        if (uiParentHash == uiNameHash || uiParentHash == 0x20FD0E45u  )
+        if (uiParentHash == uiNameHash || uiParentHash == 0x20FD0E45u /* "Root" */  )
         {
             eParent = (LOWRESBANK)s_iNumLowResBanks;
         }
@@ -331,7 +331,7 @@ SoldierAnimationBank::WEAPON SoldierAnimationBank::AddWeapon(const char* pcName,
         pcParentName = pcParent;
     }
     unsigned int uiParentHash = PblHash(pcParentName);
-    if (uiParentHash == uiNameHash || uiParentHash == 0x20FD0E45u  )
+    if (uiParentHash == uiNameHash || uiParentHash == 0x20FD0E45u /* "Root" */  )
     {
         eParent = (WEAPON)s_iNumWeapons;
     }

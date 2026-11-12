@@ -1,5 +1,7 @@
 #include "HUDGameEvents.h"
+#include "PopupText.h"
 #include "HUDObjectiveList.h"
+#include "EntityFlyer.h"
 
 #include <float.h>
 #include <math.h>
@@ -11,10 +13,12 @@
 #include "Character.h"
 #include "Controllable.h"
 #include "EntitySoldier.h"
+#include "EntityBuilding.h"
 #include "FLInputManager.h"
 #include "FLJoystick.h"
 #include "GameLoop.h"
 #include "GameObject.h"
+#include "MountedTurret.h"
 #include "MissionTimer.h"
 #include "NetGame.h"
 #include "ScopeDisplay.h"
@@ -103,11 +107,11 @@ void HUD::GameEvents::ShowTeamPoints(int iTeam, bool bShow)
         const int iMyTeam = NetGame::IsEnabled() ? NetGame::GetStartTeam(NetGame::GetLocalIndex(i))
                                                  : pCharacter->mTeamNumber;
         const int iOtherTeam = iMyTeam == 1 ? 2 : 1;
-        if (iTeam == Team::sTeams[iMyTeam]->mTeamNumber)
+        if (iTeam == Team::sTeams[iMyTeam]->GetNumber())
         {
             gPlayerData[i].teamData[0].showPoints = bShow;
         }
-        if (iTeam == Team::sTeams[iOtherTeam]->mTeamNumber)
+        if (iTeam == Team::sTeams[iOtherTeam]->GetNumber())
         {
             gPlayerData[i].teamData[1].showPoints = bShow;
         }
@@ -779,6 +783,38 @@ void HUD::GameEvents::Die(HUD::GameEvents::PlayerEvents& events, HUD::GameEvents
     event.Send();
 }
 
+namespace HUD
+{
+namespace GameEvents
+{
+void DisableAllForObjectiveDisplay(int iPlayer, bool bFlag);
+}
+}
+
+// FUNCTION: SWBF2 0x005636b0
+void HUD::GameEvents::DisableAllForObjectiveDisplay(int iPlayer, bool bFlag)
+{
+    if (iPlayer < 0)
+    {
+        return;
+    }
+
+    HUD::GameEvents::PlayerEvents& events = HUD::GameEvents::gPlayerEvents[iPlayer];
+    HUD::GameEvents::PlayerData& data = HUD::GameEvents::gPlayerData[iPlayer];
+    HUD::GameEvents::DisablePlayerElements(events, data);
+    if (bFlag)
+    {
+        HUD::GameEvents::DisableTeamElements(events, data);
+    }
+    HUD::Event mapDisable(events.mapDisable, true);
+    mapDisable.Send();
+    data.mapMode = (HUD::ElementMap::Mode)3;
+    HUD::Event toolTipsDisable(events.disableToolTips, true);
+    toolTipsDisable.Send();
+    HUD::Event timerDisable(HUD::GameEvents::gObjectiveEvents.timerDisable, true);
+    timerDisable.Send();
+}
+
 class EntitySoldierClass;
 namespace HUD
 {
@@ -813,10 +849,6 @@ void GameObjectGetNames(PblHandle<GameObject const>& hObject, const unsigned sho
 namespace ObjectiveManager
 {
     unsigned int GetCurrentPopupText();
-}
-namespace PopupText
-{
-    int GetNumHints();
 }
 
 // FUNCTION: SWBF2 0x00562b90
@@ -1056,7 +1088,7 @@ void HUD::GameEvents::Update(float fDeltaTime)
 // FUNCTION: SWBF2 0x00563660
 void HUD::GameEvents::Die(const Controllable* const pControllable)
 {
-    const int iIndex = NetGame::GetJoystickIndex(pControllable->mInitialPlayerId);
+    const int iIndex = NetGame::GetJoystickIndex(pControllable->GetInitialPlayerId());
     if (iIndex < 0)
     {
         return;
@@ -1065,10 +1097,7 @@ void HUD::GameEvents::Die(const Controllable* const pControllable)
     HideObjectiveDetailsElements(gPlayerEvents[iIndex], gPlayerData[iIndex]);
 }
 
-class EntityFlyer { public: static PblHash rttiHashEntityFlyer; };
-class MountedTurret { public: static PblHash rttiHashMountedTurret; };
 class EntityBuildingArmed { public: static PblHash rttiHashEntityBuildingArmed; };
-class EntityBuildingClass { public: static PblHash rttiHashEntityBuildingClass; };
 class WeaponRepair { public: static PblHash rttiHashWeaponRepair; };
 
 namespace Lua_Callbacks
@@ -1163,7 +1192,7 @@ void HUD::GameEvents::UpdateLockOn(unsigned int uIndex, const GameObject* const 
          (pObject->IsRtti(EntityBuildingArmed::rttiHashEntityBuildingArmed) && pObject->GetControllable() &&
           pObject->GetControllable()->IsRemoteVehicle())))
     {
-        pTarget = pLockOn->mLockedObj;
+        pTarget = pLockOn->GetLockedTarget();
     }
 
     if (pTarget != data.lockedTarget)
@@ -1221,13 +1250,13 @@ void HUD::GameEvents::UpdateLockOn(unsigned int uIndex, const GameObject* const 
         if (data.lockedTargetHealth != fShield)
         {
             const float fMaxShield = pTarget->mMaxShield;
-            HUD::Event ev8(events.lockOnHealth, static_cast<unsigned int>((int)fShield));
+            HUD::Event ev8(events.lockOnHealth, (unsigned int)(int)fShield);
             ev8.Send();
             HUD::Event ev9(events.lockOnHealthFraction, fShield / fMaxShield);
             ev9.Send();
             data.lockedTargetHealth = fShield;
         }
-        HUD::Event ev10(events.lockOnShieldName, (const wchar_t*)RedLocalizeDB::Find(0x66049aa8, false));
+        HUD::Event ev10(events.lockOnShieldName, (const wchar_t*)RedLocalizeDB::Find(0x66049aa8 /* "entity.com.shield" */, false));
         ev10.Send();
     }
     else
@@ -1244,7 +1273,7 @@ void HUD::GameEvents::UpdateLockOn(unsigned int uIndex, const GameObject* const 
             if (fHealth != data.lockedTargetHealth)
             {
                 const float fMaxHealth = pTarget->mMaxHealth;
-                HUD::Event ev12(events.lockOnHealth, static_cast<unsigned int>((int)fHealth));
+                HUD::Event ev12(events.lockOnHealth, (unsigned int)(int)fHealth);
                 ev12.Send();
                 HUD::Event ev13(events.lockOnHealthFraction, fHealth / fMaxHealth);
                 ev13.Send();
@@ -1298,7 +1327,11 @@ void HUD::GameEvents::UpdateWeaponEvents(const RedCamera* const pCamera, const C
     const int iWeaponIndex = pControllable->GetWeaponIndex(uWeapon);
     Weapon* pWeapon = iWeaponIndex >= 0 ? pControllable->GetWeaponPtr(iWeaponIndex) : 0;
     const WeaponClass* pWeaponClass = pWeapon ? pWeapon->mClass : 0;
-    const unsigned int uWeaponHash = pWeapon ? pWeapon->GetNameHash() : 0;
+    unsigned int uWeaponHash = 0;
+    if (pWeapon)
+    {
+        uWeaponHash = pWeapon->GetNameHash();
+    }
 
     if (pWeapon != weaponData.weapon || pWeaponClass != weaponData.weaponClass ||
         uWeaponHash != weaponData.weaponHash)
@@ -1312,7 +1345,7 @@ void HUD::GameEvents::UpdateWeaponEvents(const RedCamera* const pCamera, const C
         HUD::Event evShieldNameDisable(weaponEvents.targetDisableShieldName, true);
         evShieldNameDisable.Send();
         UpdateHackWeapon(0, events.vehicleHackingTime, events.vehicleHackingTimeFraction,
-                         events.vehicleHackingTimeDisable, 0x6d2f8d98, data.vehicleHacking);
+                         events.vehicleHackingTimeDisable, 0x6d2f8d98 /* "entity.com.hacking" */, data.vehicleHacking);
         if (pWeapon && !data.scopeActive && !data.unknownBool00D8)
         {
             HUD::Event evChange(weaponEvents.change, uWeaponHash);
@@ -1397,12 +1430,12 @@ void HUD::GameEvents::UpdateWeaponEvents(const RedCamera* const pCamera, const C
             }
             if (!data.scopeActive && !data.unknownBool00D8)
             {
-                HUD::Event evTotalBullets(weaponEvents.ammoTotalBullets, static_cast<unsigned int>(iTotalBullets));
+                HUD::Event evTotalBullets(weaponEvents.ammoTotalBullets, (unsigned int)iTotalBullets);
                 evTotalBullets.Send();
                 HUD::Event evTotalFraction(weaponEvents.ammoTotalFraction, fTotalFraction);
                 evTotalFraction.Send();
             }
-            HUD::Event evClipBullets(weaponEvents.ammoClipBullets, static_cast<unsigned int>(iClipBullets));
+            HUD::Event evClipBullets(weaponEvents.ammoClipBullets, (unsigned int)iClipBullets);
             evClipBullets.Send();
             HUD::Event evClipFraction(weaponEvents.ammoClipFraction, fClipFraction);
             evClipFraction.Send();
@@ -1518,7 +1551,7 @@ void HUD::GameEvents::UpdateWeaponEvents(const RedCamera* const pCamera, const C
             bool bBuilding = false;
             if (pEntityClass)
             {
-                bBuilding = pEntityClass->IsRtti(EntityBuildingClass::rttiHashEntityBuildingClass);
+                bBuilding = pEntityClass->IsRtti(EntityBuildingClass::GetRtti());
             }
             if ((pClass && pClass->mbHideHealthBar) || (!bBuilding && !hTarget->IsAlive()))
             {
@@ -1556,7 +1589,7 @@ void HUD::GameEvents::UpdateWeaponEvents(const RedCamera* const pCamera, const C
                 HUD::Event evTeamColorBright(weaponEvents.targetTeamColorBright, &gLocalColor);
                 evTeamColorBright.Send();
                 UpdateHackWeapon(0, events.vehicleHackingTime, events.vehicleHackingTimeFraction,
-                                 events.vehicleHackingTimeDisable, 0x6d2f8d98, data.vehicleHacking);
+                                 events.vehicleHackingTimeDisable, 0x6d2f8d98 /* "entity.com.hacking" */, data.vehicleHacking);
             }
             weaponData.target = hTarget;
         }
@@ -1632,14 +1665,14 @@ void HUD::GameEvents::UpdateWeaponEvents(const RedCamera* const pCamera, const C
                     if (fShield != weaponData.targetHealth)
                     {
                         const float fMaxShield = pTargetObject->mMaxShield;
-                        HUD::Event evHealth(weaponEvents.targetHealth, static_cast<unsigned int>((int)fShield));
+                        HUD::Event evHealth(weaponEvents.targetHealth, (unsigned int)(int)fShield);
                         evHealth.Send();
                         HUD::Event evHealthFraction(weaponEvents.targetHealthFraction, fShield / fMaxShield);
                         evHealthFraction.Send();
                         weaponData.targetHealth = fShield;
                     }
                     HUD::Event evShieldName(weaponEvents.targetShieldName,
-                                            (const wchar_t*)RedLocalizeDB::Find(0x66049aa8, false));
+                                            (const wchar_t*)RedLocalizeDB::Find(0x66049aa8 /* "entity.com.shield" */, false));
                     evShieldName.Send();
                 }
                 else
@@ -1656,7 +1689,7 @@ void HUD::GameEvents::UpdateWeaponEvents(const RedCamera* const pCamera, const C
                         if (fHealth != weaponData.targetHealth)
                         {
                             const float fMaxHealth = pTargetObject->mMaxHealth;
-                            HUD::Event evHealth(weaponEvents.targetHealth, static_cast<unsigned int>((int)fHealth));
+                            HUD::Event evHealth(weaponEvents.targetHealth, (unsigned int)(int)fHealth);
                             evHealth.Send();
                             HUD::Event evHealthFraction(weaponEvents.targetHealthFraction, fHealth / fMaxHealth);
                             evHealthFraction.Send();
@@ -1674,7 +1707,7 @@ void HUD::GameEvents::UpdateWeaponEvents(const RedCamera* const pCamera, const C
                     pTargetObject = 0;
                 }
                 UpdateHackWeapon(pTargetObject, events.vehicleHackingTime, events.vehicleHackingTimeFraction,
-                                 events.vehicleHackingTimeDisable, 0x6d2f8d98, data.vehicleHacking);
+                                 events.vehicleHackingTimeDisable, 0x6d2f8d98 /* "entity.com.hacking" */, data.vehicleHacking);
             }
         }
 
@@ -1760,11 +1793,7 @@ void HUD::GameEvents::UpdateWeaponEvents(const RedCamera* const pCamera, const C
 void HUD::GameEvents::UpdateHealth(const Character* const pCharacter, const GameObject* const pObject,
                                    PlayerEvents& events, PlayerData& data)
 {
-    float fHealth = pObject->mCurHealth;
-    if (0.0f > fHealth)
-    {
-        fHealth = 0.0f;
-    }
+    const float fHealth = Max(0.0f, pObject->mCurHealth);
 
     const bool bHero = pObject->GetGameObjectClass()->GetHeroFlag();
     if (data.isHero != bHero)
@@ -1774,15 +1803,23 @@ void HUD::GameEvents::UpdateHealth(const Character* const pCharacter, const Game
         data.isHero = bHero;
     }
 
-    if (BonusManager::Instance()->IsTeamBonusActive(pCharacter->mTeamNumber, 0xc10b9cdc))
+    if (BonusManager::Instance()->IsTeamBonusActive(pCharacter->mTeamNumber, 0xc10b9cdc /* "team_bonus_bacta_tanks" */))
     {
         const int iPlayer = pCharacter->mPlayerId;
         if (iPlayer >= 0)
         {
-            if (iPlayer < 1)
+            if (pCharacter->mPlayerId < 1)
             {
-                HUD::Event pulse(gPlayerEvents[iPlayer].healthRegenPulseRate, fHealth > data.health ? 0.5f : FLT_MAX);
-                pulse.Send();
+                if (fHealth > data.health)
+                {
+                    HUD::Event healthRegenPulse(gPlayerEvents[iPlayer].healthRegenPulseRate, 0.5f);
+                    healthRegenPulse.Send();
+                }
+                else
+                {
+                    HUD::Event healthRegenPulse(gPlayerEvents[iPlayer].healthRegenPulseRate, FLT_MAX);
+                    healthRegenPulse.Send();
+                }
             }
         }
     }
@@ -1842,7 +1879,7 @@ void HUD::GameEvents::UpdateHealth(const Character* const pCharacter, const Game
             pHealth = events.health;
             pFraction = events.healthFraction;
         }
-        HUD::Event health(pHealth, static_cast<unsigned int>((int)fHealth));
+        HUD::Event health(pHealth, (unsigned int)(int)fHealth);
         health.Send();
         HUD::Event fraction(pFraction, fFraction);
         fraction.Send();
@@ -1859,11 +1896,11 @@ void HUD::GameEvents::UpdateHealth(const Character* const pCharacter, const Game
     const Entity* pEntity = pObject->GetEntity();
     if (pEntity->IsRtti(EntitySoldier::rttiHashEntitySoldier))
     {
-        bCanChangeClass = static_cast<const EntitySoldier*>(pEntity)->CanChangeClass();
+        bCanChangeClass = ((const EntitySoldier*)pEntity)->CanChangeClass();
     }
     else if (pEntity->IsRtti(EntityDroideka::rttiHashEntityDroideka))
     {
-        bCanChangeClass = static_cast<const EntityDroideka*>(pEntity)->mCanChangeClass;
+        bCanChangeClass = ((const EntityDroideka*)pEntity)->mCanChangeClass;
     }
     ToolTipsDisplay* pTips = ToolTipsDisplay::sInstance;
     if (pTips && bCanChangeClass)
@@ -1926,7 +1963,7 @@ void HUD::GameEvents::UpdateVehicleHealth(int iIndex, const Character* const pCh
         {
             const float fMaxHealth = pObject->mMaxHealth;
             const float fFraction = fMaxHealth != 0.0f ? fHealth / fMaxHealth : 0.0f;
-            HUD::Event health(events.vehicleHealth, static_cast<unsigned int>((int)fHealth));
+            HUD::Event health(events.vehicleHealth, (unsigned int)(int)fHealth);
             health.Send();
             HUD::Event fraction(events.vehicleHealthFraction, fFraction);
             fraction.Send();
@@ -1948,7 +1985,7 @@ void HUD::GameEvents::UpdateVehicleHealth(int iIndex, const Character* const pCh
     }
 
     UpdateHackWeapon(pObject, events.vehicleHackedTime, events.vehicleHackedTimeFraction,
-                     events.vehicleHackedTimeDisable, 0x67fdfe71, data.vehicleBeingHacked);
+                     events.vehicleHackedTimeDisable, 0x67fdfe71 /* "entity.com.hacked" */, data.vehicleBeingHacked);
 }
 
 // FUNCTION: SWBF2 0x00561f60
@@ -1974,7 +2011,7 @@ void HUD::GameEvents::UpdateJetpack(const GameObject* const pObject, const Entit
 
     if (data.hasJetpack)
     {
-        const float fJetFuel = static_cast<const EntitySoldier*>(pObject)->mJetFuel;
+        const float fJetFuel = ((const EntitySoldier*)pObject)->mJetFuel;
         if (fJetFuel != data.jetFuel)
         {
             float fWarning = 0.0f;
@@ -2245,7 +2282,7 @@ void HUD::GameEvents::UpdateEnergy(const Controllable* const pControllable, Play
 
     const float fEnergy = pBar->GetEnergy();
     if (pControllable->mCharacter &&
-        BonusManager::Instance()->IsTeamBonusActive(pControllable->mCharacter->mTeamNumber, 0x85ad826d))
+        BonusManager::Instance()->IsTeamBonusActive(pControllable->mCharacter->mTeamNumber, 0x85ad826d /* "team_bonus_energy_boost" */))
     {
         const int iPlayer = pControllable->mCharacter->mPlayerId;
         if (iPlayer >= 0 && iPlayer < 1)
@@ -2453,7 +2490,7 @@ void HUD::GameEvents::UpdateMissleLock(const GameObject* const pObject, const Co
                                        PlayerEvents& events, PlayerData& data)
 {
     const bool bLocked = (pObject->IsRtti(EntityFlyer::rttiHashEntityFlyer) ||
-                          pObject->IsRtti(MountedTurret::rttiHashMountedTurret)) &&
+                          pObject->IsRtti(MountedTurret::GetRtti())) &&
                          pControllable->GetEnemyLockedOnMeState() > 0.0f;
     if (bLocked != data.missileLocked)
     {
@@ -2463,7 +2500,7 @@ void HUD::GameEvents::UpdateMissleLock(const GameObject* const pObject, const Co
     }
     if (bLocked)
     {
-        HUD::Event distance(events.missileLockDistance, static_cast<unsigned int>((int)pControllable->mEnemyLockedOnMeDistance));
+        HUD::Event distance(events.missileLockDistance, (unsigned int)(int)pControllable->mEnemyLockedOnMeDistance);
         distance.Send();
     }
 }

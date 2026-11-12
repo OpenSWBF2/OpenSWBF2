@@ -111,9 +111,25 @@ const char* UnitCTFOffenseAgent::NFINAL_GetStateString(int) const
 namespace
 {
 
+    const GameObject* GetFlag(PblHandle<const GameObject>& handle)
+    {
+        const GameObject* pObject = handle.mObject;
+        if (pObject)
+        {
+            if (pObject->GetHandleId() ==
+                handle.mSavedHandleId)
+            {
+                return pObject;
+            }
+            handle.mObject = 0;
+            handle.mSavedHandleId = 0;
+        }
+        return 0;
+    }
+
     inline const CollisionObject* GetCollisionObject(const GameObject* pObject)
     {
-        return static_cast<const CollisionObject*>(pObject);
+        return (const CollisionObject*)pObject;
     }
 }
 
@@ -230,14 +246,14 @@ void UnitCTFOffenseAgent::ExitState()
 bool UnitCTFOffenseAgent::IsFlagNeutral() const
 {
     const GameObject* pFlag = mFlag;
-    return pFlag && !static_cast<const EntityItem*>(pFlag)->GetOwner();
+    return pFlag && !((const EntityItem*)pFlag)->GetOwner();
 }
 
 // FUNCTION: SWBF2 0x006648c0
 bool UnitCTFOffenseAgent::IsFlagInMyHands() const
 {
     const GameObject* pFlag = mFlag;
-    return pFlag && static_cast<const EntityItem*>(pFlag)->GetOwner() == mCtrl->mOwner->mCharacter;
+    return pFlag && ((const EntityItem*)pFlag)->GetOwner() == mCtrl->mOwner->mCharacter;
 }
 
 // FUNCTION: SWBF2 0x00664910
@@ -248,7 +264,7 @@ bool UnitCTFOffenseAgent::IsFlagInAlliedHandsButNotMine() const
     {
         return false;
     }
-    const Character* pCarrier = static_cast<const EntityItem*>(pFlag)->GetOwner();
+    const Character* pCarrier = ((const EntityItem*)pFlag)->GetOwner();
     if (!pCarrier)
     {
         return false;
@@ -263,7 +279,7 @@ bool UnitCTFOffenseAgent::IsFlagInEnemyHands() const
     const GameObject* pFlag = mFlag;
     if (pFlag)
     {
-        const Character* pCarrier = static_cast<const EntityItem*>(pFlag)->GetOwner();
+        const Character* pCarrier = ((const EntityItem*)pFlag)->GetOwner();
         if (pCarrier)
         {
             const int iCarrierTeam = pCarrier->mTeamNumber;
@@ -336,7 +352,7 @@ void UnitCTFOffenseAgent::EnterState()
         }
         else if (IsFlagInAlliedHandsButNotMine())
         {
-            Controllable* pCarrier = static_cast<const EntityItem*>(pFlag)->GetOwner()->GetControllable();
+            Controllable* pCarrier = ((const EntityItem*)pFlag)->GetOwner()->GetControllable();
             if (pCarrier)
             {
                 GameObject* pCarrierObj = pCarrier->GetGameObject();
@@ -408,7 +424,7 @@ void UnitCTFOffenseAgent::EnterState()
         {
             mCombatCmd = UnitCombatInfo(UnitCombatInfo::ENGAGE);
         }
-        mCombatHelper.Init(static_cast<const UnitCombatInfo&>(mCombatCmd));
+        mCombatHelper.Init((const UnitCombatInfo&)mCombatCmd);
         break;
     }
 }
@@ -463,14 +479,14 @@ void UnitCTFOffenseAgent::UpdateStatePostVision(float dt)
             SetNextState(1);
             return;
         }
-        Character* pCarrier = static_cast<const EntityItem*>(pFlag)->GetOwner();
+        Character* pCarrier = ((const EntityItem*)pFlag)->GetOwner();
         if (!pCarrier || !pCarrier->GetControllable())
         {
             break;
         }
         GameObject* pCarrierObj = pCarrier->GetControllable()->GetGameObject();
         PblVector3 vFollow = ReserveManager::ReserveOffset(pCarrierObj, mCtrl->mOwner->GetGameObject(),
-                                                           static_cast<FormationType>(GetFormationType(mCtrl))) * 2.0f;
+                                                           (FormationType)GetFormationType(mCtrl)) * 2.0f;
         mCtrl->GetLowLevel().SetNavigator_FollowTarget(pCarrierObj, vFollow);
         FaceTargetIfClose(HEIGHT_STAND);
         break;
@@ -483,7 +499,7 @@ void UnitCTFOffenseAgent::UpdateStatePostVision(float dt)
             SetNextState(1);
             return;
         }
-        GameObject* pCarrierObj = static_cast<const EntityItem*>(pFlag)->GetOwner()->GetControllable()->GetGameObject();
+        GameObject* pCarrierObj = ((const EntityItem*)pFlag)->GetOwner()->GetControllable()->GetGameObject();
         AIUtil::Slide(mCtrl->mOwner->GetGameObject(), pCarrierObj, false, &mPathing, &mPathTime, 4.0f, 3.0f);
         FaceTargetIfClose(HEIGHT_STAND);
         break;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <string.h>
 #include "RedEngineFL/Graphics/PC/pcRedShader.h"
 
 class RedTexture;
@@ -33,32 +34,40 @@ public:
     // SYNTHETIC: SWBF2 0x0070f960
     // pcFilterCopyShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x0070fd40
+    // pcFilterCopyShader::GetID
+    // FUNCTION: SWBF2 0x0070fd70
+    // pcFilterCopyShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x0070fd00
+    // pcFilterCopyShader::Bind
+    // FUNCTION: SWBF2 0x0070fd80
+    // pcFilterCopyShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcFilterCopyShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
-    virtual void Bind();
 
 private:
-    virtual void _Read(PblFileChunk& chunk) const;
 
     virtual void _StaticInit() const;
 
-    virtual void InitFixedFunctionShaderDef() const;
 
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                                 const unsigned int* pParams,
-                                 unsigned int uiNumParams,
-                                 unsigned int uiMaterialFlags,
-                                 const RedColor& color0,
-                                 const RedColor& color1,
-                                 float fArg7) const;
 
-    virtual pcRedShaderDef* GetShaderDef() const;
 
 public:
-    virtual void SetTextures(RedTexture* pSrc, RedTexture* pDest);
+    // FUNCTION: SWBF2 0x007102e0
+    virtual void SetTextures(RedTexture* pSrc, RedTexture* pDest)
+    {
+        m_srcTex = pSrc;
+        m_destTex = pDest;
+    }
+
+    // FUNCTION: SWBF2 0x007102b0
     virtual void SetSamples(unsigned int uiNumSamples,
-                            FilterCopyShaderSample* const pSamples);
+                            FilterCopyShaderSample* const pSamples)
+    {
+        memcpy(m_samples, pSamples, uiNumSamples * sizeof(FilterCopyShaderSample));
+        m_numSamples = uiNumSamples;
+    }
 
     unsigned int GetState_Fixed(const RenderItem*) const;
     unsigned int GetState_Prog1(const RenderItem*) const;
@@ -77,27 +86,6 @@ public:
 
     mutable unsigned int m_curSample;
 
-    // GLOBAL: SWBF2 0x009ca6d8
-    static unsigned int s_uiID;
-
-    // GLOBAL: SWBF2 0x009ca6dc
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca6e8
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca6f4
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca700
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    static unsigned int s_uiRenderTypeHash;
-
-    static pcRedShaderDef s_shaderDef;
-
-    static pcFilterCopyShader s_Factory;
-
 private:
 
     pcFilterCopyShader();
@@ -110,7 +98,6 @@ private:
                const RedColor& color1,
                float fArg7);
 
-    void _InitPipelineFuncArray();
 };
  
  

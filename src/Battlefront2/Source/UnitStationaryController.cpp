@@ -33,7 +33,7 @@ const char UnitStationaryController::rttiNameUnitStationaryController[] = "UnitS
 UnitStationaryController::UnitStationaryController(Controllable* pOwner)
     : UnitController(pOwner)
 {
-    if (AsEntity(pOwner->GetGameObject())->GetEntity()->IsRtti(EntityBuilding::rttiHashEntityBuilding))
+    if (AsEntity(pOwner->GetGameObject())->GetEntity()->IsRtti(EntityBuilding::GetRtti()))
     {
         mLookAheadOnly = true;
     }

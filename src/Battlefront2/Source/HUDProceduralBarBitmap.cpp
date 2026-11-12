@@ -5,56 +5,16 @@
 #include "HUDObjectiveList.h"
 #include "NetGame.h"
 
-static const unsigned int kNoiseFreq = 0x86b8caa3;
-static const unsigned int kNoiseRoughness = 0x37425e11;
-static const unsigned int kGlowScaleSize = 0x84e84d97;
-static const unsigned int kGlowAlphaBase = 0xba3e10e5;
-static const unsigned int kGlowAlphaScale = 0xdd5384a2;
-
-// FUNCTION: SWBF2 0x00566360
-void HUD::ObjectiveList::SetState(unsigned int uiTextHashID, Objective::ObjectiveState state)
-{
-    Objective* pObjective = FindObjective(uiTextHashID);
-    if (!pObjective)
-    {
-        return;
-    }
-    pObjective->SetState(state);
-    SetupText();
-    if (NetGame::IsEnabled() && !NetGame::IsClient())
-    {
-        NetGame::CreateEvent_UpdateObjective(pObjective, ~0ui64);
-    }
-}
-
-// FUNCTION: SWBF2 0x005663d0
-HUD::Objective::ObjectiveState HUD::ObjectiveList::GetState(unsigned int uiTextHashID)
-{
-    Objective* pObjective = FindObjective(uiTextHashID);
-    if (pObjective)
-    {
-        return pObjective->_state;
-    }
-    return Objective::INACTIVE;
-}
-
-// FUNCTION: SWBF2 0x00566430
-HUD::Objective* HUD::ObjectiveList::FindObjective(unsigned int uiTextHashID)
-{
-    for (PblList<Objective>::Itor it(_objectives); it != _objectives.End(); ++it)
-    {
-        if (it->_textHashID == uiTextHashID)
-        {
-            return it;
-        }
-    }
-    return 0;
-}
+static const unsigned int kNoiseFreq = 0x86b8caa3 /* "NoiseFreq" */;
+static const unsigned int kNoiseRoughness = 0x37425e11 /* "NoiseRoughness" */;
+static const unsigned int kGlowScaleSize = 0x84e84d97 /* "GlowScaleSize" */;
+static const unsigned int kGlowAlphaBase = 0xba3e10e5 /* "GlowAlphaBase" */;
+static const unsigned int kGlowAlphaScale = 0xdd5384a2 /* "GlowAlphaScale" */;
 
 // FUNCTION: SWBF2 0x005667d0
 HUD::ProceduralBarBitmap::Factory::Factory()
 {
-    mHashID = 0x86E6EF58u;
+    mHashID = 0x86E6EF58u /* "ProceduralBarBitmap" */;
     mName = "ProceduralBarBitmap";
 
     mNoiseFreq.Init("NoiseFreq", mProperties, 0.0f, FLT_MAX, 0.01f);
@@ -152,15 +112,19 @@ bool HUD::ProceduralBarBitmap::SetProperty(const unsigned int uHashID, const voi
     {
     case kNoiseFreq:
         mNoiseFreq = *(const float*)pValue;
-        static_cast<ElementBar*>(this)->SetValue(mValue);
+        ((ElementBar*)this)->SetValue(mValue);
         return true;
     case kNoiseRoughness:
         mNoiseRoughness = *(const float*)pValue;
-        static_cast<ElementBar*>(this)->SetValue(mValue);
+        ((ElementBar*)this)->SetValue(mValue);
         return true;
     case kGlowScaleSize: mGlowScaleSize = *(const float*)pValue; return true;
     case kGlowAlphaBase: mGlowAlphaBase = *(const float*)pValue; return true;
-    case kGlowAlphaScale: mGlowAlphaScale = *(const float*)pValue; return true;
+    }
+    if (uHashID == kGlowAlphaScale)
+    {
+        mGlowAlphaScale = *(const float*)pValue;
+        return true;
     }
     return ElementBarBitmap::SetProperty(uHashID, pValue);
 }
@@ -177,7 +141,11 @@ bool HUD::ProceduralBarBitmap::GetProperty(const unsigned int uHashID, void* con
     case kNoiseRoughness: *value = mNoiseRoughness; return true;
     case kGlowScaleSize: *value = mGlowScaleSize; return true;
     case kGlowAlphaBase: *value = mGlowAlphaBase; return true;
-    case kGlowAlphaScale: *value = mGlowAlphaScale; return true;
+    }
+    if (uHashID == kGlowAlphaScale)
+    {
+        *value = mGlowAlphaScale;
+        return true;
     }
     return ElementBarBitmap::GetProperty(uHashID, pValue);
 }

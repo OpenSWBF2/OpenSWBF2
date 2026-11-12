@@ -9,6 +9,8 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include <string.h>
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
 class PblMatrix;
@@ -16,20 +18,21 @@ extern PblMatrix gMatrixIdentity;
 
 static const float kInv255 = 1.0f / 255.0f;
 
+// GLOBAL: SWBF2 0x009c9a98
+// pcSampleShader::s_uiID
 unsigned int pcSampleShader::s_uiID;
+// GLOBAL: SWBF2 0x009c9a9c
+// pcSampleShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcSampleShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9aa8
+// pcSampleShader::BeginFuncArray
 pcRedShader::BeginFuncT pcSampleShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9ab4
+// pcSampleShader::EndFuncArray
 pcRedShader::EndFuncT pcSampleShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9ac0
+// pcSampleShader::RenderFuncArray
 pcRedShader::RenderFuncT pcSampleShader::RenderFuncArray[MAX_PIPELINES];
-
-// SYNTHETIC: SWBF2 0x00409ca0
-// `dynamic initializer for 'pcSampleShader::s_shaderDef''
-// SYNTHETIC: SWBF2 0x00769da0
-// `dynamic atexit destructor for 'pcSampleShader::s_shaderDef''
-
-// GLOBAL: SWBF2 0x009c9b24
-// pcSampleShader::s_shaderDef
-pcRedShaderDef pcSampleShader::s_shaderDef("sample_shader.xml");
 
 // FUNCTION: SWBF2 0x00705510
 pcSampleShader::pcSampleShader()
@@ -101,12 +104,6 @@ void pcSampleShader::Begin_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_POINT);
 }
 
-// FUNCTION: SWBF2 0x00705810
-void pcSampleShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x00705830
 void pcSampleShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -117,28 +114,10 @@ void pcSampleShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x00705850
-unsigned int pcSampleShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x00705870
 RenderPhaseT pcSampleShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_TRANSPARENT;
-}
-
-// FUNCTION: SWBF2 0x00705880
-unsigned int pcSampleShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x00705890
-pcRedShaderDef* pcSampleShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x007058a0
@@ -264,22 +243,22 @@ void pcSampleShader::_Init(unsigned int uiFlags,
 void pcSampleShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcSampleShader::GetState_Fixed);
+        (GetStateFuncT)(&pcSampleShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcSampleShader::Begin_Fixed);
+        (BeginFuncT)(&pcSampleShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcSampleShader::End_Fixed);
+        (EndFuncT)(&pcSampleShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcSampleShader::Render_Fixed);
+        (RenderFuncT)(&pcSampleShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcSampleShader::GetState_Prog1);
+        (GetStateFuncT)(&pcSampleShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcSampleShader::Begin_Prog1);
+        (BeginFuncT)(&pcSampleShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcSampleShader::End_Prog1);
+        (EndFuncT)(&pcSampleShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcSampleShader::Render_Prog1);
+        (RenderFuncT)(&pcSampleShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x00705dd0
@@ -288,7 +267,7 @@ void pcSampleShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -336,6 +315,15 @@ unsigned int pcSampleShader::s_uiRenderTypeHash = PblHash("sample");
 // GLOBAL: SWBF2 0x009c9ad0
 // pcSampleShader::s_Factory
 pcSampleShader pcSampleShader::s_Factory;
+
+// SYNTHETIC: SWBF2 0x00409ca0
+// `dynamic initializer for 'pcSampleShader::s_shaderDef''
+// SYNTHETIC: SWBF2 0x00769da0
+// `dynamic atexit destructor for 'pcSampleShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9b24
+// pcSampleShader::s_shaderDef
+pcRedShaderDef pcSampleShader::s_shaderDef("sample_shader.xml");
 
 // GLOBAL: SWBF2 0x009c9acc
 unsigned int g_pcSampleShader;

@@ -1,6 +1,6 @@
 #include "OrdnanceMeleeThrow.h"
 #include "EntityLight.h"
-#include "WeaponMeleeInstance.h"
+#include "WeaponMelee.h"
 #include "GameObject.h"
 #include "BirdEffect.h"
 #include "LeafEffect.h"
@@ -19,7 +19,7 @@
 // FUNCTION: SWBF2 0x00602b40
 OrdnanceMeleeThrow::~OrdnanceMeleeThrow()
 {
-    static_cast<RedSceneObject*>(this)->Deactivate();
+    ((RedSceneObject*)this)->Deactivate();
     delete m_pLight;
     if (m_pDamageData)
     {
@@ -62,7 +62,7 @@ bool OrdnanceMeleeThrow::Collide(CollisionObject* pObject, const PblVector3& vPo
     if (m_pLight)
     {
         PblVector3 vMid = vPos + vNormal * 0.5f;
-        static_cast<FLEffectObject*>(m_pLight)->SetPosition(vMid);
+        ((FLEffectObject*)m_pLight)->SetPosition(vMid);
     }
 
     if (pObject->GetCollisionType() == COLL_SHIELD)
@@ -174,22 +174,10 @@ const PblVector3& OrdnanceMeleeThrow::GetVelocity() const
 
 
 
-// FUNCTION: SWBF2 0x00602270
-float OrdnanceMeleeThrowClass::GetVelocity()
-{
-    return mVelocity;
-}
-
-// FUNCTION: SWBF2 0x00602280
-float OrdnanceMeleeThrowClass::GetRange()
-{
-    return mVelocity * mLifeSpan;
-}
-
 // FUNCTION: SWBF2 0x006034e0
 void OrdnanceMeleeThrow::Render(unsigned char, float, unsigned int uiFlags)
 {
-    if (m_pOwner.mObject && !m_pOwner.IsLive())
+    if (m_pOwner.IsDeadHandle())
     {
         return;
     }
@@ -234,11 +222,11 @@ OrdnanceMeleeThrow::OrdnanceMeleeThrow(OrdnanceMeleeThrowClass* pClass, const Or
 
     m_pWeapon = (WeaponMeleeThrow*)desc.mFireWeapon;
     m_pWeapon->m_pPrimaryWeapon->TurnOn(0.01f);
-    m_pWeapon->m_pPrimaryWeapon->m_uiTrailOnMask = 0xf;
+    m_pWeapon->m_pPrimaryWeapon->TurnOnTrail(true);
     m_pWeapon->NotifyThrow();
     m_bLastFrameIndicator = false;
 
-    m_mMatrix = m_pWeapon->m_mThrow0Local * m_pOwner->GetMatrix();
+    m_mMatrix = m_pWeapon->GetFireMatrixLocal() * m_pOwner->GetMatrix();
 
     const WeaponMeleeClass* pWeaponClass = (const WeaponMeleeClass*)m_pWeapon->m_pPrimaryWeapon->mClass;
     PblVector3 vEdgeDir = gVectorUnitZ;
@@ -304,10 +292,9 @@ OrdnanceMeleeThrow::OrdnanceMeleeThrow(OrdnanceMeleeThrowClass* pClass, const Or
             }
             PblMatrix matrix = gMatrixIdentity;
             matrix.SetTranslation(mPosition);
-            if (m_pLight->_fBeamLength > 0.0f)
+            if (m_pLight->IsCone())
             {
-                matrix[1] = vDir;
-                matrix.m[1][3] = 0.0f;
+                matrix.SetYAxis(vDir);
                 PblVector3 vFront = -gVectorUnitY + vDir * vDir.y;
                 float fLength2 = SquaredLength(vFront);
                 if (fLength2 <= 0.0001f)
@@ -316,10 +303,8 @@ OrdnanceMeleeThrow::OrdnanceMeleeThrow(OrdnanceMeleeThrowClass* pClass, const Or
                     fLength2 = SquaredLength(vFront);
                 }
                 vFront *= 1.0f / sqrtf(fLength2);
-                matrix[0] = CrossProduct(vDir, vFront);
-                matrix.m[0][3] = 0.0f;
-                matrix[2] = vFront;
-                matrix.m[2][3] = 0.0f;
+                matrix.SetXAxis(CrossProduct(vDir, vFront));
+                matrix.SetZAxis(vFront);
             }
             m_pLight->SetMatrix(matrix);
             m_pLight->TurnOn();
@@ -348,7 +333,7 @@ bool OrdnanceMeleeThrow::Update(float fDeltaTime)
     }
 
     OrdnanceMeleeThrowClass* pClass = (OrdnanceMeleeThrowClass*)mClass;
-    if (m_pOwner.mObject && !m_pOwner.IsLive())
+    if (m_pOwner.IsDeadHandle())
     {
         return false;
     }
@@ -364,7 +349,7 @@ bool OrdnanceMeleeThrow::Update(float fDeltaTime)
         if (-mLifeTime >= fReturnDuration)
         {
             m_pWeapon->NotifyReturned();
-            m_pWeapon->m_pPrimaryWeapon->m_uiTrailOnMask = 0;
+            m_pWeapon->m_pPrimaryWeapon->TurnOnTrail(false);
             m_bLastFrameIndicator = true;
             return true;
         }
@@ -430,7 +415,7 @@ bool OrdnanceMeleeThrow::Update(float fDeltaTime)
     SetRenderPos(mPosition);
     if (m_pLight)
     {
-        static_cast<FLEffectObject*>(m_pLight)->SetPosition((mPosition + mOldPosition) * 0.5f);
+        ((FLEffectObject*)m_pLight)->SetPosition((mPosition + mOldPosition) * 0.5f);
     }
     if (mLifeTime <= 0.0f)
     {
@@ -672,22 +657,22 @@ void OrdnanceMeleeThrowClass::SetProperty(unsigned int uProperty, const char* ps
 {
     switch (uProperty)
     {
-    case 0x32741C32:
+    case 0x32741C32: /* "Velocity" */
     {
         sscanf(pszValue, "%f", &mVelocity);
             break;
     }
-    case 0x2776564D:
+    case 0x2776564D: /* "LightRadius" */
     {
         sscanf(pszValue, "%f", &m_fRadiusLight);
             break;
     }
-    case 0x0DDA9B5B:
+    case 0x0DDA9B5B: /* "ReturnDuration" */
     {
         sscanf(pszValue, "%f", &m_fReturnDuration);
             break;
     }
-    case 0x746CE73E:
+    case 0x746CE73E: /* "LightColor" */
     {
         int r, g, b, a;
         int iCount = sscanf(pszValue, "%d %d %d %d", &r, &g, &b, &a);
@@ -710,12 +695,12 @@ void OrdnanceMeleeThrowClass::SetProperty(unsigned int uProperty, const char* ps
         }
             break;
     }
-    case 0xDE71B19F:
+    case 0xDE71B19F: /* "OnSound" */
     {
         m_OnSound.SetID(pszValue, false, false);
             break;
     }
-    case 0xC3B311DC:
+    case 0xC3B311DC: /* "DamageLength" */
     {
         char acEdge[256];
         m_bDamageLengthFromEdge = 0;
@@ -725,19 +710,19 @@ void OrdnanceMeleeThrowClass::SetProperty(unsigned int uProperty, const char* ps
         }
             break;
     }
-    case 0xE369687E:
+    case 0xE369687E: /* "LightOdf" */
     {
         m_uiLightOdfNameHash = PblHash(pszValue);
             break;
     }
-    case 0xE6989765:
+    case 0xE6989765: /* "RotationRate" */
     {
         float fRate;
         sscanf(pszValue, "%f", &fRate);
         m_fOmega = PblMath::fTwoPi * fRate;
             break;
     }
-    case 0xE4B667AC:
+    case 0xE4B667AC: /* "DamageWidth" */
     {
         char acEdge[256];
         m_bDamageWidthFromEdge = 0;

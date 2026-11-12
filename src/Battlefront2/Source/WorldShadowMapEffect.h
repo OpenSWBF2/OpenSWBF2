@@ -12,14 +12,14 @@ class WorldShadowMapEffect : public FLEffect
 public:
 
     WorldShadowMapEffect()
-        : FLEffect(0xC39291D3u, 3)
+        : FLEffect(0xC39291D3u /* "WorldShadowMap" */, RENDERABLE_POSTWORLD)
     {
         Enable(false);
     }
 
     // SYNTHETIC: SWBF2 0x00695080
     // WorldShadowMapEffect::`scalar deleting destructor'
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual bool IsReflected();
     virtual void Init();
     virtual void Cleanup();

@@ -20,7 +20,7 @@ public:
     StreamRendererBase()
         : Source3D(0)
     {
-        Source3D::mProps = static_cast<Source3D::Properties*>(this);
+        Source3D::mProps = (Source3D::Properties*)this;
     }
 
     // FUNCTION: SWBF2 0x00749110

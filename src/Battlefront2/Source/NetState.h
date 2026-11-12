@@ -9,8 +9,8 @@
 #include "EnergyBar.h"
 #include "NetPacket.h"
 #include "ParticleEmitterObject.h"
-#include "WeaponCannonInstance.h"
-#include "WeaponMeleeInstance.h"
+#include "WeaponCannon.h"
+#include "WeaponMelee.h"
 
 class GameModel;
 class Team;

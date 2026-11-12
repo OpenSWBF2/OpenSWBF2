@@ -26,11 +26,18 @@ public:
     // SYNTHETIC: SWBF2 0x006fccb0
     // pcTerrainShader2::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x006fd060
+    // pcTerrainShader2::GetID
+    // FUNCTION: SWBF2 0x006fd090
+    // pcTerrainShader2::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x006fd010
+    // pcTerrainShader2::Bind
+    // FUNCTION: SWBF2 0x006fd150
+    // pcTerrainShader2::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcTerrainShader2)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
     virtual RedShadingState* CreateShadingState() const;
-    virtual void Bind();
     virtual unsigned int GetZPrepassState() const;
     virtual void RenderZPrepass(const RenderItem* pItem) const;
     virtual unsigned short GetShaderChain(pcRedShader** const ppOut,
@@ -72,38 +79,11 @@ public:
     unsigned char m_uiOptions;
     bool m_lightingInSeparatePass;
 
-    // GLOBAL: SWBF2 0x009c8974
-    static unsigned int s_uiID;
-    // GLOBAL: SWBF2 0x009c8978
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-    // GLOBAL: SWBF2 0x009c8984
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-    // GLOBAL: SWBF2 0x009c8990
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-    // GLOBAL: SWBF2 0x009c899c
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    static unsigned int s_uiRenderTypeHash;
-
-    static pcRedShaderDef s_shaderDef;
-
-    static pcTerrainShader2 s_Factory;
-
 private:
 
     pcTerrainShader2();
 
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                                 const unsigned int* pParams,
-                                 unsigned int uiNumParams,
-                                 unsigned int uiMaterialFlags,
-                                 const RedColor& color0,
-                                 const RedColor& color1,
-                                 float fSpecularPower) const;
-    virtual void _Read(PblFileChunk& chunk) const;
     virtual void _StaticInit() const;
-    virtual pcRedShaderDef* GetShaderDef() const;
-    virtual void InitFixedFunctionShaderDef() const;
 
     void _Init(unsigned int uiFlags,
                const unsigned int* pParams,
@@ -112,7 +92,6 @@ private:
                const RedColor& color0,
                const RedColor& color1,
                float fSpecularPower);
-    void _InitPipelineFuncArray();
 };
  
  

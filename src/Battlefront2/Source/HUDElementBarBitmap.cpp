@@ -3,16 +3,16 @@
 #include "RedEngineFL/Interface/RedGroupElement.h"
 #include <math.h>
 
-static const unsigned int kScaleSize = 0xf5b1a000;
-static const unsigned int kScaleTexture = 0x79b5f340;
-static const unsigned int kFlashyScale = 0xf5989fb2;
-static const unsigned int kFlashyIncFadeOutTime = 0x2b76908f;
-static const unsigned int kFlashyDecFadeOutTime = 0x2deba703;
+static const unsigned int kScaleSize = 0xf5b1a000 /* "ScaleSize" */;
+static const unsigned int kScaleTexture = 0x79b5f340 /* "ScaleTexture" */;
+static const unsigned int kFlashyScale = 0xf5989fb2 /* "FlashyScale" */;
+static const unsigned int kFlashyIncFadeOutTime = 0x2b76908f /* "FlashyIncFadeOutTime" */;
+static const unsigned int kFlashyDecFadeOutTime = 0x2deba703 /* "FlashyDecFadeOutTime" */;
 
 // FUNCTION: SWBF2 0x0054a800
 HUD::ElementBarBitmap::Factory::Factory()
 {
-    mHashID = 0x3BD46D91u;
+    mHashID = 0x3BD46D91u /* "BarBitmap" */;
     mName = "BarBitmap";
 
     mScaleSize.Init("ScaleSize", mProperties, Property::type_Bool);
@@ -92,7 +92,7 @@ HUD::ElementBarBitmap::ElementBarBitmap(const char* const pName, HUD::Item::Fact
 
     mFlashyBit.SetWriteEnabled(false);
     mFlashyBit.SetDynamicallyAllocated(false);
-    mFlashyBit.SetTexture(0xDE020766u);
+    mFlashyBit.SetTexture(0xDE020766u /* "white" */);
     mFlashyBit.SetColor(RedColor::WHITE);
     mFlashyBit.mFader.SetPhaseTime(HUD::Envelope::phase_Hold, 0.0f);
     mFlashyBit.mFader.SetPhaseTime(HUD::Envelope::phase_Sustain, 0.0f);
@@ -226,14 +226,14 @@ bool HUD::ElementBarBitmap::SetProperty(const unsigned int uHashID, const void* 
     case kFlashyScale: mFlashyScale = *(const float*)pValue; return true;
     case kScaleTexture:
         mScaleTex = *(const bool*)pValue;
-        static_cast<ElementBar*>(this)->SetValue(mValue);
+        ((ElementBar*)this)->SetValue(mValue);
         return true;
     case kScaleSize:
         mScaleSize = *(const bool*)pValue;
-        static_cast<ElementBar*>(this)->SetValue(mValue);
+        ((ElementBar*)this)->SetValue(mValue);
         return true;
-    case 0x1ffad2e0u: mBarU1 = ((const float*)pValue)[2]; break;
-    case 0x967ad461u: mBarWidth = *(const float*)pValue; break;
+    case 0x1ffad2e0u: /* "TexCoords" */ mBarU1 = ((const float*)pValue)[2]; break;
+    case 0x967ad461u: /* "BitmapWidthHeight" */ mBarWidth = *(const float*)pValue; break;
     }
     if (!ElementBitmapBase::SetProperty(uHashID, pValue) && !ElementBar::SetProperty(uHashID, pValue))
     {
@@ -253,7 +253,11 @@ bool HUD::ElementBarBitmap::GetProperty(const unsigned int uHashID, void* const 
     case kFlashyDecFadeOutTime: *(float*)pValue = mFlashyDecFadeOutTime; return true;
     case kFlashyScale: mFlashyScale = *(const float*)pValue; return true;
     case kScaleTexture: *(bool*)pValue = mScaleTex; return true;
-    case kScaleSize: *(bool*)pValue = mScaleSize; return true;
+    }
+    if (uHashID == kScaleSize)
+    {
+        *(bool*)pValue = mScaleSize;
+        return true;
     }
     if (!ElementBitmapBase::GetProperty(uHashID, pValue) && !ElementBar::GetProperty(uHashID, pValue))
     {

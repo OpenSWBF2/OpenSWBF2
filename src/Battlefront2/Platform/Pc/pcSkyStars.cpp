@@ -13,7 +13,7 @@
 // FUNCTION: SWBF2 0x00428ef0
 void SkyStars::_PlatformInit()
 {
-    m_pShader = pcRedShader::Create(0xe8651328u, 0x102, 0, 0, 0x40,
+    m_pShader = pcRedShader::Create(0xe8651328u /* "LightBeam" */, 0x102, 0, 0, 0x40,
                                     RedColor::WHITE, RedColor::BLACK, 32.0f);
 }
 

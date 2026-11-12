@@ -23,6 +23,14 @@ void NetSocket::GetAddr(const void* pPeer, int& iIP, int& iPort)
     iPort = ntohs(addr.sin_port);
 }
 
+// FUNCTION: SWBF2 0x00618560
+void NetSocket::SetAddr(NetSocketPeerRecord& peer, int ip, int port)
+{
+    peer.mSocketAddress.sin_family = AF_INET;
+    peer.mSocketAddress.sin_addr.s_addr = ip;
+    peer.mSocketAddress.sin_port = htons(port);
+}
+
 // FUNCTION: SWBF2 0x00618590
 void DecodeError(int iError)
 {

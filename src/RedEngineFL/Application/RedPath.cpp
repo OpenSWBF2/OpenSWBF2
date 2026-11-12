@@ -158,7 +158,7 @@ bool RedPath::Read(PblConfig& config)
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (data.GetId() == 0x84874D36u)
+        if (data.GetId() == 0x84874D36u /* "Path" */)
         {
             if (data.GetNumArgs())
             {
@@ -203,7 +203,7 @@ bool RedPath::Node::ReadScope(PblConfig& config, PblConfig::Data& data,
 {
     switch (data.GetId())
     {
-    case 0x11DE6CDCu:
+    case 0x11DE6CDCu: /* "Properties" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             while (!scope.IsDone())
@@ -218,13 +218,13 @@ bool RedPath::Node::ReadScope(PblConfig& config, PblConfig::Data& data,
             }
         }
         return true;
-    case 0x21AC415Fu:
+    case 0x21AC415Fu: /* "Rotation" */
         mRotation._fS = data.GetFloatArg(0);
         mRotation._fX = data.GetFloatArg(1);
         mRotation._fY = data.GetFloatArg(2);
         mRotation._fZ = data.GetFloatArg(3);
         return true;
-    case 0x934F4E0Au:
+    case 0x934F4E0Au: /* "Position" */
         mPosition.x = data.GetFloatArg(0);
         mPosition.y = data.GetFloatArg(1);
         mPosition.z = -data.GetFloatArg(2);
@@ -238,7 +238,7 @@ bool RedPath::NodeArray::ReadScope(PblConfig& config, PblConfig::Data& data,
                                    bool (__cdecl* pPropFn)(PblConfig&, PblConfig::Data&, PathObject, PathObjectType, void*),
                                    void* pUserData)
 {
-    if (data.GetId() != 0x514E905Au)
+    if (data.GetId() != 0x514E905Au /* "Nodes" */)
     {
         return false;
     }
@@ -251,7 +251,7 @@ bool RedPath::NodeArray::ReadScope(PblConfig& config, PblConfig::Data& data,
     while (!scope.IsDone())
     {
         PblConfig::Data child = scope.ReadNextData();
-        if (child.GetId() == 0xB1C14E0Du)
+        if (child.GetId() == 0xB1C14E0Du /* "Node" */)
         {
             PblConfig nodeScope(scope.ReadNextScope(), true);
             while (!nodeScope.IsDone())
@@ -274,10 +274,10 @@ bool RedPath::ReadScope(PblConfig& config, PblConfig::Data& data,
 {
     switch (data.GetId())
     {
-    case 0x89348E46u:
+    case 0x89348E46u: /* "PathType" */
         mType = (Type)data.GetUint32Arg(0);
         return true;
-    case 0x11DE6CDCu:
+    case 0x11DE6CDCu: /* "Properties" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             while (!scope.IsDone())
@@ -292,27 +292,27 @@ bool RedPath::ReadScope(PblConfig& config, PblConfig::Data& data,
             }
         }
         return true;
-    case 0x8134A814u:
+    case 0x8134A814u: /* "SplineType" */
         {
             unsigned int uSpline = PblHash(data.GetStringArg(0));
             switch (uSpline)
             {
-            case 0x002DBEBEu:
+            case 0x002DBEBEu: /* "Catmull-Rom" */
                 mSplineType = CatmullRom;
                 break;
-            case 0x9C265311u:
+            case 0x9C265311u: /* "Hermite" */
                 mSplineType = Hermite;
                 break;
             default:
-                mSplineType = uSpline == 0xD00594C0u ? Linear : None;
+                mSplineType = uSpline == 0xD00594C0u /* "linear" */ ? Linear : None;
                 break;
             }
         }
         break;
-    case 0x67F79061u:
-    case 0x9259CD79u:
-    case 0xD7BDF66Fu:
-    case 0xD872E2A5u:
+    case 0x67F79061u: /* "PathSpeedType" */
+    case 0x9259CD79u: /* "OffsetPath" */
+    case 0xD7BDF66Fu: /* "PathTime" */
+    case 0xD872E2A5u: /* "Data" */
         break;
     default:
         if (mNodeArray.ReadScope(config, data, pNodePropFn, pNodeUserData))

@@ -14,7 +14,8 @@ class PblSphere;
 class LightFlash : public Thread, public RedOmniLight
 {
 public:
-    static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
+    static void* operator new(unsigned int uiSize) { return sMemoryPool.Allocate(uiSize); }
     // SYNTHETIC: SWBF2 0x0051c990
     // LightFlash::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }

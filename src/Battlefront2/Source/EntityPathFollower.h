@@ -123,8 +123,16 @@ public:
     EntityPathFollower(const EntityPathFollowerClass* const pClass);
     virtual ~EntityPathFollower();
 
-    virtual unsigned int GetAllegiance();
-    virtual bool CanJoinSquadron() const;
+    // FUNCTION: SWBF2 0x004d2700
+    virtual unsigned int GetAllegiance()
+    {
+        return 0;
+    }
+    // FUNCTION: SWBF2 0x00477670
+    virtual bool CanJoinSquadron() const
+    {
+        return !InSquadron();
+    }
 
     virtual void WriteObject(NetPktGroup& group, NetObjState* pState, float f1, float f2);
     virtual void ReadObject(NetPktGroup& group, NetObjState* pState, float f1, float f2);

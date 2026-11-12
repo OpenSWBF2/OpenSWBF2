@@ -26,21 +26,21 @@ EntityBuildingAnimatedArmedClass::~EntityBuildingAnimatedArmedClass()
 // FUNCTION: SWBF2 0x004956c0
 void EntityBuildingAnimatedArmedClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0xD89B1A5Cu)
+    if (uProperty == 0xD89B1A5Cu /* "BUILDINGSECTION" */)
     {
         int iSection;
         switch ((unsigned int)PblHash(pszValue))
         {
-        case 0xEA20FEF2u:
-        case 0xFB2AA4B7u: iSection = 0; break;
-        case 0xE920FD5Fu: iSection = 1; break;
-        case 0xE820FBCCu: iSection = 2; break;
-        case 0xE720FA39u: iSection = 3; break;
-        case 0xE620F8A6u: iSection = 4; break;
-        case 0xE520F713u: iSection = 5; break;
-        case 0xE420F580u: iSection = 6; break;
-        case 0xF3210D1Du: iSection = 7; break;
-        case 0xDBAA7975u:
+        case 0xEA20FEF2u: /* "TURRET1" */
+        case 0xFB2AA4B7u: /* "TURRET" */ iSection = 0; break;
+        case 0xE920FD5Fu: /* "TURRET2" */ iSection = 1; break;
+        case 0xE820FBCCu: /* "TURRET3" */ iSection = 2; break;
+        case 0xE720FA39u: /* "TURRET4" */ iSection = 3; break;
+        case 0xE620F8A6u: /* "TURRET5" */ iSection = 4; break;
+        case 0xE520F713u: /* "TURRET6" */ iSection = 5; break;
+        case 0xE420F580u: /* "TURRET7" */ iSection = 6; break;
+        case 0xF3210D1Du: /* "TURRET8" */ iSection = 7; break;
+        case 0xDBAA7975u: /* "BODY" */
             sCurrentSection = -1;
             return;
         default:
@@ -68,11 +68,11 @@ Entity* EntityBuildingAnimatedArmedClass::Build(const EntityDesc& desc)
     EntityBuildingAnimatedArmed* pBuilding = new EntityBuildingAnimatedArmed(this, desc);
     if (pBuilding)
     {
-        static_cast<CollisionObject*>(pBuilding)->AddStaticToCollisionManager();
+        ((CollisionObject*)pBuilding)->AddStaticToCollisionManager();
         pBuilding->ActivatePhysics();
         if (!NetGame::IsEnabled() || !NetGame::IsClient())
         {
-            static_cast<EntityGeometry*>(pBuilding)->BuildEffects();
+            ((EntityGeometry*)pBuilding)->BuildEffects();
         }
     }
     return pBuilding;
@@ -118,12 +118,12 @@ EntityBuildingAnimatedArmed::EntityBuildingAnimatedArmed(
     EntityBuildingAnimatedArmedClass* pClass, const EntityDesc& desc)
     : EntityBuildingAnimated(pClass, desc), mNumTurrets(0)
 {
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < kMaxTurrets; ++i)
     {
         if (pClass->mTurretClass[i])
         {
             mTurret[mNumTurrets] = new MountedTurret(this, pClass->mTurretClass[i], &mPose);
-            mControllableList.AddLast(&mTurret[mNumTurrets]->mNode, static_cast<Controllable*>(mTurret[mNumTurrets]));
+            mControllableList.AddLast(&mTurret[mNumTurrets]->mNode, (Controllable*)mTurret[mNumTurrets]);
             ++mNumTurrets;
         }
     }
@@ -203,7 +203,7 @@ void EntityBuildingAnimatedArmed::DeactivatePhysics()
             }
         }
     }
-    static_cast<Thread*>(this)->DeactivateThread();
+    ((Thread*)this)->DeactivateThread();
 }
 
 // FUNCTION: SWBF2 0x00495380
@@ -280,7 +280,7 @@ void EntityBuildingAnimatedArmed::Render(unsigned char uFlags, float fDist, unsi
 
 static inline Controllable* TurretControllable(MountedTurret* pTurret)
 {
-    return static_cast<Controllable*>(pTurret);
+    return (Controllable*)pTurret;
 }
 
 // SYNTHETIC: SWBF2 0x004028c0

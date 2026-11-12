@@ -21,12 +21,12 @@ public:
     };
 
     WaterEffect()
-        : FLEffect(0x49C69A10u, 3)
+        : FLEffect(0x49C69A10u /* "Water" */, RENDERABLE_POSTWORLD)
     {
     }
 
     virtual ~WaterEffect();
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual bool IsReflected();
     virtual void Init();
     virtual void Cleanup();

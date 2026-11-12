@@ -85,7 +85,7 @@ public:
  
  
 
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblHandle.h"
 
 class GameObject;
@@ -135,7 +135,7 @@ protected:
 
     const WeaponAreaEffectClass* _GetClass() const
     {
-        return static_cast<const WeaponAreaEffectClass*>(mClass);
+        return (const WeaponAreaEffectClass*)mClass;
     }
 
     int SetTargets();

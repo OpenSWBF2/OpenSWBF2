@@ -130,7 +130,7 @@ unsigned int StreamSourceProducer::GetNumQueuedPackets() const
         for (unsigned int i = uiNumPackets; i != 0; --i)
         {
             const StreamPacket& packet = pPackets[uiIndex++];
-            if (packet.mRefCount > 0 || packet.mBufferUsed != 0)
+            if (packet.IsLocked() || packet.GetUsed() != 0)
             {
                 ++uiQueued;
             }

@@ -66,7 +66,7 @@ MemoryBitmap EngineBase::smSoundRAMAllocator;
 
 // GLOBAL: SWBF2 0x01e296a8
 // EngineBase::smListeners
-Listener EngineBase::smListeners[4];
+Listener EngineBase::smListeners[kMaxListeners];
 
 // FUNCTION: SWBF2 0x00733ea0
 template <>
@@ -114,7 +114,7 @@ void Allocator<VoiceBase>::operator delete(void* p, size_t uiSize)
 // FUNCTION: SWBF2 0x00734050
 Listener* EngineBase::GetFreeListener()
 {
-    for (unsigned int i = 0; i < 4; i++)
+    for (unsigned int i = 0; i < kMaxListeners; i++)
     {
         if (!smListeners[i].Enabled())
         {
@@ -211,7 +211,7 @@ void EngineBase::Update(float fDeltaTime, bool b)
         smTimeElapsed += fDeltaTime;
         if (b)
         {
-            for (unsigned int i = 0; i < 4; i++)
+            for (unsigned int i = 0; i < kMaxListeners; i++)
             {
                 if (smListeners[i].Enabled())
                 {
@@ -290,7 +290,7 @@ bool EngineBase::LoadConfiguration(PblFileChunk& chunk, char const* pcName, bool
             break;
 
         case 0x5E262256u:
-        case 0x9A644D15u:
+        case 0x9A644D15u: /* "SampleBank" */
             if (bLoadBanks)
             {
                 SampleBankBase::LoadBank(child, pcName, true, 0);
@@ -326,30 +326,30 @@ bool EngineBase::LoadConfiguration(PblFileChunk& chunk, char const* pcName, bool
 
             switch (uiType)
             {
-            case 0x5FD56DF9u:
+            case 0x5FD56DF9u: /* "bus" */
                 Bus::Load(parent, true);
                 break;
-            case 0x3553E285u:
+            case 0x3553E285u: /* "Space" */
                 Space::Load(parent, true);
                 break;
-            case 0x2E93EF4Cu:
-            case 0x4CA38B31u:
+            case 0x2E93EF4Cu: /* "SoundStream" */
+            case 0x4CA38B31u: /* "SoundStreamProperties" */
                 SoundStream::Properties::Load(parent, true);
                 break;
-            case 0x0E0D9594u:
-            case 0xEE65C519u:
+            case 0x0E0D9594u: /* "Sound" */
+            case 0xEE65C519u: /* "SoundProperties" */
                 Sound::Properties::Load(parent, true);
                 break;
-            case 0x12EBD555u:
+            case 0x12EBD555u: /* "soundparameterized" */
                 SoundParameterized::Properties::Load(parent, true);
                 break;
-            case 0xA54A2138u:
+            case 0xA54A2138u: /* "soundlayered" */
                 SoundLayered::Properties::Load(parent, true);
                 break;
-            case 0xE657A914u:
+            case 0xE657A914u: /* "ParameterGraph" */
                 ParameterGraph::Load(parent, true);
                 break;
-            case 0xABD36816u:
+            case 0xABD36816u: /* "I3DL2ReverbPreset" */
                 I3DL2ReverbPreset::Load(parent, true);
                 break;
             default:
@@ -417,24 +417,10 @@ void EngineBase::Close()
     smOpened = false;
 }
 
-// FUNCTION: SWBF2 0x00734010
-void __cdecl SoundLayered::Properties::DestroyAll()
-{
-    while (!smPropertyList.IsEmpty())
-    {
-        delete (Properties*)((char*)smPropertyList.mHead.mNext - offsetof(Properties, mNode));
-    }
-}
-
 // FUNCTION: SWBF2 0x00734130
 Stream* EngineBase::GetStream(unsigned int uiIndex)
 {
     return &smStreams[uiIndex];
-}
-
-// FUNCTION: SWBF2 0x00734830
-Stream::~Stream()
-{
 }
 
 }

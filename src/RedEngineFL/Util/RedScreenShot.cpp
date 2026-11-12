@@ -48,8 +48,8 @@ bool StitchImage(Accumulator<RedScreenShot::Pixel>* pAccumulators, int iTilesX, 
         unsigned char bitsPerPixel;
         unsigned char descriptor;
     };
-    const unsigned short outWidth = static_cast<unsigned short>(uiWidth * iTilesX);
-    const unsigned short outHeight = static_cast<unsigned short>(uiHeight * iTilesY);
+    const unsigned short outWidth = (unsigned short)(uiWidth * iTilesX);
+    const unsigned short outHeight = (unsigned short)(uiHeight * iTilesY);
     TgaHeader header;
     header.idLength = 0;
     header.colorMapType = 0;
@@ -80,13 +80,13 @@ bool StitchImage(Accumulator<RedScreenShot::Pixel>* pAccumulators, int iTilesX, 
                 {
                     Accumulator<RedScreenShot::Pixel>& accum = pAccumulators[iTileY * iTilesX + iTileX];
                     const RedScreenShot::Pixel pixel = accum.Get(iPixelIndex);
-                    *pNext++ = gamma.blue[static_cast<unsigned char>(static_cast<int>(pixel.b / iSamplesPerPixel * 255.0f))];
-                    *pNext++ = gamma.green[static_cast<unsigned char>(static_cast<int>(pixel.g / iSamplesPerPixel * 255.0f))];
-                    *pNext++ = gamma.red[static_cast<unsigned char>(static_cast<int>(pixel.r / iSamplesPerPixel * 255.0f))];
+                    *pNext++ = gamma.blue[(unsigned char)((int)(pixel.b / iSamplesPerPixel * 255.0f))];
+                    *pNext++ = gamma.green[(unsigned char)((int)(pixel.g / iSamplesPerPixel * 255.0f))];
+                    *pNext++ = gamma.red[(unsigned char)((int)(pixel.r / iSamplesPerPixel * 255.0f))];
                 }
                 if (pNext + iRowBytes > pBufferEnd)
                 {
-                    file.WriteData(pBuffer, static_cast<int>(pNext - pBuffer));
+                    file.WriteData(pBuffer, (int)(pNext - pBuffer));
                     pNext = pBuffer;
                 }
             }
@@ -95,7 +95,7 @@ bool StitchImage(Accumulator<RedScreenShot::Pixel>* pAccumulators, int iTilesX, 
     }
     if (pNext != pBuffer)
     {
-        file.WriteData(pBuffer, static_cast<int>(pNext - pBuffer));
+        file.WriteData(pBuffer, (int)(pNext - pBuffer));
     }
     delete[] pBuffer;
     file.Close();
@@ -362,9 +362,9 @@ bool TakeScreenShot()
     const float fInverseGamma = 1.0f / gamma_correction;
     for (int i = 0; i < 256; ++i)
     {
-        float fValue = powf(static_cast<float>(i) / 255.0f, fInverseGamma);
+        float fValue = powf((float)i / 255.0f, fInverseGamma);
         fValue = Clamp(fValue, 0.0f, 1.0f);
-        const unsigned char ucValue = static_cast<unsigned char>(static_cast<int>(fValue * 255.0f));
+        const unsigned char ucValue = (unsigned char)((int)(fValue * 255.0f));
         gamma.red[i] = ucValue;
         gamma.green[i] = ucValue;
         gamma.blue[i] = ucValue;
@@ -389,7 +389,7 @@ bool TakeScreenShot()
     }
     RedRenderer::SetScreenOffset(0.0f, 0.0f);
     RedScreenShot::StitchImage(pAccums, iIncrease, iIncrease, samples_per_pixel, gamma, acFileName,
-                static_cast<unsigned short>(uiWidth), static_cast<unsigned short>(uiHeight));
+                (unsigned short)uiWidth, (unsigned short)uiHeight);
 
     for (int i = 0; i < iNumTiles; ++i)
     {

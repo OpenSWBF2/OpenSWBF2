@@ -39,5 +39,5 @@ const RedModel* FirstPerson::LoadDynamicModel(const char* pszName, bool bArg)
     acName[sizeof(acName) - 1] = 0;
     char* pFirst = strchr(acName, ';');
     char* pSecond = strchr(pFirst, ';');
-    return RedModel::_HashTable.Find(PblHash(bArg ? pFirst + 1 : pSecond));
+    return RedModel::Find(PblHash(bArg ? pFirst + 1 : pSecond));
 }

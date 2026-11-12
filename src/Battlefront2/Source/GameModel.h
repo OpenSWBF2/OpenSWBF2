@@ -44,6 +44,8 @@ public:
 
     const PblBox& GetTotalBoundingBox() const { return _mModel->_TotalBoundingBox; }
 
+    const unsigned int GetClothHash(unsigned int index) const { return mClothList[index]; }
+
     unsigned int _uiNameHash;
     unsigned int _iLodType;
     float _fLodBias;

@@ -94,6 +94,11 @@ enum VOType
 
 struct VOModifier
 {
+    VOModifier()
+    {
+        *(unsigned int*)this = 0;
+    }
+
     unsigned int mAboveBelowCover : 2;
     unsigned int mRightLeftBehind : 2;
     unsigned int mDistance : 2;

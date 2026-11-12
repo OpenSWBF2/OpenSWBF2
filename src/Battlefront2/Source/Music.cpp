@@ -331,28 +331,28 @@ void Music::Read(PblFileChunk& chunk)
 
         switch (uTag)
         {
-        case 0x8d39bde6:
+        case 0x8d39bde6: /* "name" */
             SetHashID(data._pFile->Read32());
             break;
-        case 0x2e93ef4c:
+        case 0x2e93ef4c: /* "SoundStream" */
             SetID(data._pFile->Read32(), false, false);
             break;
-        case 0x5083ecd9:
+        case 0x5083ecd9: /* "FadeInTime" */
             SetFadeInTime(data._pFile->ReadFloat());
             break;
-        case 0x798dc484:
+        case 0x798dc484: /* "FadeOutTime" */
             SetFadeOutTime(data._pFile->ReadFloat());
             break;
-        case 0x6813be83:
+        case 0x6813be83: /* "MinPlaybackTime" */
             SetMinPlaybackTime(data._pFile->ReadFloat());
             break;
-        case 0x319a9661:
+        case 0x319a9661: /* "MaxPlaybackTime" */
             SetMaxPlaybackTime(data._pFile->ReadFloat());
             break;
-        case 0x35724887:
+        case 0x35724887: /* "MinInactiveTime" */
             SetMinInactiveTime(data._pFile->ReadFloat());
             break;
-        case 0x94e4e309:
+        case 0x94e4e309: /* "priority" */
             SetPriority(data._pFile->ReadFloat());
             break;
         }
@@ -506,13 +506,13 @@ void Music::Load(PblFileChunk& chunk)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x41544144)
+        if (child._iId != CHUNK_ID('D', 'A', 'T', 'A'))
         {
             continue;
         }
         unsigned int uTag = child._pFile->Read32();
         child._pFile->Read8();
-        if (uTag != 0x9F9C4FD4)
+        if (uTag != 0x9F9C4FD4 /* "Music" */)
         {
             continue;
         }

@@ -152,7 +152,7 @@ void DustEffectClass::CreateClient()
 }
 
 // FUNCTION: SWBF2 0x0048f120
-void DustEffectClass::Render(int value)
+void DustEffectClass::Render(unsigned int value) const
 {
 }
 
@@ -292,7 +292,7 @@ DustEffectClass::DustEffectClass(unsigned int uHash)
     mLifeTimeMax = 3.0f;
     mColor = RedColorValue(1.0f, 1.0f, 1.0f, 1.0f);
     mRenderData = 0;
-    mTextureHash = 0xAA3E3A1Fu;
+    mTextureHash = 0xAA3E3A1Fu /* "whitesmoke" */;
     mRadiusFadeMin = -1.0f;
     mRadiusFadeMax = -1.0f;
     mHeightScale = 0.2f;
@@ -327,11 +327,11 @@ void DustEffectClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x3c6468f4:
+    case 0x3c6468f4: /* "Texture" */
         mTextureHash = PblHash(pszValue);
         break;
 
-    case 0x38b0b50d:
+    case 0x38b0b50d: /* "MaxPos" */
     {
         float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
@@ -341,11 +341,11 @@ void DustEffectClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0x3d7e6258:
+    case 0x3d7e6258: /* "Color" */
         sscanf(pszValue, "%f %f %f %f", &mColor.r, &mColor.g, &mColor.b, &mColor.a);
         break;
 
-    case 0x597c1bb7:
+    case 0x597c1bb7: /* "MinPos" */
     {
         float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
@@ -355,31 +355,31 @@ void DustEffectClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0x4e2c3b35:
+    case 0x4e2c3b35: /* "CameraDistance" */
         sscanf(pszValue, "%f", &mCameraDistance);
         break;
 
-    case 0x5d8b6dab:
+    case 0x5d8b6dab: /* "Alpha" */
         sscanf(pszValue, "%f", &mColor.a);
         break;
 
-    case 0x80ba1308:
+    case 0x80ba1308: /* "MaxSize" */
         sscanf(pszValue, "%f", &mSizeMax);
         break;
 
-    case 0x80887a6f:
+    case 0x80887a6f: /* "RadiusFadeMin" */
         sscanf(pszValue, "%f", &mRadiusFadeMin);
         break;
 
-    case 0x6e74d661:
+    case 0x6e74d661: /* "RadiusFadeMax" */
         sscanf(pszValue, "%f", &mRadiusFadeMax);
         break;
 
-    case 0x9d399b92:
+    case 0x9d399b92: /* "MaxLifeTime" */
         sscanf(pszValue, "%f", &mLifeTimeMax);
         break;
 
-    case 0xb10f20ca:
+    case 0xb10f20ca: /* "MinVel" */
     {
         float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
@@ -389,7 +389,7 @@ void DustEffectClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0xa7bcb86c:
+    case 0xa7bcb86c: /* "MaxVel" */
     {
         float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
@@ -399,34 +399,34 @@ void DustEffectClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0xb4368857:
+    case 0xb4368857: /* "SpawnSound" */
         mDustSound.SetID(pszValue, false, false);
         break;
 
-    case 0xcaaa3778:
+    case 0xcaaa3778: /* "HeightScale" */
         sscanf(pszValue, "%f", &mHeightScale);
         break;
 
-    case 0xbd9397ec:
+    case 0xbd9397ec: /* "MinLifeTime" */
         sscanf(pszValue, "%f", &mLifeTimeMin);
         break;
 
-    case 0xb835cf50:
+    case 0xb835cf50: /* "MinDistance" */
         sscanf(pszValue, "%f", &mMinDistance);
         break;
 
-    case 0xd133f7da:
+    case 0xd133f7da: /* "NumParticles" */
         if (sscanf(pszValue, "%i", &mNumParticles))
         {
             mNumParticles = (unsigned int)mNumParticles / CameraManager::sInstance->m_iNumCam;
         }
         break;
 
-    case 0xeaebcf6e:
+    case 0xeaebcf6e: /* "MinSize" */
         sscanf(pszValue, "%f", &mSizeMin);
         break;
 
-    case 0xe6915cf6:
+    case 0xe6915cf6: /* "MaxDistance" */
         sscanf(pszValue, "%f", &mMaxDistance);
         break;
 
@@ -543,21 +543,21 @@ void CloudClusterClass::SetProperty(unsigned int uProperty, const char* pszValue
 {
     switch (uProperty)
     {
-    case 0xab409a38:
+    case 0xab409a38: /* "Odf" */
         ++mNumDustEffectsInCluster;
         mDustEffects[mNumDustEffectsInCluster - 1] =
-            static_cast<DustEffectClass*>(EntityClass::Find(PblHash(pszValue)));
+            (DustEffectClass*)EntityClass::Find(PblHash(pszValue));
         break;
 
-    case 0x458975f0:
+    case 0x458975f0: /* "NumDustObjectsInEffects" */
         sscanf(pszValue, "%d", &mNumDustObjectsInEffects[mNumDustEffectsInCluster - 1]);
         break;
 
-    case 0x26b090c2:
+    case 0x26b090c2: /* "HorizontalSpread" */
         sscanf(pszValue, "%f", &mHorizontalSpread);
         break;
 
-    case 0xb0d0544c:
+    case 0xb0d0544c: /* "VerticalSpread" */
         sscanf(pszValue, "%f", &mVerticalSpread);
         break;
 

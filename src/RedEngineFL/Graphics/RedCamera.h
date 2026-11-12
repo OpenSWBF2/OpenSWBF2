@@ -61,7 +61,7 @@ public:
         PblMatrix m = rMatrix * _MatrixInverse;
         return ClassifyBoxInternal(m, m.GetTranslation(), vExtents);
     }
-    VisibilityT ClassifyAABox(const PblVector3& vCenter, const PblVector3& vExtents) const;
+    VisibilityT ClassifyAABox(const PblVector3& vCenter, const PblVector3& vSize) const;
 
     VisibilityT ClassifyXZBox(const PblVector3& vCenter, const PblVector3& vExtents) const;
 
@@ -113,9 +113,7 @@ inline const PblVector3 RedCamera::TransformWorldPointToProjectionSpace(const Pb
 
 
 // FUNCTION: SWBF2 0x00433eb0
-inline RedCamera::VisibilityT RedCamera::ClassifyAABox(const PblVector3& vCenter, const PblVector3& vExtents) const
+inline RedCamera::VisibilityT RedCamera::ClassifyAABox(const PblVector3& vCenter, const PblVector3& vSize) const
 {
-    PblVector3 v;
-    D3DXVec3TransformCoord((D3DXVECTOR3*)&v, (const D3DXVECTOR3*)&vCenter, (const D3DXMATRIX*)&_MatrixInverse);
-    return ClassifyBoxInternal(_MatrixInverse, v, vExtents);
+    return ClassifyBoxInternal(_MatrixInverse, _MatrixInverse.ApplyTransform(vCenter), vSize);
 }

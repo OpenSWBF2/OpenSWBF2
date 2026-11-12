@@ -97,14 +97,14 @@ void ParameterGraph::Read(PblFileChunk& chunk)
         child._pFile->Read8();
         switch (uiID)
         {
-        case 0x415B9110u:
+        case 0x415B9110u: /* "ControlPoint" */
         {
             const float fInput = child._pFile->ReadFloat();
             const float fOutput = child._pFile->ReadFloat();
             new ControlPoint(fInput, fOutput, mControlPoints);
             break;
         }
-        case 0x8D39BDE6u:
+        case 0x8D39BDE6u: /* "name" */
             mHashID = child._pFile->Read32();
             break;
         }

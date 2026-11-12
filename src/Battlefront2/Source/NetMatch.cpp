@@ -8,6 +8,7 @@
 #include "pcNetSocket.h"
 #include "NetComm.h"
 #include "NetGame.h"
+#include "GameSpyFL/nonport.h"
 #include "NetPacket.h"
 #include "PebbleFL/Common/PblJournal.h"
 #include "PebbleFL/Common/PblUnicode.h"
@@ -40,17 +41,47 @@ static void HandleQueryPackets();
 // GLOBAL: SWBF2 0x01e64f30
 char netLoginOverrideName[256];
 
+// GLOBAL: SWBF2 0x01fa88d0
+char const* netLoginErrorMessage;
+
+// GLOBAL: SWBF2 0x01e64f04
+int netLoginErrorLevel;
+
+// GLOBAL: SWBF2 0x01e64f0c
+gf::GalaxyLobbyDataListener* gGalaxyLobbyDataListener;
+
+// GLOBAL: SWBF2 0x01e64f10
+gf::GalaxyLobbyCreatedListener* gGalaxyLobbyCreatedListener;
+
+// GLOBAL: SWBF2 0x01e64f14
+gf::GalaxyAuthListener* gGalaxyAuthListener;
+
+// GLOBAL: SWBF2 0x01e64f18
+gf::GalaxyLobbyListListener* gGalaxyLobbyListListener;
+
+// GLOBAL: SWBF2 0x01e64f1c
+gf::GalaxyLobbyMemberStateListener* gGalaxyLobbyMemberStateListener;
+
+// GLOBAL: SWBF2 0x01e64f20
+gf::GalaxyLobbyLeftListener* gGalaxyLobbyLeftListener;
+
+// GLOBAL: SWBF2 0x01e64f24
+gf::GalaxyLobbyEnteredListener* gGalaxyLobbyEnteredListener;
+
+// GLOBAL: SWBF2 0x01e64f28
+gf::GalaxyLobbyOwnerChangeListener* gGalaxyLobbyOwnerChangeListener;
+
+// GLOBAL: SWBF2 0x01e64f2c
+int netNoCableCount;
+
 extern int netDirectPort;
-extern int netLoginErrorLevel;
 extern int updatePercent;
-extern int netNoCableCount;
 extern int netConnectState;
 extern int netMatchOperation;
 extern int netLobbyState;
 extern int netLanRegisterState;
 extern char const* gameErrorMsg;
 extern int gameErrorLvl;
-extern char const* netLoginErrorMessage;
 extern float netNextLanQueryTime;
 extern int netLanQueryCount;
 extern unsigned int netLanQuerySequence;
@@ -68,9 +99,8 @@ extern unsigned __int64 netFindSessionId;
 extern char netLocalIPText[18];
 extern NetAddr myAddr;
 
-galaxy::api::IMatchmaking* GetGalaxyMatchmaking();
-hostent* getlocalhost();
-bool PumpGalaxyMatchmaking();
+void* GetGalaxyMatchmaking();
+void ProcessGalaxyData();
 void StartRegisterLanGame();
 void UpdateRegisterLanGame();
 void EndFindLanGames();
@@ -114,6 +144,17 @@ unsigned long GetPrivateIP()
         ++index;
     }
     return 0;
+}
+
+// FUNCTION: SWBF2 0x005d5a40
+bool PumpGalaxyMatchmaking()
+{
+    if (!gf::isInitialized())
+    {
+        return false;
+    }
+    ProcessGalaxyData();
+    return !gf::checkError();
 }
 
 // FUNCTION: SWBF2 0x005d5a60
@@ -352,6 +393,54 @@ bool NetMatch::UpdateConnect(NetAddr&, NetKey&, int, int& connected)
 
 // FUNCTION: SWBF2 0x005d6150
 void NetMatch::EndConnect(NetAddr&, NetKey&, int) {}
+
+// FUNCTION: SWBF2 0x005d6160
+void NetMatch::StartLogin(int iViewport, bool bArg2, char const* pcArg3, char const* pcArg4,
+                char const* pcArg5, bool bArg6)
+{
+    if (!gf::isInitialized() && gf::initialize())
+    {
+        gGalaxyAuthListener = gf::Allocate<gf::GalaxyAuthListener>(iViewport);
+        gGalaxyLobbyCreatedListener = gf::Allocate<gf::GalaxyLobbyCreatedListener>();
+        gGalaxyLobbyLeftListener = gf::Allocate<gf::GalaxyLobbyLeftListener>();
+        gGalaxyLobbyMemberStateListener = gf::Allocate<gf::GalaxyLobbyMemberStateListener>();
+        gGalaxyLobbyEnteredListener = gf::Allocate<gf::GalaxyLobbyEnteredListener>();
+        gGalaxyLobbyListListener = gf::Allocate<gf::GalaxyLobbyListListener>();
+        gGalaxyLobbyDataListener = gf::Allocate<gf::GalaxyLobbyDataListener>();
+        gGalaxyLobbyOwnerChangeListener = gf::Allocate<gf::GalaxyLobbyOwnerChangeListener>();
+    }
+    netLoginFailureReason = 0;
+    if (!gf::isInitialized())
+    {
+        return;
+    }
+
+    void* pUser = GetGalaxyUser();
+    if (((galaxy::api::IUser*)pUser)->SignedIn() || netLoginPending)
+    {
+        return;
+    }
+
+    netLoginPending = true;
+    NetMatch::SetLocalGSID(0);
+    if (gf::_sap())
+    {
+        const char* pcPersonaName = gf::_sap()->GetPersonaName();
+        char acTicket[256] = { 0 };
+        const int iTicketSize = gf::_sap()->GetEncryptedAppTicket(acTicket, sizeof(acTicket));
+        if (pcPersonaName && iTicketSize > 0)
+        {
+            pUser = GetGalaxyUser();
+            ((galaxy::api::IUser*)pUser)->SignInWithSteam(acTicket, iTicketSize, pcPersonaName);
+            if (!gf::checkError())
+            {
+                return;
+            }
+        }
+    }
+    netLoginPending = false;
+    netLoginFailureReason = 0;
+}
 
 // FUNCTION: SWBF2 0x005d6310
 void NetMatch::SetNoCableError()

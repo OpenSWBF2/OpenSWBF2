@@ -219,7 +219,7 @@ void StreamIMAADPCMDecoder::Update()
                 return;
             }
 
-            if (mNextPos != pInput->mPos && !pInput->GetDiscontinuity() &&
+            if (mNextPos != pInput->GetPosition() && !pInput->GetDiscontinuity() &&
                 !pInput->GetLast())
             {
                 pInput->Unlock();
@@ -227,12 +227,12 @@ void StreamIMAADPCMDecoder::Update()
                 return;
             }
 
-            mNextPos = pInput->mPos + pInput->mBufferUsed;
+            mNextPos = pInput->GetPosition() + pInput->GetUsed();
             if (pInput->GetDiscontinuity() || pInput->GetLast())
             {
                 mNextPos = 0;
             }
-            mInputPacketIO.SetPacket(pInput, pInput->mBufferUsed);
+            mInputPacketIO.SetPacket(pInput, pInput->GetUsed());
         }
 
         while (pInput != 0 && pOutput != 0)

@@ -12,7 +12,7 @@
 // FUNCTION: SWBF2 0x00557220
 HUD::ElementMultilineText::Factory::Factory()
 {
-    mHashID = 0xD53E50D7u;
+    mHashID = 0xD53E50D7u /* "MultilineText" */;
     mName = "MultilineText";
 
     mNumLines.Init("NumLines", mProperties, 1, 80);
@@ -38,16 +38,16 @@ HUD::Item* HUD::ElementMultilineText::Factory::CreateItem(const char* const pNam
     return 0;
 }
 
-static const unsigned int kNumLines = 0x0269babe;
-static const unsigned int kDisplayTime = 0xdaef1514;
-static const unsigned int kAlwaysScroll = 0xb74de20d;
-static const unsigned int kAddToTop = 0x09771c74;
-static const unsigned int kDisableOnEmpty = 0xcf649993;
-static const unsigned int kScrollSpeed = 0xdfc96107;
-static const unsigned int kEventText = 0x7e1311a8;
-static const unsigned int kEventColor = 0x49f429ae;
+static const unsigned int kNumLines = 0x0269babe /* "NumLines" */;
+static const unsigned int kDisplayTime = 0xdaef1514 /* "DisplayTime" */;
+static const unsigned int kAlwaysScroll = 0xb74de20d /* "AlwaysScroll" */;
+static const unsigned int kAddToTop = 0x09771c74 /* "AddToTop" */;
+static const unsigned int kDisableOnEmpty = 0xcf649993 /* "DisableOnEmpty" */;
+static const unsigned int kScrollSpeed = 0xdfc96107 /* "ScrollSpeed" */;
+static const unsigned int kEventText = 0x7e1311a8 /* "EventText" */;
+static const unsigned int kEventColor = 0x49f429ae /* "EventColor" */;
 
-static const unsigned int kTextFactory = 0xBDE64E3Eu;
+static const unsigned int kTextFactory = 0xBDE64E3Eu /* "Text" */;
 
 static inline RedTextElement& GetText(HUD::ElementMultilineText::Line& line)
 {
@@ -636,7 +636,7 @@ void HUD::ElementMultilineText::Read(PblConfig& config, Factory::ItemCallback pC
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (config.m_pChunk->PeekNextChildId() == 0x504f4353)
+        if (config.m_pChunk->PeekNextChildId() == CHUNK_ID('S', 'C', 'O', 'P'))
         {
             if (mFormat.GetNameHash() == data.GetId())
             {

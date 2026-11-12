@@ -5,6 +5,8 @@
 #include <stddef.h>
 
 #include "EntityItem.h"
+#include "Character.h"
+#include "Controllable.h"
 #include "CollisionModel.h"
 #include "GameSound.h"
 #include "PebbleFL/Common/PblList.h"
@@ -99,7 +101,26 @@ public:
 
     void SetupCollisionGeometry();
 
-    GameObject* GetCarrier();
+    // FUNCTION: SWBF2 0x00523fd0
+    GameObject* GetCarrier()
+    {
+        FlagItem* pItem = this;
+        Character* pCarrier = reinterpret_cast<EntityItem*>(pItem)->mOwner;
+        if (!pCarrier)
+        {
+            return 0;
+        }
+        if (pCarrier->mVehicle)
+        {
+            return static_cast<Trackable*>(pCarrier->mVehicle)->GetGameObject();
+        }
+        if (pCarrier->mUnit)
+        {
+            return static_cast<Trackable*>(pCarrier->mUnit)->GetGameObject();
+        }
+        ResetFlag();
+        return 0;
+    }
     bool Drop();
     void ResetFlag();
     void ClearCarrierFlagItem();

@@ -42,7 +42,7 @@ char* HUD::ElementText::Factory::sTextStyle[3] =
 
 // FUNCTION: SWBF2 0x0055ae30
 HUD::ElementText::Factory::Factory()
-    : HUD::Element::Factory(0xBDE64E3Eu)
+    : HUD::Element::Factory(0xBDE64E3Eu /* "Text" */)
 {
     mName = "Text";
 
@@ -83,7 +83,7 @@ HUD::Item* HUD::ElementText::Factory::CreateItem(const char* const pName, ItemCa
 // FUNCTION: SWBF2 0x0055b1c0
 HUD::ElementText::ElementText(const char* const pName, Factory::ItemCallback pCallback,
                               void* const pUserData)
-    : HUD::Element(*static_cast<RedTextElement*>(this), pName, pCallback, pUserData),
+    : HUD::Element(*(RedTextElement*)this, pName, pCallback, pUserData),
       mIntegerFormat(0),
       mFloatFormat(0),
       mNumberToTime(0),
@@ -172,7 +172,7 @@ void HUD::ElementText::CopyToTextElement(RedTextElement& textElement)
 {
     textElement.m_color = RedColor(mColorDefault);
     textElement.SetZOrder((unsigned char)RedTextElement::m_zorder);
-    textElement.SetBlendMode(static_cast<RedTextElement&>(*this).GetBlendMode());
+    textElement.SetBlendMode(((RedTextElement&)(*this)).GetBlendMode());
     textElement.SetMatrix(m_mLocal);
     textElement.SetFont(m_pFont);
     textElement.SetIntercharacterSpacing(m_iSpacing);
@@ -191,23 +191,23 @@ void HUD::ElementText::CopyToTextElement(RedTextElement& textElement)
     textElement.SetFont(m_pFont);
 }
 
-static const unsigned int kInfiniteDashesHash = 0x7A4E6E71u;
-static const unsigned int kIntegerFormatHash = 0x406E77D2u;
-static const unsigned int kTextBreakHash = 0x37D0F255u;
-static const unsigned int kTextScaleHash = 0x133C15DCu;
-static const unsigned int kTextStyleHash = 0x15746CB3u;
-static const unsigned int kEventNumberHash = 0x3FC8DF9Eu;
-static const unsigned int kTextTabSpacingHash = 0x4CE322C6u;
-static const unsigned int kTextBoxHash = 0x5BACE35Bu;
-static const unsigned int kPercentHash = 0x75F9FA5Au;
-static const unsigned int kTextAlignmentHash = 0xC2200723u;
-static const unsigned int kTextClipHash = 0xB069FF88u;
-static const unsigned int kEventTextHash = 0x7E1311A8u;
-static const unsigned int kTextFontHash = 0x90AE147Fu;
-static const unsigned int kTextHash = 0xBDE64E3Eu;
-static const unsigned int kNumberToTimeHash = 0xCE8AD9C0u;
-static const unsigned int kFloatFormatHash = 0xD9E54312u;
-static const unsigned int kTextCharacterSpacingHash = 0xF30ABEAAu;
+static const unsigned int kInfiniteDashesHash = 0x7A4E6E71u /* "InfiniteDashes" */;
+static const unsigned int kIntegerFormatHash = 0x406E77D2u /* "IntegerFormat" */;
+static const unsigned int kTextBreakHash = 0x37D0F255u /* "TextBreak" */;
+static const unsigned int kTextScaleHash = 0x133C15DCu /* "TextScale" */;
+static const unsigned int kTextStyleHash = 0x15746CB3u /* "TextStyle" */;
+static const unsigned int kEventNumberHash = 0x3FC8DF9Eu /* "EventNumber" */;
+static const unsigned int kTextTabSpacingHash = 0x4CE322C6u /* "TextTabSpacing" */;
+static const unsigned int kTextBoxHash = 0x5BACE35Bu /* "TextBox" */;
+static const unsigned int kPercentHash = 0x75F9FA5Au /* "Percent" */;
+static const unsigned int kTextAlignmentHash = 0xC2200723u /* "TextAlignment" */;
+static const unsigned int kTextClipHash = 0xB069FF88u /* "TextClip" */;
+static const unsigned int kEventTextHash = 0x7E1311A8u /* "EventText" */;
+static const unsigned int kTextFontHash = 0x90AE147Fu /* "TextFont" */;
+static const unsigned int kTextHash = 0xBDE64E3Eu /* "Text" */;
+static const unsigned int kNumberToTimeHash = 0xCE8AD9C0u /* "NumberToTime" */;
+static const unsigned int kFloatFormatHash = 0xD9E54312u /* "FloatFormat" */;
+static const unsigned int kTextCharacterSpacingHash = 0xF30ABEAAu /* "TextCharacterSpacing" */;
 
 // FUNCTION: SWBF2 0x0055bc80
 bool HUD::ElementText::ReadData(PblConfig& config, PblConfig::Data& data)
@@ -359,14 +359,14 @@ void HUD::ElementText::EventText(const HUD::Event& event, void* const pData)
     case EventClass::type_Uint:
     {
         const unsigned short* pText = RedLocalizeDB::Find(event.GetData().uintValue, false);
-        RedTextElement& textElement = static_cast<RedTextElement&>(((ElementText*)pData)->GetRedInterfaceElement());
+        RedTextElement& textElement = (RedTextElement&)(((ElementText*)pData)->GetRedInterfaceElement());
         textElement.SetText(pText, true);
         break;
     }
     case EventClass::type_String:
     {
         const unsigned short* pString = event.GetData().string;
-        RedTextElement& textElement = static_cast<RedTextElement&>(((ElementText*)pData)->GetRedInterfaceElement());
+        RedTextElement& textElement = (RedTextElement&)(((ElementText*)pData)->GetRedInterfaceElement());
         if (pString)
         {
             textElement.SetText(pString, true);
@@ -526,7 +526,7 @@ void HUD::ElementText::EventNumber(const HUD::Event& event, void* const pData)
         }
     }
 
-    static_cast<RedTextElement*>(pText)->SetText(text, true);
+    ((RedTextElement*)pText)->SetText(text, true);
     EventChanged(event, pData);
 }
 
@@ -545,11 +545,11 @@ const char* HUD::ElementText::PropertyTranslateEnum(const unsigned int uHashID,
 {
     switch (uHashID)
     {
-    case 0xAF7A0A77u: return Factory::sTextAlignHorizontal[uValue];
+    case 0xAF7A0A77u: /* "TextHAlignment" */ return Factory::sTextAlignHorizontal[uValue];
     case kTextStyleHash: return Factory::sTextStyle[uValue];
     case kTextBreakHash: return Factory::sTextBreak[uValue];
     case kTextClipHash: return Factory::sTextClip[uValue];
-    case 0xFD78EA2Du: return Factory::sTextAlignVertical[uValue];
+    case 0xFD78EA2Du: /* "TextVAlignment" */ return Factory::sTextAlignVertical[uValue];
     default: return Element::PropertyTranslateEnum(uHashID, uValue);
     }
 }
@@ -578,7 +578,7 @@ bool HUD::ElementText::GetProperty(const unsigned int uHashID, void* pValue)
         ((float*)pValue)[1] = (float)uHeight / sViewportHeight;
         return true;
     }
-    case 0xAF7A0A77u:
+    case 0xAF7A0A77u: /* "TextHAlignment" */
     {
         TextHAlignT eHAlign;
         TextVAlignT eVAlign;
@@ -586,7 +586,7 @@ bool HUD::ElementText::GetProperty(const unsigned int uHashID, void* pValue)
         *(unsigned int*)pValue = eHAlign;
         return true;
     }
-    case 0xFD78EA2Du:
+    case 0xFD78EA2Du: /* "TextVAlignment" */
     {
         TextHAlignT eHAlign;
         TextVAlignT eVAlign;
@@ -617,7 +617,7 @@ bool HUD::ElementText::SetProperty(const unsigned int uHashID, const void* pValu
     case kTextScaleHash:
         SetTextScale(((const float*)pValue)[0], ((const float*)pValue)[1]);
         return true;
-    case 0xAF7A0A77u:
+    case 0xAF7A0A77u: /* "TextHAlignment" */
     {
         unsigned short* pAlignText;
         SaveTextBoxText(&pAlignText);
@@ -628,7 +628,7 @@ bool HUD::ElementText::SetProperty(const unsigned int uHashID, const void* pValu
         RestoreTextBoxText(&pAlignText);
         return true;
     }
-    case 0xFD78EA2Du:
+    case 0xFD78EA2Du: /* "TextVAlignment" */
     {
         unsigned short* pAlignText;
         SaveTextBoxText(&pAlignText);

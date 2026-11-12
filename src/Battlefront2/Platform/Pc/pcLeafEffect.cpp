@@ -117,6 +117,6 @@ void FallingLeafParticle::PlatformCleanup()
 void FallingLeafParticle::PlatformInit()
 {
     const unsigned int uiFormat = RedRenderer::pcGetGeometryMode() ? 0x9282 : 0x282;
-    m_pShader = pcRedShader::Create(0x8a8743bf, uiFormat, &mTextureHash, 1, 0x10004,
+    m_pShader = pcRedShader::Create(0x8a8743bf /* "PARTICLE" */, uiFormat, &mTextureHash, 1, 0x10004,
                                     RedColor::WHITE, RedColor::BLACK, 32.0f);
 }

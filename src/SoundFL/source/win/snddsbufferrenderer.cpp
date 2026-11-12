@@ -41,7 +41,7 @@ DSBufferRenderer::DSBufferRenderer()
 
     Engine::GetThreadUpdate()->AddObject(this);
 
-    Source3D::mProps = static_cast<Source3D::Properties*>(this);
+    Source3D::mProps = (Source3D::Properties*)this;
 
     ThreadUpdate::Object::GetThreadUpdate()->Pause(false);
     smRendererList.AddLast(&mNode);
@@ -58,7 +58,7 @@ float DSBufferRenderer::GetBufferSizeMs() const
     const float fSamples = (float)(unsigned int)SampleInfo::GetSamplesPerFrame(mFormat)
                          * fFrames;
     const float fRate = (float)(unsigned int)mFrequency
-                       * static_cast<const Source*>(static_cast<const Source2D3D*>(this))->mPitch;
+                       * ((const Source*)(const Source2D3D*)this)->mPitch;
 
     return fSamples / fRate * 1000.0f;
 }
@@ -144,9 +144,10 @@ void DSBufferRenderer::UpdateBufferParameters(IDirectSoundBuffer* const pBuffer,
 
         UpdateGain(true, fGain);
 
+        const float pitch = Source::mPitch;
+        const float pitch3D = Source3D::CalculatePitch() * pitch;
         DSBuffer::SetFrequency(
-            (unsigned int)((float)(unsigned int)mFrequency
-                           * (Source3D::CalculatePitch() * Source::mPitch)));
+            (unsigned int)((float)(unsigned int)mFrequency * pitch3D));
     }
     else
     {
@@ -280,7 +281,7 @@ void DSBufferRenderer::UpdateParameters()
          pNode = pNode->mNext)
     {
 
-        DSBufferRenderer* const pRenderer = static_cast<DSBufferRenderer*>(pNode->GetObjectA(&smRendererList, offsetof(DSBufferRenderer, mNode)));
+        DSBufferRenderer* const pRenderer = (DSBufferRenderer*)pNode->GetObjectA(&smRendererList, offsetof(DSBufferRenderer, mNode));
 
         IDirectSoundBuffer* const pBuffer =
             pRenderer->DSBuffer::GetBuffer();
@@ -636,7 +637,7 @@ void DSBufferRenderer::UpdateObject()
     IDirectSoundBuffer8* const pBuffer = DSBuffer::GetBuffer();
 
     SourceTransport* const pTransport =
-        static_cast<SourceTransport*>(this);
+        (SourceTransport*)this;
 
     const SourceTransport::PlayState eDesired =
         StreamNode::QueryDesiredPlayState();

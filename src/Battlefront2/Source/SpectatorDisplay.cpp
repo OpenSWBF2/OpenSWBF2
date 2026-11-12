@@ -139,27 +139,27 @@ SpectatorDisplay::~SpectatorDisplay()
 void SpectatorDisplay::Init()
 {
     mMessageGroup.Enable(false);
-    mBitmapBackground.SetTexture(0x298058FE);
+    mBitmapBackground.SetTexture(0x298058FE /* "tooltip_bg" */);
     mSpectatorPrompt.SetFont(RedFont::GAMEFONT_SMALL);
     mSpectatorPrompt.SetColor(RedColor::YELLOW);
-    mSpectatorPrompt.SetText(RedLocalizeDB::Find(0xAC69F600, false), true);
+    mSpectatorPrompt.SetText(RedLocalizeDB::Find(0xAC69F600 /* "common.mp.spectator.prompt" */, false), true);
 
-    mBitmapChangeView.SetTexture(0xDD7D0382);
+    mBitmapChangeView.SetTexture(0xDD7D0382 /* "btna" */);
     mTxtChangeView.SetFont(RedFont::GAMEFONT_MEDIUM);
     mTxtChangeView.SetColor(RedColor::GREEN);
-    mTxtChangeView.SetText(RedLocalizeDB::Find(0xC7A58A6E, false), true);
+    mTxtChangeView.SetText(RedLocalizeDB::Find(0xC7A58A6E /* "common.mp.spectator.change_view" */, false), true);
 
-    mBitmapJoinGame.SetTexture(0xDC7D01EF);
+    mBitmapJoinGame.SetTexture(0xDC7D01EF /* "btnb" */);
     mTxtJoinGame.SetFont(RedFont::GAMEFONT_MEDIUM);
     mTxtJoinGame.SetColor(RedColor::GREEN);
-    mTxtJoinGame.SetText(RedLocalizeDB::Find(0x1812830D, false), true);
+    mTxtJoinGame.SetText(RedLocalizeDB::Find(0x1812830D /* "common.back" */, false), true);
 
     mPregameGroup.Enable(false);
-    mBitmapBGPregame.SetTexture(0x298058FE);
+    mBitmapBGPregame.SetTexture(0x298058FE /* "tooltip_bg" */);
     mPregamePrompt.SetFont(RedFont::GAMEFONT_SMALL);
     mPregamePrompt.SetColor(RedColor::YELLOW);
     mPregamePrompt.m_color.a = 0xb4;
-    mPregamePrompt.SetText(RedLocalizeDB::Find(0x2961292A, false), true);
+    mPregamePrompt.SetText(RedLocalizeDB::Find(0x2961292A /* "common.mp.pregame.prompt" */, false), true);
 
     mPregameTime.SetFont(RedFont::GAMEFONT_SMALL);
     mPregameTime.SetColor(RedColor::GREEN);
@@ -168,7 +168,7 @@ void SpectatorDisplay::Init()
 
     mPregamePrompt1.SetFont(RedFont::GAMEFONT_SMALL);
     mPregamePrompt1.m_color.a = 0xb4;
-    mPregamePrompt1.SetText(RedLocalizeDB::Find(0x1E648D47, false), true);
+    mPregamePrompt1.SetText(RedLocalizeDB::Find(0x1E648D47 /* "common.mp.pregame.prompt1_pc" */, false), true);
 
     float fWidth = 0.0f;
     float fLeft, fTop, fRight, fBottom;
@@ -284,13 +284,13 @@ void SpectatorDisplay::ChangeSpectatedName()
         unsigned short ausText[128] = { 0 };
         unsigned short ausName[33] = { 0 };
         PblUnicode::ustrncnv(ausName, NetGame::GetPlayerName(iSpectator), 32);
-        const unsigned short* pusFormat = RedLocalizeDB::Find(0xAC69F600, false);
+        const unsigned short* pusFormat = RedLocalizeDB::Find(0xAC69F600 /* "common.mp.spectator.prompt" */, false);
         PblUnicode::usnprintf(ausText, 127, pusFormat, ausName);
         mSpectatorPrompt.SetText(ausText, true);
     }
     else
     {
-        mSpectatorPrompt.SetText(RedLocalizeDB::Find(0x56889DCC, false), true);
+        mSpectatorPrompt.SetText(RedLocalizeDB::Find(0x56889DCC /* "common.mp.spectator.noplayer" */, false), true);
     }
 
     if (!mMessageGroup.IsEnabled())

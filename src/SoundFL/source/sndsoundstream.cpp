@@ -27,6 +27,33 @@ unsigned int SoundStream::smCount[6];
 // SoundStream::smPlayingProps
 SoundStream::Properties* SoundStream::smPlayingProps[6];
 
+// SYNTHETIC: SWBF2 0x0040b9a0
+// `dynamic initializer for 'Snd::SoundStream::Properties::smPropertyList''
+// SYNTHETIC: SWBF2 0x0076a330
+// `dynamic atexit destructor for 'Snd::SoundStream::Properties::smPropertyList''
+
+// GLOBAL: SWBF2 0x007e3584
+// SoundStream::Properties::smPropertyList
+PblListSingle SoundStream::Properties::smPropertyList;
+
+// SYNTHETIC: SWBF2 0x0040b910
+// `dynamic initializer for 'Snd::SoundStream::Properties::smFreeList''
+// SYNTHETIC: SWBF2 0x0076a300
+// `dynamic atexit destructor for 'Snd::SoundStream::Properties::smFreeList''
+
+// GLOBAL: SWBF2 0x007e3568
+// SoundStream::Properties::smFreeList
+FreeList SoundStream::Properties::smFreeList(sizeof(SoundStream::Properties), 1, true, 8);
+
+// SYNTHETIC: SWBF2 0x0040b930
+// `dynamic initializer for 'Snd::SoundStream::smFreeList''
+// SYNTHETIC: SWBF2 0x0076a310
+// `dynamic atexit destructor for 'Snd::SoundStream::smFreeList''
+
+// GLOBAL: SWBF2 0x007e3588
+// SoundStream::smFreeList
+FreeList SoundStream::smFreeList(0xcc, 1, true, 4);
+
 // SYNTHETIC: SWBF2 0x007367f0
 // PblListDoubleSorted::`default constructor closure'
 
@@ -39,23 +66,14 @@ SoundStream::Properties* SoundStream::smPlayingProps[6];
 // SoundStream::smQueue
 PblListDoubleSorted SoundStream::smQueue[6];
 
-// FUNCTION: SWBF2 0x007366b0
-SoundStream::FireForget::FireForget()
-    : mProperties(0),
-      mPitch(1.0f),
-      mGain(0.0f),
-      mSegmentID(0)
-{
-}
+// SYNTHETIC: SWBF2 0x0040b900
+// `dynamic initializer for 'Snd::SoundStream::smFree''
+// SYNTHETIC: SWBF2 0x0076a2e0
+// `dynamic atexit destructor for 'Snd::SoundStream::smFree''
 
-// SYNTHETIC: SWBF2 0x0040b8d0
-// `dynamic initializer for 'Snd::SoundStream::smFireForget''
-// SYNTHETIC: SWBF2 0x0076a2c0
-// `dynamic atexit destructor for 'Snd::SoundStream::smFireForget''
-
-// GLOBAL: SWBF2 0x01e29860
-// SoundStream::smFireForget
-SoundStream::FireForget SoundStream::smFireForget[24];
+// GLOBAL: SWBF2 0x007e35a8
+// SoundStream::smFree
+PblListDoubleSorted SoundStream::smFree;
 
 // SYNTHETIC: SWBF2 0x0040b960
 // `dynamic initializer for 'Snd::SoundStream::smPlayingPos''
@@ -70,14 +88,32 @@ PblVector3 SoundStream::smPlayingPos[6];
 // SoundStream::smPlayingVel
 PblVector3 SoundStream::smPlayingVel[6];
 
-// SYNTHETIC: SWBF2 0x0040b900
-// `dynamic initializer for 'Snd::SoundStream::smFree''
-// SYNTHETIC: SWBF2 0x0076a2e0
-// `dynamic atexit destructor for 'Snd::SoundStream::smFree''
+// SYNTHETIC: SWBF2 0x0040b8d0
+// `dynamic initializer for 'Snd::SoundStream::smFireForget''
+// SYNTHETIC: SWBF2 0x0076a2c0
+// `dynamic atexit destructor for 'Snd::SoundStream::smFireForget''
 
-// GLOBAL: SWBF2 0x007e35a8
-// SoundStream::smFree
-PblListDoubleSorted SoundStream::smFree;
+// GLOBAL: SWBF2 0x01e29860
+// SoundStream::smFireForget
+SoundStream::FireForget SoundStream::smFireForget[24];
+
+// SYNTHETIC: SWBF2 0x0040b950
+// `dynamic initializer for 'Snd::SoundStream::smList''
+// SYNTHETIC: SWBF2 0x0076a320
+// `dynamic atexit destructor for 'Snd::SoundStream::smList''
+
+// GLOBAL: SWBF2 0x007e35a4
+// SoundStream::smList
+PblListSingle SoundStream::smList;
+
+// FUNCTION: SWBF2 0x007366b0
+SoundStream::FireForget::FireForget()
+    : mProperties(0),
+      mPitch(1.0f),
+      mGain(0.0f),
+      mSegmentID(0)
+{
+}
 
 // FUNCTION: SWBF2 0x00736b40
 void SoundStream::Init()
@@ -111,42 +147,6 @@ void SoundStream::StopAll()
         }
     }
 }
-
-// SYNTHETIC: SWBF2 0x0040b910
-// `dynamic initializer for 'Snd::SoundStream::Properties::smFreeList''
-// SYNTHETIC: SWBF2 0x0076a300
-// `dynamic atexit destructor for 'Snd::SoundStream::Properties::smFreeList''
-
-// GLOBAL: SWBF2 0x007e3568
-// SoundStream::Properties::smFreeList
-FreeList SoundStream::Properties::smFreeList(sizeof(SoundStream::Properties), 1, true, 8);
-
-// SYNTHETIC: SWBF2 0x0040b9a0
-// `dynamic initializer for 'Snd::SoundStream::Properties::smPropertyList''
-// SYNTHETIC: SWBF2 0x0076a330
-// `dynamic atexit destructor for 'Snd::SoundStream::Properties::smPropertyList''
-
-// GLOBAL: SWBF2 0x007e3584
-// SoundStream::Properties::smPropertyList
-PblListSingle SoundStream::Properties::smPropertyList;
-
-// SYNTHETIC: SWBF2 0x0040b930
-// `dynamic initializer for 'Snd::SoundStream::smFreeList''
-// SYNTHETIC: SWBF2 0x0076a310
-// `dynamic atexit destructor for 'Snd::SoundStream::smFreeList''
-
-// GLOBAL: SWBF2 0x007e3588
-// SoundStream::smFreeList
-FreeList SoundStream::smFreeList(0xcc, 1, true, 4);
-
-// SYNTHETIC: SWBF2 0x0040b950
-// `dynamic initializer for 'Snd::SoundStream::smList''
-// SYNTHETIC: SWBF2 0x0076a320
-// `dynamic atexit destructor for 'Snd::SoundStream::smList''
-
-// GLOBAL: SWBF2 0x007e35a4
-// SoundStream::smList
-PblListSingle SoundStream::smList;
 
 // FUNCTION: SWBF2 0x007366f0
 SoundStream::Properties::Properties()
@@ -193,23 +193,23 @@ void SoundStream::Properties::Read(PblFileChunk& chunk)
         const unsigned int uiID = child._pFile->Read32();
         switch (uiID)
         {
-        case 0x0A8325F2u:
+        case 0x0A8325F2u: /* "SegmentList" */
             child = chunk.ReadNextChild();
             mSelObjectWeightList = &mObjectWeightList;
-            mObjectWeightList.ReadObjectWeights(child, 0xF3C342E6u, 0);
+            mObjectWeightList.ReadObjectWeights(child, 0xF3C342E6u /* "Segment" */, 0);
             break;
-        case 0x5F6F6D65u:
+        case 0x5F6F6D65u: /* "Stream" */
             child._pFile->Read8();
             mStreamID = child._pFile->Read32();
             break;
-        case 0xCA04EFE0u:
+        case 0xCA04EFE0u: /* "Inherit" */
         {
             child._pFile->Read8();
             const unsigned int uiParentID = child._pFile->Read32();
             for (PblListSingle::Node* pNode = smPropertyList.mHead.mNext;
                  pNode != &smPropertyList.mHead; pNode = pNode->mNext)
             {
-                Properties* const pParent = static_cast<Properties*>(pNode->GetObjectA(
+                Properties* const pParent = (Properties*)(pNode->GetObjectA(
                     &smPropertyList, offsetof(Properties, mNode)));
                 if (pParent->mHashID != uiParentID)
                 {
@@ -275,7 +275,7 @@ SoundStream::FireForget* __cdecl SoundStream::GetFireForget(const unsigned int s
     {
         return 0;
     }
-    FireForget* const ff = static_cast<FireForget*>(list.GetFirst()->GetObjectA(
+    FireForget* const ff = (FireForget*)(list.GetFirst()->GetObjectA(
         &list, offsetof(FireForget, mNode)));
     FreeFireForget(streamIndex, ff);
     return ff;
@@ -394,7 +394,7 @@ SoundStream::FireForget* __cdecl SoundStream::AllocFireForget(const unsigned int
                                                               const float priority, const bool is3D)
 {
     PblListDoubleSorted& list = smQueue[streamIndex];
-    FireForget* ff = static_cast<FireForget*>(smFree.GetFirst()->GetObjectA(
+    FireForget* ff = (FireForget*)(smFree.GetFirst()->GetObjectA(
         &smFree, offsetof(FireForget, mNode)));
 
     PblListDoubleSorted::Itor itor(list);
@@ -405,7 +405,7 @@ SoundStream::FireForget* __cdecl SoundStream::AllocFireForget(const unsigned int
         {
             break;
         }
-        FireForget* const queued = static_cast<FireForget*>(node->GetObjectA(
+        FireForget* const queued = (FireForget*)(node->GetObjectA(
             &list, offsetof(FireForget, mNode)));
         queued->mNode.mSortValue = queued->mProperties->CalculatePriority(&queued->mPos,
                                                                        &queued->mVel);
@@ -433,7 +433,7 @@ SoundStream::FireForget* __cdecl SoundStream::AllocFireForget(const unsigned int
                 node = node->GetPrevious(&list);
             }
         }
-        FireForget* const drop = static_cast<FireForget*>(node->GetObjectA(
+        FireForget* const drop = (FireForget*)(node->GetObjectA(
             &list, offsetof(FireForget, mNode)));
         FreeFireForget(streamIndex, drop);
     }

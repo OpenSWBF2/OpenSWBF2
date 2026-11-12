@@ -1,128 +1,154 @@
 #pragma once
 #include "NetGame.h"
 
-#include "PebbleFL/Common/PblIndex.h"
+#include "PebbleFL/Common/PblTimeBase.h"
 
-namespace GameLoop
+class RedScreenGroupElement;
+class RedTextElement;
+
+class GameLoop
 {
+public:
 
-    void Update(float fDeltaTime, float fSystemDeltaTime);
 
-    extern bool sQuitRequested;
-    extern unsigned int sQuitTurn;
+    static void Update(float fDeltaTime, float fSystemDeltaTime);
+
+    static bool sQuitRequested;
+    static unsigned int sQuitTurn;
 
     // FUNCTION: SWBF2 0x005aecc0
-    inline bool IsQuitRequested()
+    static inline bool IsQuitRequested()
     {
-        if (!GameLoop::sQuitRequested)
-        {
-            return false;
-        }
-        if (NetGame::GetTurnNumber() == 0)
-        {
-            return true;
-        }
-        return NetGame::GetTurnNumber() >= GameLoop::sQuitTurn;
+        return GameLoop::sQuitRequested &&
+               (NetGame::GetTurnNumber() == 0 ||
+                NetGame::GetTurnNumber() >= GameLoop::sQuitTurn);
     }
 
-extern char mMissionScript[64];
+static char mMissionScript[64];
 
-extern unsigned int mMissionScriptHash;
+static unsigned int mMissionScriptHash;
 
-extern char mWorldFileName[64];
-extern char mTerrainFileName[64];
+static char mWorldFileName[64];
+static char mTerrainFileName[64];
 
-void SetNextMission(char const* pcName);
+static void SetNextMission(char const* pcName);
 
 // FUNCTION: SWBF2 0x004882d0
-inline char const* GetNextMission() { return mMissionScript; }
+static inline char const* GetNextMission() { return mMissionScript; }
 
-void SetWorldFilename(char const* pcName);
-void SetTerrainFilename(char const* pcName);
+static void SetWorldFilename(char const* pcName);
+static void SetTerrainFilename(char const* pcName);
 
-void Pause();
+static void Pause();
 
-void Resume();
+static void Resume();
 
-int Init();
-int PostLoad();
+static int Init();
+static int PostLoad();
 
-int Cleanup();
+static int Cleanup();
 
-#ifdef OPENSWBF2_TEST
-bool TakeRepeatPending();
-#endif
+static bool _bFirstPersonEnabled;
 
-extern bool _bFirstPersonEnabled;
+static inline void EnableFirstPerson(bool bEnable) { _bFirstPersonEnabled = bEnable; }
 
-inline void EnableFirstPerson(bool bEnable) { _bFirstPersonEnabled = bEnable; }
+static inline bool FirstPersonEnabled() { return _bFirstPersonEnabled; }
 
-inline bool FirstPersonEnabled() { return _bFirstPersonEnabled; }
+static bool sPauseMode;
 
-extern bool sPauseMode;
+static bool gInvincible;
 
-extern bool gInvincible;
-
-extern bool mbMetagameRules;
+static bool mbMetagameRules;
 
 // FUNCTION: SWBF2 0x0044c570
-inline bool AreMetagameRulesOn() { return mbMetagameRules; }
+static inline bool AreMetagameRulesOn() { return mbMetagameRules; }
 
 // FUNCTION: SWBF2 0x00596b60
-inline void SetMetagameRulesOn(bool bOn) { mbMetagameRules = bOn; }
+static inline void SetMetagameRulesOn(bool bOn) { mbMetagameRules = bOn; }
 
-extern unsigned int mNumCameras;
+static unsigned int mNumCameras;
 
 // FUNCTION: SWBF2 0x004a9cb0
-inline unsigned int GetNumCameras() { return mNumCameras; }
+static inline unsigned int GetNumCameras() { return mNumCameras; }
 
-inline void SetNumCameras(unsigned int uNum) { mNumCameras = uNum; }
+static inline void SetNumCameras(unsigned int uNum) { mNumCameras = uNum; }
 
-extern int mMetagameSide[4];
+static int mMetagameSide[4];
 
 // FUNCTION: SWBF2 0x005b40d0
-inline int GetMetagameSide(int iIndex) { return mMetagameSide[iIndex]; }
+static inline int GetMetagameSide(int iIndex) { return mMetagameSide[iIndex]; }
 
-inline void SetMetagameSide(int iIndex, int iSide) { mMetagameSide[iIndex] = iSide; }
+static inline void SetMetagameSide(int iIndex, int iSide) { mMetagameSide[iIndex] = iSide; }
 
-extern int mLastGameWinner;
-inline int GetLastGameWinner() { return mLastGameWinner; }
-inline void SetLastGameWinner(int iWinner) { mLastGameWinner = iWinner; }
+static int mLastGameWinner;
+static inline int GetLastGameWinner() { return mLastGameWinner; }
+static inline void SetLastGameWinner(int iWinner) { mLastGameWinner = iWinner; }
 
-float GetMissionTime();
+static float GetMissionTime();
 
-bool IsGameOver();
+static bool IsGameOver();
 
-int GetJoystickYFlip();
+static int GetJoystickYFlip();
 
-void SetJoystickYFlip(int iFlip);
+static void SetJoystickYFlip(int iFlip);
 
-extern bool sGameOver;
+static bool sGameOver;
 
-extern bool mShowTeamPoints[2];
-inline void SetShowTeamPoints(int iTeam, bool bShow)
-{
-    if (PblInBounds(mShowTeamPoints, iTeam - 1))
-    {
-        mShowTeamPoints[iTeam - 1] = bShow;
-    }
-}
+static bool mShowTeamPoints[2];
+static inline void SetShowTeamPoints(int iTeam, bool bShow) { mShowTeamPoints[iTeam - 1] = bShow; }
 
-}
 
-namespace GameLoop
-{
-extern float sDeltaTime;
-}
 
-namespace GameLoop
-{
+
+static float sDeltaTime;
+
+
+
 
 // FUNCTION: SWBF2 0x004439e0
-inline float GetDeltaTime() { return GameLoop::sDeltaTime; }
-}
+static inline float GetDeltaTime() { return GameLoop::sDeltaTime; }
 
-namespace GameLoop
-{
-void SetCanSwitchSides(bool bFlag);
-}
+
+
+static void SetCanSwitchSides(bool bFlag);
+
+
+    static bool GetCanSwitchSides();
+    static bool mbHistoricalRules;
+    static float sClientDeltaTime;
+    static bool sShowStats;
+    static PblTimeBase::Stamp sMissionTime;
+private:
+    static float DedicatedMsgX;
+    static float DedicatedMsgY;
+    static float DedicatedMsgDX;
+    static float DedicatedMsgDY;
+    static RedScreenGroupElement mAttractGroup;
+    static RedTextElement mAttractInfoText;
+    static RedScreenGroupElement mDedicatedGroup;
+    static RedTextElement mDedicatedTitleText;
+    static RedTextElement mDedicatedTeam1Text;
+    static RedTextElement mDedicatedTeam2Text;
+    static RedScreenGroupElement mWaitMessageGroup;
+    static RedTextElement mWaitTextElement;
+public:
+    static float sSystemDeltaTime;
+    static float clientInputAcc;
+    static float clientTimePrev;
+    static float mWaitTimer;
+    static bool gUnlimitedAmmo;
+    static float sGameOverDelayTimer;
+    static float mAttractModeTime;
+    static void CheckScreenShots();
+    static void CheckToggleDisplay();
+private:
+    static void UpdateStats(float fDeltaTime, float fSystemDeltaTime);
+    static void UpdateDedicatedMsg(float fDeltaTime);
+    static bool mbCanSwitchSides;
+public:
+    static void SetFunctionIdForButtonId(int iButton, int iFunction);
+    static int GetFunctionIdForButtonId(int iButton);
+    static int GetFunctionIdForAnalog(int analogStick, int mode);
+    static bool sFreeMode;
+    static void SetFreeMode(bool bFreeCamera);
+};

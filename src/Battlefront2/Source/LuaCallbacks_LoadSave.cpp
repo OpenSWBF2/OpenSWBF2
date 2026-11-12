@@ -153,7 +153,8 @@ int ScriptCB_GetLoginList(lua_State* L)
     {
         PlayerProfile::SetNumMemoryProfiles(1);
         unsigned short ausName[64];
-        FormatProfileName(ausName, 64, RedLocalizeDB::Find(0x3802F15B, false), 1);
+        const unsigned short* pusTemplate = RedLocalizeDB::Find(0x3802F15B /* "ifs.Profile.nametemplate" */, false);
+        PblUnicode::usnprintf(ausName, 64, pusTemplate, 1);
         PlayerProfile::GetProfile(0)->InitProfile(ausName);
     }
 
@@ -190,7 +191,7 @@ int ScriptCB_GetLoginList(lua_State* L)
             bool bClash;
             do
             {
-                pProfile->SetTrueProfileName(RedLocalizeDB::Find(0x3802F15B, false));
+                pProfile->SetTrueProfileName(RedLocalizeDB::Find(0x3802F15B /* "ifs.Profile.nametemplate" */, false));
                 iUnique = SaveGameManager::GetUniqueFilename(pusName, 1, iUnique + 1, 16);
                 bClash = false;
                 for (int i = 0; i < 1; ++i)
@@ -986,7 +987,7 @@ int ScriptCB_TrimLoginName(lua_State* L)
 int ScriptCB_GetUniqueLoginName(lua_State* L)
 {
     lua_gettop(LuaHelper::mState);
-    const unsigned short* pusBase = RedLocalizeDB::Find(0x3802F15B, false);
+    const unsigned short* pusBase = RedLocalizeDB::Find(0x3802F15B /* "ifs.Profile.nametemplate" */, false);
     if (!pusBase)
     {
         lua_pushstring(LuaHelper::mState, "");
@@ -1543,17 +1544,148 @@ void InitLoadSave()
 
 }
 
-// FUNCTION: SWBF2 0x00631380
-void SaveFile::TimeToString(unsigned short* pusDest, int iYear, int iMonth, int iDay,
-                       int iHour, int iMinute, int iSecond, unsigned int uiOutLen)
+namespace Lua_Callbacks
 {
-    const unsigned int uStamp = iSecond + 60 * (iMinute + 60 *
-        (iHour + 24 * (iDay % 32 + 32 *
-        (iMonth + 13 * (iYear + iMonth / -13 - 100 * (iYear / 100))) - iHour / 24)
-        - iMinute / 60) - iSecond / 60);
-    char acStamp[12];
-    _snprintf(acStamp, 9, "%08x", uStamp);
-    PblUnicode::ustrncnv(pusDest, acStamp, uiOutLen);
+
+// FUNCTION: SWBF2 0x0058a410
+static int WriteLuaItem(unsigned char* pOut, int iIndex, int iDepth, bool bArg)
+{
+    (void)bArg;
+    lua_pushvalue(LuaHelper::mState, iIndex);
+    const int iType = lua_type(LuaHelper::mState, -1);
+    *pOut = (unsigned char)iType;
+    unsigned char* pWrite = pOut + 1;
+    switch (iType)
+    {
+    case LUA_TBOOLEAN:
+        *pWrite++ = lua_toboolean(LuaHelper::mState, -1) != 0;
+        break;
+    case LUA_TLIGHTUSERDATA:
+    {
+        void const* pValue = lua_topointer(LuaHelper::mState, -1);
+        memcpy(pWrite, &pValue, sizeof(pValue));
+        pWrite += sizeof(pValue);
+        break;
+    }
+    case LUA_TNUMBER:
+    {
+        float fValue = (float)luaL_checknumber(LuaHelper::mState, -1);
+        memcpy(pWrite, &fValue, sizeof(fValue));
+        pWrite += sizeof(fValue);
+        break;
+    }
+    case LUA_TSTRING:
+    {
+        const char* pcValue = luaL_checklstring(LuaHelper::mState, -1, 0);
+        const unsigned int uLength = strlen(pcValue) + 1;
+        memcpy(pWrite, pcValue, uLength);
+        pWrite += uLength;
+        break;
+    }
+    case LUA_TTABLE:
+        lua_pushnil(LuaHelper::mState);
+        while (lua_next(LuaHelper::mState, -2))
+        {
+            pWrite += WriteLuaItem(pWrite, -2, iDepth + 1, false);
+            pWrite += WriteLuaItem(pWrite, -1, iDepth + 1, false);
+            lua_settop(LuaHelper::mState, -2);
+        }
+        *pWrite++ = 0;
+        break;
+    case LUA_TFUNCTION:
+    {
+        void const* pValue = lua_topointer(LuaHelper::mState, -1);
+        if (Lua_Callbacks::FindLuaGlobal(pValue))
+        {
+            const char* pcName = luaL_checklstring(LuaHelper::mState, -1, 0);
+            const unsigned int uLength = strlen(pcName) + 1;
+            memcpy(pWrite, pcName, uLength);
+            pWrite += uLength;
+            lua_settop(LuaHelper::mState, -2);
+        }
+        else
+        {
+            *pWrite++ = 0;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    lua_settop(LuaHelper::mState, -2);
+    return (int)(pWrite - pOut);
+}
+}
+
+namespace Lua_Callbacks
+{
+
+// FUNCTION: SWBF2 0x0058a5c0
+static int ReadLuaItem(unsigned char* pData, int iDepth, bool bArg)
+{
+    (void)bArg;
+    unsigned char* pRead = pData + 1;
+    switch (*pData)
+    {
+    case LUA_TNONE:
+        break;
+    case LUA_TBOOLEAN:
+    {
+        bool bValue = *pRead++ != 0;
+        lua_pushboolean(LuaHelper::mState, bValue);
+        break;
+    }
+    case LUA_TLIGHTUSERDATA:
+    {
+        void* pValue;
+        memcpy(&pValue, pRead, sizeof(pValue));
+        pRead += sizeof(pValue);
+        lua_pushlightuserdata(LuaHelper::mState, pValue);
+        break;
+    }
+    case LUA_TNUMBER:
+    {
+        float fValue;
+        memcpy(&fValue, pRead, sizeof(fValue));
+        pRead += sizeof(fValue);
+        lua_pushnumber(LuaHelper::mState, fValue);
+        break;
+    }
+    case LUA_TSTRING:
+    {
+        const char* pcValue = reinterpret_cast<const char*>(pRead);
+        const unsigned int uSize = strlen(pcValue) + 1;
+        pRead += uSize;
+        lua_pushlstring(LuaHelper::mState, pcValue, uSize - 1);
+        break;
+    }
+    case LUA_TTABLE:
+        lua_newtable(LuaHelper::mState);
+        while (*pRead)
+        {
+            pRead += ReadLuaItem(pRead, iDepth + 1, false);
+            pRead += ReadLuaItem(pRead, iDepth + 1, false);
+            lua_rawset(LuaHelper::mState, -3);
+        }
+        ++pRead;
+        break;
+    case LUA_TFUNCTION:
+    {
+        const char* pcName = reinterpret_cast<const char*>(pRead);
+        pRead += strlen(pcName) + 1;
+        LuaHelper::GetGlobal(pcName);
+        break;
+    }
+    case LUA_TUSERDATA:
+    case LUA_TTHREAD:
+        lua_pushnil(LuaHelper::mState);
+        break;
+    default:
+        lua_pushnil(LuaHelper::mState);
+        break;
+    }
+    return (int)(pRead - pData);
+}
 }
 
 // FUNCTION: SWBF2 0x0058a750
@@ -1633,7 +1765,13 @@ static unsigned int SaveLuaItems(lua_State* L, unsigned char* pBuffer, unsigned 
     {
         return 0;
     }
-    return _zlibcompress(pBuffer, iCapacity, aSerialized, uWritten);
+    aSerialized[0] = (unsigned char)iNumArgs;
+    int iWritten = 1;
+    for (int i = 1; i <= iNumArgs; ++i)
+    {
+        iWritten += Lua_Callbacks::WriteLuaItem(aSerialized + iWritten, i, 0, false);
+    }
+    return _zlibcompress(pBuffer, iCapacity, aSerialized, iWritten);
 }
 }
 
@@ -1658,7 +1796,7 @@ namespace Lua_Callbacks
 {
 
 // FUNCTION: SWBF2 0x0058a9d0
-void __fastcall GetMissionWorld(char* pcWorld, int)
+void GetMissionWorld(char* pcWorld)
 {
     Lua_Callbacks::ScriptCB_LoadMissionSetup(LuaHelper::mState);
     *pcWorld = 0;

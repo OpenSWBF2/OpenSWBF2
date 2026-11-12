@@ -26,16 +26,70 @@ public:
     // SYNTHETIC: SWBF2 0x006f8a60
     // pcTerrainShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x006fac90
+    // pcTerrainShader::GetID
+    // FUNCTION: SWBF2 0x006face0
+    // pcTerrainShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x006fac20
+    // pcTerrainShader::Bind
+    // FUNCTION: SWBF2 0x006fad10
+    // pcTerrainShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcTerrainShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
     virtual RedShadingState* CreateShadingState() const;
-    virtual void Bind();
     virtual unsigned int GetZPrepassState() const;
     virtual void RenderZPrepass(const RenderItem* pItem) const;
     virtual unsigned short GetShaderChain(pcRedShader** const ppOut,
                                           unsigned short uiMax,
                                           const RenderItem* pItem);
+
+    void EnableDetail(bool bEnable)
+    {
+        if (bEnable)
+        {
+            m_uiOptions |= 1;
+        }
+        else
+        {
+            m_uiOptions &= ~1;
+        }
+    }
+
+    void EnableFarRendering(bool bEnable, bool bFarDetail)
+    {
+        if (bEnable)
+        {
+            m_uiOptions |= 8;
+        }
+        else
+        {
+            m_uiOptions &= ~8;
+        }
+
+        if (bFarDetail)
+        {
+            m_uiOptions |= 1;
+        }
+        else
+        {
+            m_uiOptions &= ~1;
+        }
+    }
+
+    void EnablePrePixelLightingPass(bool bEnable)
+    {
+        if (bEnable)
+        {
+            m_uiOptions |= 4;
+        }
+        else
+        {
+            m_uiOptions &= ~4;
+        }
+    }
+
+    void SetMultiLayer(int iLayer) { m_uiOptions = (m_uiOptions & ~0x30) | ((iLayer & 3) << 4); }
 
     unsigned int GetState_Fixed(const RenderItem* pItem) const;
     unsigned int GetState_Prog1(const RenderItem* pItem) const;
@@ -68,20 +122,12 @@ public:
 
     static void _SetLightningValue(float fValue) { s_fLightningValue = fValue; }
 
+private:
     unsigned char m_uiLayerIndex[4];
     unsigned char m_uiOptions;
     bool m_lightingInSeparatePass;
 
-    // GLOBAL: SWBF2 0x009c8514
-    static unsigned int s_uiID;
-    // GLOBAL: SWBF2 0x009c8518
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-    // GLOBAL: SWBF2 0x009c8524
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-    // GLOBAL: SWBF2 0x009c8530
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-    // GLOBAL: SWBF2 0x009c853c
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
+public:
     // GLOBAL: SWBF2 0x009c8548
     static pcRedVertexFormat* s_pVertexInputFormat;
     // GLOBAL: SWBF2 0x009c854c
@@ -120,12 +166,8 @@ public:
     static unsigned int s_uiOptions;
     // GLOBAL: SWBF2 0x009c85cc
     static float s_fLightningValue;
-    // GLOBAL: SWBF2 0x009c85d4
-    static pcRedShaderDef s_shaderDef;
     // GLOBAL: SWBF2 0x009c8600
     static PblVector4 s_BumpSpecularTextureTransform[2];
-
-    static pcTerrainShader s_Factory;
     // GLOBAL: SWBF2 0x009c8644
     static PblVector4 s_BumpLuminosityTextureTransform[2];
     // GLOBAL: SWBF2 0x009c8664
@@ -137,8 +179,6 @@ public:
     static PblVector4 s_FarDetailTextureTransform;
     // GLOBAL: SWBF2 0x009c8890
     static PblMatrix s_mProjectionRestore;
-
-    static unsigned int s_uiRenderTypeHash;
     // GLOBAL: SWBF2 0x009c88d4
     static PblVector4 s_DetailTextureTransform[2];
 
@@ -149,17 +189,7 @@ private:
 
     pcTerrainShader();
 
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                                 const unsigned int* pParams,
-                                 unsigned int uiNumParams,
-                                 unsigned int uiMaterialFlags,
-                                 const RedColor& color0,
-                                 const RedColor& color1,
-                                 float fSpecularPower) const;
-    virtual void _Read(PblFileChunk& chunk) const;
     virtual void _StaticInit() const;
-    virtual pcRedShaderDef* GetShaderDef() const;
-    virtual void InitFixedFunctionShaderDef() const;
 
     void _Init(unsigned int uiFlags,
                const unsigned int* pParams,
@@ -168,7 +198,6 @@ private:
                const RedColor& color0,
                const RedColor& color1,
                float fSpecularPower);
-    void _InitPipelineFuncArray();
 };
  
  

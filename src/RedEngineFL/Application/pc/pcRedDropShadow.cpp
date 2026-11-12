@@ -1,14 +1,16 @@
 #include <d3dx9math.h>
-#include "pcRedDropShadow.h"
+#include "RedEngineFL/Application/RedDropShadow.h"
 
 #include <math.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblRef.h"
+#include "RedEngineFL/Application/Renderable.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include "RedEngineFL/Application/pc/pcRenderStateHelpers.h"
-#include "RedEngineFL/Graphics/RedAmbientLight.h"
+#include "RedEngineFL/Graphics/RedLight.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
+#include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
@@ -69,6 +71,39 @@ struct VertexU
 }
  
  
+
+class pcRedShader;
+
+// VTABLE: SWBF2 0x00783d38
+class DropShadowRenderable : public Renderable
+{
+public:
+
+    struct _DropShadow
+    {
+        PblVector3 vtxpos[4];
+        RedColor color;
+    };
+
+    DropShadowRenderable();
+
+    virtual ~DropShadowRenderable();
+
+    void AddShadow(unsigned int uiTexture, const PblVector3& vPos,
+                   const PblVector3& vNormal, const PblVector3& vDir,
+                   float fStart, float fEnd, float, float fAlpha);
+
+    virtual void Render(unsigned int value) const;
+
+private:
+    unsigned int m_uiTexture;
+    pcRedShader* m_pShader;
+    _DropShadow mShadowsList[32];
+    mutable int mShadowCount;
+    float mShadowOffset;
+    float mPosOffset;
+    float mShadowSize;
+};
 
 // FUNCTION: SWBF2 0x006edd10
 DropShadowRenderable::DropShadowRenderable()
@@ -184,7 +219,7 @@ void DropShadowRenderable::AddShadow(unsigned int uiTexture, const PblVector3& v
 }
 
 // FUNCTION: SWBF2 0x006ee460
-void DropShadowRenderable::Render(int value)
+void DropShadowRenderable::Render(unsigned int value) const
 {
     unsigned int uFlags = (unsigned int)value;
     if (mShadowCount <= 0)

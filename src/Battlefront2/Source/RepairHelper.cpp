@@ -83,7 +83,7 @@ namespace
 
     inline const CollisionObject* AsCollisionObject(const GameObject* pObj)
     {
-        return static_cast<const CollisionObject*>(pObj);
+        return (const CollisionObject*)pObj;
     }
 
     inline HealthType GetHealthType(const GameObject* pObj)
@@ -113,12 +113,12 @@ namespace
 
     float GetSoldierInvisibilityFactor(const GameObject* pObj)
     {
-        return static_cast<const EntitySoldier*>(pObj)->GetInvisibilityFactor();
+        return ((const EntitySoldier*)pObj)->GetInvisibilityFactor();
     }
 
     int GetSoldierPlayerId(const GameObject* pObj)
     {
-        return static_cast<const EntitySoldier*>(pObj)->mPlayerId;
+        return ((const EntitySoldier*)pObj)->mPlayerId;
     }
 
     void AddAidTypes(const float* pAddHealth, const float* pAddAmmo, unsigned int* pHealth, unsigned int* pAmmo)
@@ -212,7 +212,7 @@ bool RepairHelper::CheckForRecipientAndInit()
         {
             continue;
         }
-        if (pObj->GetEntityType() == ENT_SOLDIER && static_cast<const EntitySoldier*>(pObj)->GetInvisibilityFactor() > 0.0f)
+        if (pObj->GetEntityType() == ENT_SOLDIER && ((const EntitySoldier*)pObj)->GetInvisibilityFactor() > 0.0f)
         {
             continue;
         }
@@ -240,7 +240,7 @@ bool RepairHelper::CheckForRecipientAndInit()
         }
 
         if (pObj->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier) &&
-            static_cast<const EntitySoldier*>(pObj)->mPlayerId < 0)
+            ((const EntitySoldier*)pObj)->mPlayerId < 0)
         {
             continue;
         }
@@ -284,17 +284,17 @@ bool RepairHelper::SetAidWpn(bool* pbChanged)
         int bGivesAid;
         if (pClass->IsRtti(WeaponRepairClass::rttiHashWeaponRepairClass))
         {
-            const WeaponRepairClass* pRepair = static_cast<const WeaponRepairClass*>(pClass);
+            const WeaponRepairClass* pRepair = (const WeaponRepairClass*)pClass;
             bGivesAid = mAidType.ammo ? pRepair->mAddAmmo[mAidType.type] > 0.0f : pRepair->mAddHealth[mAidType.type] > 0.0f;
         }
         else if (pClass->IsRtti(WeaponDispenserClass::rttiHashWeaponDispenserClass))
         {
-            EntityClass* pDispense = static_cast<const WeaponDispenserClass*>(pClass)->mDispenseClass;
+            EntityClass* pDispense = ((const WeaponDispenserClass*)pClass)->mDispenseClass;
             if (!pDispense || !pDispense->IsRtti(PowerupItemClass::rttiHashPowerupItemClass))
             {
                 continue;
             }
-            PowerupItemClass* pPowerup = static_cast<PowerupItemClass*>(pDispense);
+            PowerupItemClass* pPowerup = (PowerupItemClass*)pDispense;
             bGivesAid = mAidType.ammo ? pPowerup->mAddAmmo[mAidType.type] > 0.0f : pPowerup->mAddHealth[mAidType.type] > 0.0f;
         }
         else
@@ -335,7 +335,7 @@ void RepairHelper::CalcMyAidTypes(unsigned int* pHealth, unsigned int* pAmmo)
         {
             if (pWeapon->IsRtti(WeaponRepair::rttiHashWeaponRepair))
             {
-                const WeaponRepairClass* pClass = static_cast<const WeaponRepairClass*>(pWeapon->mClass);
+                const WeaponRepairClass* pClass = (const WeaponRepairClass*)pWeapon->mClass;
                 if (pClass->mAddHealth[0] > 0.0f)
                 {
                     *pHealth |= 1;
@@ -403,10 +403,10 @@ void RepairHelper::CalcMyAidTypes(unsigned int* pHealth, unsigned int* pAmmo)
             }
             else if (pWeapon->IsRtti(WeaponDispenser::rttiHashWeaponDispenser))
             {
-                EntityClass* pDispense = static_cast<const WeaponDispenserClass*>(pWeapon->mClass)->mDispenseClass;
+                EntityClass* pDispense = ((const WeaponDispenserClass*)pWeapon->mClass)->mDispenseClass;
                 if (pDispense && pDispense->IsRtti(PowerupItemClass::rttiHashPowerupItemClass))
                 {
-                    PowerupItemClass* pPowerup = static_cast<PowerupItemClass*>(pDispense);
+                    PowerupItemClass* pPowerup = (PowerupItemClass*)pDispense;
                     if (pPowerup->mAddHealth[0] > 0.0f)
                     {
                         *pHealth |= 1;
@@ -494,7 +494,7 @@ void RepairHelper::FindPowerupsNearby(const GameObject* pObj, unsigned int* pHea
         {
             continue;
         }
-        const PowerupItemClass* pClass = static_cast<const PowerupItemClass*>(pEntity->GetEntityClass());
+        const PowerupItemClass* pClass = (const PowerupItemClass*)pEntity->GetEntityClass();
         for (int iType = 0; iType < NUM_HEALTH_TYPES; ++iType)
         {
             if (pClass->mAddHealth[iType] > 0.0f)
@@ -611,7 +611,7 @@ bool RepairHelper::Update(float dt)
 
     Controllable* pMe = GetMe();
     UnitControllerPtr(pMe->mCtrl)->GetLowLevel().SetTarget(pTarget);
-    const CollisionObject* pTargetCollision = static_cast<const CollisionObject*>(pTarget);
+    const CollisionObject* pTargetCollision = (const CollisionObject*)pTarget;
     const PblVector3 vHisPos = *reinterpret_cast<const PblVector3*>(&pTargetCollision->GetMatrix().m[3][0]);
     const PblVector3 vMyPos = pMe->GetMatrix().GetTranslation();
     const float fRange = CombatUtil::GetWeaponMaxRange(pMe);

@@ -22,6 +22,7 @@ namespace HUD
 class ElementMap : public HUD::ElementGroupPlayer, public RedGroupElement
 {
 public:
+    static const int kMaxPosts = 16;
 
     static PblListSingle sMapList;
 
@@ -184,12 +185,12 @@ public:
     BitmapGroup mTargetAll[3];
     RedBitmapElement mTarget[450];
     BitmapGroup mPostAll[3];
-    RedBitmapElement mPost[16];
-    float mPostScale[16];
+    RedBitmapElement mPost[kMaxPosts];
+    float mPostScale[kMaxPosts];
     HUD::ElementText mPostTextAll[3];
-    RedTextElement mPostText[16];
+    RedTextElement mPostText[kMaxPosts];
     BitmapGroup mPostSelectAll[3];
-    RedBitmapElement mPostSelect[16];
+    RedBitmapElement mPostSelect[kMaxPosts];
     BitmapGroup mMarkerAll[3];
     RedBitmapElement mMarker[32];
     EventHandler mEventToggleMapMode;

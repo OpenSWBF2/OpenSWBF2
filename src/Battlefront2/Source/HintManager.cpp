@@ -196,31 +196,6 @@ BaseHint::Sidestep BaseHint::GetRandomSidestep() const
     return (Sidestep)iStep;
 }
 
-// FUNCTION: SWBF2 0x0062f460
-bool ReserveObject::IsReserved(int iTeam, float fDelay) const
-{
-    const float fNow = GameLoop::GetMissionTime();
-    float fWait = 2.0f;
-    if (fDelay >= 0.0f)
-    {
-        fWait = fDelay;
-    }
-    return GetReserveTime(iTeam) + fWait > fNow;
-}
-
-// FUNCTION: SWBF2 0x0062f4b0
-float ReserveObject::GetReserveTime(int  ) const
-{
-    return mReserveTime;
-}
-
-// FUNCTION: SWBF2 0x0062f4f0
-void ReserveObject::Reserve(const GameObject* pObj)
-{
-    mReserver = pObj;
-    mReserveTime = GameLoop::GetMissionTime();
-}
-
 // FUNCTION: SWBF2 0x00543730
 SnipeHint::SnipeHint(const HintDesc& desc)
     : BaseHint(desc, HINT_SNIPE)
@@ -278,10 +253,10 @@ void BaseHint::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x844CCDB4:
+    case 0x844CCDB4: /* "CommandPost" */
         SetCommandPost(CommandPostManager::Instance()->FindPost(pszValue));
         break;
-    case 0xBF0F1CD1:
+    case 0xBF0F1CD1: /* "PrimaryStance" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
@@ -292,7 +267,7 @@ void BaseHint::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
     }
-    case 0x92C05A59:
+    case 0x92C05A59: /* "SecondaryStance" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
@@ -327,8 +302,8 @@ struct HintList : public TreeGridCallbackData
 // FUNCTION: SWBF2 0x00543ab0
 bool GenerateHintListCallback(const TreeGridObject* pObject, TreeGridCallbackData* pData, float&  )
 {
-    const BaseHint* pHint = static_cast<const BaseHint*>(pObject);
-    HintList* pList = static_cast<HintList*>(pData);
+    const BaseHint* pHint = (const BaseHint*)pObject;
+    HintList* pList = (HintList*)pData;
     if ((pHint->GetType() & pList->mTypes) > 0 &&
         (!pList->mMe || AIUtil::IsHintAvailable(pList->mMe, pHint)))
     {

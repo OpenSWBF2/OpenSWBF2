@@ -23,14 +23,14 @@ unsigned int TeamAssist::sColorHash;
 
 // GLOBAL: SWBF2 0x0078b5d0
 static const unsigned int sMarkerTexture[TeamAssistManager::Max] = {
-    0x1e9ab20a,
-    0x16d1df7b,
-    0x407c4980,
-    0x11171965,
-    0x6533cbcf,
-    0x971f3155,
-    0xb3804d5f,
-    0x4cd87d13,
+    0x1e9ab20a /* "PC_spotted_icon" */,
+    0x16d1df7b /* "PC_medic_icon" */,
+    0x407c4980 /* "PC_repair_icon" */,
+    0x11171965 /* "PC_ammo_icon" */,
+    0x6533cbcf /* "PC_pickup_icon" */,
+    0x971f3155 /* "PC_backup_icon" */,
+    0xb3804d5f /* "PC_attack_icon" */,
+    0x4cd87d13 /* "PC_defend_icon" */,
 };
 
 // GLOBAL: SWBF2 0x01eafcc8
@@ -120,7 +120,7 @@ TeamAssist::TeamAssist(TeamAssist* pNext, int type, Character* pRequestor, float
     mType = type;
     mRequestor = 0;
     mTimer = fTimer;
-    Controllable* pControllable = pRequestor->mRemote;
+    Controllable* pControllable = pRequestor->GetRemote();
     if (!pControllable)
     {
         pControllable = pRequestor->mVehicle;
@@ -131,7 +131,7 @@ TeamAssist::TeamAssist(TeamAssist* pNext, int type, Character* pRequestor, float
     }
     if (pControllable)
     {
-        mRequestor = static_cast<Trackable*>(pControllable)->GetGameObject();
+        mRequestor = ((Trackable*)pControllable)->GetGameObject();
         mTeamMask = 1 << pRequestor->mTeamNumber;
         TargetManager::AddMarker(mRequestor, 0, sMarkerTexture[type], 5.0f, mTeamMask, sColorHash, false, true, true, 0.0f);
         AI::VOHelper::Play((AI::VOType)(AI::VOT_TA_First + type), mRequestor, 0,

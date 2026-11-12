@@ -166,7 +166,7 @@ extern char gLoginName[];
 extern int netNumBots;
 extern int netRequestedCameraCount;
 
-static const unsigned int kMissionState = 0x8FF60339u;
+static const unsigned int kMissionState = 0x8FF60339u /* "mission" */;
 
 namespace Lua_Callbacks
 {
@@ -485,7 +485,7 @@ int ScriptCB_LobbyAction(lua_State* L)
 
         switch (uiAction)
         {
-        case 0xD6069F54u:
+        case 0xD6069F54u: /* "mute" */
             if (iIndex >= 0 && iIndex < iCount)
             {
                 GameVoiceChat::Transport* pTransport = GameVoiceChat::GetTransport();
@@ -494,14 +494,14 @@ int ScriptCB_LobbyAction(lua_State* L)
                 pTransport->SetReceiveEnable(ucLocal, (unsigned char)iIndex, !bMuted, false);
             }
             break;
-        case 0xA2FD7D0Cu:
+        case 0xA2FD7D0Cu: /* "team" */
             if (iIndex >= 0 && iIndex < iCount)
             {
                 NetGame::SetStartTeam(iIndex, 3 - NetGame::GetStartTeam(iIndex));
             }
             ScriptCB_GetLobbyPlayerlist(0);
             break;
-        case 0x789A24E4u:
+        case 0x789A24E4u: /* "forceboot" */
             if (hostGame)
             {
                 hostGame->BootPlayer(iIndex);
@@ -1135,7 +1135,7 @@ int ScriptCB_GetVoiceEnable(lua_State* L)
     const unsigned int iJoystick = lua_gettop(LuaHelper::mState) >= 1
         ? LuaHelper::GetInt(1) : PauseMenu::GetPausingJoystick();
     int iPlayer = iJoystick;
-    if (GameState::GetState() != 0x11e1fc01)
+    if (GameState::GetState() != 0x11e1fc01 /* "shell" */)
     {
         iPlayer = NetGame::GetLocalIndex(PauseMenu::GetPausingViewport());
     }
@@ -1532,11 +1532,8 @@ extern bool netAutoAssignTeams;
 
 namespace Lua_Callbacks
 {
-static const unsigned int netPlayersSupported[9] =
-{
-3, 6, 9, 12, 19, 25, 38, 76, 153
-}
-;
+// GLOBAL: SWBF2 0x0078a294
+extern const int netPlayersSupported[9] = { 3, 6, 9, 12, 19, 25, 38, 76, 153 };
 }
 
 // GLOBAL: SWBF2 0x007e8edb
@@ -1791,7 +1788,7 @@ int Lua_Callbacks::ScriptCB_GetLobbyPlayerlist(lua_State*)
         aiPlayers[i] = GetLobbyPlayerIndex(i);
     }
 
-    if (GameState::GetState() == 0x8FF60339u)
+    if (GameState::GetState() == 0x8FF60339u /* "mission" */)
     {
         sortTopTeam = Team::GetPtr(1)->GetCurReinforcements() >
                          Team::GetPtr(2)->GetCurReinforcements();
@@ -2439,11 +2436,11 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
         findGame->GetInfo(pcName, pcMission, iNumPlayers, iMaxPlayers, bPassword, fPing,
                           iServerType, iSortPos, bLocked, bRightVersion, pcVersion, bFavorite);
 
-        const unsigned short* pusOn = RedLocalizeDB::Find(0xBEC02787, false);
-        const unsigned short* pusOff = RedLocalizeDB::Find(0x3969C5AB, false);
-        const unsigned short* pusEasy = RedLocalizeDB::Find(0x6A8A91A2, false);
-        const unsigned short* pusMedium = RedLocalizeDB::Find(0x6B6CFA1B, false);
-        const unsigned short* pusHard = RedLocalizeDB::Find(0xB544ABF9, false);
+        const unsigned short* pusOn = RedLocalizeDB::Find(0xBEC02787 /* "common.on" */, false);
+        const unsigned short* pusOff = RedLocalizeDB::Find(0x3969C5AB /* "common.off" */, false);
+        const unsigned short* pusEasy = RedLocalizeDB::Find(0x6A8A91A2 /* "ifs.difficulty.easy" */, false);
+        const unsigned short* pusMedium = RedLocalizeDB::Find(0x6B6CFA1B /* "ifs.difficulty.medium" */, false);
+        const unsigned short* pusHard = RedLocalizeDB::Find(0xB544ABF9 /* "ifs.difficulty.hard" */, false);
 
         unsigned short ausText[256];
         unsigned short ausArg[256];
@@ -2463,7 +2460,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             lua_rawseti(LuaHelper::mState, -2, 1);
 
             lua_newtable(LuaHelper::mState);
-            const unsigned short* pusMode = RedLocalizeDB::Find(0x145D8471, false);
+            const unsigned short* pusMode = RedLocalizeDB::Find(0x145D8471 /* "ifs.mp.join.mode" */, false);
             PblUnicode::ustrlcpy(ausText, pusMode, 256);
             PblUnicode::ustrncnv(ausArg, " ", 256);
             PblUnicode::ustrlcat(ausText, ausArg, 256);
@@ -2505,7 +2502,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             lua_rawseti(LuaHelper::mState, -2, 2);
 
             lua_newtable(LuaHelper::mState);
-            const unsigned short* pusFormat = RedLocalizeDB::Find(0x61804B54, false);
+            const unsigned short* pusFormat = RedLocalizeDB::Find(0x61804B54 /* "ifs.mp.createopts.numbots2" */, false);
             _snprintf(acNumber, sizeof(acNumber), "%d", rules.mNumAIUnits);
             PblUnicode::ustrncnv(ausArg, acNumber, 256);
             PblUnicode::usnprintf(ausText, 256, pusFormat, ausArg);
@@ -2513,7 +2510,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             lua_rawseti(LuaHelper::mState, -2, 3);
 
             lua_newtable(LuaHelper::mState);
-            pusFormat = RedLocalizeDB::Find(0xCBB2619B, false);
+            pusFormat = RedLocalizeDB::Find(0xCBB2619B /* "ifs.mp.createopts.startcnt2" */, false);
             _snprintf(acNumber, sizeof(acNumber), "%d", rules.mMinPlayers);
             PblUnicode::ustrncnv(ausArg, acNumber, 256);
             PblUnicode::usnprintf(ausText, 256, pusFormat, ausArg);
@@ -2523,16 +2520,16 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             lua_newtable(LuaHelper::mState);
             if (rules.mAutoTeams)
             {
-                LuaHelper::TableWriteVal("text", RedLocalizeDB::Find(0x71A886D8, false));
+                LuaHelper::TableWriteVal("text", RedLocalizeDB::Find(0x71A886D8 /* "ifs.mp.createopts.autoassign_on2" */, false));
             }
             else
             {
-                LuaHelper::TableWriteVal("text", RedLocalizeDB::Find(0x76A9F05A, false));
+                LuaHelper::TableWriteVal("text", RedLocalizeDB::Find(0x76A9F05A /* "ifs.mp.createopts.autoassign_off2" */, false));
             }
             lua_rawseti(LuaHelper::mState, -2, 5);
 
             lua_newtable(LuaHelper::mState);
-            pusFormat = RedLocalizeDB::Find(0x99C3E5C6, false);
+            pusFormat = RedLocalizeDB::Find(0x99C3E5C6 /* "ifs.mp.createopts.teamdamage2" */, false);
             if (rules.mTeamDamage)
             {
                 PblUnicode::usnprintf(ausText, 256, pusFormat, pusOn);
@@ -2545,7 +2542,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             lua_rawseti(LuaHelper::mState, -2, 6);
 
             lua_newtable(LuaHelper::mState);
-            pusFormat = RedLocalizeDB::Find(0x61828675, false);
+            pusFormat = RedLocalizeDB::Find(0x61828675 /* "ifs.mp.createopts.difficulty2" */, false);
             switch (rules.mAIDifficulty)
             {
             case 1:
@@ -2562,7 +2559,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             lua_rawseti(LuaHelper::mState, -2, 7);
 
             lua_newtable(LuaHelper::mState);
-            pusFormat = RedLocalizeDB::Find(0x9F493F0F, false);
+            pusFormat = RedLocalizeDB::Find(0x9F493F0F /* "ifs.mp.createopts.shownames2" */, false);
             if (rules.mShowPlayerNames)
             {
                 PblUnicode::usnprintf(ausText, 256, pusFormat, pusOn);
@@ -2577,16 +2574,16 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             lua_newtable(LuaHelper::mState);
             if (rules.mHeroes)
             {
-                LuaHelper::TableWriteVal("text", RedLocalizeDB::Find(0x46AEBA83, false));
+                LuaHelper::TableWriteVal("text", RedLocalizeDB::Find(0x46AEBA83 /* "ifs.mp.createopts.heroenable" */, false));
             }
             else
             {
-                LuaHelper::TableWriteVal("text", RedLocalizeDB::Find(0x8777BA60, false));
+                LuaHelper::TableWriteVal("text", RedLocalizeDB::Find(0x8777BA60 /* "ifs.mp.createopts.herodisable" */, false));
             }
             lua_rawseti(LuaHelper::mState, -2, 9);
 
             lua_newtable(LuaHelper::mState);
-            pusFormat = RedLocalizeDB::Find(0xCD2D0322, false);
+            pusFormat = RedLocalizeDB::Find(0xCD2D0322 /* "ifs.mp.createopts.invincibletime2" */, false);
             _snprintf(acNumber, sizeof(acNumber), "%d", rules.mSpawnInvincibilityTime);
             PblUnicode::ustrncnv(ausArg, acNumber, 256);
             PblUnicode::usnprintf(ausText, 256, pusFormat, ausArg);
@@ -2594,7 +2591,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             lua_rawseti(LuaHelper::mState, -2, 10);
 
             lua_newtable(LuaHelper::mState);
-            pusFormat = RedLocalizeDB::Find(0xE4C8D8B5, false);
+            pusFormat = RedLocalizeDB::Find(0xE4C8D8B5 /* "ifs.mp.createopts.password" */, false);
             if (bLocked)
             {
                 PblUnicode::usnprintf(ausText, 256, pusFormat, pusOn);
@@ -2607,7 +2604,7 @@ int ScriptCB_GetExtraSessionInfo(lua_State*)
             lua_rawseti(LuaHelper::mState, -2, 11);
 
             lua_newtable(LuaHelper::mState);
-            pusFormat = RedLocalizeDB::Find(0xF388D488, false);
+            pusFormat = RedLocalizeDB::Find(0xF388D488 /* "ifs.mp.createopts.version" */, false);
             if (pcVersion)
             {
                 PblUnicode::ustrncnv(ausArg, pcVersion, 256);
@@ -3059,7 +3056,7 @@ int ScriptCB_BeginJoin(lua_State*)
     NetSetup::SetPassword(password);
     if (!NetComm::IsLAN() && password)
     {
-        const unsigned char* remoteHash = (const unsigned char*)static_cast<CNetFindGame*>(findGame)->GetDescriptorExtension();
+        const unsigned char* remoteHash = (const unsigned char*)((CNetFindGame*)findGame)->GetDescriptorExtension();
         unsigned char localHash[64] = {0};
         Sha512Hash((const unsigned char*)password, strlen(password), localHash, 0);
         if (memcmp(remoteHash, localHash, sizeof(localHash)) != 0)
@@ -3212,7 +3209,7 @@ int ScriptCB_DoFriendAction(lua_State*)
     {
         const unsigned int friendIndex = (unsigned int)GetSelectedFriendIdx();
         if (gf::friends::isJoinableByIndex(friendIndex) &&
-            GameState::GetState() == 0x11e1fc01)
+            GameState::GetState() == 0x11e1fc01 /* "shell" */)
         {
             NetSessionId id;
             unsigned int uLow = 0;
@@ -3291,12 +3288,12 @@ int ScriptCB_SetVoiceSendPreset(lua_State*)
 {
     if (GameVoiceChat::IsOpen())
     {
-        const GameVoiceChat::Transport::Mask preset = static_cast<GameVoiceChat::Transport::Mask>(LuaHelper::GetInt(1));
+        const GameVoiceChat::Transport::Mask preset = (GameVoiceChat::Transport::Mask)LuaHelper::GetInt(1);
         GameVoiceChat::Node* node = GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
         if (node)
         {
             ((GameVoiceChat::Node*)node)->SetSendMask(preset, true, false);
-            static_cast<GameVoiceChat::Node*>(node)->Update();
+            ((GameVoiceChat::Node*)node)->Update();
         }
     }
     return 0;
@@ -3326,12 +3323,12 @@ int ScriptCB_SetVoiceReceivePreset(lua_State*)
 {
     if (GameVoiceChat::IsOpen())
     {
-        const GameVoiceChat::Transport::Mask preset = static_cast<GameVoiceChat::Transport::Mask>(LuaHelper::GetInt(1));
+        const GameVoiceChat::Transport::Mask preset = (GameVoiceChat::Transport::Mask)LuaHelper::GetInt(1);
         GameVoiceChat::Node* node = GameVoiceChat::FindNodeByDeviceID(PauseMenu::GetPausingJoystick());
         if (node)
         {
             ((GameVoiceChat::Node*)node)->SetReceiveMask(preset, true, false);
-            static_cast<GameVoiceChat::Node*>(node)->Update();
+            ((GameVoiceChat::Node*)node)->Update();
         }
     }
     return 0;
@@ -3495,7 +3492,7 @@ int ScriptCB_VoiceEnable(lua_State*)
     }
     const int joystick = lua_gettop(LuaHelper::mState) >= 2
         ? LuaHelper::GetInt(2) : PauseMenu::GetPausingJoystick();
-    const int local = GameState::GetState() == 0x11e1fc01
+    const int local = GameState::GetState() == 0x11e1fc01 /* "shell" */
         ? joystick : NetGame::GetLocalIndex(PauseMenu::GetPausingViewport());
     VoiceChat::Decoder* decoder = 0;
     if (local >= 0)
@@ -3795,22 +3792,6 @@ char gLoginName[256];
 
 // TEMPLATE: SWBF2 0x0052fbd0
 // std::_Wrap_alloc<std::allocator<char> >::allocate
-
-// FUNCTION: SWBF2 0x0052e430
-void sub_52E430() {}
-
-
-// FUNCTION: SWBF2 0x00530170
-int __cdecl FillWordRange(unsigned int first, unsigned int last, const int* value)
-{
-    int result = 0;
-    for (int* dest = (int*)first; dest < (int*)last; ++dest)
-    {
-        result = *value;
-        *dest = result;
-    }
-    return result;
-}
 
 // GLOBAL: SWBF2 0x01e64a24
 

@@ -7,7 +7,7 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
-#include "RedEngineFL/Graphics/RedAmbientLight.h"
+#include "RedEngineFL/Graphics/RedLight.h"
 #include "RedEngineFL/Graphics/RedLight.h"
 #include "RedEngineFL/Graphics/RedMaterial.h"
 #include "RedEngineFL/Graphics/RedOmniLight.h"
@@ -17,13 +17,25 @@
 #include "RedEngineFL/Graphics/PC/pcRedVertexFormat.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 
+#pragma init_seg(lib)
+
 
 void __cdecl PblTraceP(const char* Format, ...);
 
+// GLOBAL: SWBF2 0x009c8514
+// pcTerrainShader::s_uiID
 unsigned int pcTerrainShader::s_uiID;
+// GLOBAL: SWBF2 0x009c8518
+// pcTerrainShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcTerrainShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c8524
+// pcTerrainShader::BeginFuncArray
 pcRedShader::BeginFuncT pcTerrainShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c8530
+// pcTerrainShader::EndFuncArray
 pcRedShader::EndFuncT pcTerrainShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c853c
+// pcTerrainShader::RenderFuncArray
 pcRedShader::RenderFuncT pcTerrainShader::RenderFuncArray[MAX_PIPELINES];
 pcRedVertexFormat* pcTerrainShader::s_pVertexInputFormat;
 pcRedVertexFormat* pcTerrainShader::s_pPosVertexInputFormat;
@@ -45,6 +57,48 @@ float pcTerrainShader::s_fStaticBumpFactor;
 unsigned int pcTerrainShader::s_uiOptions;
 float pcTerrainShader::s_fLightningValue;
 
+// SYNTHETIC: SWBF2 0x004093e0
+// `dynamic initializer for 'pcTerrainShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c88d0
+// pcTerrainShader::s_uiRenderTypeHash
+unsigned int pcTerrainShader::s_uiRenderTypeHash = PblHash("Terrain");
+
+// SYNTHETIC: SWBF2 0x00409350
+// `dynamic initializer for 'pcTerrainShader::s_Factory''
+// SYNTHETIC: SWBF2 0x00769bd0
+// `dynamic atexit destructor for 'pcTerrainShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c8620
+// pcTerrainShader::s_Factory
+pcTerrainShader pcTerrainShader::s_Factory;
+
+// SYNTHETIC: SWBF2 0x004093c0
+// `dynamic initializer for 'pcTerrainShader::s_shaderDef''
+// SYNTHETIC: SWBF2 0x00769bf0
+// `dynamic atexit destructor for 'pcTerrainShader::s_shaderDef''
+// GLOBAL: SWBF2 0x009c85d4
+// pcTerrainShader::s_shaderDef
+pcRedShaderDef pcTerrainShader::s_shaderDef("terrain_shader.xml");
+
+// SYNTHETIC: SWBF2 0x00409440
+// `dynamic initializer for 'kuiLinearRamp''
+
+// GLOBAL: SWBF2 0x009c8674
+// kuiLinearRamp
+static unsigned int kuiLinearRamp = PblHash("linear_ramp");
+
+
+
+// SYNTHETIC: SWBF2 0x00409390
+// `dynamic initializer for 'pcTerrainShader::s_TextureTransform''
+
+PblVector4 pcTerrainShader::s_TextureTransform[16][2];
+
+// SYNTHETIC: SWBF2 0x00409330
+// `dynamic initializer for 'pcTerrainShader::s_DetailTextureTransform''
+
+PblVector4 pcTerrainShader::s_DetailTextureTransform[2];
 // SYNTHETIC: SWBF2 0x00409310
 // `dynamic initializer for 'pcTerrainShader::s_BumpSpecularTextureTransform''
 
@@ -60,11 +114,6 @@ PblVector4 pcTerrainShader::s_BumpLuminosityTextureTransform[2];
 
 PblVector4 pcTerrainShader::s_FarTextureTransform;
 
-// SYNTHETIC: SWBF2 0x00409390
-// `dynamic initializer for 'pcTerrainShader::s_TextureTransform''
-
-PblVector4 pcTerrainShader::s_TextureTransform[16][2];
-
 // SYNTHETIC: SWBF2 0x00409370
 // `dynamic initializer for 'pcTerrainShader::s_FarDetailTextureTransform''
 
@@ -75,17 +124,6 @@ PblVector4 pcTerrainShader::s_FarDetailTextureTransform;
 
 PblMatrix pcTerrainShader::s_mProjectionRestore;
 
-// SYNTHETIC: SWBF2 0x004093e0
-// `dynamic initializer for 'pcTerrainShader::s_uiRenderTypeHash''
-
-// GLOBAL: SWBF2 0x009c88d0
-// pcTerrainShader::s_uiRenderTypeHash
-unsigned int pcTerrainShader::s_uiRenderTypeHash = PblHash("Terrain");
-
-// SYNTHETIC: SWBF2 0x00409330
-// `dynamic initializer for 'pcTerrainShader::s_DetailTextureTransform''
-
-PblVector4 pcTerrainShader::s_DetailTextureTransform[2];
 unsigned int pcTerrainShader::s_uiShadowMapWrapMode = 1;
 
 // GLOBAL: SWBF2 0x007e1790
@@ -193,15 +231,6 @@ pcTerrainShader::pcTerrainShader(unsigned int uiFlags,
     _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
     _Init(uiFlags, pParams, uiNumParams, uiMaterialFlags, color0, color1, fSpecularPower);
 }
-
-// SYNTHETIC: SWBF2 0x00409440
-// `dynamic initializer for 'kuiLinearRamp''
-
-// GLOBAL: SWBF2 0x009c8674
-// kuiLinearRamp
-static unsigned int kuiLinearRamp = PblHash("linear_ramp");
-
-
 
 static PblMatrix CameraToWorld()
 {
@@ -509,17 +538,18 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
             RedRenderer::pcSetTexture(1, s_pFarDetailTexture);
             SetWrapLinear(1);
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 3);
-            pRegs[39].SetColor(RedColorValue::WHITE);
-            pRegs[40].SetVector(s_FarTextureTransform);
-            pRegs[41].SetVector(s_FarDetailTextureTransform);
+            SetColor(pRegs[39], RedColorValue::WHITE);
+            SetVector(pRegs[40], s_FarTextureTransform);
+            SetVector(pRegs[41], s_FarDetailTextureTransform);
+            RedRenderer::pcUnlockVertexShaderConstants(pRegs);
         }
         else
         {
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
-            pRegs[39].SetColor(RedColorValue::WHITE);
-            pRegs[40].SetVector(s_FarTextureTransform);
+            SetColor(pRegs[39], RedColorValue::WHITE);
+            SetVector(pRegs[40], s_FarTextureTransform);
+            RedRenderer::pcUnlockVertexShaderConstants(pRegs);
         }
-        RedRenderer::pcUnlockVertexShaderConstants(pRegs);
         RedRenderer::pcLoadFormat(s_pFarVertexInputFormat);
         return;
     }
@@ -554,31 +584,50 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
                 RedRenderer::pcSetSamplerState(3, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
                 RedRenderer::pcSetSamplerState(3, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
                 RedRenderer::pcSetSamplerState(3, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
-            }
+                pcRedVertexShaderConstantRegister* pRegs;
+                if (bDetail)
+                {
+                    pRegs = RedRenderer::pcLockVertexShaderConstants(39, 8);
+                    SetColor(pRegs[39], RedColorValue(RedColor::WHITE));
+                    Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, kInv255);
+                    SetVector(pRegs[45], s_DetailTextureTransform[0]);
+                    SetVector(pRegs[46], s_DetailTextureTransform[1]);
+                    RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+                }
+                else
+                {
+                    pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
+                    SetColor(pRegs[39], RedColorValue(RedColor::WHITE));
+                    Set(pRegs[40], 0.0f, 0.0f, s_fLightningValue, kInv255);
+                    RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+                }
 
-            pcRedVertexShaderConstantRegister* pRegs;
-            if (bDetail)
-            {
-                pRegs = RedRenderer::pcLockVertexShaderConstants(39, 8);
-                pRegs[39].SetColor(RedColorValue(RedColor::WHITE));
-                pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, kInv255);
-                pRegs[45].SetVector(s_DetailTextureTransform[0]);
-                pRegs[46].SetVector(s_DetailTextureTransform[1]);
+                RedColorValue ambient = RedLight::GetGlobalAmbientLight()->m_color;
+                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &ambient.r, 1);
+                RedRenderer::pcLoadFormat(s_pVertexInputFormat);
             }
             else
             {
-                pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
-                pRegs[39].SetColor(RedColorValue(RedColor::WHITE));
-                pRegs[40].SetFloats(0.0f, 0.0f, s_fLightningValue, kInv255);
-            }
-            RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+                pcRedVertexShaderConstantRegister* pRegs;
+                if (bDetail)
+                {
+                    pRegs = RedRenderer::pcLockVertexShaderConstants(39, 8);
+                    SetColor(pRegs[39], RedColorValue(RedColor::WHITE));
+                    Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, kInv255);
+                    SetVector(pRegs[45], s_DetailTextureTransform[0]);
+                    SetVector(pRegs[46], s_DetailTextureTransform[1]);
+                    RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+                }
+                else
+                {
+                    pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
+                    SetColor(pRegs[39], RedColorValue(RedColor::WHITE));
+                    Set(pRegs[40], 0.0f, 0.0f, s_fLightningValue, kInv255);
+                    RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+                }
 
-            if (bShadow)
-            {
-                RedColorValue ambient = RedLight::GetGlobalAmbientLight()->m_color;
-                RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &ambient.r, 1);
+                RedRenderer::pcLoadFormat(s_pVertexInputFormat);
             }
-            RedRenderer::pcLoadFormat(s_pVertexInputFormat);
         }
         else
         {
@@ -594,10 +643,10 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
             SetMipBias(0, kfDetailTextureMipBias);
 
             pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 4);
-            pRegs[39].SetColor(RedColorValue::WHITE);
-            pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
-            pRegs[41].SetVector(s_DetailTextureTransform[0]);
-            pRegs[42].SetVector(s_DetailTextureTransform[1]);
+            SetColor(pRegs[39], RedColorValue::WHITE);
+            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
+            SetVector(pRegs[41], s_DetailTextureTransform[0]);
+            SetVector(pRegs[42], s_DetailTextureTransform[1]);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RedRenderer::pcLoadFormat(s_pPosVertexInputFormat);
         }
@@ -624,8 +673,8 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
         if (uiState == 10 || uiState == 13)
         {
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
-            pRegs[39].SetColor(RedColorValue::WHITE);
-            pRegs[40].SetFloats(0.0f, 0.0f, s_fLightningValue, 0.0f);
+            SetColor(pRegs[39], RedColorValue::WHITE);
+            Set(pRegs[40], 0.0f, 0.0f, s_fLightningValue, 0.0f);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RedRenderer::pcLoadFormat(s_pVertexInputFormat);
             return;
@@ -635,20 +684,20 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
         {
             RedRenderer::pcSetTexture(0, s_pDetailTexture);
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 4);
-            pRegs[39].SetColor(RedColorValue::WHITE);
-            pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, 0.0f);
-            pRegs[41].SetVector(s_DetailTextureTransform[0]);
-            pRegs[42].SetVector(s_DetailTextureTransform[1]);
+            SetColor(pRegs[39], RedColorValue::WHITE);
+            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, 0.0f);
+            SetVector(pRegs[41], s_DetailTextureTransform[0]);
+            SetVector(pRegs[42], s_DetailTextureTransform[1]);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
         }
         else
         {
             RedRenderer::pcSetTexture(0, s_pBumpLuminosityTexture);
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 4);
-            pRegs[39].SetColor(RedColorValue::WHITE);
-            pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, 0.0f);
-            pRegs[41].SetVector(s_BumpLuminosityTextureTransform[0]);
-            pRegs[42].SetVector(s_BumpLuminosityTextureTransform[1]);
+            SetColor(pRegs[39], RedColorValue::WHITE);
+            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, s_fLightningValue, 0.0f);
+            SetVector(pRegs[41], s_BumpLuminosityTextureTransform[0]);
+            SetVector(pRegs[42], s_BumpLuminosityTextureTransform[1]);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
             RedColorValue ambient[2] = {RedLight::GetGlobalAmbientLight()->m_color,
@@ -688,8 +737,8 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
             RedRenderer::pcSetTexture(0, s_pNormalizationCubeMap);
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
             const RedColorValue white(RedColor::WHITE);
-            pRegs[39].SetColor(white);
-            pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
+            memcpy(&pRegs[39], &white, sizeof(white));
+            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
             RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
@@ -700,10 +749,10 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
             RedRenderer::pcSetTexture(0, s_pBumpLuminosityTexture);
             pRegs = RedRenderer::pcLockVertexShaderConstants(39, 4);
             const RedColorValue white(RedColor::WHITE);
-            pRegs[39].SetColor(white);
-            pRegs[40].SetFloats(-2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
-            pRegs[41].SetVector(s_BumpLuminosityTextureTransform[0]);
-            pRegs[42].SetVector(s_BumpLuminosityTextureTransform[1]);
+            memcpy(&pRegs[39], &white, sizeof(white));
+            Set(pRegs[40], -2.0f / s_fDetailFadeDistance, 2.0f, 0.0f, 0.0f);
+            SetVector(pRegs[41], s_BumpLuminosityTextureTransform[0]);
+            SetVector(pRegs[42], s_BumpLuminosityTextureTransform[1]);
             RedRenderer::pcUnlockVertexShaderConstants(pRegs);
             RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
             RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
@@ -739,16 +788,10 @@ void pcTerrainShader::Begin_Prog1(unsigned int uiState, unsigned int uiPass) con
         SetMipBias(i, kfMainTextureMipBias);
     }
     pcRedVertexShaderConstantRegister* pRegs = RedRenderer::pcLockVertexShaderConstants(39, 2);
-    pRegs[39].SetColor(RedColorValue(RedColor::WHITE));
-    pRegs[40].SetFloats(0.0f, 0.0f, 0.0f, kInv255);
+    SetColor(pRegs[39], RedColorValue(RedColor::WHITE));
+    Set(pRegs[40], 0.0f, 0.0f, 0.0f, kInv255);
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
     RedRenderer::pcLoadFormat(s_pVertexInputFormat);
-}
-
-// FUNCTION: SWBF2 0x006fac20
-void pcTerrainShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
 }
 
 // FUNCTION: SWBF2 0x006fac40
@@ -772,12 +815,6 @@ void pcTerrainShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x006fac90
-unsigned int pcTerrainShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x006facb0
 RenderPhaseT pcTerrainShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
@@ -788,12 +825,6 @@ RenderPhaseT pcTerrainShader::GetRenderPhase(const RenderItem*, unsigned int) co
     return RENDERPHASE_OPAQUE;
 }
 
-// FUNCTION: SWBF2 0x006face0
-unsigned int pcTerrainShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
 // FUNCTION: SWBF2 0x006facf0
 unsigned short pcTerrainShader::GetShaderChain(pcRedShader** const ppOut,
                                                unsigned short,
@@ -802,12 +833,6 @@ unsigned short pcTerrainShader::GetShaderChain(pcRedShader** const ppOut,
     ppOut[0] = this;
     m_lightingInSeparatePass = false;
     return 1;
-}
-
-// FUNCTION: SWBF2 0x006fad10
-pcRedShaderDef* pcTerrainShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x006fad20
@@ -1233,21 +1258,21 @@ void pcTerrainShader::_InitLayer(int iIndex, unsigned int uiHash,
 void pcTerrainShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcTerrainShader::GetState_Fixed);
+        (GetStateFuncT)(&pcTerrainShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcTerrainShader::Begin_Fixed);
+        (BeginFuncT)(&pcTerrainShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcTerrainShader::End_Fixed);
+        (EndFuncT)(&pcTerrainShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcTerrainShader::Render_Fixed);
+        (RenderFuncT)(&pcTerrainShader::Render_Fixed);
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcTerrainShader::GetState_Prog1);
+        (GetStateFuncT)(&pcTerrainShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcTerrainShader::Begin_Prog1);
+        (BeginFuncT)(&pcTerrainShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcTerrainShader::End_Prog1);
+        (EndFuncT)(&pcTerrainShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcTerrainShader::Render_Prog1);
+        (RenderFuncT)(&pcTerrainShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x006fbb80
@@ -1276,7 +1301,7 @@ void pcTerrainShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -1327,21 +1352,6 @@ void pcTerrainShader::_StaticInit() const
     s_FarDetailTextureTransform = vZero;
     memset(&s_d3dMat, 0, sizeof(s_d3dMat));
 }
-
-// SYNTHETIC: SWBF2 0x00409350
-// `dynamic initializer for 'pcTerrainShader::s_Factory''
-// SYNTHETIC: SWBF2 0x00769bd0
-// `dynamic atexit destructor for 'pcTerrainShader::s_Factory''
-
-// GLOBAL: SWBF2 0x009c8620
-// pcTerrainShader::s_Factory
-pcTerrainShader pcTerrainShader::s_Factory;
-
-// SYNTHETIC: SWBF2 0x004093c0
-// `dynamic initializer for 'pcTerrainShader::s_shaderDef''
-// SYNTHETIC: SWBF2 0x00769bf0
-// `dynamic atexit destructor for 'pcTerrainShader::s_shaderDef''
-pcRedShaderDef pcTerrainShader::s_shaderDef("terrain_shader.xml");
 
 // SYNTHETIC: SWBF2 0x00409420
 // PblMath::`dynamic initializer for 'fOneOverTwoPi''

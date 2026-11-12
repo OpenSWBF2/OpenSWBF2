@@ -15,8 +15,8 @@
 // HUD::TransformNameMesh::sTransformNameMeshList
 PblListSingle HUD::TransformNameMesh::sTransformNameMeshList;
 
-static const unsigned int kNameMeshHash = 0x63cc538f;
-static const unsigned int kTransformNameMeshHash = 0x67c3c715;
+static const unsigned int kNameMeshHash = 0x63cc538f /* "NameMesh" */;
+static const unsigned int kTransformNameMeshHash = 0x67c3c715 /* "TransformNameMesh" */;
 
 static const unsigned int kMaxMappings = 256;
 static const unsigned int kMaxInheritNames = 16;

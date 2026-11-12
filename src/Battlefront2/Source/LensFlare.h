@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include "FLEffect.h"
 #include "PebbleFL/Common/PblList.h"
+#include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 
 class LensFlare;
@@ -28,13 +30,13 @@ public:
     };
 
     LensFlareEffect()
-        : FLEffect(0xAEC1B09Fu, 6)
+        : FLEffect(0xAEC1B09Fu /* "LensFlare" */, RENDERABLE_POSTTRANSPARENT)
     {
     }
 
     // SYNTHETIC: SWBF2 0x0056f430
     // LensFlareEffect::`scalar deleting destructor'
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Init();
     virtual void Cleanup();
     virtual FLEffectClass* BuildClass(PblConfig& config) const;
@@ -57,8 +59,23 @@ public:
  class LensFlare : public FLEffectClass, public FLEffectObject
 {
 public:
-    LensFlare();
-    LensFlare(const LensFlare& that);
+    // FUNCTION: SWBF2 0x004bd990
+    LensFlare()
+        : _fSize(1.0f)
+        , _color(RedColor::WHITE)
+        , _fSquaredDrawDistance(0.0f)
+        , _uiHideInView(0)
+    {
+        _fRandomRotOffset = PblRandom::_Global.GetFloat() * PblMath::fTwoPi;
+    }
+    // FUNCTION: SWBF2 0x0056f4a0
+    LensFlare(const LensFlare& that)
+        : _fSize(that._fSize)
+        , _color(that._color)
+        , _fSquaredDrawDistance(that._fSquaredDrawDistance)
+        , _uiHideInView(0)
+    {
+    }
     // [thunk]:LensFlare::`scalar deleting destructor' adjustor{40}
     // SYNTHETIC: SWBF2 0x004c0902
     // ??_ELensFlare@@WCI@AEPAXI@Z

@@ -10,7 +10,7 @@
 #include "EnergyBar.h"
 #include "GameObject.h"
 #include "PowerupItem.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "WeaponDispenser.h"
 #include "PebbleFL/Common/PblList.h"
 
@@ -123,11 +123,11 @@ bool ApplyAmmo(GameObject* pObject, float fAmmo, bool bSkipPowerupDispensers)
     {
         if (pObject->GetEntityType() == ENT_SOLDIER)
         {
-            static_cast<EntitySoldier*>(pObject)->TriggerAmmoGainEffect();
+            ((EntitySoldier*)pObject)->TriggerAmmoGainEffect();
         }
         else if (pObject->GetEntityType() == ENT_DROIDEKA)
         {
-            static_cast<EntityDroideka*>(pObject)->TriggerAmmoGainEffect();
+            ((EntityDroideka*)pObject)->TriggerAmmoGainEffect();
         }
     }
     return bResult;
@@ -193,11 +193,11 @@ bool ApplyEnergy(GameObject* pObject, float fEnergy)
     {
         if (pObject->GetEntityType() == ENT_SOLDIER)
         {
-            static_cast<EntitySoldier*>(pObject)->TriggerEnergyGainEffect();
+            ((EntitySoldier*)pObject)->TriggerEnergyGainEffect();
         }
         else if (pObject->GetEntityType() == ENT_DROIDEKA)
         {
-            static_cast<EntityDroideka*>(pObject)->TriggerEnergyGainEffect();
+            ((EntityDroideka*)pObject)->TriggerEnergyGainEffect();
         }
     }
     return bResult;
@@ -213,7 +213,7 @@ static bool DoBuff(GameObject* pObject, float fOffenseTimer, float fOffenseMult,
     {
         if (pObject->GetDerivedRtti() == EntitySoldier::rttiHashEntitySoldier)
         {
-            EntitySoldier* pSoldier = static_cast<EntitySoldier*>(pObject);
+            EntitySoldier* pSoldier = (EntitySoldier*)pObject;
             bResult = true;
             if (bApply)
             {
@@ -238,7 +238,7 @@ static bool DoBuff(GameObject* pObject, float fOffenseTimer, float fOffenseMult,
         }
         else if (pObject->GetDerivedRtti() == EntityDroideka::rttiHashEntityDroideka)
         {
-            EntityDroideka* pDroideka = static_cast<EntityDroideka*>(pObject);
+            EntityDroideka* pDroideka = (EntityDroideka*)pObject;
             bResult = true;
             if (bApply)
             {

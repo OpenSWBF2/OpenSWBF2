@@ -1,5 +1,6 @@
 #include <d3dx9math.h>
 #include "LoadDisplay.h"
+#include "LuaCallbacks_LoadSave.h"
 
 #include <float.h>
 #include <stdio.h>
@@ -47,10 +48,6 @@ namespace Lua_Callbacks
 {
 bool IsMetaGameStateSaved();
 }
-namespace Lua_Callbacks
-{
-void __fastcall GetMissionWorld(char* pcWorld, int);
-}
 
 namespace PblProfile
 {
@@ -61,10 +58,9 @@ namespace PblProfile
 void SetPaused(bool bValue);
 }
 
-namespace GameLoop
-{
-extern bool mbHistoricalRules;
-}
+
+
+
 
 
 const RedColor Interpolate(const RedColor& a, const RedColor& b, float t);
@@ -102,7 +98,7 @@ RedColorValue ToColorValue(const RedColor& c)
 }
 }
 
-static const unsigned int MISSION_SHELL = 0x11e1fc01;
+static const unsigned int MISSION_SHELL = 0x11e1fc01 /* "shell" */;
 static const unsigned int MISSION_GAL_CAM = 0x906d4f8b;
 static const unsigned int MISSION_GAL_CAM_SHELL = 0x20550dee;
 static const unsigned int MISSION_GAL_CON = 0x91554c38;
@@ -181,13 +177,13 @@ int GetTeamNum(unsigned int uiTeamHash)
 {
     switch (uiTeamHash)
     {
-    case 0x13254bc4:
+    case 0x13254bc4: /* "All" */
         return 0;
-    case 0x2cf46160:
+    case 0x2cf46160: /* "rep" */
         return 1;
-    case 0xf387c5d6:
+    case 0xf387c5d6: /* "cis" */
         return 2;
-    case 0x93e73ca1:
+    case 0x93e73ca1: /* "imp" */
         return 3;
     default:
         return -1;
@@ -491,7 +487,7 @@ void LoadDisplay::SetLoadState()
         return;
     }
 
-    strlcpy(m_missionFileName, GameLoop::mMissionScript, sizeof(m_missionFileName));
+    strlcpy(m_missionFileName, GameLoop::GetNextMission(), sizeof(m_missionFileName));
     strlcpy(m_entireMissionFileName, GameLoop::mMissionScript, sizeof(m_entireMissionFileName));
     m_entireMissionHash = PblHash(m_missionFileName);
 
@@ -513,7 +509,7 @@ void LoadDisplay::SetLoadState()
     if (GameLoop::AreMetagameRulesOn() && !_strnicmp(m_missionFileName, "spa", 3))
     {
         char acWorld[4];
-        Lua_Callbacks::GetMissionWorld(acWorld, 0);
+        Lua_Callbacks::GetMissionWorld(acWorld);
         sprintf(acBuffer, "mapname.name.spa_%s", acWorld);
     }
     else
@@ -533,18 +529,18 @@ void LoadDisplay::SetLoadState()
     MissionPlayList::GetCurrentTeamNames(uiTeam1Hash, uiTeam2Hash);
     switch (uiTeam1Hash)
     {
-    case 0xe40c292c: m_team1Num = 0; break;
-    case 0xf70c4715: m_team1Num = 1; break;
-    case 0xe60c2c52: m_team1Num = 2; break;
-    case 0xec0c35c4: m_team1Num = 3; break;
+    case 0xe40c292c: /* "A" */ m_team1Num = 0; break;
+    case 0xf70c4715: /* "R" */ m_team1Num = 1; break;
+    case 0xe60c2c52: /* "C" */ m_team1Num = 2; break;
+    case 0xec0c35c4: /* "I" */ m_team1Num = 3; break;
     default: m_team1Num = -1; break;
     }
     switch (uiTeam2Hash)
     {
-    case 0xe40c292c: m_team2Num = 0; break;
-    case 0xf70c4715: m_team2Num = 1; break;
-    case 0xe60c2c52: m_team2Num = 2; break;
-    case 0xec0c35c4: m_team2Num = 3; break;
+    case 0xe40c292c: /* "A" */ m_team2Num = 0; break;
+    case 0xf70c4715: /* "R" */ m_team2Num = 1; break;
+    case 0xe60c2c52: /* "C" */ m_team2Num = 2; break;
+    case 0xec0c35c4: /* "I" */ m_team2Num = 3; break;
     default: m_team2Num = -1; break;
     }
 }
@@ -682,7 +678,9 @@ void LoadDisplay::Update()
 
     if (m_firstUpdate)
     {
-        load_update_qpc_stamp = PblTime::GetTickCount();
+        LARGE_INTEGER liFirst;
+        QueryPerformanceCounter(&liFirst);
+        load_update_qpc_stamp = liFirst.QuadPart;
         m_firstUpdate = false;
     }
     unsigned __int64 uiNow = PblTime::GetTickCount();
@@ -709,8 +707,9 @@ void LoadDisplay::Update()
 
     ScreenTransition::sInstance->ScreenTransition::Update(fDelta);
 
+    float fScale = (float)(m_loadingColorPalleteSize - 1);
     float fBlink = PblMath::Sin(m_loadingTextBlinkRate * 6.2831855f * m_totalTime);
-    float fIndex = (fBlink * 0.5f + 0.5f) * (float)(m_loadingColorPalleteSize - 1);
+    float fIndex = (fBlink * 0.5f + 0.5f) * fScale;
     int iIndex = (int)fIndex;
     RedColor color = Interpolate(m_loadingColorPallete[iIndex],
                                  m_loadingColorPallete[PblMath::Ceiling(fIndex)],
@@ -759,7 +758,7 @@ void LoadDisplay::Render()
     SetAmbientColors(savedTop, savedBottom);
     light.SetDirection(savedDirection);
     light.SetColor(savedColor);
-    CameraManager::Instance()->SetNumCameras(GameLoop::mNumCameras);
+    CameraManager::Instance()->SetNumCameras(GameLoop::GetNumCameras());
 }
 
 // FUNCTION: SWBF2 0x00577280
@@ -821,7 +820,7 @@ unsigned int LoadDisplay::LoadRandomLVLChunk(const char* pcFileName, IDDatabase&
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId == 0x5f6c766c)
+        if (child._iId == CHUNK_ID('l', 'v', 'l', '_'))
         {
             while (!child.IsDone())
             {
@@ -838,7 +837,7 @@ unsigned int LoadDisplay::LoadRandomLVLChunk(const char* pcFileName, IDDatabase&
     while (!root.IsDone())
     {
         PblFileChunk child = root.ReadNextChild();
-        if (child._iId == 0x5f6c766c)
+        if (child._iId == CHUNK_ID('l', 'v', 'l', '_'))
         {
             while (!child.IsDone())
             {
@@ -879,10 +878,10 @@ void LoadDisplay::LoadDataChunk(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x6c646f6d:
+        case CHUNK_ID('m', 'o', 'd', 'l'):
             m_models[m_numModels++] = RedModel::Read(child);
             break;
-        case 0x5f786574:
+        case CHUNK_ID('t', 'e', 'x', '_'):
         {
             RedTexture* pTexture = RedTexture::Read(child);
             bool bKnown = false;
@@ -900,10 +899,10 @@ void LoadDisplay::LoadDataChunk(PblFileChunk& chunk)
             }
             break;
         }
-        case 0x64616f6c:
+        case CHUNK_ID('l', 'o', 'a', 'd'):
             LoadConfig(child);
             break;
-        case 0x6c656b73:
+        case CHUNK_ID('s', 'k', 'e', 'l'):
             m_skeletons[m_numSkeletons++] = RedSkeleton::Read(child);
             break;
         }
@@ -914,33 +913,33 @@ namespace
 {
 enum ConfigKeyT
 {
-    CFG_LOADDISPLAY = 0x8689c861,
-    CFG_WORLD = 0x37a3e893,
-    CFG_MAP = 0xdfa2efb1,
-    CFG_BACKDROP = 0x93c0f4f7,
-    CFG_RANDOMBACKDROP = 0x97d04fa8,
-    CFG_SUNCOLOR = 0x664a1f44,
-    CFG_SUNDIRECTION = 0xe1907cf6,
-    CFG_AMBIENTCOLOR = 0x627ebb4a,
-    CFG_TEAMMODEL = 0xd6c2b5f9,
-    CFG_TEAMMODELROTATIONSPEED = 0x26455a06,
-    CFG_TIPSTIME = 0x55c13372,
-    CFG_TIPSBOXTEXTURE = 0x6c30ed87,
-    CFG_TIPSCOLOR = 0xd1eb1b5a,
-    CFG_TIPS = 0xc5ad880f,
-    CFG_PROGRESSBARTOTALTIME = 0x31a6bc76,
-    CFG_PROGRESSBARNUMLEDS = 0xee4ccfc3,
-    CFG_PROGRESSBARLEDCOLOR = 0x533f1e37,
-    CFG_PROGRESSBARLEDTEXTURE = 0x0925227b,
-    CFG_PROGRESSBARLEDWIDTH = 0xc53b850c,
-    CFG_PROGRESSBARLEDHEIGHT = 0x836ca5fb,
-    CFG_PROGRESSBARLEDSPACING = 0x4d649461,
-    CFG_LEDOFFINTENSITY = 0x904a07ed,
-    CFG_LOADINGTEXTBLINKRATE = 0xdfe9346c,
-    CFG_LOADINGTEXTCOLORPALLETE = 0xa6fb2870,
-    CFG_COLOR = 0x3d7e6258,
-    CFG_CAMPAIGNLAYOUT = 0x001de6b9,
-    CFG_CAMPAIGNNAME = 0xd169eaf8
+    CFG_LOADDISPLAY = 0x8689c861 /* "LoadDisplay" */,
+    CFG_WORLD = 0x37a3e893 /* "world" */,
+    CFG_MAP = 0xdfa2efb1 /* "map" */,
+    CFG_BACKDROP = 0x93c0f4f7 /* "Backdrop" */,
+    CFG_RANDOMBACKDROP = 0x97d04fa8 /* "RandomBackdrop" */,
+    CFG_SUNCOLOR = 0x664a1f44 /* "SunColor" */,
+    CFG_SUNDIRECTION = 0xe1907cf6 /* "SunDirection" */,
+    CFG_AMBIENTCOLOR = 0x627ebb4a /* "AmbientColor" */,
+    CFG_TEAMMODEL = 0xd6c2b5f9 /* "TeamModel" */,
+    CFG_TEAMMODELROTATIONSPEED = 0x26455a06 /* "TeamModelRotationSpeed" */,
+    CFG_TIPSTIME = 0x55c13372 /* "TipsTime" */,
+    CFG_TIPSBOXTEXTURE = 0x6c30ed87 /* "TipsBoxTexture" */,
+    CFG_TIPSCOLOR = 0xd1eb1b5a /* "TipsColor" */,
+    CFG_TIPS = 0xc5ad880f /* "TipsPrefix" */,
+    CFG_PROGRESSBARTOTALTIME = 0x31a6bc76 /* "ProgressBarTotalTime" */,
+    CFG_PROGRESSBARNUMLEDS = 0xee4ccfc3 /* "ProgressBarNumLEDs" */,
+    CFG_PROGRESSBARLEDCOLOR = 0x533f1e37 /* "ProgressBarLEDColor" */,
+    CFG_PROGRESSBARLEDTEXTURE = 0x0925227b /* "ProgressBarLEDTexture" */,
+    CFG_PROGRESSBARLEDWIDTH = 0xc53b850c /* "ProgressBarLEDWidth" */,
+    CFG_PROGRESSBARLEDHEIGHT = 0x836ca5fb /* "ProgressBarLEDHeight" */,
+    CFG_PROGRESSBARLEDSPACING = 0x4d649461 /* "ProgressBarLEDSpacing" */,
+    CFG_LEDOFFINTENSITY = 0x904a07ed /* "ProgressBarLEDMinIntensity" */,
+    CFG_LOADINGTEXTBLINKRATE = 0xdfe9346c /* "LoadingTextBlinkRate" */,
+    CFG_LOADINGTEXTCOLORPALLETE = 0xa6fb2870 /* "LoadingTextColorPallete" */,
+    CFG_COLOR = 0x3d7e6258 /* "Color" */,
+    CFG_CAMPAIGNLAYOUT = 0x001de6b9 /* "CampaignLayout" */,
+    CFG_CAMPAIGNNAME = 0xd169eaf8 /* "CampaignName" */
 };
 
 RedColor ConfigColor(const PblConfig::Data& data)
@@ -1274,10 +1273,11 @@ void LoadDisplay::ProgressIndicator::Update(float fDelta, GameSound* const pSoun
         else if (m_mode == LED_MODE_TIMER)
         {
             m_pIntensity[m_curOnLED] = 1.0f;
-            RedColor color((unsigned char)(m_pColor[m_curOnLED].r * m_pIntensity[m_curOnLED]),
-                           (unsigned char)(m_pColor[m_curOnLED].g * m_pIntensity[m_curOnLED]),
-                           (unsigned char)(m_pColor[m_curOnLED].b * m_pIntensity[m_curOnLED]),
-                           m_pColor[m_curOnLED].a);
+            RedColor color;
+            color.r = (unsigned char)(m_pColor[m_curOnLED].r * m_pIntensity[m_curOnLED]);
+            color.g = (unsigned char)(m_pColor[m_curOnLED].g * m_pIntensity[m_curOnLED]);
+            color.b = (unsigned char)(m_pColor[m_curOnLED].b * m_pIntensity[m_curOnLED]);
+            color.a = m_pColor[m_curOnLED].a;
             m_pLED[m_curOnLED].SetColor(color);
             ++m_curOnLED;
             if (m_curOnLED >= m_numLEDs)
@@ -1307,14 +1307,15 @@ void LoadDisplay::ProgressIndicator::Update(float fDelta, GameSound* const pSoun
         const float fOff = LED_OFF_INTENSITY;
         for (int i = 0; i < m_numLEDs; ++i)
         {
-            m_pIntensity[i] = Interpolate(fOff, m_pIntensity[i], 0.95f);
-            RedColor color((unsigned char)(m_pColor[i].r * m_pIntensity[i]),
-                           (unsigned char)(m_pColor[i].g * m_pIntensity[i]),
-                           (unsigned char)(m_pColor[i].b * m_pIntensity[i]),
-                           m_pColor[i].a);
+            m_pIntensity[i] = (m_pIntensity[i] - fOff) * 0.95f + fOff;
+            RedColor color;
+            color.r = (unsigned char)(m_pColor[i].r * m_pIntensity[i]);
+            color.g = (unsigned char)(m_pColor[i].g * m_pIntensity[i]);
+            color.b = (unsigned char)(m_pColor[i].b * m_pIntensity[i]);
+            color.a = m_pColor[i].a;
             m_pLED[i].SetColor(color);
         }
-        m_pIntensity[m_curOnLED] = Interpolate(fOff, 1.0f, m_OnLEDFraction);
+        m_pIntensity[m_curOnLED] = (1.0f - fOff) * m_OnLEDFraction + fOff;
     }
     else
     {
@@ -1322,13 +1323,14 @@ void LoadDisplay::ProgressIndicator::Update(float fDelta, GameSound* const pSoun
         {
             return;
         }
-        m_pIntensity[m_curOnLED] = Interpolate(LED_OFF_INTENSITY, 1.0f, m_OnLEDFraction);
+        m_pIntensity[m_curOnLED] = (1.0f - LED_OFF_INTENSITY) * m_OnLEDFraction + LED_OFF_INTENSITY;
     }
-    RedColor color((unsigned char)(m_pColor[m_curOnLED].r * m_pIntensity[m_curOnLED]),
-                   (unsigned char)(m_pColor[m_curOnLED].g * m_pIntensity[m_curOnLED]),
-                   (unsigned char)(m_pColor[m_curOnLED].b * m_pIntensity[m_curOnLED]),
-                   m_pColor[m_curOnLED].a);
-    m_pLED[m_curOnLED].SetColor(color);
+    RedColor color;
+            color.r = (unsigned char)(m_pColor[m_curOnLED].r * m_pIntensity[m_curOnLED]);
+            color.g = (unsigned char)(m_pColor[m_curOnLED].g * m_pIntensity[m_curOnLED]);
+            color.b = (unsigned char)(m_pColor[m_curOnLED].b * m_pIntensity[m_curOnLED]);
+            color.a = m_pColor[m_curOnLED].a;
+            m_pLED[m_curOnLED].SetColor(color);
 }
 
 // FUNCTION: SWBF2 0x00578d50

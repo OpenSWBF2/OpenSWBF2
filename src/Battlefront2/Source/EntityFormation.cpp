@@ -79,7 +79,7 @@ bool EntityFormation::Read(PblConfig& config)
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (data.GetId() == 0x84874D36u)
+        if (data.GetId() == 0x84874D36u /* "Path" */)
         {
             if (data.GetNumArgs())
             {
@@ -148,7 +148,7 @@ void EntityFormation::DestroyAll()
 bool EntityFormation::ReadPropertyScope(PblConfig& config, PblConfig::Data& data,
                                         PathObject object, PathObjectType type, void* pUserData)
 {
-    if (data.GetId() != 0xC1E3FA81u)
+    if (data.GetId() != 0xC1E3FA81u /* "RootIsSlot" */)
     {
         return RedPath::ReadPropertyScope(config, data, object, type, pUserData);
     }
@@ -163,14 +163,14 @@ bool EntityFormation::ReadNodePropertyScope(PblConfig& config, PblConfig::Data& 
     EntityFormation* pFormation = (EntityFormation*)pUserData;
     switch (data.GetId())
     {
-    case 0x20FD0E45u:
+    case 0x20FD0E45u: /* "Root" */
         if (data.GetFloatArg(0) > 0.0f)
         {
             pFormation->mRootIndex = (unsigned int)((char*)object.node - (char*)&pFormation->mNodeArray.GetNode(0)) / sizeof(Node);
         }
         return true;
 
-    case 0x8129238Eu:
+    case 0x8129238Eu: /* "MemberID" */
         if (!pFormation->mNodeMembers)
         {
             unsigned int uNumNodes = pFormation->GetNumPoints();

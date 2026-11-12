@@ -5,7 +5,7 @@
 #include "RedEngineFL/Memory/engineAlloc.h"
 #include "RedEngineFL/Graphics/RedLight.h"
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
-#include "RedEngineFL/Graphics/RedAmbientLight.h"
+#include "RedEngineFL/Graphics/RedLight.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/PC/pcRedVertexFormat.h"
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
@@ -13,15 +13,49 @@
 #include "RedEngineFL/Graphics/RedTextureTransform.h"
 #include "PebbleFL/Common/PblMatrix.h"
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
 static const float kInv255 = 1.0f / 255.0f;
 
+// GLOBAL: SWBF2 0x009ca258
+// pcOceanShader::s_uiID
 unsigned int pcOceanShader::s_uiID;
+// GLOBAL: SWBF2 0x009ca25c
+// pcOceanShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcOceanShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca268
+// pcOceanShader::BeginFuncArray
 pcRedShader::BeginFuncT pcOceanShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca274
+// pcOceanShader::EndFuncArray
 pcRedShader::EndFuncT pcOceanShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca280
+// pcOceanShader::RenderFuncArray
 pcRedShader::RenderFuncT pcOceanShader::RenderFuncArray[MAX_PIPELINES];
+
+// SYNTHETIC: SWBF2 0x0040a230
+// `dynamic initializer for 'pcOceanShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009ca328
+// pcOceanShader::s_uiRenderTypeHash
+unsigned int pcOceanShader::s_uiRenderTypeHash = PblHash("Ocean");
+
+// SYNTHETIC: SWBF2 0x0040a250
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
+
+// SYNTHETIC: SWBF2 0x0040a270
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
+
+// SYNTHETIC: SWBF2 0x0040a1f0
+// `dynamic initializer for 'pcOceanShader::s_Factory''
+// SYNTHETIC: SWBF2 0x00769f00
+// `dynamic atexit destructor for 'pcOceanShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009ca298
+// pcOceanShader::s_Factory
+pcOceanShader pcOceanShader::s_Factory;
 
 // SYNTHETIC: SWBF2 0x0040a210
 // `dynamic initializer for 'pcOceanShader::s_shaderDef''
@@ -32,19 +66,19 @@ pcRedShader::RenderFuncT pcOceanShader::RenderFuncArray[MAX_PIPELINES];
 // pcOceanShader::s_shaderDef
 pcRedShaderDef pcOceanShader::s_shaderDef("ocean_shader.xml");
 
-// SYNTHETIC: SWBF2 0x0040a290
-// `dynamic initializer for 'kuiCubeNormalizationMap''
-
-// GLOBAL: SWBF2 0x009ca32c
-// kuiCubeNormalizationMap
-static unsigned int kuiCubeNormalizationMap = PblHash("cube_normalizationmap");
-
 // SYNTHETIC: SWBF2 0x0040a2b0
 // `dynamic initializer for 'kuiLinearRamp''
 
 // GLOBAL: SWBF2 0x009ca294
 // kuiLinearRamp
 static unsigned int kuiLinearRamp = PblHash("linear_ramp");
+
+// SYNTHETIC: SWBF2 0x0040a290
+// `dynamic initializer for 'kuiCubeNormalizationMap''
+
+// GLOBAL: SWBF2 0x009ca32c
+// kuiCubeNormalizationMap
+static unsigned int kuiCubeNormalizationMap = PblHash("cube_normalizationmap");
 
 // FUNCTION: SWBF2 0x0070bd00
 pcOceanShader::pcOceanShader()
@@ -180,12 +214,6 @@ void pcOceanShader::Begin_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetSamplerState(2, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 }
 
-// FUNCTION: SWBF2 0x0070c250
-void pcOceanShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x0070c270
 void pcOceanShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -196,28 +224,10 @@ void pcOceanShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x0070c290
-unsigned int pcOceanShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x0070c2b0
 RenderPhaseT pcOceanShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_OPAQUE;
-}
-
-// FUNCTION: SWBF2 0x0070c2c0
-unsigned int pcOceanShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x0070c2d0
-pcRedShaderDef* pcOceanShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x0070c2e0
@@ -282,8 +292,8 @@ void pcOceanShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
     RedRenderer::pcUnlockVertexShaderConstants(pRegs);
 
     const RedDirectionalLight* pSun = RedLight::m_sGlobalDirectionals[0];
-    const PblVector4 lightDir(-pSun->m_vDirection.x, -pSun->m_vDirection.y,
-                                 -pSun->m_vDirection.z, 0.0f);
+    const float dirZ = -pSun->m_vDirection.z;
+    const PblVector4 lightDir(-pSun->m_vDirection.x, -pSun->m_vDirection.y, dirZ, 0.0f);
     const RedColorValue lightColor(pSun->m_color);
     const RedColorValue ambient(RedLight::m_sGlobalAmbient->m_color);
 
@@ -333,22 +343,22 @@ void pcOceanShader::_Init(unsigned int uiFlags,
 void pcOceanShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcOceanShader::GetState_Fixed);
+        (GetStateFuncT)(&pcOceanShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcOceanShader::Begin_Fixed);
+        (BeginFuncT)(&pcOceanShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcOceanShader::End_Fixed);
+        (EndFuncT)(&pcOceanShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcOceanShader::Render_Fixed);
+        (RenderFuncT)(&pcOceanShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcOceanShader::GetState_Prog1);
+        (GetStateFuncT)(&pcOceanShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcOceanShader::Begin_Prog1);
+        (BeginFuncT)(&pcOceanShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcOceanShader::End_Prog1);
+        (EndFuncT)(&pcOceanShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcOceanShader::Render_Prog1);
+        (RenderFuncT)(&pcOceanShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x0070c9f0
@@ -357,7 +367,7 @@ void pcOceanShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -383,28 +393,6 @@ void pcOceanShader::_Read(PblFileChunk& chunk) const
 void pcOceanShader::_StaticInit() const
 {
 }
-
-// SYNTHETIC: SWBF2 0x0040a230
-// `dynamic initializer for 'pcOceanShader::s_uiRenderTypeHash''
-
-// GLOBAL: SWBF2 0x009ca328
-// pcOceanShader::s_uiRenderTypeHash
-unsigned int pcOceanShader::s_uiRenderTypeHash = PblHash("Ocean");
-
-// SYNTHETIC: SWBF2 0x0040a250
-// PblMath::`dynamic initializer for 'fOneOverHalfPi''
-
-// SYNTHETIC: SWBF2 0x0040a270
-// PblMath::`dynamic initializer for 'fOneOverTwoPi''
-
-// SYNTHETIC: SWBF2 0x0040a1f0
-// `dynamic initializer for 'pcOceanShader::s_Factory''
-// SYNTHETIC: SWBF2 0x00769f00
-// `dynamic atexit destructor for 'pcOceanShader::s_Factory''
-
-// GLOBAL: SWBF2 0x009ca298
-// pcOceanShader::s_Factory
-pcOceanShader pcOceanShader::s_Factory;
 
 static PblMatrix OceanTextureMatrix(const RedTextureTransform& t)
 {

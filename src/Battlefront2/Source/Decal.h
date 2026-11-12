@@ -92,7 +92,7 @@ public:
     // SYNTHETIC: SWBF2 0x0048ac20
     // DecalManager::`scalar deleting destructor'
 
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Init();
     virtual void Cleanup();
     virtual void Update(float fDeltaTime);

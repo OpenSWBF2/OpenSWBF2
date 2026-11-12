@@ -28,28 +28,6 @@ static char sDiscardedRecordLabel[16];
 // GLOBAL: SWBF2 0x01e3089c
 ConnectivityGraph* ConnectivityGraphManager::mGraph;
 
-// FUNCTION: SWBF2 0x004804c0
-ConnectivityNode::ConnectivityNode()
-{
-    memset(mBranchingTable, 0, sizeof(mBranchingTable));
-}
-
-// FUNCTION: SWBF2 0x004804e0
-ConnectivityNode::~ConnectivityNode()
-{
-    for (int i = 0; i < 5; ++i)
-    {
-        for (int j = 0; j < 4; ++j)
-        {
-            if (mBranchingTable[i][j])
-            {
-                delete[] mBranchingTable[i][j];
-                return;
-            }
-        }
-    }
-}
-
 // FUNCTION: SWBF2 0x00480520
 PblVector3 ConnectivityNode::GetRandomPointInside(float fBuffer) const
 {
@@ -65,7 +43,7 @@ const ConnectivityArc* ConnectivityNode::GetRandomArc(const ConnectivityArc* pEx
                                                       unsigned int uFlags) const
 {
     int iCount = 0;
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < kMaxArcs; ++i)
     {
         if (mArcs[i] == 0xFF)
         {
@@ -82,7 +60,7 @@ const ConnectivityArc* ConnectivityNode::GetRandomArc(const ConnectivityArc* pEx
     }
 
     int iPick = PblRandom::GetSim().GetInt() % iCount;
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < kMaxArcs; ++i)
     {
         const ConnectivityArc* pArc = graph.GetArc(mArcs[i]);
         if ((uFlags & pArc->mAllowTypes) && pArc != pExclude && --iPick < 0)
@@ -96,7 +74,7 @@ const ConnectivityArc* ConnectivityNode::GetRandomArc(const ConnectivityArc* pEx
 // FUNCTION: SWBF2 0x00480680
 bool ConnectivityNode::HasClosedDynamicArc(const ConnectivityGraph& graph, unsigned int uFlags)
 {
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < kMaxArcs; ++i)
     {
         if (mArcs[i] == 0xFF)
         {
@@ -158,7 +136,11 @@ bool ConnectivityNode::IsPointInside(const PblVector3& v) const
 {
     const float fDX = x - v.x;
     const float fDZ = z - v.z;
-    return w * w > fDX * fDX + fDZ * fDZ;
+    if (w * w > fDX * fDX + fDZ * fDZ)
+    {
+        return true;
+    }
+    return false;
 }
 
 // FUNCTION: SWBF2 0x004808a0
@@ -306,7 +288,7 @@ const ConnectivityArc* ConnectivityGraph::GetNextArc(const ConnectivityArc* pCur
     if (pCurArc)
     {
         const int iArc = GetIndexFromArc(*pCurArc);
-        for (uCurSlot = 0; uCurSlot < 8; ++uCurSlot)
+        for (uCurSlot = 0; uCurSlot < ConnectivityNode::kMaxArcs; ++uCurSlot)
         {
             if (from.mArcs[uCurSlot] == iArc)
             {
@@ -374,20 +356,20 @@ bool ConnectivityGraph::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             mMaxNodes = child._pFile->Read16();
             mMaxArcs = child._pFile->Read16();
             child._pFile->Read16();
             mNodes = new ConnectivityNode[mMaxNodes];
             mArcs = new ConnectivityArc[mMaxArcs];
             break;
-        case 0x45444F4E:
+        case CHUNK_ID('N', 'O', 'D', 'E'):
             for (int i = 0; i < mMaxNodes; ++i)
             {
                 mNodes[i].Read(child, mMaxNodes);
             }
             break;
-        case 0x53435241:
+        case CHUNK_ID('A', 'R', 'C', 'S'):
             for (int i = 0; i < mMaxArcs; ++i)
             {
                 mArcs[i].Read(child, *this);
@@ -400,7 +382,7 @@ bool ConnectivityGraph::Read(PblFileChunk& chunk)
     for (int i = 0; i < mMaxNodes; ++i)
     {
         mNodes[i].mAllowTypes = 0;
-        for (int j = 0; j < 8; ++j)
+        for (int j = 0; j < ConnectivityNode::kMaxArcs; ++j)
         {
             if (mNodes[i].mArcs[j] != 0xFF)
             {

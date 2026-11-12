@@ -13,12 +13,71 @@ PblList<RedShadowRegion> RedShadowRegion::s_VisibleList;
 // SYNTHETIC: SWBF2 0x00719460
 // RedShadowRegion::Info::operator=
 
-// FUNCTION: SWBF2 0x00719310
-RedShadowRegion::RedShadowRegion(RedRegionDesc& desc, const Info& info)
-    : RedRegion(desc)
+// FUNCTION: SWBF2 0x00719970
+void RedShadowRegionFactory::ReadParameter(const char* pcRegionName, const char* pcParameter,
+                                           unsigned int uiIndex, unsigned int uiCount,
+                                           const char* pcValue, unsigned int uiValueIndex,
+                                           void* pDesc) const
 {
-    m_info = info;
-    s_List.Add(&m_Node, this);
+    RedShadowRegion::Info* pInfo = (RedShadowRegion::Info*)pDesc;
+    const float kToFloat = 1.0f / 255.0f;
+    const unsigned int uiParameter = PblHash(pcParameter);
+
+    switch (uiParameter)
+    {
+    case 0x10f7c207: /* "directional" */
+    {
+        float f = 0.0f;
+        if (sscanf(pcValue, "%f", &f) == 1)
+        {
+            pInfo->fDirectionalFactor[0] = f;
+        }
+        break;
+    }
+    case 0xec06bb02: /* "directional1" */
+    {
+        float f = 0.0f;
+        if (sscanf(pcValue, "%f", &f) == 1)
+        {
+            pInfo->fDirectionalFactor[1] = f;
+        }
+        break;
+    }
+    case 0x97f5abd3: /* "colortop" */
+    {
+        int r, g, b;
+        if (sscanf(pcValue, "%d,%d,%d", &r, &g, &b) == 3)
+        {
+            RedColorValue c;
+            c.r = (unsigned char)r * kToFloat;
+            c.g = (unsigned char)g * kToFloat;
+            c.b = (unsigned char)b * kToFloat;
+            c.a = 1.0f;
+            pInfo->ambient.m_topColor = c;
+        }
+        break;
+    }
+    case 0x7b5ec2ab: /* "colorbottom" */
+    {
+        int r, g, b;
+        if (sscanf(pcValue, "%d,%d,%d", &r, &g, &b) == 3)
+        {
+            const RedColor color(r, g, b, 0xff);
+            const RedColorValue value(color);
+            pInfo->ambient.m_bottomColor = value;
+        }
+        break;
+    }
+    case 0xbb6dd0da: /* "envmap" */
+    {
+        char acName[256];
+        if (sscanf(pcValue, "%s", acName) == 1)
+        {
+            pInfo->envMapHash = PblHash(acName);
+        }
+        break;
+    }
+    }
 }
 
 // FUNCTION: SWBF2 0x00719550
@@ -30,6 +89,47 @@ void* RedShadowRegionFactory::CreateRegion(RedRegionDesc& desc, const char* pcNa
     info.fDirectionalFactor[1] = 1.0f;
     ProcessRegionName(pcName, &info);
     return new RedShadowRegion(desc, info);
+}
+
+// FUNCTION: SWBF2 0x00719310
+RedShadowRegion::RedShadowRegion(RedRegionDesc& desc, const Info& info)
+    : RedRegion(desc)
+{
+    m_info = info;
+    s_List.Add(&m_Node, this);
+}
+
+// FUNCTION: SWBF2 0x00719950
+void RedShadowRegion::Init()
+{
+    s_VisibleList.Clear();
+    s_List.Clear();
+}
+
+// FUNCTION: SWBF2 0x007194f0
+void RedShadowRegion::Cleanup()
+{
+    s_VisibleList.Clear();
+    s_List.Clear();
+}
+
+// FUNCTION: SWBF2 0x00719be0
+void RedShadowRegion::UpdateAllVisibility(const RedCamera* pCamera)
+{
+    RedShadowRegion::s_VisibleList.Clear();
+    if (!pCamera)
+    {
+        return;
+    }
+
+    for (PblList<RedShadowRegion>::Itor it(RedShadowRegion::s_List); it != RedShadowRegion::s_List.End();
+         ++it)
+    {
+        if (it->IsVisible(pCamera, 25.0f))
+        {
+            RedShadowRegion::s_VisibleList.Add(&it->m_VisibleNode, it);
+        }
+    }
 }
 
 // FUNCTION: SWBF2 0x00719640
@@ -132,87 +232,6 @@ bool RedShadowRegion::GetShadowValues(const PblVector3& vPos, float fRadius,
 // TEMPLATE: SWBF2 0x00719510
 // PblList<RedShadowRegion>::Clear
 template void PblList<RedShadowRegion>::Clear();
-
-// FUNCTION: SWBF2 0x00719950
-void RedShadowRegion::Init()
-{
-    s_VisibleList.Clear();
-    s_List.Clear();
-}
-
-// FUNCTION: SWBF2 0x00719970
-void RedShadowRegionFactory::ReadParameter(const char* pcRegionName, const char* pcParameter,
-                                           unsigned int uiIndex, unsigned int uiCount,
-                                           const char* pcValue, unsigned int uiValueIndex,
-                                           void* pDesc) const
-{
-    RedShadowRegion::Info* pInfo = (RedShadowRegion::Info*)pDesc;
-    const float kToFloat = 1.0f / 255.0f;
-    const unsigned int uiParameter = PblHash(pcParameter);
-
-    switch (uiParameter)
-    {
-    case 0x10f7c207:
-    {
-        float f = 0.0f;
-        if (sscanf(pcValue, "%f", &f) == 1)
-        {
-            pInfo->fDirectionalFactor[0] = f;
-        }
-        break;
-    }
-    case 0xec06bb02:
-    {
-        float f = 0.0f;
-        if (sscanf(pcValue, "%f", &f) == 1)
-        {
-            pInfo->fDirectionalFactor[1] = f;
-        }
-        break;
-    }
-    case 0x97f5abd3:
-    {
-        int r, g, b;
-        if (sscanf(pcValue, "%d,%d,%d", &r, &g, &b) == 3)
-        {
-            RedColorValue c;
-            c.r = (unsigned char)r * kToFloat;
-            c.g = (unsigned char)g * kToFloat;
-            c.b = (unsigned char)b * kToFloat;
-            c.a = 1.0f;
-            pInfo->ambient.m_topColor = c;
-        }
-        break;
-    }
-    case 0x7b5ec2ab:
-    {
-        int r, g, b;
-        if (sscanf(pcValue, "%d,%d,%d", &r, &g, &b) == 3)
-        {
-            const RedColor color(r, g, b, 0xff);
-            const RedColorValue value(color);
-            pInfo->ambient.m_bottomColor = value;
-        }
-        break;
-    }
-    case 0xbb6dd0da:
-    {
-        char acName[256];
-        if (sscanf(pcValue, "%s", acName) == 1)
-        {
-            pInfo->envMapHash = PblHash(acName);
-        }
-        break;
-    }
-    }
-}
-
-// FUNCTION: SWBF2 0x007194f0
-void RedShadowRegion::Cleanup()
-{
-    s_VisibleList.Clear();
-    s_List.Clear();
-}
 
 // SYNTHETIC: SWBF2 0x006c6a70
 // RedShadowRegionFactory::`scalar deleting destructor'

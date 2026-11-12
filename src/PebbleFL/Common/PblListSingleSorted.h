@@ -33,7 +33,7 @@ public:
         Node* GetNode(const PblListSingleSorted* pList)
         {
             PblListSingle::Node* pNode = PblListSingle::Itor::GetNode();
-            return pNode == static_cast<const PblListSingle*>(pList)->GetTerminator()
+            return pNode == ((const PblListSingle*)pList)->GetTerminator()
                 ? const_cast<Node*>(pList->GetTerminator())
                 : (Node*)((char*)pNode - offsetof(Node, mNode));
         }

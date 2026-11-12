@@ -39,7 +39,8 @@ class ControllableDestination
 public:
 
     ControllableDestination() {}
-    ControllableDestination(const ControllableDestination& other);
+    // SYNTHETIC: SWBF2 0x004c7670
+    // ControllableDestination::ControllableDestination(class ControllableDestination const &)
 
     bool mHasDest;
     PblVector3 mPos;

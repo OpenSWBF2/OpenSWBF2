@@ -34,7 +34,7 @@ void HeatShimmerEffect::Create()
 
 // FUNCTION: SWBF2 0x00542600
 HeatShimmerEffect::HeatShimmerEffect()
-    : FLEffect(0xEAAAAE76u, 5)
+    : FLEffect(0xEAAAAE76u /* "HeatShimmer" */, RENDERABLE_PRETRANSPARENT)
 {
     Enable(false);
     SetRenderPriority(0x2710);
@@ -67,7 +67,7 @@ HeatShimmerEffect::~HeatShimmerEffect()
 }
 
 // FUNCTION: SWBF2 0x00542890
-void HeatShimmerEffect::Render(int value)
+void HeatShimmerEffect::Render(unsigned int value) const
 {
     if (!((unsigned int)value & 0x200000))
     {
@@ -100,22 +100,22 @@ void HeatShimmerEffect::ReadConfig(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x3654D7E0u:
+        case 0x3654D7E0u: /* "DistortionScale" */
             s_distortionScale = *(float*)&data.m_auiArgs[0];
             break;
-        case 0x44FA1876u:
+        case 0x44FA1876u: /* "GeometryHeight" */
             s_posY = *(float*)&data.m_auiArgs[0];
             break;
-        case 0x99000D04u:
+        case 0x99000D04u: /* "Tessellation" */
             s_tessellationX = data.GetUint32Arg(0);
             s_tessellationY = data.m_uiNumArgs > 1 ? data.GetUint32Arg(1) : 2;
             break;
-        case 0xAF8BB8CEu:
+        case 0xAF8BB8CEu: /* "Enable" */
             break;
-        case 0xB099CA7Cu:
+        case 0xB099CA7Cu: /* "WorldHeight" */
             s_height = *(float*)&data.m_auiArgs[0];
             break;
-        case 0xDFC96107u:
+        case 0xDFC96107u: /* "ScrollSpeed" */
             s_scrollSpeed = *(float*)&data.m_auiArgs[0];
             break;
         default:

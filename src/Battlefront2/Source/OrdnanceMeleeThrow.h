@@ -23,8 +23,16 @@ public:
     virtual unsigned int GetDerivedRtti() const;
     virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
-    virtual float GetVelocity();
-    virtual float GetRange();
+    // FUNCTION: SWBF2 0x00602270
+    virtual float GetVelocity() const
+    {
+        return mVelocity;
+    }
+    // FUNCTION: SWBF2 0x00602280
+    virtual float GetRange() const
+    {
+        return mVelocity * mLifeSpan;
+    }
 
     RedLodData mLodData;
     float mVelocity;

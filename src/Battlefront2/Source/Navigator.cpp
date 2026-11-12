@@ -41,7 +41,7 @@ namespace
 
     inline CollisionObject* AsCollisionObject(GameObject* pObj)
     {
-        return &static_cast<CollisionObject&>(*pObj);
+        return &(CollisionObject&)(*pObj);
     }
 
     inline int GetHealthType(const GameObject* pObj)
@@ -133,7 +133,7 @@ float Navigator::GetMyRadius() const
 }
 
 // FUNCTION: SWBF2 0x005ab520
-int Navigator::GetMyProhibit() const
+ConnectivityGraph::ProhibitFlag Navigator::GetMyProhibit() const
 {
     return AIUtil::GetAIType(GetGameObject());
 }
@@ -174,7 +174,7 @@ void Navigator::Update(float dt)
 
     Entity* pEntity = mOwner->mOwner->mOwner->GetEntity();
     if (mOwner->mOwner->mLodState >= 3 && AIUtil::GetEntityType(pEntity) == AIUtil::ENTITY_SOLDIER &&
-        static_cast<EntitySoldier*>(pEntity)->mAcklayData == 0)
+        ((EntitySoldier*)pEntity)->mAcklayData == 0)
     {
         float fTime = GameLoop::GetMissionTime();
         if (fTime > mPowerUpTime + 2.0f)

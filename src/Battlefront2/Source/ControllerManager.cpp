@@ -26,7 +26,7 @@
 #include "CameraManager.h"
 #include "EntityCarrier.h"
 #include "EntitySoldier.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "Damageable.h"
 #include "Ordnance.h"
 #include "CombatUtil.h"

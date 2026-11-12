@@ -37,8 +37,16 @@ public:
     virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual const ControllableClass* GetControllableClass() const;
-    virtual int GetWeaponCount() const;
-    virtual const WeaponClass* GetWeaponClass(int iIndex) const;
+    // FUNCTION: SWBF2 0x004995c0
+    virtual int GetWeaponCount() const
+    {
+        return mWeaponCount;
+    }
+    // FUNCTION: SWBF2 0x004995d0
+    virtual const WeaponClass* GetWeaponClass(int iIndex) const
+    {
+        return mWeaponClass[iIndex];
+    }
 
     static PblHash rttiHashEntityDroidClass;
     static const char rttiNameEntityDroidClass[];
@@ -61,8 +69,8 @@ public:
     float mCollisionInflict;
     AimerClass mAimerClass[4];
     WeaponClass* mWeaponClass[4];
-    WeaponAmmoDesc mWeaponAmmo[4];
-    int mWeaponChannel[4];
+    WeaponAmmoDesc mWeaponAmmo[kMaxWeapons];
+    int mWeaponChannel[kMaxWeapons];
     int mWeaponCount;
     float mNoiseFactor;
     CameraTrackSetting mCameraSettings;
@@ -123,6 +131,7 @@ class Restrictor;
 class EntityDroid : public GameObject, public Controllable
 {
 public:
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
     enum State
     {
         NORMAL = 0,
@@ -159,8 +168,16 @@ public:
     virtual Entity* GetEntity();
     virtual const GameObject* GetGameObject() const;
     virtual GameObject* GetGameObject();
-    virtual const PblVector3& GetVelocity() const;
-    virtual void SetVelocity(const PblVector3& vVelocity);
+    // FUNCTION: SWBF2 0x004993f0
+    virtual const PblVector3& GetVelocity() const
+    {
+        return mVelocity;
+    }
+    // FUNCTION: SWBF2 0x00499400
+    virtual void SetVelocity(const PblVector3& vVelocity)
+    {
+        mVelocity = vVelocity;
+    }
     virtual void ClientKill();
     virtual float GetMaxSpeed() const;
     virtual float GetMaxStrafe() const;
@@ -172,7 +189,11 @@ public:
                                  float fOuterRadius, float fPush, bool bArg);
     virtual void ActivatePhysics();
     virtual void DeactivatePhysics();
-    virtual EntityType GetEntityType() const;
+    // FUNCTION: SWBF2 0x004994e0
+    virtual EntityType GetEntityType() const
+    {
+        return ENT_DROID;
+    }
 
     virtual void WriteObject(NetPktGroup& group, NetObjState* pState);
     virtual void ReadObject(NetPktGroup& group, NetObjState* pState);
@@ -185,7 +206,11 @@ public:
     virtual void SetupInterpolatedCameraTrackMatrix(PblMatrix& rMatrix,
                                                     float fDeltaTime);
 
-    virtual float GetSmallestCollisionDim() const;
+    // FUNCTION: SWBF2 0x004994f0
+    virtual float GetSmallestCollisionDim() const
+    {
+        return 0.3f;
+    }
     virtual bool CollisionCallback(const CollisionResult* pResult, CollisionObject* pOther,
                                    Restrictor* pRestrictor);
 
@@ -201,11 +226,27 @@ public:
     virtual float GetSoundRadius() const;
     virtual float GetAimTurnRate() const;
     virtual int GetWeaponCount() const;
-    virtual int GetWeaponIndex(int iChannel) const;
-    virtual Weapon* GetWeaponPtr(int iIndex) const;
-    virtual EnergyBar* GetEnergyBar();
+    // FUNCTION: SWBF2 0x00499470
+    virtual int GetWeaponIndex(int iChannel) const
+    {
+        return mWeaponIndex[iChannel];
+    }
+    // FUNCTION: SWBF2 0x00499490
+    virtual Weapon* GetWeaponPtr(int iIndex) const
+    {
+        return mWeapon[iIndex];
+    }
+    // FUNCTION: SWBF2 0x004994d0
+    virtual EnergyBar* GetEnergyBar()
+    {
+        return &mEnergyBar;
+    }
     virtual void SetWeaponIndex(int iIndex, int iChannel);
-    virtual const Aimer* GetAimer(int iIndex) const;
+    // FUNCTION: SWBF2 0x004994b0
+    virtual const Aimer* GetAimer(int iIndex) const
+    {
+        return mAimer[iIndex];
+    }
     virtual ControllableClass* GetControllableClass();
     virtual const ControllableClass* GetControllableClass() const;
     virtual void SetupController();
@@ -232,7 +273,10 @@ public:
     void Move(const PblMatrix& matrix);
 
     bool Smooth(float fDeltaTime) const;
+    static unsigned int GetRtti() { return rttiHashEntityDroid; }
+private:
     static PblHash rttiHashEntityDroid;
+public:
     static MemoryPool sMemoryPool;
     static const char rttiNameEntityDroid[];
 
@@ -242,8 +286,8 @@ public:
     float mPitchValue;
     float mGroundRatio;
     Aimer* mAimer[4];
-    Weapon* mWeapon[4];
-    int mWeaponIndex[2];
+    Weapon* mWeapon[kMaxWeapons];
+    int mWeaponIndex[kNumWeaponChannels];
     GameSoundControllable mAmbientSound;
     GameSoundControllable mAmbient2Sound;
     EnergyBar mEnergyBar;
@@ -252,6 +296,13 @@ public:
     PblHandle<FLEffectObject> mDestructChargeEffectHandle;
     PostCollision mPostCollision;
 };
+
+// FUNCTION: SWBF2 0x00499500
+inline bool EntityDroid::PostCollision::Update(float fDeltaTime)
+{
+    return mOwner->PostCollisionUpdate(fDeltaTime);
+}
+
  
  
  

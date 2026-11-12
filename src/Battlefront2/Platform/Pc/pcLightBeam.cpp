@@ -133,18 +133,18 @@ void LightBeamEffect::_PlatformInit()
 
     if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED)
     {
-        m_pShader = pcRedShader::Create(0xe8651328, 0x1082, 0, 0, 0x10040,
+        m_pShader = pcRedShader::Create(0xe8651328 /* "LightBeam" */, 0x1082, 0, 0, 0x10040,
                                         RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
     else
     {
-        m_pShader = pcRedShader::Create(0xe8651328, 0x82, 0, 0, 0x10040,
+        m_pShader = pcRedShader::Create(0xe8651328 /* "LightBeam" */, 0x82, 0, 0, 0x10040,
                                         RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
 }
 
 // FUNCTION: SWBF2 0x00410ba0
-inline void VertexC::SetPos(const PblVector3& v)
+void VertexC::SetPos(const PblVector3& v)
 {
     const float x = v.x;
     const float z = v.z;
@@ -176,7 +176,7 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
     RedRenderer::GetCamera()->GetFrustum(fNear, fFar, fWidth, fHeight);
     const PblMatrix& mCamera = RedRenderer::GetCamera()->GetMatrix();
     const PblMatrix& mCameraInverse = RedRenderer::GetCamera()->GetMatrixInverse();
-    const PblVector3& vEye = RedRenderer::GetCamera()->GetMatrix().GetTranslation();
+    const RedCamera* pEyeCamera = RedRenderer::GetCamera();
     const unsigned int uiViewport = FLRenderer::GetCurrentViewport();
 
     if (pBeam->_color.a == 0)
@@ -188,20 +188,14 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
         return;
     }
 
-    PblVector3 vHead;
-    D3DXVec3TransformCoord((D3DXVECTOR3*)&vHead, (const D3DXVECTOR3*)&pBeam->_vHeadPosition,
-                           (const D3DXMATRIX*)&pBeam->m_mWorldMatrix);
-    const float fDistSq = (vHead.x - vEye.x) * (vHead.x - vEye.x)
-                        + (vHead.y - vEye.y) * (vHead.y - vEye.y)
-                        + (vHead.z - vEye.z) * (vHead.z - vEye.z);
+    const PblVector3 vHead = pBeam->m_mWorldMatrix.ApplyTransform(pBeam->_vHeadPosition);
+    const float fDistSq = SquaredLength(vHead - pEyeCamera->GetMatrix().GetTranslation());
     if (pBeam->_fSquaredDrawDistance > 0.0f && fDistSq >= pBeam->_fSquaredDrawDistance)
     {
         return;
     }
 
-    PblVector3 vView;
-    D3DXVec3TransformCoord((D3DXVECTOR3*)&vView, (const D3DXVECTOR3*)&vHead,
-                           (const D3DXMATRIX*)&mCameraInverse);
+    PblVector3 vView = mCameraInverse.ApplyTransform(vHead);
 
     float fRadius;
     if (pBeam->_fLength > 0.0f)
@@ -225,6 +219,10 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
         {
             return;
         }
+        if (-vView.z - fRadius >= fFar)
+        {
+            return;
+        }
     }
     else
     {
@@ -233,10 +231,10 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
         {
             return;
         }
-    }
-    if (-vView.z - fRadius >= fFar)
-    {
-        return;
+        if (-vView.z - fRadius >= fFar)
+        {
+            return;
+        }
     }
     if (((float)fabs((double)(vView.x)) - fRadius) * fNear * 2.0f > -(vView.z * fWidth))
     {
@@ -253,27 +251,15 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
     {
 
         __declspec(align(16)) PblMatrix mBeam;
-        PblVector3 vDir;
-        D3DXVec3TransformNormal((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)&pBeam->_vDirection,
-                                (const D3DXMATRIX*)&pBeam->m_mWorldMatrix);
-        mBeam.m[1][0] = vDir.x;
-        mBeam.m[1][1] = vDir.y;
-        mBeam.m[1][2] = vDir.z;
+        mBeam[1] = pBeam->m_mWorldMatrix.ApplyRotation(pBeam->_vDirection);
         mBeam.m[1][3] = 0.0f;
 
         const PblVector3& vCamPos = mCamera.GetTranslation();
-        PblVector3 vSide(vHead.x - vCamPos.x, vHead.y - vCamPos.y, vHead.z - vCamPos.z);
-        PblVector3 vCross = CrossProduct(vSide, vDir);
-        D3DXVec3Normalize((D3DXVECTOR3*)&vSide, (const D3DXVECTOR3*)&vCross);
-        mBeam.m[0][0] = vSide.x;
-        mBeam.m[0][1] = vSide.y;
-        mBeam.m[0][2] = vSide.z;
+        PblVector3 vSide = vHead - vCamPos;
+        D3DXVec3Normalize((D3DXVECTOR3*)&vSide, (const D3DXVECTOR3*)&CrossProduct(vSide, mBeam.GetYAxis()));
+        mBeam[0] = vSide;
         mBeam.m[0][3] = 0.0f;
-
-        vCross = CrossProduct(mBeam.GetYAxis(), mBeam.GetXAxis());
-        mBeam.m[2][0] = vCross.x;
-        mBeam.m[2][1] = vCross.y;
-        mBeam.m[2][2] = vCross.z;
+        mBeam[2] = CrossProduct(mBeam.GetYAxis(), mBeam.GetXAxis());
         mBeam.m[2][3] = 0.0f;
         mBeam.SetTranslation(vHead);
 
@@ -282,10 +268,8 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
         if (pBeam->_fHeadSizeX != pBeam->_fHeadSizeZ || pBeam->_fTailSizeX != pBeam->_fTailSizeZ)
         {
             const PblMatrix& mWorld = pBeam->m_mWorldMatrix;
-            const float fAcrossX = (float)fabs((double)(mWorld.m[0][0] * vSide.x + mWorld.m[0][1] * vSide.y
-                                               + mWorld.m[0][2] * vSide.z));
-            const float fAcrossZ = (float)fabs((double)(mWorld.m[2][0] * vSide.x + mWorld.m[2][1] * vSide.y
-                                               + mWorld.m[2][2] * vSide.z));
+            const float fAcrossX = (float)fabs((double)DotProduct(vSide, mWorld.GetXAxis()));
+            const float fAcrossZ = (float)fabs((double)DotProduct(vSide, mWorld.GetZAxis()));
             if (pBeam->_fHeadSizeX != pBeam->_fHeadSizeZ)
             {
                 fHeadSize = (float)sqrt((double)(pBeam->_fHeadSizeX * pBeam->_fHeadSizeX * fAcrossX * fAcrossX
@@ -298,8 +282,7 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
             }
         }
 
-        const float fAlong = vDir.x * (vCamPos.x - vHead.x) + vDir.y * (vCamPos.y - vHead.y)
-                           + vDir.z * (vCamPos.z - vHead.z);
+        const float fAlong = DotProduct(mBeam.GetYAxis(), vCamPos - vHead);
         const float fAlongT = fAlong / pBeam->_fLength;
         const float fOffSq = fDistSq - fAlong * fAlong;
         const float fOffDist = (float)sqrt((double)fOffSq) - fNear;
@@ -307,7 +290,7 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
         const float fCos = fDist > fHeadSize ? fAlong / fDist : fAlong / fHeadSize;
 
         float fWidthAtEye;
-        if (fAlong > 0.0f && fHeadSize <= fTailSize)
+        if (!(fAlong <= 0.0f) && !(fHeadSize > fTailSize))
         {
             fWidthAtEye = (fTailSize - fHeadSize) * fAlongT + fHeadSize;
         }
@@ -316,10 +299,7 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
             fWidthAtEye = fHeadSize;
         }
 
-        RedColor flareColor = pBeam->_color;
-        float fFlareSize = fHeadSize * 0.5f;
-        flareColor.a = 0;
-        if (fCos > 0.0f && pBeam->_fFlareIntensity > 0.0f)
+        if (!(fCos <= 0.0f) && !(pBeam->_fFlareIntensity <= 0.0f))
         {
             float fConeCos = pBeam->_fFlareCosAngle;
             const float fConeStart = fConeCos > 0.5f ? fConeCos * 0.5f : 0.0f;
@@ -327,7 +307,14 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
             {
                 fConeCos = 0.1f;
             }
-            if (fConeStart < fCos)
+            if (fConeStart >= fCos)
+            {
+                RedColor flareColor = pBeam->_color;
+                flareColor.a = 0;
+                flare.SetColor(flareColor);
+                flare.SetSize(fHeadSize * 0.5f);
+            }
+            else
             {
                 float fFlare;
                 if (fConeCos >= fCos)
@@ -345,19 +332,34 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
                 {
                     fFlare = fFlareRange / fDist * fFlare;
                 }
-                flareColor.a = (unsigned char)PblMath::Round(pBeam->_color.a * fFlare * pBeam->_fFlareIntensity);
+                RedColor color = pBeam->_color;
+                color.a = (unsigned char)PblMath::Round(pBeam->_color.a * fFlare * pBeam->_fFlareIntensity);
+                flare.SetColor(color);
                 if (fTailSize > fHeadSize)
                 {
                     const float fOff = fOffSq / (fWidthAtEye * fWidthAtEye);
                     if (fOff < 4.0f)
                     {
-                        fFlareSize = (1.0f - fOff * 0.25f) * ((fTailSize - fHeadSize) * 0.5f) + fHeadSize * 0.5f;
+                        flare.SetSize((1.0f - fOff * 0.25f) * ((fTailSize - fHeadSize) * 0.5f) + fHeadSize * 0.5f);
                     }
+                    else
+                    {
+                        flare.SetSize(fHeadSize * 0.5f);
+                    }
+                }
+                else
+                {
+                    flare.SetSize(fHeadSize * 0.5f);
                 }
             }
         }
-        flare.SetColor(flareColor);
-        flare.SetSize(fFlareSize);
+        else
+        {
+            RedColor flareColor = pBeam->_color;
+            flareColor.a = 0;
+            flare.SetColor(flareColor);
+            flare.SetSize(fHeadSize * 0.5f);
+        }
 
         float fIntensity = (1.0f - fCos * fCos) * pBeam->_fBeamIntensity;
         if (fOffDist < 0.0f)
@@ -407,64 +409,70 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
         if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED)
         {
             VertexC* pVertex = (VertexC*)pVertexData;
-            for (i = 0; i < 3; i++, pVertex++)
+            for (i = 0; i < 3u; i++, pVertex++)
             {
                 pVertex->SetPos(PblVector3(((float)i * 0.59999973f - 0.6f) * fHeadSize, 0.0f, 0.0f));
                 pVertex->SetColor(edgeColor);
             }
-            for (i = 0; i < 6; i++, pVertex++)
+            for (i = 0; i < 6u; i++, pVertex++)
             {
                 pVertex->SetPos(PblVector3(((float)i * 0.4f - 1.0f) * fHeadSize, fHeadSize * 0.2f, 0.0f));
                 RedColor color = pBeam->_color;
                 color.a = (unsigned char)(int)(pBeam->_color.a * fIntensity * s_afBeamAlpha[2 * i + 1]);
                 pVertex->SetColor(color);
             }
-            for (i = 0; i < 7; i++, pVertex++)
+            const float fLength = pBeam->_fLength;
+            for (i = 0; i < 7u; i++, pVertex++)
             {
-                pVertex->SetPos(PblVector3(((float)i * (1.0f / 3.0f) - 1.0f) * fTailSize, pBeam->_fLength, 0.0f));
+                pVertex->SetPos(PblVector3(((float)i * (1.0f / 3.0f) - 1.0f) * fTailSize, fLength, 0.0f));
                 RedColor color = pBeam->_color;
                 color.a = (unsigned char)(int)(pBeam->_color.a * fFadeIntensity * s_afBeamAlpha[2 * i]);
                 pVertex->SetColor(color);
             }
-            for (i = 0; i < 6; i++, pVertex++)
+            for (i = 0; i < 6u; i++, pVertex++)
             {
-                pVertex->SetPos(PblVector3(s_avBeamRadius[i].x * fTailSize,
-                                           s_avBeamRadius[i].y * fFadeWidth + pBeam->_fLength, 0.0f));
+                const float x = s_avBeamRadius[i].x * fTailSize;
+                const float y = s_avBeamRadius[i].y * fFadeWidth + fLength;
+                const float z = 0.0f;
+                pVertex->pos.x = (short)((x - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x - 32767.5f);
+                pVertex->pos.y = (short)((y - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y - 32767.5f);
+                pVertex->pos.z = (short)((z - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z - 32767.5f);
                 pVertex->SetColor(edgeColor);
             }
         }
         else
         {
             VertexU* pVertex = (VertexU*)pVertexData;
-            for (i = 0; i < 3; i++, pVertex++)
+            for (i = 0; i < 3u; i++, pVertex++)
             {
                 pVertex->SetPos(PblVector3(((float)i * 0.59999973f - 0.6f) * fHeadSize, 0.0f, 0.0f));
                 pVertex->SetColor(edgeColor);
             }
-            for (i = 0; i < 6; i++, pVertex++)
+            for (i = 0; i < 6u; i++, pVertex++)
             {
                 pVertex->SetPos(PblVector3(((float)i * 0.4f - 1.0f) * fHeadSize, fHeadSize * 0.2f, 0.0f));
                 RedColor color = pBeam->_color;
                 color.a = (unsigned char)(int)(pBeam->_color.a * fIntensity * s_afBeamAlpha[2 * i + 1]);
                 pVertex->SetColor(color);
             }
-            for (i = 0; i < 7; i++, pVertex++)
+            const float fLength = pBeam->_fLength;
+            for (i = 0; i < 7u; i++, pVertex++)
             {
-                pVertex->SetPos(PblVector3(((float)i * (1.0f / 3.0f) - 1.0f) * fTailSize, pBeam->_fLength, 0.0f));
+                pVertex->SetPos(PblVector3(((float)i * (1.0f / 3.0f) - 1.0f) * fTailSize, fLength, 0.0f));
                 RedColor color = pBeam->_color;
                 color.a = (unsigned char)(int)(pBeam->_color.a * fFadeIntensity * s_afBeamAlpha[2 * i]);
                 pVertex->SetColor(color);
             }
-            for (i = 0; i < 6; i++, pVertex++)
+            for (i = 0; i < 6u; i++, pVertex++)
             {
                 pVertex->SetPos(PblVector3(s_avBeamRadius[i].x * fTailSize,
-                                           s_avBeamRadius[i].y * fFadeWidth + pBeam->_fLength, 0.0f));
+                                           s_avBeamRadius[i].y * fFadeWidth + fLength, 0.0f));
                 pVertex->SetColor(edgeColor);
             }
         }
-        for (i = 0; i < 38; i++)
+        for (i = 0; i < 38u; i++)
         {
-            pIndices[i] = s_auiBeamIndices[i];
+            *pIndices++ = s_auiBeamIndices[i];
         }
 
         pPrimitive->EndIndexData();
@@ -477,24 +485,24 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
     else
     {
 
+        const float fInner = pBeam->_fTailSizeX;
         float fFade = 1.0f;
         const float fDepth = -vView.z - fNear;
-        const float fOuterRadius = pBeam->_fTailSizeX + pBeam->_fFadeLength;
+        const float fOuterRadius = fInner + pBeam->_fFadeLength;
         if (fOuterRadius > fDepth)
         {
-            if (pBeam->_fTailSizeX > fDepth)
+            if (fInner > fDepth)
             {
                 return;
             }
-            fFade = (fDepth - pBeam->_fTailSizeX) / (fOuterRadius - pBeam->_fTailSizeX);
+            fFade = (fDepth - fInner) / (fOuterRadius - fInner);
         }
         const float fAlpha = pBeam->_color.a * fFade;
         RedColor flareColor = pBeam->_color;
         flareColor.a = (unsigned char)PblMath::Round(pBeam->_fFlareIntensity * fAlpha);
+        const unsigned char ucAlpha = (unsigned char)PblMath::Round(pBeam->_fBeamIntensity * fAlpha);
         flare.SetColor(flareColor);
         flare.SetSize(pBeam->_fHeadSizeX);
-
-        const unsigned char ucAlpha = (unsigned char)PblMath::Round(pBeam->_fBeamIntensity * fAlpha);
         if (!ucAlpha)
         {
             return;
@@ -506,7 +514,7 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
         innerColor.a = (unsigned char)(int)(ucAlpha * pBeam->_fFadeAmount);
         RedColor edgeColor = pBeam->_color;
         edgeColor.a = 0;
-        const PblVector3 vCenter(0.0f, 0.0f, pBeam->_fTailSizeX);
+        const PblVector3 vCenter(0.0f, 0.0f, fInner);
         const float fBound = fOuterRadius * 1.01f;
         const PblBox box(-fBound, -fBound, -fBound, fBound, fBound, fBound);
 
@@ -528,7 +536,6 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
             return;
         }
 
-        const float fInner = pBeam->_fTailSizeX;
         int i;
         if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED)
         {
@@ -536,14 +543,12 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
             pVertex->SetPos(vCenter);
             pVertex->SetColor(centerColor);
             pVertex++;
-            for (i = 0; i < 16; i++, pVertex++)
+            for (i = 0; i < 16u; i++, pVertex++)
             {
-                const PblVector3& r = s_avHaloRadius[i];
-                pVertex->SetPos(PblVector3(r.x * fInner + vCenter.x, r.y * fInner + vCenter.y,
-                                           vCenter.z + r.z * fInner));
+                pVertex->SetPos(vCenter + s_avHaloRadius[i] * fInner);
                 pVertex->SetColor(innerColor);
             }
-            for (i = 0; i < 16; i++, pVertex++)
+            for (i = 0; i < 16u; i++, pVertex++)
             {
                 const PblVector3& r = s_avHaloRadius[16 + i];
                 pVertex->SetPos(PblVector3(r.x * fOuterRadius, r.y * fOuterRadius, fOuterRadius * r.z));
@@ -556,23 +561,21 @@ void LightBeamEffect::RenderLightBeam(const LightBeam* pBeam, unsigned int uiFla
             pVertex->SetPos(vCenter);
             pVertex->SetColor(centerColor);
             pVertex++;
-            for (i = 0; i < 16; i++, pVertex++)
+            for (i = 0; i < 16u; i++, pVertex++)
             {
-                const PblVector3& r = s_avHaloRadius[i];
-                pVertex->SetPos(PblVector3(r.x * fInner + vCenter.x, r.y * fInner + vCenter.y,
-                                           vCenter.z + r.z * fInner));
+                pVertex->SetPos(vCenter + s_avHaloRadius[i] * fInner);
                 pVertex->SetColor(innerColor);
             }
-            for (i = 0; i < 16; i++, pVertex++)
+            for (i = 0; i < 16u; i++, pVertex++)
             {
                 const PblVector3& r = s_avHaloRadius[16 + i];
                 pVertex->SetPos(PblVector3(r.x * fOuterRadius, r.y * fOuterRadius, fOuterRadius * r.z));
                 pVertex->SetColor(edgeColor);
             }
         }
-        for (i = 0; i < 66; i++)
+        for (i = 0; i < 66u; i++)
         {
-            pIndices[i] = s_auiHaloIndices[i];
+            *pIndices++ = s_auiHaloIndices[i];
         }
 
         pPrimitive->EndIndexData();

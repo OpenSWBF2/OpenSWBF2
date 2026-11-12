@@ -11,6 +11,7 @@
 #include "ScreenTransition.h"
 #include "Team.h"
 #include "VoiceOverManager.h"
+#include "PebbleFL/Common/PblUnicode.h"
 #include "PebbleFL/Common/PblTime.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "SoundFL/source/sndbus.h"
@@ -30,10 +31,9 @@ void AddInterfaceElement(unsigned int hView, RedScreenGroupElement* pElement, fl
                          bool bUseSafeZone);
 }
 
-namespace GameLoop
-{
-    extern bool mbHistoricalRules;
-}
+
+    
+
 
 // GLOBAL: SWBF2 0x01e3094c
 EndDisplay* EndDisplay::sInstance;
@@ -89,7 +89,7 @@ void EndDisplay::Init()
 {
     RedBitmapElement* pText = mEndText;
     pText->Enable(false);
-    pText->SetTexture(0x0623b25a);
+    pText->SetTexture(0x0623b25a /* "ig_victory_defeat" */);
     pText->SetRect(256.0f, 64.0f, RedBitmapElement::BITMAP_HALIGN_CENTER,
                    RedBitmapElement::BITMAP_VALIGN_CENTER);
 }
@@ -139,7 +139,7 @@ void EndDisplay::Show(unsigned int uiWinners, float fMinDisplayTime)
     }
     if (bFirstShow)
     {
-        Snd::Bus* pBus = Snd::Bus::FindByHashID(0xeceb308a);
+        Snd::Bus* pBus = Snd::Bus::FindByHashID(0xeceb308a /* "soundfx" */);
         if (pBus)
         {
             pBus->SetGain(0.0f, true);
@@ -168,7 +168,7 @@ void EndDisplay::Hide()
         }
     }
     mMinDisplayTime = 0.0f;
-    Snd::Bus* pBus = Snd::Bus::FindByHashID(0x985c8f54);
+    Snd::Bus* pBus = Snd::Bus::FindByHashID(0x985c8f54 /* "ingame" */);
     if (pBus)
     {
         pBus->SetGain(0.0f, true);
@@ -224,7 +224,7 @@ bool EndDisplay::Update(float fDeltaTime)
         GameSoundEngine::StopAll();
         GameSoundEngine::Update(0.0001f);
         Snd::Stream::EnableStreaming(false);
-        GameMovie::StartInGameMoviePlay(mMovieFileName, mMovieIdName);
+        StartInGameMoviePlay(mMovieFileName, mMovieIdName);
         mMoviePlayed = true;
     }
 
@@ -245,28 +245,6 @@ extern float g_InGameMovieStartSystemTime;
 char ingame_movie_idname[256];
 // GLOBAL: SWBF2 0x01e56288
 char g_InGameMovieFilename[256];
-
-// FUNCTION: SWBF2 0x00534bd0
-void GameMovie::StartInGameMoviePlay(const char* pcFile, const char* pcName)
-{
-    if (g_InGameMoviePlayerState)
-    {
-        return;
-    }
-
-    g_InGameMoviePlayerUpdateEnable = true;
-    g_InGameMoviePlayerState = 1;
-    const unsigned int uiView = CameraManager::sInstance->m_hView[0];
-    g_InGameMoviePlayerFrame = 0;
-    FLRenderer::SetSceneEnable(uiView, false);
-    FLRenderer::SetInterfaceEnable(uiView, false);
-    strcpy(g_InGameMovieFilename, "Movies\\");
-    strcat(g_InGameMovieFilename, pcFile);
-    strcpy(ingame_movie_idname, pcName);
-    unsigned __int64 perfCount = PblTime::GetTickCount();
-    g_InGameMovieStartTime = perfCount;
-    g_InGameMovieStartSystemTime = GameState::GetSystemTimeBase()->GetTime();
-}
 
 // FUNCTION: SWBF2 0x004912e0
 bool EndDisplay::HasBeenDisplayed()
@@ -299,7 +277,7 @@ bool EndDisplay::IsFinished()
 // FUNCTION: SWBF2 0x00491360
 bool EndDisplay::IsMusicFinished() const
 {
-    Snd::Bus* bus = Snd::Bus::FindByHashID(0x9f9c4fd4);
+    Snd::Bus* bus = Snd::Bus::FindByHashID(0x9f9c4fd4 /* "Music" */);
     if (bus && bus->mFinalGain == 0.0f)
     {
         return true;
@@ -328,4 +306,11 @@ void EndDisplay::SetVictoryMusic(unsigned int uTeam, const char* pName)
 void EndDisplay::SetDefeatMusic(unsigned int uTeam, const char* pName)
 {
     mVictoryDefeat[uTeam][1].SetID(pName);
+}
+
+// FUNCTION: SWBF2 0x00491440
+void EndDisplay::SetEndMovie(const char* pcFirst, const char* pcSecond)
+{
+    strlcpy(mMovieFileName, pcFirst, sizeof(mMovieFileName));
+    strlcpy(mMovieIdName, pcSecond, sizeof(mMovieIdName));
 }

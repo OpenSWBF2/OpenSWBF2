@@ -16,7 +16,7 @@ public:
     HeatShimmerEffect();
 
     virtual ~HeatShimmerEffect();
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual bool IsReflected();
     virtual void Init();
     virtual void Cleanup();

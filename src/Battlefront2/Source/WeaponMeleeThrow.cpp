@@ -3,7 +3,8 @@
 #include <new>
 
 #include "WeaponMeleeThrow.h"
-#include "WeaponMeleeInstance.h"
+#include "WeaponMelee.h"
+#include "Combo.h"
 #include "Aimer.h"
 #include "Controllable.h"
 #include "EnergyBar.h"
@@ -45,12 +46,12 @@ WeaponMeleeThrow::WeaponMeleeThrow(const WeaponMeleeThrowClass* pClass, const We
     m_pPrimaryWeapon = 0;
 
     int iMeleeIndex = pClass->m_iPrimaryWeaponIndex;
-    EntitySoldier& soldier = *static_cast<EntitySoldier*>(mOwner->GetGameObject());
+    EntitySoldier& soldier = *(EntitySoldier*)mOwner->GetGameObject();
     for (int i = 0; i < soldier.GetWeaponCount(); ++i)
     {
         if (soldier.GetWeaponPtr(i) && soldier.GetWeaponPtr(i)->IsMelee())
         {
-            m_pPrimaryWeapon = static_cast<WeaponMelee*>(soldier.GetWeaponPtr(i));
+            m_pPrimaryWeapon = (WeaponMelee*)soldier.GetWeaponPtr(i);
             if (iMeleeIndex-- == 0)
             {
                 break;
@@ -58,14 +59,13 @@ WeaponMeleeThrow::WeaponMeleeThrow(const WeaponMeleeThrowClass* pClass, const We
         }
     }
 
-    const WeaponMeleeClass* pPrimaryClass =
-        static_cast<const WeaponMeleeClass*>(m_pPrimaryWeapon->mClass);
+    const WeaponMeleeClass* pPrimaryClass = _GetPrimaryClass();
 
     const unsigned char uiThrowAnim = static_cast<unsigned char>(pPrimaryClass->m_pCombo->m_uiThrowAnimIndex);
-    SoldierAnimatorClass::sInstance->GetAnimationBoneMatrix(
+    SoldierAnimatorClass::Instance()->GetAnimationBoneMatrix(
         static_cast<SoldierAnimationBank::MAP>(m_pPrimaryWeapon->mSoldierAnimationMap),
-        uiThrowAnim, 0x2B960099,
-        static_cast<const WeaponMeleeThrowClass*>(mClass)->m_fInitialSalvoDelay, m_mThrow0Local);
+        uiThrowAnim, 0x2B960099 /* "hp_weapons" */,
+        ((const WeaponMeleeThrowClass*)mClass)->m_fInitialSalvoDelay, m_mThrow0Local);
 }
 
 
@@ -147,13 +147,13 @@ void WeaponMeleeThrow::Render(const PblMatrix& matrix, const RedPose* pPose,
     uiFlags |= 1;
     if (m_bThrow && pPose)
     {
-        const PblMatrix* pThrowMatrix = pPose->Find(0x2B960099);
+        const PblMatrix* pThrowMatrix = pPose->Find(0x2B960099 /* "hp_weapons" */);
         if (pThrowMatrix)
         {
             RedPose* pMutablePose = const_cast<RedPose*>(pPose);
-            pMutablePose->Remove(0x2B960099);
+            pMutablePose->Remove(0x2B960099 /* "hp_weapons" */);
             m_pPrimaryWeapon->Render(matrix, pPose, color, uiFlags, bRenderModel);
-            pMutablePose->Store(0x2B960099, pThrowMatrix);
+            pMutablePose->Store(0x2B960099 /* "hp_weapons" */, pThrowMatrix);
             return;
         }
     }
@@ -223,7 +223,7 @@ bool WeaponMeleeThrow::UpdateFire(float fDeltaTime)
     mStateTimer += fDeltaTime;
     if (!m_bFired)
     {
-        if (static_cast<const WeaponMeleeThrowClass*>(mClass)->m_fInitialSalvoDelay > mStateTimer)
+        if (((const WeaponMeleeThrowClass*)mClass)->m_fInitialSalvoDelay > mStateTimer)
         {
             return true;
         }
@@ -252,7 +252,7 @@ void WeaponMeleeThrow::Fire()
     desc.mDamageOwner.mTeam = mOwner->GetGameObject()->GetTeam();
     desc.mDamageOwner.mClass = mOwner->GetGameObject()->GetEntityClass();
     desc.mDamageOwner.mWeapon = mClass;
-    desc.mTarget = IsLocked() ? const_cast<GameObject*>(static_cast<const GameObject*>(mTarget)) : 0;
+    desc.mTarget = IsLocked() ? const_cast<GameObject*>((const GameObject*)mTarget) : 0;
     desc.mBodyID = IsLocked() ? mTargetBodyID : -1;
     desc.mFireWeapon = this;
 
@@ -336,10 +336,10 @@ void WeaponMeleeThrowClass::SetProperty(unsigned int uProperty, const char* pszV
 {
     switch (uProperty)
     {
-    case 0xC8388D9D:
+    case 0xC8388D9D: /* "InitialSalvoDelay" */
         sscanf(pszValue, "%f", &m_fInitialSalvoDelay);
         break;
-    case 0xF83F717B:
+    case 0xF83F717B: /* "PrimaryWeaponIndex" */
         m_iPrimaryWeaponIndex = atoi(pszValue);
         break;
     default:

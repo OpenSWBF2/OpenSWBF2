@@ -39,7 +39,7 @@ FreeList Bus::smFreeList(sizeof(Bus), 1, true, 8);
 
 // GLOBAL: SWBF2 0x007e3278
 // Bus::smRootBus
-Bus Bus::smRootBus(0, 0x20FD0E45u);
+Bus Bus::smRootBus(0, 0x20FD0E45u /* "Root" */);
 
 // GLOBAL: SWBF2 0x009cf494
 bool Bus::smBusSolo;
@@ -166,37 +166,37 @@ void Bus::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch ((unsigned int)child._pFile->Read32())
         {
-        case 0x247DB064u:
+        case 0x247DB064u: /* "AttenuateBus" */
             child._pFile->Read8();
             mAttenuateBus = FindByHashID(child._pFile->Read32());
             break;
-        case 0x1B5426FEu:
+        case 0x1B5426FEu: /* "Gain" */
             child._pFile->Read8();
             SetGain(Clamp(child._pFile->ReadFloat(), 0.0f, 1.0f), true);
             break;
-        case 0x5BA00EF7u:
+        case 0x5BA00EF7u: /* "Attenuation" */
             child._pFile->Read8();
             mAttenuation = Clamp(child._pFile->ReadFloat(), 0.0f, 1.0f);
             break;
-        case 0x8D39BDE6u:
+        case 0x8D39BDE6u: /* "name" */
             child._pFile->Read8();
             mHashID = child._pFile->Read32();
             break;
-        case 0xD16089AAu:
+        case 0xD16089AAu: /* "AttenuationLeadIn" */
             child._pFile->Read8();
             mAttenuationLeadInTime = child._pFile->ReadFloat();
             break;
-        case 0xE9634B4Au:
+        case 0xE9634B4Au: /* "Solo" */
             child._pFile->Read8();
             mFlags = (unsigned char)((mFlags & ~flags_Mute) | flags_Solo);
             smBusSolo = true;
             break;
-        case 0xD6069F54u:
+        case 0xD6069F54u: /* "mute" */
             child._pFile->Read8();
             SetGain(0.0f, true);
             mFlags |= flags_Mute;
             break;
-        case 0xEACDFCFDu:
+        case 0xEACDFCFDu: /* "Parent" */
         {
             child._pFile->Read8();
             Bus* const pParent = FindByHashID(child._pFile->Read32());
@@ -206,7 +206,7 @@ void Bus::Read(PblFileChunk& chunk)
             UpdateFinalGain();
             break;
         }
-        case 0xF247D163u:
+        case 0xF247D163u: /* "AttenuationLeadOut" */
             child._pFile->Read8();
             mAttenuationLeadOutTime = child._pFile->ReadFloat();
             break;

@@ -29,7 +29,7 @@ void HDREffect::Destroy()
 
 // FUNCTION: SWBF2 0x00542270
 HDREffect::HDREffect()
-    : FLEffect(0xFEB6DBE1u, 9)
+    : FLEffect(0xFEB6DBE1u /* "HDR" */, RENDERABLE_SCREENEFFECT)
 {
     Enable(false);
     m_downSizeFactor = 0.25f;
@@ -88,22 +88,22 @@ void HDREffect::ReadConfig(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0xAF8BB8CEu:
+        case 0xAF8BB8CEu: /* "Enable" */
             Enable(data.GetUint32Arg(0) != 0);
             break;
-        case 0x7E6C7187u:
+        case 0x7E6C7187u: /* "DownSizeFactor" */
             m_downSizeFactor = data.GetFloatArg(0);
             break;
-        case 0xD4EF5803u:
+        case 0xD4EF5803u: /* "NumBloomPasses" */
             m_numBloomPasses = data.GetUint32Arg(0);
             break;
-        case 0xEAFD07EDu:
+        case 0xEAFD07EDu: /* "MaxTotalWeight" */
             m_maxTotalWeight = data.GetFloatArg(0);
             break;
-        case 0xB12C9B1Fu:
+        case 0xB12C9B1Fu: /* "GlowThreshold" */
             m_glowThreshold = data.GetFloatArg(0);
             break;
-        case 0xAC9EEE97u:
+        case 0xAC9EEE97u: /* "GlowFactor" */
             m_glowFactor = data.GetFloatArg(0);
             break;
         }

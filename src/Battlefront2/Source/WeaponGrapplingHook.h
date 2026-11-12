@@ -3,7 +3,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 
 #include "WeaponCannon.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
 // VTABLE: SWBF2 0x007b0d68

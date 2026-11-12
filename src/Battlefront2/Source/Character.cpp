@@ -32,7 +32,6 @@
 #include "NetComm.h"
 #include "NetGame.h"
 #include "PauseMenu.h"
-#include "PassengerSlot.h"
 #include "PlayerProfile.h"
 #include "PlayerStats.h"
 #include "PebbleFL/Common/PblMath.h"
@@ -42,7 +41,7 @@
 #include "Tracker.h"
 #include "VoiceOverManager.h"
 #include "Weapon.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblVector.h"
@@ -81,68 +80,6 @@ int sHostCharacterCount;
 extern int netCurMaxPlayers;
 extern NetPlayer netPlayers[64];
 
-namespace AIDebug
-{
-namespace TestSpawn
-{
-// GLOBAL: SWBF2 0x01e2fd6c
-Character* aic[4];
-}
-}
-
-namespace AIDebug
-{
-namespace TestSpawn
-{
-
-// FUNCTION: SWBF2 0x00438750
-PblMatrix GetTestSpawnMatrix(Character* pCharacter)
-{
-    if (pCharacter->mPlayerId < 0 &&
-        AIDebug::TestSpawn::aic[0] != pCharacter &&
-        AIDebug::TestSpawn::aic[1] != pCharacter &&
-        AIDebug::TestSpawn::aic[2] != pCharacter &&
-        AIDebug::TestSpawn::aic[3] != pCharacter)
-    {
-        PblMatrix mSpawn(gMatrixIdentity);
-        mSpawn.SetTranslation(PblVector3((float)(pCharacter - Character::sCharacters) * 3.0f, 100.0f, 0.0f));
-        return mSpawn;
-    }
-
-    const float kHalfHeight = 25.0f;
-    const PblVector3 kCylinderCenter(-74.0f, 12.0f, 20.0f);
-
-    const float fAngle = PblRandom::_Global.GetFloat() * 6.2831855f;
-    float fCos, fSin;
-    PblMath::SinCos(&fSin, &fCos, fAngle);
-    const float fRadius = PblRandom::_Global.GetFloat() * 32.0f;
-    const PblVector3 vStart = fRadius * PblVector3(fSin, 0.0f, fCos) + kCylinderCenter + PblVector3(0.0f, kHalfHeight, 0.0f);
-    const PblVector3 vDown = -PblVector3(0.0f, 1.0f, 0.0f);
-    CollisionObject* pHitObject = 0;
-    const float fHit = CollisionManager::RayHit(vStart, vDown, kHalfHeight * 2.0f,
-                                                 pHitObject, 0, 0, 0, 0, false);
-    const PblVector3 vPosition = vStart - PblVector3(0.0f, fHit * kHalfHeight * 2.0f, 0.0f);
-
-    PblMatrix result;
-    result.SetXAxis(-fCos, 0.0f, fSin, 0.0f);
-    result.SetYAxis(0.0f, 1.0f, 0.0f, 0.0f);
-    result.SetZAxis(-fSin, 0.0f, -fCos, 0.0f);
-    result.SetTranslation(vPosition);
-    return result;
-}
-}
-}
-
-namespace AIDebug
-{
-
-// FUNCTION: SWBF2 0x00438a10
-PblMatrix GetTestSpawnMatrix(Character* pCharacter)
-{
-    return AIDebug::TestSpawn::GetTestSpawnMatrix(pCharacter);
-}
-}
-
 // FUNCTION: SWBF2 0x00452310
 float Character::TimeSinceLastVehicleOrRemoteChange()
 {
@@ -177,44 +114,6 @@ void Character::LeaveClient()
     }
 }
 
-// FUNCTION: SWBF2 0x00477fd0
-bool CommandFlyer::IsLanded()
-{
-    return mState == LANDED;
-}
-
-// FUNCTION: SWBF2 0x00477f10
-Controllable* CommandFlyer::GetPassengerSlot(int)
-{
-    if (EntityFlyer::mClass->mPassengerSlotClass)
-    {
-        Controllable* pLast = 0;
-        for (int i = 0; i < EntityFlyer::mClass->mNumPassengerSlots; ++i)
-        {
-            PassengerSlot* pCraft = mPassengerSlots[i];
-            if (!pCraft)
-            {
-                continue;
-            }
-            Controllable* pThis = static_cast<Controllable*>(this);
-            Controllable* pCurrent = (pThis->mPilotType == PILOT_SELF ||
-                                     (pThis->mPilotType == PILOT_VEHICLESELF && pThis->mPilot == pThis))
-                                        ? 0 : pThis->mPilot;
-            if (pCurrent == static_cast<Controllable*>(pCraft) || pCraft->mPlayerId >= 0)
-            {
-                continue;
-            }
-            pLast = static_cast<Controllable*>(pCraft);
-            if (!static_cast<Trackable*>(pCraft)->GetControllable())
-            {
-                return static_cast<Controllable*>(pCraft);
-            }
-        }
-        return pLast;
-    }
-    return 0;
-}
-
 
 namespace EventManager
 {
@@ -241,16 +140,13 @@ int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
 extern int netHeroKillerID[4];
 extern bool netHeroUnlocked[3];
 
-static char sEventParam;
-
 extern bool netHeroesEnabled;
 extern int netHeroLastPlayerID[3];
 extern bool gDoTakeoverSpawns;
 extern bool gNoAIRespawn;
-namespace GameLoop
-{
-extern bool mbHistoricalRules;
-}
+
+
+
 extern int netNumBots;
 
 // GLOBAL: SWBF2 0x01e2fde6
@@ -273,9 +169,22 @@ PblMatrix GetTestSpawnMatrix(Character* pCharacter);
 namespace
 {
 
+GameObject* GetPostObject(CommandPost* pPost)
+{
+    PblHandle<GameObject>& handle = pPost->mObject;
+    if (handle.mObject &&
+        handle.mObject->GetHandleId() !=
+            handle.mSavedHandleId)
+    {
+        handle.mObject = 0;
+        handle.mSavedHandleId = 0;
+    }
+    return handle.mObject;
+}
+
 inline Damageable* GetDamageable(GameObject* pObject)
 {
-    return static_cast<Damageable*>(pObject);
+    return (Damageable*)pObject;
 }
 
 const GameObjectClass* GetGameObjectClass(GameObject* pObject)
@@ -285,7 +194,7 @@ const GameObjectClass* GetGameObjectClass(GameObject* pObject)
 
 inline const PblVector3& GetPosition(GameObject* pObject)
 {
-    return static_cast<CollisionObject*>(pObject)->GetPosition();
+    return ((CollisionObject*)pObject)->GetPosition();
 }
 
 inline int GetTeam(const GameObject* pObject)
@@ -295,7 +204,7 @@ inline int GetTeam(const GameObject* pObject)
 
 EntityFlyer* GetFlyer(Controllable* pControllable)
 {
-    return pControllable ? static_cast<EntityFlyer*>(pControllable) : 0;
+    return pControllable ? (EntityFlyer*)pControllable : 0;
 }
 
 bool GetFlyerAutoCorrectingToStayInBattlefield(const EntityFlyer* pFlyer)
@@ -310,22 +219,22 @@ const EntityFlyerClass* GetFlyerClass(const EntityFlyer* pFlyer)
 
 inline Controllable* GetSoldierControllable(Entity* pSoldier)
 {
-    return static_cast<Controllable*>(static_cast<EntitySoldier*>(pSoldier));
+    return (Controllable*)(EntitySoldier*)pSoldier;
 }
 
 inline const GameObjectClass* GetSoldierClass(Entity* pSoldier)
 {
-    return static_cast<EntitySoldier*>(pSoldier)->mClass;
+    return ((EntitySoldier*)pSoldier)->mClass;
 }
 
 int GetWeaponChannelByWeaponIndex(Entity* pSoldier, int iIndex)
 {
-    return static_cast<EntitySoldier*>(pSoldier)->GetWeaponChannelByWeaponIndex(iIndex);
+    return ((EntitySoldier*)pSoldier)->GetWeaponChannelByWeaponIndex(iIndex);
 }
 
 inline bool EnterControllable(Entity* pSoldier, Controllable* pControllable)
 {
-    return static_cast<EntitySoldier*>(pSoldier)->EnterControllable(pControllable);
+    return ((EntitySoldier*)pSoldier)->EnterControllable(pControllable);
 }
 
 inline const WeaponClass* GetWeaponClass(Weapon* pWeapon)
@@ -988,7 +897,7 @@ void Character::Spawn(const PblMatrix& mMatrix)
     if (iPlayerId >= 0 && NetGame::IsEnabled())
     {
         NetGame::SetSpawning(iPlayerId, false);
-        if (!NetGame::IsClient())
+        if (!(netEnabledNext && netClientActive))
         {
             NetGame::SetSpectator(iPlayerId, -1);
         }
@@ -1059,7 +968,7 @@ void Character::Spawn(const PblMatrix& mMatrix)
     mUnit->SetCharacter(this);
     pEntity->Init();
     mHeroFlag = pObject->GetGameObjectClass()->mHeroFlag;
-    if (BonusManager::Instance()->IsTeamBonusActive(mTeamNumber, 0xDDB212E1))
+    if (BonusManager::Instance()->IsTeamBonusActive(mTeamNumber, 0xDDB212E1 /* "team_bonus_combat_shielding" */))
     {
         pObject->SetCurHealth(pObject->mCurHealth + pObject->mMaxHealth * 0.25f, true, 0);
     }
@@ -1076,7 +985,7 @@ void Character::Spawn(const PblMatrix& mMatrix)
             NetGame::DeclineHero(mTeamNumber, mPlayerId);
         }
     }
-    else if (!(NetGame::IsEnabled() && NetGame::IsClient()))
+    else if (!(NetGame::IsEnabled() && (netEnabledNext && netClientActive)))
     {
         if (mPlayerId != -1)
         {
@@ -1126,9 +1035,9 @@ void Character::Spawn(const PblMatrix& mMatrix)
         }
     }
 
-    EventManager::CharacterEvent::mSpawn.Trigger(*this, sEventParam);
+    EventManager::CharacterEvent::mSpawn.Trigger(*this, EventManager::noContext);
 
-    if (mPlayerId >= 0 && NetGame::IsEnabled() && !NetGame::IsClient())
+    if (mPlayerId >= 0 && NetGame::IsEnabled() && !(netEnabledNext && netClientActive))
     {
         mSpawnTime = NetComm::GetTime();
         NetGame::CreateEvent_UpdateInvincibility(this);
@@ -1505,7 +1414,7 @@ void Character::CheckOutOfBounds(float fDeltaTime)
         }
 
         EntityFlyer* pFlyer = pUnit->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer)
-                            ? static_cast<EntityFlyer*>(pUnit) : 0;
+                            ? (EntityFlyer*)pUnit : 0;
         if (pFlyer && pFlyer->mClass->mGuidedMissile)
         {
             bGuidedMissile = true;
@@ -1780,7 +1689,7 @@ void Character::MakePlayer(int iTeam, const unsigned short* pName, int iPlayerId
     SelectClass(0);
     SelectPost(0);
     mDelayTimer = 0.0f;
-    GetPlayerStats().Reset();
+    GetPlayerStats(this).Reset();
     Respawn();
 }
 
@@ -1853,7 +1762,7 @@ void Character::AddPlayer(int iPlayerId)
     unsigned short name[64];
     if (NetGame::IsEnabled())
     {
-        PblUnicode::ustrncnv(name, NetGame::GetPlayerName(iPlayerId), 64);
+        PblUnicode::ustrncnv(name, (const unsigned char*)NetGame::GetPlayerName(iPlayerId), 64);
     }
     else
     {

@@ -18,6 +18,7 @@ class EntityLightClass;
 class EntityLight : public Entity, public FLEffectObject
 {
 public:
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
 
     enum LightFlickerType
     {
@@ -63,6 +64,7 @@ public:
     void SetHaloRadius(float fRadius);
 
     void SetFlareIntensity(float fIntensity);
+    bool IsCone() const { return _fBeamLength > 0.0f; }
     void TurnOn();
     void TurnOff();
 
@@ -104,13 +106,13 @@ class EntityLightFXParser : public FLEffect
 public:
 
     EntityLightFXParser()
-        : FLEffect(0xB71E2FBEu, 3)
+        : FLEffect(0xB71E2FBEu /* "EntityLight" */, RENDERABLE_POSTWORLD)
     {
     }
 
     // SYNTHETIC: SWBF2 0x004ccb30
     // EntityLightFXParser::`scalar deleting destructor'
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Init();
     virtual void Cleanup();
     virtual void ReadConfig(PblConfig& config);

@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "Weapon.h"
+#include "PebbleFL/Common/PblRtti.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
 // VTABLE: SWBF2 0x007b06d0
@@ -36,7 +37,7 @@ public:
  
  
 
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 
 class EntityBuildingArmed;
 
@@ -47,9 +48,13 @@ public:
     WeaponCatapult(const WeaponCatapultClass* pClass, const WeaponDesc& desc);
     virtual ~WeaponCatapult();
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
+    // FUNCTION: SWBF2 0x00680be0
+    // WeaponCatapult::IsRtti
+    // FUNCTION: SWBF2 0x00680c10
+    // WeaponCatapult::GetDerivedRtti
+    // FUNCTION: SWBF2 0x00680c20
+    // WeaponCatapult::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(WeaponCatapult, Weapon)
     virtual void Render(const PblMatrix& matrix, const RedPose* pPose, const RedColor& color,
                         unsigned int uFlags, bool bArg) const;
 
@@ -69,8 +74,6 @@ protected:
     bool Fire();
 
 public:
-    static PblHash rttiHashWeaponCatapult;
-    static const char rttiNameWeaponCatapult[];
 
     PblMatrix mArmPoseMatrix;
     const WeaponCatapultClass* mCatapultClass;
@@ -92,28 +95,6 @@ public:
  
  
  
-
-// FUNCTION: SWBF2 0x00680be0
-inline bool WeaponCatapult::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashWeaponCatapult == uRtti)
-    {
-        return true;
-    }
-    return Weapon::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x00680c10
-inline unsigned int WeaponCatapult::GetDerivedRtti() const
-{
-    return rttiHashWeaponCatapult;
-}
-
-// FUNCTION: SWBF2 0x00680c20
-inline const char* WeaponCatapult::GetDerivedRttiName() const
-{
-    return rttiNameWeaponCatapult;
-}
 
 // FUNCTION: SWBF2 0x00680c30
 inline bool WeaponCatapultClass::IsRtti(unsigned int uRtti) const

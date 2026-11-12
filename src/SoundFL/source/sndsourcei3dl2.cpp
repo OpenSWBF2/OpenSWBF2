@@ -51,47 +51,47 @@ bool SourceI3DL2::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
     bool bResult = true;
     switch (uiPropertyID)
     {
-    case 0x116C5DFFu:
+    case 0x116C5DFFu: /* "DirectGain" */
         chunk._pFile->Read8();
         mDirectGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 3.16f);
         mFlags |= flags_directGain;
         break;
-    case 0x74C54AE1u:
+    case 0x74C54AE1u: /* "DirectHFGain" */
         chunk._pFile->Read8();
         mDirectHFGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_directHFGain;
         break;
-    case 0x5676AB7Du:
+    case 0x5676AB7Du: /* "RoomGain" */
         chunk._pFile->Read8();
         mRoomGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 3.16f);
         mFlags |= flags_roomGain;
         break;
-    case 0x89695A93u:
+    case 0x89695A93u: /* "RoomHFGain" */
         chunk._pFile->Read8();
         mRoomHFGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_roomHFGain;
         break;
-    case 0xDFF9620Du:
+    case 0xDFF9620Du: /* "RoomRollOffFactor" */
         chunk._pFile->Read8();
         mRoomRollOffFactor = Clamp(chunk._pFile->ReadFloat(), 0.0f, 10.0f);
         mFlags |= flags_roomRollOffFactor;
         break;
-    case 0x0DB31274u:
+    case 0x0DB31274u: /* "ObstructionHFGain" */
         chunk._pFile->Read8();
         mObstructionHFGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_obstructionHFGain;
         break;
-    case 0xA0A3A78Au:
+    case 0xA0A3A78Au: /* "ObstructionLFRatio" */
         chunk._pFile->Read8();
         mObstructionLFRatio = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_obstructionLFRatio;
         break;
-    case 0x7C8A1B8Bu:
+    case 0x7C8A1B8Bu: /* "OcclusionHFGain" */
         chunk._pFile->Read8();
         mOcclusionHFGain = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_occlusionHFGain;
         break;
-    case 0xA96B06AFu:
+    case 0xA96B06AFu: /* "OcclusionLFRatio" */
         chunk._pFile->Read8();
         mOcclusionLFRatio = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         mFlags |= flags_occlusionLFRatio;

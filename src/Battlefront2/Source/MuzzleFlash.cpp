@@ -1,20 +1,43 @@
 #include <math.h>
 
 #include "MuzzleFlash.h"
+#include "Aimer.h"
 #include "RedEngineFL/Application/pc/pcRedParticle.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
-// GLOBAL: SWBF2 0x01e579f0
-MuzzleFlashRenderer* sMuzzleFlashRenderer;
-
-class Aimer
+// VTABLE: SWBF2 0x007aa74c
+class MuzzleFlashRenderer : public Renderable
 {
 public:
 
-    char mUnmodeledPrefix[0x88];
-    PblVector3 mFirePos;
+    struct MuzzleFlashData
+    {
+        Aimer* m_pAimer;
+        PblVector3 mDir;
+        float mRadius;
+        float mWidth;
+        float mLength;
+        RedColor mColor;
+    };
+
+    MuzzleFlashRenderer();
+    virtual ~MuzzleFlashRenderer();
+
+    virtual void Render(unsigned int value) const;
+
+    void RenderFlash(MuzzleFlashData const& data, RedColor const& color) const;
+
+    void RenderStreak(MuzzleFlashData const& data, RedColor const& color) const;
+
+    MuzzleFlashData mMuzzleFlashData[2][30];
+    mutable int mCurrentBuffer;
+    mutable int mNumMuzzleFlashes;
+    mutable int mOldNumMuzzleFlashes;
 };
+
+// GLOBAL: SWBF2 0x01e579f0
+MuzzleFlashRenderer* sMuzzleFlashRenderer;
 
 // FUNCTION: SWBF2 0x005a9f70
 MuzzleFlashRenderer::MuzzleFlashRenderer()
@@ -69,7 +92,7 @@ void MuzzleFlashRenderer::RenderStreak(MuzzleFlashData const& data, RedColor con
 }
 
 // FUNCTION: SWBF2 0x005aa190
-void MuzzleFlashRenderer::Render(int)
+void MuzzleFlashRenderer::Render(unsigned int) const
 {
     if (mNumMuzzleFlashes == 0 && mOldNumMuzzleFlashes == 0)
     {
@@ -77,7 +100,7 @@ void MuzzleFlashRenderer::Render(int)
     }
 
     const PblMatrix mCamera = RedRenderer::GetCamera()->GetMatrix();
-    RedParticleRenderer::SubmitTexture(0x504865B4u, BLEND_ADDITIVE, 0);
+    RedParticleRenderer::SubmitTexture(0x504865B4u /* "muzzleflashstreak" */, BLEND_ADDITIVE, 0);
 
     for (int i = 0; i < mNumMuzzleFlashes; i++)
     {
@@ -106,7 +129,7 @@ void MuzzleFlashRenderer::Render(int)
         }
     }
 
-    RedParticleRenderer::SubmitTexture(0xCFCCCBCEu, BLEND_ADDITIVE, 0);
+    RedParticleRenderer::SubmitTexture(0xCFCCCBCEu /* "MuzzleFlash" */, BLEND_ADDITIVE, 0);
 
     for (int i = 0; i < mNumMuzzleFlashes; i++)
     {

@@ -21,11 +21,6 @@ bool GodrayEffectObject::IsEffectActive() const
     return true;
 }
 
-// FUNCTION: SWBF2 0x0053e490
-void GodrayEffectObject::UpdatedWorldMatrix()
-{
-    GodrayManager::s_pInstance->UpdateGodrayPosition(m_hGodray, m_mWorldMatrix.GetTranslation());
-}
 
 
 
@@ -50,7 +45,7 @@ void GodrayManager::Destroy()
 
 // FUNCTION: SWBF2 0x0053e590
 GodrayManager::GodrayManager()
-    : FLEffect(0xBA5B0537u, 3)
+    : FLEffect(0xBA5B0537u /* "Godray" */, RENDERABLE_POSTWORLD)
 {
     Enable(false);
     m_pFirstFreeGodray = 0;
@@ -82,7 +77,7 @@ void GodrayManager::Init()
     m_fFadeViewRadius = 70.0f;
     m_fMaxGodrayLength = 40.0f;
     m_fOffsetAngle = 0.0f;
-    m_uiTextureHash = 0xAC3632BEu;
+    m_uiTextureHash = 0xAC3632BEu /* "fx_godray" */;
     m_fTexScaleW = 1.5f;
     m_fTexScaleL = 1.5f;
     m_fTextureRandomWalkSpeed = 0.05f;
@@ -125,33 +120,33 @@ void GodrayManager::ReadConfig(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x3C6468F4u:
+        case 0x3C6468F4u: /* "Texture" */
             m_uiTextureHash = PblHash(data.GetStringArg(0));
             break;
-        case 0x34904329u:
+        case 0x34904329u: /* "OffsetAngle" */
             m_fOffsetAngle = data.GetFloatArg(0) * 0.017453292f;
             break;
-        case 0x209F61AFu:
+        case 0x209F61AFu: /* "TextureVelocity" */
             m_vTextureVelocity = PblVector3(data.GetFloatArg(0), data.GetFloatArg(1), data.GetFloatArg(2));
             break;
-        case 0x3F7364CDu:
+        case 0x3F7364CDu: /* "RadiusForMaxRays" */
             m_fRadiusForMaxRays = data.GetFloatArg(0);
             break;
-        case 0x5D6614A1u:
+        case 0x5D6614A1u: /* "MaxLength" */
             m_fMaxGodrayLength = data.GetFloatArg(0);
             break;
-        case 0x6D9B436Eu:
+        case 0x6D9B436Eu: /* "TextureScale" */
             m_fTexScaleW = data.GetFloatArg(0);
             m_fTexScaleL = data.GetFloatArg(1);
             break;
-        case 0x74E6240Du:
+        case 0x74E6240Du: /* "MaxGodraysInWorld" */
             m_uiMaxGodrays = data.GetUint32Arg(0);
             if (m_uiMaxGodrays < 1)
             {
                 m_uiMaxGodrays = 1;
             }
             break;
-        case 0x7C0DAA5Du:
+        case 0x7C0DAA5Du: /* "MaxRaysPerGodray" */
             m_uiMaxRaysPerGodray = data.GetUint32Arg(0);
             if (m_uiMaxRaysPerGodray > 8)
             {
@@ -162,23 +157,23 @@ void GodrayManager::ReadConfig(PblConfig& config)
                 m_uiMaxRaysPerGodray = 1;
             }
             break;
-        case 0xEF3FAB75u:
+        case 0xEF3FAB75u: /* "TextureJitterSpeed" */
             m_fTextureRandomWalkSpeed = data.GetFloatArg(0);
             break;
-        case 0xAF8BB8CEu:
+        case 0xAF8BB8CEu: /* "Enable" */
             Enable(data.GetUint32Arg(0) != 0);
             break;
-        case 0xD760C55Du:
+        case 0xD760C55Du: /* "MaxGodraysOnScreen" */
             m_uiMaxVisibleGodrays = data.GetUint32Arg(0);
             if (m_uiMaxVisibleGodrays < 1)
             {
                 m_uiMaxVisibleGodrays = 1;
             }
             break;
-        case 0xDA62178Fu:
+        case 0xDA62178Fu: /* "MaxViewDistance" */
             m_fMaxViewRadius = data.GetFloatArg(0);
             break;
-        case 0xF21598CFu:
+        case 0xF21598CFu: /* "MinRaysPerGodray" */
             m_uiMinRaysPerGodray = data.GetUint32Arg(0);
             if (m_uiMinRaysPerGodray > 8)
             {
@@ -189,7 +184,7 @@ void GodrayManager::ReadConfig(PblConfig& config)
                 m_uiMinRaysPerGodray = 1;
             }
             break;
-        case 0xF300705Du:
+        case 0xF300705Du: /* "FadeViewDistance" */
             m_fFadeViewRadius = data.GetFloatArg(0);
             break;
         }
@@ -403,7 +398,7 @@ void GodrayManager::Update(float fDeltaTime)
 }
 
 // FUNCTION: SWBF2 0x0053f0b0
-void GodrayManager::Render(int value)
+void GodrayManager::Render(unsigned int value) const
 {
     if (!m_uiNumVisibleGodrays)
     {
@@ -853,7 +848,7 @@ void GodrayClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x3D7E6258u:
+    case 0x3D7E6258u: /* "Color" */
     {
         unsigned int r = 255, g = 255, b = 255, a = 255;
         if (sscanf(pszValue, "%u %u %u %u", &r, &g, &b, &a) >= 3)
@@ -867,25 +862,25 @@ void GodrayClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
     }
-    case 0x0DBA4CB3u:
+    case 0x0DBA4CB3u: /* "Radius" */
         sscanf(pszValue, "%f", &m_fRadius);
         break;
-    case 0x7DB59929u:
+    case 0x7DB59929u: /* "MinAlpha" */
         sscanf(pszValue, "%f", &m_fAlphaMin);
         break;
-    case 0x9D399B92u:
+    case 0x9D399B92u: /* "MaxLifeTime" */
         sscanf(pszValue, "%f", &m_fLifetimeMax);
         break;
-    case 0x82A0379Cu:
+    case 0x82A0379Cu: /* "SpreadRadius" */
         sscanf(pszValue, "%f", &mSpreadRadius);
         break;
-    case 0xB1E439AFu:
+    case 0xB1E439AFu: /* "MaxAlpha" */
         sscanf(pszValue, "%f", &m_fAlphaMax);
         break;
-    case 0xBD9397ECu:
+    case 0xBD9397ECu: /* "MinLifeTime" */
         sscanf(pszValue, "%f", &m_fLifetimeMin);
         break;
-    case 0xF357466Au:
+    case 0xF357466Au: /* "NumRays" */
         sscanf(pszValue, "%i", &mNumGodRays);
         break;
     default:
@@ -919,7 +914,7 @@ void GodrayClass::ReadConfig(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x3D7E6258u:
+        case 0x3D7E6258u: /* "Color" */
         {
             RedColor color;
             color.r = ClampColorComponent(data.GetFloatArg(0));
@@ -936,19 +931,19 @@ void GodrayClass::ReadConfig(PblConfig& config)
             m_color = color;
             break;
         }
-        case 0x0DBA4CB3u:
+        case 0x0DBA4CB3u: /* "Radius" */
             m_fRadius = data.GetFloatArg(0);
             break;
-        case 0x7DB59929u:
+        case 0x7DB59929u: /* "MinAlpha" */
             m_fAlphaMin = data.GetFloatArg(0);
             break;
-        case 0x9D399B92u:
+        case 0x9D399B92u: /* "MaxLifeTime" */
             m_fLifetimeMax = data.GetFloatArg(0);
             break;
-        case 0xB1E439AFu:
+        case 0xB1E439AFu: /* "MaxAlpha" */
             m_fAlphaMax = data.GetFloatArg(0);
             break;
-        case 0xBD9397ECu:
+        case 0xBD9397ECu: /* "MinLifeTime" */
             m_fLifetimeMin = data.GetFloatArg(0);
             break;
         }

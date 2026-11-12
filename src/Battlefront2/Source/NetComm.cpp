@@ -4,6 +4,7 @@
 
 #include "NetComm.h"
 #include "NetGame.h"
+#include "NetDrag.h"
 #include "GameLoop.h"
 #include "pcNetSocket.h"
 #include "PebbleFL/Common/PblTimeBase.h"
@@ -19,14 +20,6 @@ extern int netCurMaxHosts, netCurMaxPlayers;
 extern int gDebugCount;
 bool __fastcall IsAdminPacketAuthorized(const unsigned char* pPacket);
 
-class NetDrag
-{
-public:
-    static void Send(NetPacket* pPacket, int iDest);
-    static void FreePackets();
-    static void Update();
-    static NetPacket* ReceiveLocal();
-};
 
 struct NetDest
 {
@@ -80,6 +73,27 @@ int netLocalIndex[2];
 // netDests
 NetDest netDests[MAX_DESTS];
 
+#pragma pack(push, 4)
+struct JoinSlot
+{
+    float reqTime;
+    NetSocketPeerRecord addr;
+};
+#pragma pack(pop)
+
+static_assert(sizeof(JoinSlot) == 28, "JoinSlot size");
+static_assert(__alignof(JoinSlot) == 4, "JoinSlot alignment");
+static_assert(offsetof(JoinSlot, reqTime) == 0, "JoinSlot request time offset");
+static_assert(offsetof(JoinSlot, addr) == 4, "JoinSlot address offset");
+
+// SYNTHETIC: SWBF2 0x00404430
+// `dynamic initializer for 'joinSlots''
+
+// GLOBAL: SWBF2 0x01ecb9c0
+// joinSlots
+static JoinSlot joinSlots[64];
+static_assert(sizeof(joinSlots) == 1792, "joinSlots array size");
+
 // GLOBAL: SWBF2 0x01fa3d60
 // netTime
 float netTime;
@@ -110,27 +124,6 @@ NetPktGroup inPktGroups[64];
 
 // GLOBAL: SWBF2 0x01ecb9a0
 NetPktGroup inQueue;
-
-#pragma pack(push, 4)
-struct JoinSlot
-{
-    float reqTime;
-    NetSocketPeerRecord addr;
-};
-#pragma pack(pop)
-
-static_assert(sizeof(JoinSlot) == 28, "JoinSlot size");
-static_assert(__alignof(JoinSlot) == 4, "JoinSlot alignment");
-static_assert(offsetof(JoinSlot, reqTime) == 0, "JoinSlot request time offset");
-static_assert(offsetof(JoinSlot, addr) == 4, "JoinSlot address offset");
-
-// SYNTHETIC: SWBF2 0x00404430
-// `dynamic initializer for 'joinSlots''
-
-// GLOBAL: SWBF2 0x01ecb9c0
-// joinSlots
-static JoinSlot joinSlots[64];
-static_assert(sizeof(joinSlots) == 1792, "joinSlots array size");
 
 // GLOBAL: SWBF2 0x01fa3d48
 unsigned __int64 lastTicks;
@@ -266,9 +259,10 @@ bool isLink;
 
 extern bool isLAN;
 
-// FUNCTION: SWBF2 0x005b2650
-void NetComm::EndShell()
+// FUNCTION: SWBF2 0x005b2610
+void NetComm::Reset()
 {
+    NetPacket::Reset();
 }
 
 // FUNCTION: SWBF2 0x005b2620
@@ -281,29 +275,15 @@ void NetComm::BeginShell()
     }
 }
 
-// FUNCTION: SWBF2 0x005b36f0
-void NetComm::GetBytes(unsigned int& uIn, unsigned int& uOut)
+// FUNCTION: SWBF2 0x005b2650
+void NetComm::EndShell()
 {
-    uIn = inBytes;
-    uOut = netOutBytes;
 }
 
-// FUNCTION: SWBF2 0x005b2720
-bool NetComm::IsConnected(int iDest)
+// FUNCTION: SWBF2 0x005b2660
+void NetComm::SetHost(bool bHost)
 {
-    return netDests[iDest].connected;
-}
-
-// FUNCTION: SWBF2 0x005b35d0
-void NetComm::SetPLCommandPostPoints(int iIndex, int iPoints)
-{
-    netDests[iIndex].PLCPs = iPoints;
-}
-
-// FUNCTION: SWBF2 0x005b35e0
-void NetComm::SetPLDeaths(int iIndex, int iDeaths)
-{
-    netDests[iIndex].PLDeaths = iDeaths;
+    netIsHost = bHost;
 }
 
 // FUNCTION: SWBF2 0x005b2670
@@ -326,12 +306,6 @@ void NetComm::SetConnectType(ConnectType eType)
     }
 }
 
-// FUNCTION: SWBF2 0x005b2660
-void NetComm::SetHost(bool bHost)
-{
-    netIsHost = bHost;
-}
-
 // FUNCTION: SWBF2 0x005b26b0
 ConnectType NetComm::GetConnectType()
 {
@@ -340,6 +314,18 @@ ConnectType NetComm::GetConnectType()
         return isLink ? CT_LINK : CT_LAN;
     }
     return CT_WAN;
+}
+
+// FUNCTION: SWBF2 0x005b26d0
+bool NetComm::IsLAN()
+{
+    return isLAN;
+}
+
+// FUNCTION: SWBF2 0x005b26e0
+int NetComm::GetLocalIndex(int iLocal)
+{
+    return netLocalIndex[iLocal];
 }
 
 // FUNCTION: SWBF2 0x005b26f0
@@ -363,10 +349,10 @@ int NetComm::GetJoystickIndex(int iJoystick)
     return -1;
 }
 
-// FUNCTION: SWBF2 0x005b26e0
-int NetComm::GetLocalIndex(int iLocal)
+// FUNCTION: SWBF2 0x005b2720
+bool NetComm::IsConnected(int iDest)
 {
-    return PblInBounds(netLocalIndex, iLocal) ? netLocalIndex[iLocal] : -1;
+    return netDests[iDest].connected;
 }
 
 // FUNCTION: SWBF2 0x005b28a0
@@ -414,65 +400,10 @@ void NetCommP::SetArch(int iDest, NetArch arch)
     netDests[iDest].arch = arch;
 }
 
-// FUNCTION: SWBF2 0x005b34e0
-void NetComm::GetTicket(TicketHolder eHolder, PipeType ePipe)
-{
-    ticketQueue[ePipe][ticketTail[ePipe]++] = eHolder;
-}
-
-// FUNCTION: SWBF2 0x005b3500
-bool NetComm::IsTicketReady(TicketHolder eHolder, PipeType ePipe)
-{
-    return ticketQueue[ePipe][0] == eHolder;
-}
-
-// FUNCTION: SWBF2 0x005b3510
-void NetComm::UseTicket(TicketHolder, PipeType ePipe)
-{
-    int iCount = ticketTail[ePipe];
-    for (int i = 0; i < iCount; ++i)
-    {
-        ticketQueue[ePipe][i] = ticketQueue[ePipe][i + 1];
-    }
-    ticketTail[ePipe] = iCount - 1;
-}
-
 // FUNCTION: SWBF2 0x005b2bd0
 float NetComm::GetLastRecv(int iDest)
 {
     return netDests[iDest].lastRecv;
-}
-
-// FUNCTION: SWBF2 0x005b3470
-PipeType NetComm::GetPipe(int iDest)
-{
-    return netDests[iDest].pipe;
-}
-
-// FUNCTION: SWBF2 0x005b3490
-bool NetComm::IsPipeFull(PipeType ePipe, int iPacketBytes)
-{
-    float fSent = sendBits[ePipe];
-    if (1024.0f > fSent)
-    {
-        return false;
-    }
-    return (float)(iPacketBytes * 8) * 0.75f > (float)bps[ePipe] / 20.0f - fSent;
-}
-
-// FUNCTION: SWBF2 0x005b3640
-void NetComm::SetBandwidth(int iDest, int iUp, int iDown)
-{
-    netDests[iDest].upBandwidth = iUp;
-    netDests[iDest].downBandwidth = iDown;
-    if (netIsHost && iDest == 64)
-    {
-        bool bLAN = NetComm::IsLAN();
-        int iPipe = bLAN ? PIPE_LAN : PIPE_INTERNET;
-        int iPercent = bLAN ? 100 : bwPercent;
-        sendBits[iPipe] = 0.0f;
-        bps[iPipe] = iPercent * iUp / 100;
-    }
 }
 
 extern unsigned __int64 netEnteredLobbyId;
@@ -487,50 +418,11 @@ unsigned __int64* __fastcall NetCommP::GetAddr(int iDest)
     return &joinSlots[iDest - 69].addr.mGalaxyId.value;
 }
 
-const NetSocketPeerRecord* NetCommP::GetPeer(int iDest)
-{
-    if ((unsigned int)iDest < MAX_DESTS)
-    {
-        return &netDests[iDest].mAddress;
-    }
-    if (iDest >= 69 && iDest < 69 + 64)
-    {
-        return &joinSlots[iDest - 69].addr;
-    }
-    return 0;
-}
-
-// FUNCTION: SWBF2 0x005b35a0
-void NetComm::SetPing(int iDest, int iPing)
-{
-    netDests[iDest].ping = iPing;
-}
-
-// FUNCTION: SWBF2 0x005b35b0
-int NetComm::GetPLKills(int iPlayer)
-{
-    return netDests[iPlayer].PLKills;
-}
-
-// FUNCTION: SWBF2 0x005b35c0
-void NetComm::SetPLKills(int iDest, int iKills)
-{
-    netDests[iDest].PLKills = iKills;
-}
-
 // FUNCTION: SWBF2 0x005d5de0
 unsigned __int64* __fastcall CopyEnteredLobbyId(unsigned __int64* pID)
 {
     *pID = netEnteredLobbyId;
     return pID;
-}
-
-// FUNCTION: SWBF2 0x00618560
-void NetSocket::SetAddr(NetSocketPeerRecord& peer, int ip, int port)
-{
-    peer.mSocketAddress.sin_family = AF_INET;
-    peer.mSocketAddress.sin_addr.s_addr = ip;
-    peer.mSocketAddress.sin_port = htons(port);
 }
 
 // FUNCTION: SWBF2 0x005b2300
@@ -555,34 +447,10 @@ galaxy::api::INetworking* GetGalaxyNetworkingForNetComm()
     return pGalaxy->Networking();
 }
 
-// FUNCTION: SWBF2 0x005b3550
-int NetComm::GetPing(int iDest)
-{
-    NetDest& dest = netDests[iDest];
-    if (!dest.mAddress.mGalaxyId.value)
-    {
-        return dest.ping;
-    }
-    galaxy::api::INetworking* pNetworking = GetGalaxyNetworkingForNetComm();
-    int iPing = pNetworking->GetPingWith(dest.mAddress.mGalaxyId);
-    return iPing < 0 ? dest.ping : iPing;
-}
-
-// FUNCTION: SWBF2 0x005b35f0
-void NetComm::GetBandwidth(int iDest, int& iUp, int& iDown)
-{
-    iUp = netDests[iDest].upBandwidth;
-    iDown = netDests[iDest].downBandwidth;
-    if (netIsHost && iDest == 64)
-    {
-        iUp = bps[NetComm::IsLAN() ? PIPE_LAN : PIPE_INTERNET];
-    }
-}
-
 void DoSends();
 void DoRecvs();
-void __fastcall SendLow(NetPacket* pPacket);
-bool __fastcall RecvGroup(NetPktGroup& group, NetPacket* pPacket);
+void SendLow(NetPacket* pPacket);
+bool RecvGroup(NetPktGroup& group, NetPacket* pPacket);
 void __fastcall HandleCommPacketOut(NetPacket* pPacket);
 namespace gf
 {
@@ -645,7 +513,7 @@ bool NetComm::Recv(NetPktGroup& group, PktType eType)
 }
 
 // FUNCTION: SWBF2 0x005b2aa0
-void __fastcall ClearGroup(NetPktGroup& group, int iDest)
+void ClearGroup(NetPktGroup& group, int iDest)
 {
     for (NetPacket* pPacket = group.GetFront(); pPacket; )
     {
@@ -714,7 +582,7 @@ void NetCommP::FreePackets()
 
 
 // FUNCTION: SWBF2 0x005b2e30
-void __fastcall SendLow(NetPacket* pPacket)
+void SendLow(NetPacket* pPacket)
 {
     const unsigned int iDest = GetSrc(pPacket);
     HandleCommPacketOut(pPacket);
@@ -726,7 +594,7 @@ void __fastcall SendLow(NetPacket* pPacket)
     }
 }
 
-void __fastcall PackHeader(NetPacket* pPacket);
+void PackHeader(NetPacket* pPacket);
 
 // FUNCTION: SWBF2 0x005b2e90
 void __fastcall HandleCommPacketOut(NetPacket* pPacket)
@@ -735,7 +603,7 @@ void __fastcall HandleCommPacketOut(NetPacket* pPacket)
 }
 
 // FUNCTION: SWBF2 0x005b2eb0
-void __fastcall PackHeader(NetPacket* pPacket)
+void PackHeader(NetPacket* pPacket)
 {
     pPacket->mCommIndex = pPacket->mDataIndex - 5;
     pPacket->mCurIndex = (signed char)pPacket->mCommIndex;
@@ -747,7 +615,7 @@ void __fastcall PackHeader(NetPacket* pPacket)
 }
 
 // FUNCTION: SWBF2 0x005b3130
-void __fastcall CleanGroups(int iDest, int iSequence)
+void CleanGroups(int iDest, int iSequence)
 {
     int iRecent = iSequence - 16;
     int iOld = iRecent - 256;
@@ -786,7 +654,7 @@ static const int kMaxFragments = 64;
 static const int kMaxPartialPerSource = 8;
 
 // FUNCTION: SWBF2 0x005b2f90
-bool __fastcall RecvGroup(NetPktGroup& complete, NetPacket* pPacket)
+bool RecvGroup(NetPktGroup& complete, NetPacket* pPacket)
 {
     CleanGroups(NetComm::Header(pPacket).src, NetComm::Header(pPacket).group);
     if (NetComm::Header(pPacket).count == 1 && NetComm::Header(pPacket).idx == 0)
@@ -930,12 +798,6 @@ float& NetCommP::GetLastRecv(int iIndex)
     return netDests[iIndex].lastRecv;
 }
 
-// FUNCTION: SWBF2 0x005b3480
-PipeType& NetCommP::GetPipe(int iDest)
-{
-    return netDests[iDest].pipe;
-}
-
 // FUNCTION: SWBF2 0x005b2c70
 bool& NetCommP::GetConnected(int iDest)
 {
@@ -972,12 +834,6 @@ NetPacket* NetComm::RecvRange(int iFirstType, int iLastType)
         }
     }
     return 0;
-}
-
-// FUNCTION: SWBF2 0x005b2610
-void NetComm::Reset()
-{
-    NetPacket::Reset();
 }
 
 // FUNCTION: SWBF2 0x005b2750
@@ -1038,20 +894,6 @@ NetPacket* NetComm::Recv(PktType eType, PktType eType2)
 // TEMPLATE: SWBF2 0x005b3930
 // PblJournal::Record<unsigned __int64>
 template void PblJournal::Record<unsigned __int64>(unsigned __int64& value, PblJournalType type);
-
-// FUNCTION: SWBF2 0x005b26d0
-bool NetComm::IsLAN()
-{
-    return isLAN;
-}
-
-// FUNCTION: SWBF2 0x005b36b0
-void NetComm::SetBandwidthPercent(int percent)
-{
-    bwPercent = percent;
-    sendBits[PIPE_INTERNET] = 0.0f;
-    bps[PIPE_INTERNET] = percent * netDests[64].upBandwidth / 100;
-}
 
 // FUNCTION: SWBF2 0x005b3700
 int __fastcall FindSource(const void* pSource, unsigned int uType)
@@ -1133,7 +975,7 @@ void DoSends()
     }
 }
 
-void __fastcall UnpackHeader(NetPacket* pPacket);
+void UnpackHeader(NetPacket* pPacket);
 
 // FUNCTION: SWBF2 0x005b2ea0
 void __fastcall HandleCommPacketIn(NetPacket* pPacket)
@@ -1142,7 +984,7 @@ void __fastcall HandleCommPacketIn(NetPacket* pPacket)
 }
 
 // FUNCTION: SWBF2 0x005b2f10
-void __fastcall UnpackHeader(NetPacket* pPacket)
+void UnpackHeader(NetPacket* pPacket)
 {
     pPacket->mCurIndex = (signed char)pPacket->mCommIndex;
     NetComm::PktHeader header = NetComm::PktHeader();
@@ -1331,6 +1173,136 @@ bool __fastcall RoutesToHostDestination(unsigned int uType)
     default:
         return true;
     }
+}
+
+// FUNCTION: SWBF2 0x005b3470
+PipeType NetComm::GetPipe(int iDest)
+{
+    return netDests[iDest].pipe;
+}
+
+// FUNCTION: SWBF2 0x005b3480
+PipeType& NetCommP::GetPipe(int iDest)
+{
+    return netDests[iDest].pipe;
+}
+
+// FUNCTION: SWBF2 0x005b3490
+bool NetComm::IsPipeFull(PipeType ePipe, int iPacketBytes)
+{
+    float fSent = sendBits[ePipe];
+    if (1024.0f > fSent)
+    {
+        return false;
+    }
+    return (float)(iPacketBytes * 8) * 0.75f > (float)bps[ePipe] / 20.0f - fSent;
+}
+
+// FUNCTION: SWBF2 0x005b34e0
+void NetComm::GetTicket(TicketHolder eHolder, PipeType ePipe)
+{
+    ticketQueue[ePipe][ticketTail[ePipe]++] = eHolder;
+}
+
+// FUNCTION: SWBF2 0x005b3500
+bool NetComm::IsTicketReady(TicketHolder eHolder, PipeType ePipe)
+{
+    return ticketQueue[ePipe][0] == eHolder;
+}
+
+// FUNCTION: SWBF2 0x005b3510
+void NetComm::UseTicket(TicketHolder, PipeType ePipe)
+{
+    int iCount = ticketTail[ePipe];
+    for (int i = 0; i < iCount; ++i)
+    {
+        ticketQueue[ePipe][i] = ticketQueue[ePipe][i + 1];
+    }
+    ticketTail[ePipe] = iCount - 1;
+}
+
+// FUNCTION: SWBF2 0x005b3550
+int NetComm::GetPing(int iDest)
+{
+    NetDest& dest = netDests[iDest];
+    if (!dest.mAddress.mGalaxyId.value)
+    {
+        return dest.ping;
+    }
+    void* pNetworking = GetGalaxyNetworkingForNetComm();
+    int iPing = ((galaxy::api::INetworking*)pNetworking)->GetPingWith(dest.mAddress.mGalaxyId);
+    return iPing < 0 ? dest.ping : iPing;
+}
+
+// FUNCTION: SWBF2 0x005b35a0
+void NetComm::SetPing(int iDest, int iPing)
+{
+    netDests[iDest].ping = iPing;
+}
+
+// FUNCTION: SWBF2 0x005b35b0
+int NetComm::GetPLKills(int iPlayer)
+{
+    return netDests[iPlayer].PLKills;
+}
+
+// FUNCTION: SWBF2 0x005b35c0
+void NetComm::SetPLKills(int iDest, int iKills)
+{
+    netDests[iDest].PLKills = iKills;
+}
+
+// FUNCTION: SWBF2 0x005b35d0
+void NetComm::SetPLCommandPostPoints(int iIndex, int iPoints)
+{
+    netDests[iIndex].PLCPs = iPoints;
+}
+
+// FUNCTION: SWBF2 0x005b35e0
+void NetComm::SetPLDeaths(int iIndex, int iDeaths)
+{
+    netDests[iIndex].PLDeaths = iDeaths;
+}
+
+// FUNCTION: SWBF2 0x005b35f0
+void NetComm::GetBandwidth(int iDest, int& iUp, int& iDown)
+{
+    iUp = netDests[iDest].upBandwidth;
+    iDown = netDests[iDest].downBandwidth;
+    if (netIsHost && iDest == 64)
+    {
+        iUp = bps[NetComm::IsLAN() ? PIPE_LAN : PIPE_INTERNET];
+    }
+}
+
+// FUNCTION: SWBF2 0x005b3640
+void NetComm::SetBandwidth(int iDest, int iUp, int iDown)
+{
+    netDests[iDest].upBandwidth = iUp;
+    netDests[iDest].downBandwidth = iDown;
+    if (netIsHost && iDest == 64)
+    {
+        bool bLAN = NetComm::IsLAN();
+        int iPipe = bLAN ? PIPE_LAN : PIPE_INTERNET;
+        int iPercent = bLAN ? 100 : bwPercent;
+        sendBits[iPipe] = 0.0f;
+        bps[iPipe] = iPercent * iUp / 100;
+    }
+}
+
+// FUNCTION: SWBF2 0x005b36b0
+void NetComm::SetBandwidthPercent(int percent)
+{
+    bwPercent = percent;
+    sendBits[PIPE_INTERNET] = 0.0f;
+    bps[PIPE_INTERNET] = percent * netDests[64].upBandwidth / 100;
+}
+
+// FUNCTION: SWBF2 0x005b36f0
+void NetComm::GetBytes(unsigned int& uIn, unsigned int& uOut)
+{
+    uIn = inBytes;
+    uOut = netOutBytes;
 }
 
 // GLOBAL: SWBF2 0x007e8024

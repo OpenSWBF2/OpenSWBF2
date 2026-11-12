@@ -1,4 +1,4 @@
-#include "RedAmbientLight.h"
+#include "RedLight.h"
 
 // SYNTHETIC: SWBF2 0x0040a900
 // `dynamic initializer for 'RedAmbientLight::BLACK''

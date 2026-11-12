@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblRtti.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -29,9 +30,13 @@ class Controller
 public:
     Controller(Controllable* pOwner);
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
+    // FUNCTION: SWBF2 0x00485100
+    // Controller::IsRtti
+    // FUNCTION: SWBF2 0x00485120
+    // Controller::GetDerivedRtti
+    // FUNCTION: SWBF2 0x00485130
+    // Controller::GetDerivedRttiName
+    PBL_DECLARE_ROOT_RTTI(Controller)
     // SYNTHETIC: SWBF2 0x00485140
     // Controller::~Controller
     // SYNTHETIC: SWBF2 0x00485160
@@ -39,8 +44,6 @@ public:
     virtual ~Controller() {}
     virtual void KillController();
 
-    static PblHash rttiHashController;
-    static const char rttiNameController[];
 
     PblVector3 GetTargetBubbleCircle() const;
     void IncreaseTargetBubbleSize(float fIncrease);
@@ -97,20 +100,3 @@ public:
  
  
 
-// FUNCTION: SWBF2 0x00485100
-inline bool Controller::IsRtti(unsigned int uRtti) const
-{
-    return rttiHashController == uRtti;
-}
-
-// FUNCTION: SWBF2 0x00485120
-inline unsigned int Controller::GetDerivedRtti() const
-{
-    return rttiHashController;
-}
-
-// FUNCTION: SWBF2 0x00485130
-inline const char* Controller::GetDerivedRttiName() const
-{
-    return rttiNameController;
-}

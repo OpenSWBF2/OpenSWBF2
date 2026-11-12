@@ -42,7 +42,7 @@ void* HUD::ElementGroup::GetParent()
 
 // FUNCTION: SWBF2 0x005442c0
 HUD::BorderedBox::Factory::Factory()
-    : HUD::ElementGroupBase::Factory(0xB3A05A43u)
+    : HUD::ElementGroupBase::Factory(0xB3A05A43u /* "BorderedBox" */)
 {
     mName = "BorderedBox";
     mBorder.Init("Border", mProperties, Property::type_Vector2);
@@ -82,8 +82,8 @@ HUD::BorderedBox::~BorderedBox()
 {
 }
 
-static const unsigned int kBorderHash = 0x1F523237u;
-static const unsigned int kBackgroundHash = 0x4BABD89Du;
+static const unsigned int kBorderHash = 0x1F523237u /* "Border" */;
+static const unsigned int kBackgroundHash = 0x4BABD89Du /* "Background" */;
 
 // FUNCTION: SWBF2 0x005445b0
 bool HUD::BorderedBox::ReadData(PblConfig& config, PblConfig::Data& data)
@@ -161,7 +161,7 @@ bool HUD::BorderedBox::SetProperty(const unsigned int uHashID, const void* pValu
     const unsigned int* words = (const unsigned int*)pValue;
     switch (uHashID)
     {
-    case 0xEAE44D07u:
+    case 0xEAE44D07u: /* "Rect" */
     {
         const bool accepted = ElementGroupBase::SetProperty(uHashID, pValue);
         if (accepted)

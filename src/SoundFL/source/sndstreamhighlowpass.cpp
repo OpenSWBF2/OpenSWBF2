@@ -33,12 +33,7 @@ StreamPacket* StreamLowHighPass::GetPacket(unsigned int uiOutput)
     StreamPacketIO* const pIO = &mInputPacket;
     if (pIO->GetPacket() == 0)
     {
-
-        StreamNodeSource* const pNode = StreamNodeSink::mConnection.mInputNode;
-        pIO->SetPacket(
-            pNode != 0
-                ? pNode->GetPacket(StreamNodeSink::mConnection.mInputNodeOutputIndex)
-                : 0);
+        pIO->SetPacket(ConnectionGetPacket());
     }
 
     StreamPacket* const pInput = pIO->GetPacket();
@@ -49,7 +44,7 @@ StreamPacket* StreamLowHighPass::GetPacket(unsigned int uiOutput)
 
     StreamPacket* const pOutput = &mOutputPacket;
     short* const pOut = (short*)pOutput->GetBuffer();
-    unsigned int uiSize = pIO->GetDataLeft(pInput->mBufferUsed);
+    unsigned int uiSize = pIO->GetDataLeft(pInput->GetUsed());
     if (uiSize > mBufferSize)
     {
         uiSize = mBufferSize;
@@ -60,16 +55,16 @@ StreamPacket* StreamLowHighPass::GetPacket(unsigned int uiOutput)
     pOutput->SetUsed(uiSize);
     pOutput->SetPosition(pInput->GetPosition() + (pIO->GetOffset() >> 1));
 
-    if (pIO->UpdateOffset(pInput->mBufferUsed, uiSize))
+    if (pIO->UpdateOffset(pInput->GetUsed(), uiSize))
     {
         pOutput->SetLast(pInput->GetLast());
         if (pInput->GetDiscontinuity())
         {
-            pOutput->mFlags |= 2;
+            pOutput->SetDiscontinuity(true);
         }
         else
         {
-            pOutput->mFlags &= ~2;
+            pOutput->SetDiscontinuity(false);
         }
 
         mInputPacket.Flush();
@@ -77,7 +72,7 @@ StreamPacket* StreamLowHighPass::GetPacket(unsigned int uiOutput)
     else
     {
         pOutput->SetLast(false);
-        pOutput->mFlags &= ~2;
+        pOutput->SetDiscontinuity(false);
     }
 
     pOutput->Lock();
@@ -88,8 +83,8 @@ StreamPacket* StreamLowHighPass::GetPacket(unsigned int uiOutput)
 void StreamLowHighPass::SetBuffer(void* pBuffer, unsigned int uiSize)
 {
     mBufferSize = uiSize;
-    mOutputPacket.mBuffer = pBuffer;
-    mOutputPacket.mBufferUsed = 0;
+    mOutputPacket.SetBuffer(pBuffer);
+    mOutputPacket.SetUsed(0);
 }
 
 }

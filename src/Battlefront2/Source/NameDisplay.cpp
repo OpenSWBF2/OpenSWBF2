@@ -1,4 +1,5 @@
 #include "PebbleFL/Common/PblMath.h"
+#include "FriendBuddyList.h"
 #include <d3dx9math.h>
 #include "NameDisplay.h"
 #include "CameraManager.h"
@@ -25,11 +26,7 @@ extern bool netShowNames;
 
 extern bool netFrameLock;
 extern int netCurMaxPlayers;
-extern RedColor gHudHighlightColor;
-namespace FriendBuddyList
-{
-    bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId);
-}
+extern RedColor gVoiceChatTeamColors[3];
 namespace AIDebug
 {
     bool GetTestSpawnMode();
@@ -132,7 +129,6 @@ bool NameDisplayThread::Update(float)
     Character* pLocalCharacter = 0;
     Character* pKiller = 0;
     GameObject* pLocalObject = 0;
-    if (Character::sCharacters)
     {
         pLocalCharacter = Character::FindPlayer(iLocalIndex);
         Controllable* pLocalUnit = 0;
@@ -292,7 +288,7 @@ bool NameDisplayThread::Update(float)
             if (NetGame::IsEnabled() && pCharacter->GetTeamNumber() == pLocalCharacter->GetTeamNumber() &&
                 FriendBuddyList::IsFriendBuddy(iLocalIndex, i))
             {
-                RedColor white(gHudHighlightColor);
+                RedColor white(gVoiceChatTeamColors[2]);
                 text.m_color = white;
             }
         }

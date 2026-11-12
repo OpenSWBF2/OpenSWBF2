@@ -30,7 +30,7 @@ void Source2D::CalculateGain(float fGain, float fReverbGain,
 // FUNCTION: SWBF2 0x0074bda0
 bool Source2D::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 {
-    if (uiPropertyID != 0x4F55EEECu)
+    if (uiPropertyID != 0x4F55EEECu /* "Pan" */)
     {
         return false;
     }

@@ -151,10 +151,6 @@ public:
  
  
 
-unsigned int ColorChannelBits(D3DFORMAT fmt);
-unsigned int AlphaChannelBits(D3DFORMAT fmt);
-unsigned int DepthBits(D3DFORMAT fmt);
-unsigned int StencilBits(D3DFORMAT fmt);
 
 namespace pcRedDeviceEnumerator
 {

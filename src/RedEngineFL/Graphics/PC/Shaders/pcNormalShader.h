@@ -19,12 +19,19 @@ public:
     // SYNTHETIC: SWBF2 0x006fe9e0
     // pcNormalShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x006ff650
+    // pcNormalShader::GetID
+    // FUNCTION: SWBF2 0x006ff6a0
+    // pcNormalShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x006ff540
+    // pcNormalShader::Bind
+    // FUNCTION: SWBF2 0x006ff7c0
+    // pcNormalShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcNormalShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
     virtual RedShadingState* CreateShadingState() const;
     virtual void SetData(const RedShaderData&);
-    virtual void Bind();
     virtual unsigned int GetZPrepassState() const;
     virtual void RenderZPrepass(const RenderItem*) const;
     virtual bool SortAsZWritingTransparent() const;
@@ -36,23 +43,13 @@ public:
 private:
 
     // FUNCTION: SWBF2 0x007011d0
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                               const unsigned int* pParams,
-                               unsigned int uiNumParams,
-                               unsigned int uiMaterialFlags,
-                               const RedColor& color0,
-                               const RedColor& color1,
-                                 float fSpecularPower) const;
-    virtual void _Read(PblFileChunk&) const;
 
     // FUNCTION: SWBF2 0x007015a0
     virtual void _StaticInit() const;
 
     // FUNCTION: SWBF2 0x006ff7c0
-    virtual pcRedShaderDef* GetShaderDef() const;
 
     // FUNCTION: SWBF2 0x006ff990
-    virtual void InitFixedFunctionShaderDef() const;
 
 public:
 
@@ -70,30 +67,6 @@ public:
 
     RedMaterial m_material;
     bool m_lightingInSeparatePass;
-
-    // GLOBAL: SWBF2 0x009c926c
-    static unsigned int s_uiID;
-
-    // GLOBAL: SWBF2 0x009c9270
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c927c
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9288
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9294
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c938c
-    static unsigned int s_uiRenderTypeHash;
-
-    // GLOBAL: SWBF2 0x009c934c
-    static pcRedShaderDef s_shaderDef;
-
-    // GLOBAL: SWBF2 0x009c92a8
-    static pcNormalShader s_Factory;
 
 private:
 
@@ -122,7 +95,6 @@ private:
                float fSpecularPower);
 
     // FUNCTION: SWBF2 0x00701460
-    void _InitPipelineFuncArray();
 
     void UpdateAnimation();
 };

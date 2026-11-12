@@ -24,7 +24,7 @@ unsigned int FoleyFXColliderClass::GetFoleyFXClassID() const
 // FUNCTION: SWBF2 0x0052c690
 bool FoleyFXColliderClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty != 0x99D55922)
+    if (uProperty != 0x99D55922 /* "FoleyFXClass" */)
     {
         return false;
     }

@@ -12,6 +12,7 @@ class MountedTurretClass;
 class EntityBuildingAnimatedArmedClass : public EntityBuildingAnimatedClass
 {
 public:
+    static const int kMaxTurrets = 8;
     EntityBuildingAnimatedArmedClass(unsigned int uHash);
 
     EntityBuildingAnimatedArmedClass(EntityBuildingAnimatedArmedClass* pBase, unsigned int uHash);
@@ -28,7 +29,7 @@ public:
     static PblHash rttiHashEntityBuildingAnimatedArmedClass;
     static const char rttiNameEntityBuildingAnimatedArmedClass[];
 
-    MountedTurretClass* mTurretClass[8];
+    MountedTurretClass* mTurretClass[kMaxTurrets];
 };
   
  
@@ -46,6 +47,7 @@ class Trackable;
 class EntityBuildingAnimatedArmed : public EntityBuildingAnimated
 {
 public:
+    static const int kMaxTurrets = EntityBuildingAnimatedArmedClass::kMaxTurrets;
     EntityBuildingAnimatedArmed(EntityBuildingAnimatedArmedClass* pClass, const EntityDesc& desc);
     virtual ~EntityBuildingAnimatedArmed();
     virtual bool IsRtti(unsigned int uRtti) const;
@@ -74,7 +76,7 @@ public:
     static PblHash rttiHashEntityBuildingAnimatedArmed;
     static const char rttiNameEntityBuildingAnimatedArmed[];
 
-    MountedTurret* mTurret[8];
+    MountedTurret* mTurret[kMaxTurrets];
     int mNumTurrets;
 
     char mTailPadding[0xc];

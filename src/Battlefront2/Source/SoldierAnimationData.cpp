@@ -105,7 +105,7 @@ void SoldierAnimationData::ReadConfig(PblConfig& config, const char* pcName)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x514e7f54:
+        case 0x514e7f54: /* "LowResPose" */
             if (data.GetNumArgs() >= 1 && data.IsFloatArg(0))
             {
                 float fFrame = data.GetFloatArg(0);
@@ -113,10 +113,10 @@ void SoldierAnimationData::ReadConfig(PblConfig& config, const char* pcName)
                 {
                     switch (PblHash(data.GetStringArg(1)))
                     {
-                    case 0x66b6cdea:
+                    case 0x66b6cdea: /* "Seconds" */
                         fFrame /= ANIM_FRAME_SPEED;
                         break;
-                    case 0x7b71324f:
+                    case 0x7b71324f: /* "Frames" */
                         break;
                     default:
                         fFrame /= ANIM_FRAME_SPEED;
@@ -131,35 +131,35 @@ void SoldierAnimationData::ReadConfig(PblConfig& config, const char* pcName)
             }
             break;
 
-        case 0x3d31a706:
+        case 0x3d31a706: /* "AimType" */
             if (data.IsStringArg(0))
             {
                 switch (PblHash(data.GetStringArg(0)))
                 {
-                case 0xada7afdb:
+                case 0xada7afdb: /* "none" */
                     SetAimType(AIM_NONE);
                     break;
-                case 0x32694bc3:
+                case 0x32694bc3: /* "Head" */
                     SetAimType(AIM_HEAD);
                     break;
-                case 0x8f5b73c4:
+                case 0x8f5b73c4: /* "Torso" */
                     SetAimType(AIM_TORSO);
                     break;
-                case 0x8d3fa718:
+                case 0x8d3fa718: /* "FullBody" */
                     SetAimType(AIM_FULLBODY);
                     break;
                 }
             }
             break;
 
-        case 0x1739d050:
+        case 0x1739d050: /* "BlendTimeTo" */
             if (data.GetNumArgs() >= 2 && data.IsStringArg(0) && data.IsFloatArg(1))
             {
                 const char* pcTarget = data.GetStringArg(0);
                 float fTime = data.GetFloatArg(1);
 
                 if (data.GetNumArgs() >= 3 && data.IsStringArg(1) &&
-                    PblHash(data.GetStringArg(2)) == 0x7b71324f)
+                    PblHash(data.GetStringArg(2)) == 0x7b71324f /* "Frames" */)
                 {
                     fTime *= ANIM_FRAME_SPEED;
                 }
@@ -185,13 +185,13 @@ void SoldierAnimationData::ReadConfig(PblConfig& config, const char* pcName)
             }
             break;
 
-        case 0x8d1a7a7d:
+        case 0x8d1a7a7d: /* "BlendOutTime" */
             if (data.IsFloatArg(0))
             {
                 float fTime = data.GetFloatArg(0);
 
                 if (data.GetNumArgs() >= 2 && data.IsStringArg(1) &&
-                    PblHash(data.GetStringArg(2)) == 0x7b71324f)
+                    PblHash(data.GetStringArg(2)) == 0x7b71324f /* "Frames" */)
                 {
                     fTime *= ANIM_FRAME_SPEED;
                 }
@@ -199,7 +199,7 @@ void SoldierAnimationData::ReadConfig(PblConfig& config, const char* pcName)
             }
             break;
 
-        case 0x8da5a75a:
+        case 0x8da5a75a: /* "SyncType" */
             if (data.IsStringArg(0))
             {
                 const char* pcSync = data.GetStringArg(0);
@@ -208,10 +208,10 @@ void SoldierAnimationData::ReadConfig(PblConfig& config, const char* pcName)
                 {
                     switch (PblHash(data.GetStringArg(1)))
                     {
-                    case 0xfc82911d:
+                    case 0xfc82911d: /* "Relative" */
                         bByTime = false;
                         break;
-                    case 0x4dcb9735:
+                    case 0x4dcb9735: /* "ByTime" */
                         bByTime = true;
                         break;
                     }
@@ -220,13 +220,13 @@ void SoldierAnimationData::ReadConfig(PblConfig& config, const char* pcName)
             }
             break;
 
-        case 0x999ec9a6:
+        case 0x999ec9a6: /* "BlendInTime" */
             if (data.IsFloatArg(0))
             {
                 float fTime = data.GetFloatArg(0);
 
                 if (data.GetNumArgs() >= 2 && data.IsStringArg(1) &&
-                    PblHash(data.GetStringArg(2)) == 0x7b71324f)
+                    PblHash(data.GetStringArg(2)) == 0x7b71324f /* "Frames" */)
                 {
                     fTime *= ANIM_FRAME_SPEED;
                 }
@@ -234,7 +234,7 @@ void SoldierAnimationData::ReadConfig(PblConfig& config, const char* pcName)
             }
             break;
 
-        case 0xddef486b:
+        case 0xddef486b: /* "Loop" */
             if (data.GetNumArgs() == 0)
             {
                 SetLoopType(LOOP_RESTART);
@@ -243,13 +243,13 @@ void SoldierAnimationData::ReadConfig(PblConfig& config, const char* pcName)
             {
                 switch (PblHash(data.GetStringArg(0)))
                 {
-                case 0x1c36d31c:
+                case 0x1c36d31c: /* "FinalFrame" */
                     SetLoopType(LOOP_FINAL_FRAME);
                     break;
-                case 0x6a8e75aa:
+                case 0x6a8e75aa: /* "End" */
                     SetLoopType(LOOP_END);
                     break;
-                case 0xfe9c11ec:
+                case 0xfe9c11ec: /* "Restart" */
                     SetLoopType(LOOP_RESTART);
                     break;
                 }
@@ -380,15 +380,15 @@ void SoldierAnimationData::InitAnimationData(bool bDefaults)
         {
             switch (SoldierAnimationBank::GetComboAnimationNameHash((SoldierAnimationBank::COMBO_ANIMATION)iAnim))
             {
-            case 0x2509cd06:
+            case 0x2509cd06: /* "stand_attack1a" */
                 fBlendInTime = 0.15f;
                 break;
-            case 0x1e74e488:
-            case 0x2309c9e0:
-            case 0xb97d9099:
+            case 0x1e74e488: /* "stand_attack1a_end" */
+            case 0x2309c9e0: /* "stand_attack1c" */
+            case 0xb97d9099: /* "stand_attack1b_end" */
                 fBlendOutTime = 0.15f;
                 break;
-            case 0x2409cb73:
+            case 0x2409cb73: /* "stand_attack1b" */
                 break;
             default:
                 continue;
@@ -787,7 +787,7 @@ void SoldierAnimationData::Read(PblFileChunk& chunk)
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (data.GetId() != 0xe145ee5d || !config.IsScopeNext())
+        if (data.GetId() != 0xe145ee5d /* "Animation" */ || !config.IsScopeNext())
         {
             continue;
         }

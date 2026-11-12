@@ -1,5 +1,6 @@
 #include <d3dx9math.h>
 #include "MountedTurret.h"
+#include "EntityFlyer.h"
 
 #include <float.h>
 #include <math.h>
@@ -24,7 +25,7 @@
 #include "UnitController.h"
 #include "UnitStationaryController.h"
 #include "VehicleManager.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "CollisionObject.h"
 #include "EntitySoldier.h"
 #include "PebbleFL/Common/PblHandle.h"
@@ -173,36 +174,14 @@ void RemoveChildren(const GameObject* pObject, RedPose& rPose, int iBone)
 extern bool netFrameLock;
 extern bool netIsLocalTurn;
 
-class EntityFlyer
-{
-public:
-    enum State
-    {
-        LANDED = 0,
-        TAKEOFF = 1,
-        FLYING = 2,
-        LANDING = 3,
-        CRASHING = 4,
-        CRASHED = 5
-    };
+// SYNTHETIC: SWBF2 0x00404310
+// `dynamic initializer for 'MountedTurret::sMemoryPool''
+// SYNTHETIC: SWBF2 0x00768d20
+// `dynamic atexit destructor for 'MountedTurret::sMemoryPool''
 
-    char mFlyerBaseStorage[0x564];
-    State mState;
-
-    static PblHash rttiHashEntityFlyer;
-};
- 
-
-// SYNTHETIC: SWBF2 0x00404340
-// `dynamic initializer for 'MountedTurret::rttiHashMountedTurret''
-// MountedTurret::rttiHashMountedTurret
-
-// GLOBAL: SWBF2 0x01ecb150
-// MountedTurret::rttiHashMountedTurret
-PblHash MountedTurret::rttiHashMountedTurret("MountedTurret");
-// GLOBAL: SWBF2 0x0078a57c
-// MountedTurret::rttiNameMountedTurret
-const char MountedTurret::rttiNameMountedTurret[] = "MountedTurret";
+// GLOBAL: SWBF2 0x01ecb158
+// MountedTurret::sMemoryPool
+MemoryPool MountedTurret::sMemoryPool("MountedTurret", sizeof(MountedTurret));
 
 // SYNTHETIC: SWBF2 0x00404330
 // `dynamic initializer for 'MountedTurretClass::rttiHashMountedTurretClass''
@@ -215,14 +194,16 @@ PblHash MountedTurretClass::rttiHashMountedTurretClass("MountedTurretClass");
 // MountedTurretClass::rttiNameMountedTurretClass
 const char MountedTurretClass::rttiNameMountedTurretClass[] = "MountedTurretClass";
 
-// SYNTHETIC: SWBF2 0x00404310
-// `dynamic initializer for 'MountedTurret::sMemoryPool''
-// SYNTHETIC: SWBF2 0x00768d20
-// `dynamic atexit destructor for 'MountedTurret::sMemoryPool''
+// SYNTHETIC: SWBF2 0x00404340
+// `dynamic initializer for 'MountedTurret::rttiHashMountedTurret''
+// MountedTurret::rttiHashMountedTurret
 
-// GLOBAL: SWBF2 0x01ecb158
-// MountedTurret::sMemoryPool
-MemoryPool MountedTurret::sMemoryPool("MountedTurret", sizeof(MountedTurret));
+// GLOBAL: SWBF2 0x01ecb150
+// MountedTurret::rttiHashMountedTurret
+PblHash MountedTurret::rttiHashMountedTurret("MountedTurret");
+// GLOBAL: SWBF2 0x0078a57c
+// MountedTurret::rttiNameMountedTurret
+const char MountedTurret::rttiNameMountedTurret[] = "MountedTurret";
 
 
 
@@ -394,7 +375,7 @@ MountedTurret::MountedTurret(GameObject* pParent, MountedTurretClass* pClass, Re
         }
     }
 
-    for (int iChannel = 0; iChannel < 2; ++iChannel)
+    for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
     {
         mWeaponIndex[iChannel] = -1;
         for (int i = 0; i < mClass->mWeaponCount; ++i)
@@ -484,7 +465,7 @@ void MountedTurret::DeactivatePhysics()
         }
     }
     mPostCollision.DeactivateThread();
-    static_cast<Controllable*>(this)->DeactivateThread();
+    ((Controllable*)this)->DeactivateThread();
 }
 
 // FUNCTION: SWBF2 0x005a5a20
@@ -539,7 +520,7 @@ bool MountedTurret::PostCollisionUpdate(float)
             (NetGame::IsClient() || (NetGame::IsHost() && NetGame::IsOneWorld())) &&
             netIsLocalTurn)
         {
-            if (netInterpolator.GetIndex(mInterpIndex, 1, pSoldier->PblHandled::GetHandleId()))
+            if (netInterpolator.GetIndex(mInterpIndex, 1, pSoldier->GetHandleId()))
             {
                 netInterpolator.SetNext(mInterpIndex, &mRootMatrix);
                 netInterpolator.Prev(mInterpIndex);
@@ -581,7 +562,7 @@ void MountedTurret::GetPilotMatrix(const PblMatrix& mIn, PblMatrix& mOut)
                 if (!netFrameLock && NetGame::IsEnabled())
                 {
                     int iIndex = mInterpIndex;
-                    if (netInterpolator.GetIndex(iIndex, 1, static_cast<EntitySoldier*>(pPilot)->PblHandled::GetHandleId()) &&
+                    if (netInterpolator.GetIndex(iIndex, 1, ((EntitySoldier*)pPilot)->GetHandleId()) &&
                         iIndex == mInterpIndex)
                     {
                         netInterpolator.GetMat(mInterpIndex, mNewRoot);
@@ -646,7 +627,7 @@ bool MountedTurret::Update(float aDt)
     bool bTargetHandled = false;
 
     if (iJoystick >= 0 &&
-        (!NetGame::IsEnabled() || (NetGame::IsClient() && netIsLocalTurn) ||
+        (!NetGame::IsEnabled() || ((netEnabledNext && netClientActive) && netIsLocalTurn) ||
          (NetGame::IsHost() && NetGame::IsOneWorld() && netIsLocalTurn)))
     {
         LockOnManager* pManager = LockOnManager::GetByPlayerIndex(iJoystick);
@@ -662,7 +643,7 @@ bool MountedTurret::Update(float aDt)
             int iTypes = 0;
             float fLockDist = 2000.0f;
             float fLoseDist = 2500.0f;
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < kNumWeaponChannels; ++i)
             {
                 int iIndex = mWeaponIndex[i];
                 if (iIndex != -1)
@@ -695,11 +676,11 @@ bool MountedTurret::Update(float aDt)
             }
         }
     }
-    else if (mPlayerId >= 0 && iJoystick < 0 && NetGame::IsEnabled() && !NetGame::IsClient())
+    else if (mPlayerId >= 0 && iJoystick < 0 && NetGame::IsEnabled() && !(netEnabledNext && netClientActive))
     {
 
         int iTypes = 0;
-        for (int i = 0; i < 2; ++i)
+        for (int i = 0; i < kNumWeaponChannels; ++i)
         {
             int iIndex = mWeaponIndex[i];
             if (iIndex != -1)
@@ -711,7 +692,7 @@ bool MountedTurret::Update(float aDt)
         mAllowedLockTypes = iTypes;
     }
 
-    if (mPlayerId >= 0 && !(NetGame::IsEnabled() && NetGame::IsClient()) && !bTargetHandled)
+    if (mPlayerId >= 0 && !(NetGame::IsEnabled() && (netEnabledNext && netClientActive)) && !bTargetHandled)
     {
         GameObject* pTarget = GetTargetLockedObj();
         if (pTarget &&
@@ -755,7 +736,7 @@ bool MountedTurret::Update(float aDt)
             SwitchControlView(mPlayerId);
         }
 
-        if (!(NetGame::IsEnabled() && NetGame::IsClient()))
+        if (!(NetGame::IsEnabled() && (netEnabledNext && netClientActive)))
         {
             if (mControlUse.IsPressed() || mParent->IsDisabled() ||
                 mParent->GetTeam() != pPilot->GetGameObject()->GetTeam())
@@ -788,7 +769,7 @@ bool MountedTurret::Update(float aDt)
 
     if (mParent->GetControllableList().GetCount() == 1)
     {
-        for (int iChannel = 0; iChannel < 2; ++iChannel)
+        for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
         {
             int iIndex = mWeaponIndex[iChannel];
             if (iIndex < 0 || mControlSwitch[iChannel] == 0.0f)
@@ -1110,24 +1091,18 @@ bool MountedTurret::Update(float aDt)
         else
         {
 
-            PblVector3 vBack(-mEyeDir.x, -mEyeDir.y, -mEyeDir.z);
-            PblQuaternion targetRot(DirectionMatrix(vBack, mAimMatrix.GetYAxis(), gVectorZero));
+            PblMatrix mLook =
+                DirectionMatrix(PblVector3(-mEyeDir.x, -mEyeDir.y, -mEyeDir.z), mAimMatrix.GetYAxis(), gVectorZero);
+            PblQuaternion qLook = PblQuaternion(mLook);
             float fSin;
             float fCos;
             PblMath::SinCos(&fSin, &fCos, -mClass->mCameraSettings.GetCameraTiltValue() * 0.5f);
             PblQuaternion tiltRot;
             tiltRot._fX = fSin * gVectorUnitX.x;
-            tiltRot._fY = fSin * gVectorUnitX.y;
-            tiltRot._fZ = fSin * gVectorUnitX.z;
+            tiltRot._fY = gVectorUnitX.y * fSin;
+            tiltRot._fZ = gVectorUnitX.z * fSin;
             tiltRot._fS = fCos;
-            PblQuaternion qRot = targetRot * tiltRot;
-            D3DXQUATERNION qUnit;
-            PblMatrix mRotation;
-            D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRotation), D3DXQuaternionNormalize(&qUnit, reinterpret_cast<const D3DXQUATERNION*>(&qRot)));
-            mRotation.m[3][0] = gVectorZero.x;
-            mRotation.m[3][1] = gVectorZero.y;
-            mRotation.m[3][2] = gVectorZero.z;
-            mRotation.m[3][3] = 1.0f;
+            PblMatrix mRotation(qLook * tiltRot, gVectorZero);
 
             PblVector3& vStart = mTargetInfo.mAimStart;
             vStart = mClass->mCameraSettings.CalcCameraPoint(
@@ -1216,12 +1191,12 @@ void MountedTurret::UpdateSound(int prevAngle, int angle, float fAngle, float fA
             pVoice->SetPitch(minSoundPitch > fPitch ? minSoundPitch : (fPitch > soundPitch ? soundPitch : fPitch));
 
             float fGain = soundGain * t;
-            static_cast<Snd::VoiceVirtualBus*>(pVoice)->SetGain(0.0f > fGain ? 0.0f : (fGain > 1.0f ? 1.0f : fGain));
+            ((Snd::VoiceVirtualBus*)pVoice)->SetGain(0.0f > fGain ? 0.0f : (fGain > 1.0f ? 1.0f : fGain));
         }
     }
     else if (controllable.GetPlaying())
     {
-        Snd::VoiceVirtualBus* pVoice = static_cast<Snd::VoiceVirtualBus*>(controllable.GetVoiceVirtual());
+        Snd::VoiceVirtualBus* pVoice = (Snd::VoiceVirtualBus*)controllable.GetVoiceVirtual();
         if (pVoice)
         {
             Snd::SourceBus* pBus = pVoice;
@@ -1392,7 +1367,7 @@ void MountedTurret::Render(const PblMatrix& aRootMatrix, const PblMatrix& aInvRo
             {
                 EntitySoldier* pSoldier = (EntitySoldier*)mPilot->GetEntity();
                 int idx = mInterpIndex;
-                if (netInterpolator.GetIndex(idx, 1, pSoldier->PblHandled::GetHandleId()) &&
+                if (netInterpolator.GetIndex(idx, 1, pSoldier->GetHandleId()) &&
                     idx == mInterpIndex)
                 {
                     netInterpolator.GetMat(mInterpIndex, smoothedMat);
@@ -1422,7 +1397,7 @@ void MountedTurret::Render(const PblMatrix& aRootMatrix, const PblMatrix& aInvRo
         {
             EntitySoldier* pSoldier = (EntitySoldier*)mPilot->GetEntity();
             int idx = mInterpIndex;
-            if (netInterpolator.GetIndex(idx, 1, pSoldier->PblHandled::GetHandleId()) &&
+            if (netInterpolator.GetIndex(idx, 1, pSoldier->GetHandleId()) &&
                 idx == mInterpIndex)
             {
                 bSmoothed = true;
@@ -1523,11 +1498,11 @@ MountedTurretClass::MountedTurretClass(unsigned int uHash)
     memset(mWeaponClass, 0, sizeof(mWeaponClass));
     sWeaponSection = 0;
     memset(mWeaponAmmo, 0, sizeof(mWeaponAmmo));
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < kMaxWeapons; ++i)
     {
         mWeaponAmmo[i].bFlagAmmoInfinite = 1;
     }
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < kMaxWeapons; ++i)
     {
         mWeaponChannel[i] = i;
     }
@@ -1581,27 +1556,27 @@ bool MountedTurretClass::SetProperty(unsigned int uHash, const char* pcValue, co
 {
     switch (uHash)
     {
-    case 0x0F77C4E8:
-    case 0x5433F589:
+    case 0x0F77C4E8: /* "TurnRate" */
+    case 0x5433F589: /* "MaxTurnSpeed" */
         sscanf(pcValue, "%f", &mTurnRate);
         break;
-    case 0xDE721CB4:
+    case 0xDE721CB4: /* "TurnFilter" */
         sscanf(pcValue, "%f", &mTurnFilter);
         break;
-    case 0xB9B8ABC3:
-    case 0xB5534BE0:
+    case 0xB9B8ABC3: /* "PitchRate" */
+    case 0xB5534BE0: /* "MaxPitchSpeed" */
         sscanf(pcValue, "%f", &mPitchRate);
         break;
-    case 0x9B0CA8C3:
+    case 0x9B0CA8C3: /* "PitchFilter" */
         sscanf(pcValue, "%f", &mPitchFilter);
         break;
-    case 0x0EBB87C8:
+    case 0x0EBB87C8: /* "YawTurnFactor" */
         sscanf(pcValue, "%f", &mYawTurnFactor);
         break;
-    case 0x0B2FC2F9:
+    case 0x0B2FC2F9: /* "PitchTurnFactor" */
         sscanf(pcValue, "%f", &mPitchTurnFactor);
         break;
-    case 0x2C3E8078:
+    case 0x2C3E8078: /* "YawLimits" */
         sscanf(pcValue, "%f %f", &mMinYaw, &mMaxYaw);
         mMinYaw *= 0.017453292f;
         mMaxYaw *= 0.017453292f;
@@ -1609,12 +1584,12 @@ bool MountedTurretClass::SetProperty(unsigned int uHash, const char* pcValue, co
         mShiftYaw = mMinYaw > 0.0f && mMinYaw <= 3.1415927f &&
                     mMaxYaw >= 3.1415927f && mMaxYaw < 6.2831855f;
         break;
-    case 0x3403B139:
+    case 0x3403B139: /* "PitchLimits" */
         sscanf(pcValue, "%f %f", &mMinPitch, &mMaxPitch);
         mMinPitch *= 0.017453292f;
         mMaxPitch *= 0.017453292f;
         break;
-    case 0xF2AA4A90:
+    case 0xF2AA4A90: /* "MountPos" */
     {
         float x, y, z;
         sscanf(pcValue, "%f %f %f", &x, &y, &z);
@@ -1623,7 +1598,7 @@ bool MountedTurretClass::SetProperty(unsigned int uHash, const char* pcValue, co
         mMountPos.z = z;
         break;
     }
-    case 0xB69A7CB4:
+    case 0xB69A7CB4: /* "TurretNodeName" */
         mMountHash = PblTEMPHash(pcValue);
         if (pModel)
         {
@@ -1640,60 +1615,60 @@ bool MountedTurretClass::SetProperty(unsigned int uHash, const char* pcValue, co
             }
         }
         break;
-    case 0xB371FC9A:
+    case 0xB371FC9A: /* "Controllable" */
         mIsControllable = atoi(pcValue) != 0;
         break;
-    case 0x9D39F68A:
+    case 0x9D39F68A: /* "AutoFire" */
         mIsAutoFire[sWeaponSection] = atoi(pcValue) != 0;
         break;
-    case 0x5D967EBC:
+    case 0x5D967EBC: /* "Virtual" */
         mIsVirtual = atoi(pcValue) != 0;
         break;
-    case 0xD6C12C3B:
+    case 0xD6C12C3B: /* "TrackUseRoot" */
         mTrackUseRoot = atoi(pcValue) != 0;
         break;
-    case 0x865061FC:
+    case 0x865061FC: /* "ForceLockAimerToParentAimer" */
         mForceLockAimerToParentAimer = atoi(pcValue) != 0;
         break;
-    case 0x1FA43B99:
+    case 0x1FA43B99: /* "TurretYawSound" */
         mTurretYawSound.SetID(pcValue, true, false);
         break;
-    case 0x1503F425:
+    case 0x1503F425: /* "TurretYawSoundPitch" */
         sscanf(pcValue, "%f", &mTurretYawSoundPitch);
         break;
-    case 0x28F016D2:
+    case 0x28F016D2: /* "TurretPitchSound" */
         mTurretPitchSound.SetID(pcValue, true, false);
         break;
-    case 0x4ED7A4D0:
+    case 0x4ED7A4D0: /* "TurretPitchSoundPitch" */
         sscanf(pcValue, "%f", &mTurretPitchSoundPitch);
         break;
-    case 0x4C39154D:
+    case 0x4C39154D: /* "TurretMoveSound" */
         mTurretYawSound.SetID(pcValue, true, false);
         mTurretPitchSound.SetID(pcValue, true, false);
         break;
-    case 0xE9D0FB69:
+    case 0xE9D0FB69: /* "TurretActivateSound" */
         mTurretActivateSound.SetID(pcValue, true, false);
         break;
-    case 0x8E5DA6E8:
+    case 0x8E5DA6E8: /* "TurretAmbientSound" */
         mTurretAmbientSound.SetID(pcValue, true, false);
         break;
-    case 0xF84AA204:
+    case 0xF84AA204: /* "TurretDeactivateSound" */
         mTurretDeactivateSound.SetID(pcValue, true, false);
         break;
-    case 0x8822CB3C:
+    case 0x8822CB3C: /* "TurretStartSound" */
         mTurretStart.SetID(pcValue, true, false);
         break;
-    case 0xC13068B6:
+    case 0xC13068B6: /* "TurretStopSound" */
         mTurretStop.SetID(pcValue, true, false);
         break;
-    case 0x6363D774:
+    case 0x6363D774: /* "firstperson" */
         mFirstPersonModelHandle = FirstPerson::AddGeometry(pcValue);
         break;
-    case 0xD0329E80:
+    case 0xD0329E80: /* "WeaponSection" */
         sWeaponSection = atoi(pcValue) - 1;
         break;
-    case 0x6F332041:
-    case 0xFBF47DBA:
+    case 0x6F332041: /* "Weapon" */
+    case 0xFBF47DBA: /* "WeaponName" */
     {
         mWeaponClass[sWeaponSection] = WeaponClass::Find(PblHash(pcValue));
         int iCount = sWeaponSection + 1;
@@ -1704,10 +1679,10 @@ bool MountedTurretClass::SetProperty(unsigned int uHash, const char* pcValue, co
         mWeaponCount = iCount;
         break;
     }
-    case 0x16472328:
+    case 0x16472328: /* "WeaponChannel" */
         sscanf(pcValue, "%d", &mWeaponChannel[sWeaponSection]);
         break;
-    case 0xDC19BD13:
+    case 0xDC19BD13: /* "WeaponAmmo" */
     {
         int iAmmo = 0;
         sscanf(pcValue, "%d", &iAmmo);
@@ -1719,7 +1694,7 @@ bool MountedTurretClass::SetProperty(unsigned int uHash, const char* pcValue, co
         }
         break;
     }
-    case 0x8585BB8A:
+    case 0x8585BB8A: /* "WeaponShareAmmo" */
     {
         int iWeapon = 0;
         sscanf(pcValue, "%d", &iWeapon);
@@ -1737,7 +1712,7 @@ bool MountedTurretClass::SetProperty(unsigned int uHash, const char* pcValue, co
         }
         break;
     }
-    case 0x9455A446:
+    case 0x9455A446: /* "WeaponShareHeat" */
     {
         int iWeapon = 0;
         sscanf(pcValue, "%d", &iWeapon);

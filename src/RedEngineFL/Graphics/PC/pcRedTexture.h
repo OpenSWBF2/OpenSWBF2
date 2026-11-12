@@ -102,6 +102,55 @@ public:
     static PblList<RedTexture> s_defaultPoolTextures;
 };
 
+inline const RedTexture* RedTexture::GetFirst()
+{
+    return PblHashTable<RedTexture, 4096>::Itor(s_textureHashTable);
+}
+
+// FUNCTION: SWBF2 0x00544ae0
+inline const RedTexture* RedTexture::GetLast()
+{
+    const RedTexture* pLast = 0;
+    for (PblHashTable<RedTexture, 4096>::Itor it(s_textureHashTable); (RedTexture*)it; ++it)
+    {
+        pLast = it;
+    }
+    return pLast;
+}
+
+// FUNCTION: SWBF2 0x00544b50
+inline const RedTexture* RedTexture::GetNext(const RedTexture* const pTexture)
+{
+    bool bFound = false;
+    PblHashTable<RedTexture, 4096>::Itor it(s_textureHashTable);
+    while ((RedTexture*)it && !bFound)
+    {
+        bFound = (pTexture == it);
+        ++it;
+    }
+    const RedTexture* pNext = it;
+    if (!pNext)
+    {
+        pNext = PblHashTable<RedTexture, 4096>::Itor(s_textureHashTable);
+    }
+    return pNext;
+}
+
+// FUNCTION: SWBF2 0x00544bf0
+inline const RedTexture* RedTexture::GetPrev(const RedTexture* const pTexture)
+{
+    const RedTexture* pPrev = pTexture;
+    for (PblHashTable<RedTexture, 4096>::Itor it(s_textureHashTable); (RedTexture*)it; ++it)
+    {
+        if (pTexture == it)
+        {
+            break;
+        }
+        pPrev = it;
+    }
+    return pPrev;
+}
+
  
  
  

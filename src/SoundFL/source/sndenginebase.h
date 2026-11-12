@@ -17,6 +17,7 @@ class Voice;
 class EngineBase
 {
 public:
+    static const int kMaxListeners = 4;
 
     enum SpeakerConfig
     {
@@ -76,7 +77,7 @@ public:
 
     static MemoryBitmap smSoundRAMAllocator;
 
-    static Listener smListeners[4];
+    static Listener smListeners[kMaxListeners];
 };
 
  

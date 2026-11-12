@@ -136,7 +136,7 @@ const JetJumpHint* JetJumpHintHelper::HELPERFindHint() const
 // FUNCTION: SWBF2 0x0056b260
 const JetJumpHint* JetJumpHintHelper::SelectHint(int iCount, const BaseHint** ppHints) const
 {
-    static_cast<const Trackable*>(GetMe())->GetGameObject();
+    GetMe()->GetGameObject();
 
     const JetJumpHint* pBest = NULL;
     float fBest = FLT_MAX;
@@ -144,7 +144,7 @@ const JetJumpHint* JetJumpHintHelper::SelectHint(int iCount, const BaseHint** pp
     {
         --iCount;
         const int i = AIUtil::GetRandomInt(0, iCount);
-        const JetJumpHint* pHint = static_cast<const JetJumpHint*>(ppHints[i]);
+        const JetJumpHint* pHint = (const JetJumpHint*)ppHints[i];
         const float fRating = IsHintSuitable(pHint);
         if (fRating < fBest)
         {

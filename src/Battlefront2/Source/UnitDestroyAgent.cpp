@@ -13,7 +13,7 @@
 #include "PathFinder.h"
 #include "UnitController.h"
 #include "Weapon.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblRandom.h"
 
 
@@ -34,11 +34,27 @@ namespace
 
     inline const CollisionObject* GetCollisionObject(const GameObject* pObject)
     {
-        return static_cast<const CollisionObject*>(pObject);
+        return (const CollisionObject*)pObject;
     }
     inline const Damageable* GetDamageable(const GameObject* pObject)
     {
-        return static_cast<const Damageable*>(pObject);
+        return (const Damageable*)pObject;
+    }
+
+    inline const GameObject* ResolveHandle(PblHandle<const GameObject>& handle)
+    {
+        const GameObject* pObject = handle.mObject;
+        if (pObject)
+        {
+            if (pObject->GetHandleId() ==
+                handle.mSavedHandleId)
+            {
+                return pObject;
+            }
+            handle.mObject = 0;
+            handle.mSavedHandleId = 0;
+        }
+        return 0;
     }
 
     inline const WeaponClass* GetWeaponClass(const Weapon* pWeapon)
@@ -208,7 +224,7 @@ void UnitDestroyAgent::UpdateStatePostVision(float dt)
         if (rMyHealth.mCurHealth > rMyHealth.mMaxHealth * 0.5f &&
             mTarget.mType == AI::GTT_GAMEOBJECT && !bMelee && GetLowLevel().IsNavigatorInProgress())
         {
-            if (mTarget.mGameObj->IsRtti(EntityBuilding::rttiHashEntityBuilding))
+            if (mTarget.mGameObj->IsRtti(EntityBuilding::GetRtti()))
             {
                 if (mTarget.GetGameObject() == GetThreatManager(mCtrl)->GetVisibleObject())
                 {

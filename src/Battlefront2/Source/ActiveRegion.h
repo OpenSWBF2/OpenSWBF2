@@ -50,8 +50,6 @@ int Name(lua_State* L);
 int IsInside(lua_State* L);
 void Activate(RedRegion& region);
 void __fastcall Deactivate(RedRegion* pRegion);
-RedRegion* __fastcall Find(lua_State* L, int iIndex);
+RedRegion* Find(lua_State* L, int iIndex);
 
 }
-
-void* __fastcall InitRawListIterator(void** pCurrent, void* pEdx, const void* pSource);

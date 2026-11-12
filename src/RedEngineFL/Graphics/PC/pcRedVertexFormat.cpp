@@ -119,7 +119,7 @@ IDirect3DVertexDeclaration9* pcRedVertexFormat::CreateVertexDeclaration(
     }
 
     unsigned short usOffset = 0;
-    unsigned int uiCount = 0;
+    int uiCount = 0;
 
     if (uiVertexBufferRVF & 3)
     {

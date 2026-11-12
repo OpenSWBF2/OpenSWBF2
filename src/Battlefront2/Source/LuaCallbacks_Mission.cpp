@@ -1,4 +1,5 @@
 #include "PebbleFL/Common/PblMath.h"
+#include "PopupText.h"
 #include "AmmoCounter.h"
 #include <d3dx9math.h>
 #include "LuaCallbacks_Mission.h"
@@ -47,7 +48,7 @@
 #include "SpaceAssault.h"
 #include "Team.h"
 #include "TriggerRegionManager.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "Weapon.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "CombatUtil.h"
@@ -76,6 +77,7 @@
 #include "BirdEffect.h"
 #include "GameObject.h"
 #include "MissionTimer.h"
+#include "VehicleManager.h"
 #include "Timer.h"
 #include "HUDGameEvents.h"
 #include "HUDElementMap.h"
@@ -92,51 +94,17 @@
 #include "PebbleFL/Common/PblRandom.h"
 #include "PebbleFL/Common/PblHermite.h"
 #include <math.h>
-namespace PopupText
-{
-    void __fastcall ShowPopup(int iType, unsigned int uTextId);
-}
 
-namespace GameLoop
-{
-    extern bool mbHistoricalRules;
-}
-extern float sNotifyRadius;
+
+
+    
+
 extern int WORLD_EXTENTS;
 namespace ParticleSystem
 {
     void SetMaxDistanceBias(float fBias);
 }
 
-namespace PopupText
-{
-    extern int gNumHints; extern unsigned int gHints[64];
-}
-
-
-
-namespace PopupText
-{
-
-// FUNCTION: SWBF2 0x00620ec0
-static void AddHint(unsigned int uHint)
-{
-    if (PopupText::gNumHints < 64)
-    {
-        PopupText::gHints[PopupText::gNumHints++] = uHint;
-    }
-}
-}
-
-namespace VehicleManager
-{
-
-// FUNCTION: SWBF2 0x0066e380
-static void SetNotifyRadius(float fRadius)
-{
-    sNotifyRadius = fRadius;
-}
-}
 
 // FUNCTION: SWBF2 0x0058d8d0
 void* GetRegion(lua_State* L, int iIndex)
@@ -147,52 +115,6 @@ void* GetRegion(lua_State* L, int iIndex)
         return PblRegion::Contains(pRegion) ? (void*)pRegion : 0;
     }
     return PblRegion::Find(PblHash(luaL_checklstring(LuaHelper::mState, iIndex, 0)));
-}
-
-// FUNCTION: SWBF2 0x00491440
-void EndDisplay::SetEndMovie(const char* pcFirst, const char* pcSecond)
-{
-    strlcpy(mMovieFileName, pcFirst, sizeof(mMovieFileName));
-    strlcpy(mMovieIdName, pcSecond, sizeof(mMovieIdName));
-}
-
-// FUNCTION: SWBF2 0x00555830
-void HUD::ElementMap::SetNorth(float fNorth, bool bFlipNorth)
-{
-    HUD::ElementMap::sNorth = fNorth;
-    HUD::ElementMap::sFlipNorth = bFlipNorth;
-}
-
-// FUNCTION: SWBF2 0x00555870
-HUD::ElementMap* HUD::ElementMap::FindByIndex(int iIndex)
-{
-    int i = 0;
-    for (PblListSingle::Node* pNode = HUD::ElementMap::sMapList.mHead.mNext;
-         pNode != &HUD::ElementMap::sMapList.mHead; pNode = pNode->mNext, ++i)
-    {
-        HUD::ElementMap* pMap = (HUD::ElementMap*)pNode->GetObjectA(&HUD::ElementMap::sMapList,
-                                                                     offsetof(HUD::ElementMap, mMapNode));
-        if (i == iIndex)
-        {
-            return pMap;
-        }
-    }
-    return 0;
-}
-
-// FUNCTION: SWBF2 0x0045f5e0
-void CollisionManager::SetMaxCollisionDistance(float fDistance)
-{
-    if (CollisionManager::sInstance)
-    {
-        CollisionManager::sInstance->mMaxCollisionDistanceSq = fDistance * fDistance;
-    }
-}
-
-// FUNCTION: SWBF2 0x00657b90
-const char* Timer::GetName()
-{
-    return StringDB::Find(mId);
 }
 
 unsigned int Hash16(unsigned short const* pusString);
@@ -1217,13 +1139,13 @@ int SetHeroTeamRule(lua_State* L)
         {
             switch (PblHash(LuaHelper::GetString(1)))
             {
-            case 0x9ec703f1:
+            case 0x9ec703f1: /* "cycle" */
                 netHeroRuleTeam = 4;
                 break;
-            case 0xba2719ef:
+            case 0xba2719ef: /* "one" */
                 netHeroRuleTeam = 1;
                 break;
-            case 0xea81eea2:
+            case 0xea81eea2: /* "both" */
                 netHeroRuleTeam = 3;
                 break;
             }
@@ -1242,28 +1164,28 @@ int SetHeroPlayerRule(lua_State* L)
         {
             switch (PblHash(LuaHelper::GetString(1)))
             {
-            case 0x082ba9d5:
+            case 0x082ba9d5: /* "mostpoints" */
                 netHeroRulePlayer = 1;
                 break;
-            case 0x5fb6bb4f:
+            case 0x5fb6bb4f: /* "mostkills" */
                 netHeroRulePlayer = 2;
                 break;
-            case 0x2471dd69:
+            case 0x2471dd69: /* "mostdeaths" */
                 netHeroRulePlayer = 3;
                 break;
-            case 0xc01e36e1:
+            case 0xc01e36e1: /* "leastpoints" */
                 netHeroRulePlayer = 4;
                 break;
-            case 0xa97b828b:
+            case 0xa97b828b: /* "leastkills" */
                 netHeroRulePlayer = 5;
                 break;
-            case 0x76bdd7f5:
+            case 0x76bdd7f5: /* "leastdeaths" */
                 netHeroRulePlayer = 6;
                 break;
-            case 0x144f0c62:
+            case 0x144f0c62: /* "random" */
                 netHeroRulePlayer = 7;
                 break;
-            case 0xe614fa73:
+            case 0xe614fa73: /* "heroslayer" */
                 netHeroRulePlayer = 8;
                 break;
             }
@@ -1281,7 +1203,7 @@ int SetHeroRespawnRule(lua_State* L)
         if (!pProfile || pProfile->mGameOptions.mbHerosEnabled)
         {
             const char* pcRule = LuaHelper::GetString(1);
-            if (PblHash(pcRule) == 0x0ac95089)
+            if (PblHash(pcRule) == 0x0ac95089 /* "never" */)
             {
                 netHeroRuleRespawn = 1;
             }
@@ -1463,10 +1385,10 @@ int SetDenseEnvironment(lua_State* L)
     }
     CombatUtil::SetDenseEnvironment(bDense);
     if (!NetGame::IsEnabled() &&
-        Hash16(PlayerProfile::GetProfile(0)->GetName()) == 0x106408EBu &&
-        GameLoop::mMissionScriptHash == 0x56D4EA52u)
+        Hash16(PlayerProfile::GetProfile(0)->GetName()) == 0x106408EBu /* "wampa" */ &&
+        GameLoop::mMissionScriptHash == 0x56D4EA52u /* "end1g_hunt" */)
     {
-        unsigned int uiClassHash = 0xD85CB472u;
+        unsigned int uiClassHash = 0xD85CB472u /* "snw_inf_wampa" */;
         const char* pcClass = "snw_inf_wampa";
         LoadUtil::ReadDataFile("SIDE\\snw.lvl", 0, 0, &uiClassHash, 1, &pcClass);
         Team::sTeams[1]->AddClass(pcClass, 0, 0x7FFFFFFF);
@@ -1630,14 +1552,14 @@ int SetFlagGameplayType(lua_State* L)
     unsigned int uType = PblHash(LuaHelper::GetString(1));
     switch (uType)
     {
-    case 0x216b8b26:
+    case 0x216b8b26: /* "1flag" */
         FlagItem::SetGameplayType(FlagItem::FLAG_GAMEPLAY_1FLAG);
         break;
-    case 0x9db77da7:
+    case 0x9db77da7: /* "2flag" */
         FlagItem::SetGameplayType(FlagItem::FLAG_GAMEPLAY_2FLAG);
         break;
     default:
-        FlagItem::SetGameplayType(uType == 0xbed023b3 ? FlagItem::FLAG_GAMEPLAY_CAMPAIGN
+        FlagItem::SetGameplayType(uType == 0xbed023b3 /* "campaign" */ ? FlagItem::FLAG_GAMEPLAY_CAMPAIGN
                                                       : FlagItem::FLAG_GAMEPLAY_NONE);
         break;
     }
@@ -1809,7 +1731,7 @@ int MissionVictory(lua_State* L)
             }
         }
     }
-    Team::sWinningTeams = uWinningTeams;
+    Team::SetWinningTeams(uWinningTeams);
     return 0;
 }
 
@@ -1839,7 +1761,7 @@ int MissionDefeat(lua_State* L)
             }
         }
     }
-    Team::sWinningTeams = ~uLosingTeams;
+    Team::SetWinningTeams(~uLosingTeams);
     return 0;
 }
 
@@ -2032,19 +1954,19 @@ int AddAIGoal(lua_State* L)
 
     switch (PblHash(pcGoal))
     {
-    case 0x5aabb29b:
+    case 0x5aabb29b: /* "Conquest" */
         eType = AI::AIGOAL_CONQUEST;
         break;
-    case 0xc45b6745:
+    case 0xc45b6745: /* "Destroy" */
         eType = AI::AIGOAL_DESTROY;
         break;
-    case 0x4fed19c1:
+    case 0x4fed19c1: /* "Defend" */
         eType = AI::AIGOAL_DEFEND;
         break;
-    case 0x73f5632e:
+    case 0x73f5632e: /* "Deathmatch" */
         eType = AI::AIGOAL_DEATHMATCH;
         break;
-    case 0x9a8b1b9e:
+    case 0x9a8b1b9e: /* "CTFOffense" */
     {
         PblRegion* pRegion = PblRegion::Find(PblHash(LuaHelper::GetString(4)));
         if (pRegion)
@@ -2056,11 +1978,11 @@ int AddAIGoal(lua_State* L)
         }
         break;
     }
-    case 0xe12bcbe0:
+    case 0xe12bcbe0: /* "CTFDefense" */
         eType = AI::AIGOAL_CTFDEFENSE;
         target.mType = AI::GTT_FLAG;
         break;
-    case 0x5b6c4f70:
+    case 0x5b6c4f70: /* "Follow" */
         eType = AI::AIGOAL_FOLLOW;
         break;
     default:
@@ -2369,9 +2291,9 @@ int SetAIDifficulty(lua_State* L)
     {
         switch (PblHash(luaL_checkstring(LuaHelper::mState, 3)))
         {
-        case 0x05537a1b: AIDifficulty::SetAILuaModifier(iPlayer, iEnemy, 1); return 0;
-        case 0x35afd776: AIDifficulty::SetAILuaModifier(iPlayer, iEnemy, 2); return 0;
-        case 0xe4c35bdc: AIDifficulty::SetAILuaModifier(iPlayer, iEnemy, 3); return 0;
+        case 0x05537a1b: /* "easy" */ AIDifficulty::SetAILuaModifier(iPlayer, iEnemy, 1); return 0;
+        case 0x35afd776: /* "MEDIUM" */ AIDifficulty::SetAILuaModifier(iPlayer, iEnemy, 2); return 0;
+        case 0xe4c35bdc: /* "hard" */ AIDifficulty::SetAILuaModifier(iPlayer, iEnemy, 3); return 0;
         }
     }
     for (int i = 0; i < 3; ++i)
@@ -2454,7 +2376,7 @@ int EntityFlyerTakeOff(lua_State* L)
     EntityEx* pEntity = _GetEntity<EntityEx>(L, 1);
     if (pEntity && pEntity->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
-        static_cast<EntityFlyer*>(pEntity)->TakeOff();
+        ((EntityFlyer*)pEntity)->TakeOff();
     }
     return 0;
 }
@@ -2465,7 +2387,7 @@ int EntityFlyerLand(lua_State* L)
     EntityEx* pEntity = _GetEntity<EntityEx>(L, 1);
     if (pEntity && pEntity->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
-        static_cast<EntityFlyer*>(pEntity)->Land();
+        ((EntityFlyer*)pEntity)->Land();
     }
     return 0;
 }
@@ -2476,7 +2398,7 @@ int EntityFlyerInitAsFlying(lua_State* L)
     EntityEx* pEntity = _GetEntity<EntityEx>(L, 1);
     if (pEntity && pEntity->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
-        static_cast<EntityFlyer*>(pEntity)->InitAsFlying();
+        ((EntityFlyer*)pEntity)->InitAsFlying();
     }
     return 0;
 }
@@ -2487,7 +2409,7 @@ int EntityFlyerInitAsLanded(lua_State* L)
     EntityEx* pEntity = _GetEntity<EntityEx>(L, 1);
     if (pEntity && pEntity->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
-        static_cast<EntityFlyer*>(pEntity)->InitAsLanded();
+        ((EntityFlyer*)pEntity)->InitAsLanded();
     }
     return 0;
 }
@@ -3429,7 +3351,7 @@ int FillAsteroidRegion(lua_State* L)
     EntityClass* pClass = EntityClass::Find(PblHash(pcClass));
     if (pClass)
     {
-        static_cast<AsteroidClass*>(pClass)->FillRegion(pcRegion, iCount, vMin, vMax);
+        ((AsteroidClass*)pClass)->FillRegion(pcRegion, iCount, vMin, vMax);
     }
     return 0;
 }
@@ -3437,7 +3359,7 @@ int FillAsteroidRegion(lua_State* L)
 // FUNCTION: SWBF2 0x0058d820
 int ScriptCB_PlayerSuicide(lua_State* L)
 {
-    if (GameState::GetState() == 0x8ff60339 && lua_isnumber(LuaHelper::mState, 1))
+    if (GameState::GetState() == 0x8ff60339 /* "mission" */ && lua_isnumber(LuaHelper::mState, 1))
     {
         int iCamera = (int)(float)luaL_checknumber(LuaHelper::mState, 1);
         if (iCamera >= 0 && iCamera <= (int)GameLoop::mNumCameras - 1)
@@ -3478,7 +3400,7 @@ int EnterVehicle(lua_State* L)
     if (pCharacter && pCharacter->mClassPtr && pCharacter->mUnit &&
         pCharacter->mClassPtr->IsRtti(EntitySoldierClass::rttiHashEntitySoldierClass))
     {
-        EntitySoldier* pSoldier = static_cast<EntitySoldier*>(pCharacter->mUnit->GetEntity());
+        EntitySoldier* pSoldier = (EntitySoldier*)pCharacter->mUnit->GetEntity();
         pSoldier->EnterVehicle(pEntity->GetGameObject());
     }
     return 0;
@@ -3492,7 +3414,7 @@ int ExitVehicle(lua_State* L)
         pCharacter->mClassPtr->IsRtti(EntitySoldierClass::rttiHashEntitySoldierClass) &&
         pCharacter->mUnit && pCharacter->mUnit->GetEntity())
     {
-        static_cast<EntitySoldier*>(pCharacter->mUnit->GetEntity())->ExitVehicle(true, true);
+        ((EntitySoldier*)pCharacter->mUnit->GetEntity())->ExitVehicle(true, true);
     }
     return 0;
 }
@@ -3514,7 +3436,7 @@ int ForceAIOutOfVehicles(lua_State* L)
             if (pCharacter->mClassPtr->IsRtti(EntitySoldierClass::rttiHashEntitySoldierClass) &&
                 pCharacter->mUnit && pCharacter->mUnit->GetEntity())
             {
-                static_cast<EntitySoldier*>(pCharacter->mUnit->GetEntity())->ExitVehicle(true, true);
+                ((EntitySoldier*)pCharacter->mUnit->GetEntity())->ExitVehicle(true, true);
             }
         }
     }
@@ -3642,7 +3564,7 @@ int ShowObjectiveTextPopup(lua_State* L)
     unsigned int uText = PblHash(luaL_checklstring(LuaHelper::mState, 1, 0));
     if (PlayerProfile::GetProfile(0)->mGameOptions.mbObjectiveDetails)
     {
-        PopupText::ShowPopup(2, uText);
+        PopupText::ShowPopup(PopupText::OBJECTIVE, uText);
     }
     return 0;
 }
@@ -3650,7 +3572,7 @@ int ShowObjectiveTextPopup(lua_State* L)
 // FUNCTION: SWBF2 0x0058d7e0
 int ShowSelectionTextPopup(lua_State* L)
 {
-    PopupText::ShowPopup(3, PblHash(luaL_checklstring(LuaHelper::mState, 1, 0)));
+    PopupText::ShowPopup(PopupText::SELECTION, PblHash(luaL_checklstring(LuaHelper::mState, 1, 0)));
     return 0;
 }
 
@@ -3900,7 +3822,7 @@ int FillAsteroidPath(lua_State* L)
     EntityClass* pClass = EntityClass::Find(PblHash(pcClass));
     if (pClass)
     {
-        static_cast<AsteroidClass*>(pClass)->FillPath(pcPath, fDensity, iCount, vMin, vMax);
+        ((AsteroidClass*)pClass)->FillPath(pcPath, fDensity, iCount, vMin, vMax);
     }
     return 0;
 }

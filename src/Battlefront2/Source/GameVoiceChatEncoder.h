@@ -10,7 +10,7 @@
 
 namespace Snd
 {
-struct StreamPacket;
+class StreamPacket;
 }
 
 namespace GameVoiceChat

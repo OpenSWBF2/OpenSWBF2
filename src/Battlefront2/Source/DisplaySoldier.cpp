@@ -20,10 +20,11 @@
 #include "RedEngineFL/Graphics/RedShadingState.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
-namespace GameLoop
-{
-extern float sDeltaTime;
-}
+#include "GameLoop.h"
+
+
+
+
 
 extern PblVector3 gVectorZero;
 
@@ -254,9 +255,9 @@ void SoldierElement::RenderUsingContext(const PblMatrix& mContext, const RedColo
     SoldierAnimationBank::MAP eMap = (SoldierAnimationBank::MAP)0;
     if (mWeaponClass[mWeaponIndex])
     {
+        SoldierAnimationBank::BANK eBank = mClass->mAnimationBank;
         eMap = SoldierAnimationBank::FindMap(
-            mClass->mAnimationBank,
-            (SoldierAnimationBank::WEAPON)mWeaponClass[mWeaponIndex]->mSoldierAnimationWeapon);
+            eBank, (SoldierAnimationBank::WEAPON)mWeaponClass[mWeaponIndex]->mSoldierAnimationWeapon);
         if (eMap == SoldierAnimationBank::INVALID_MAP)
         {
             eMap = (SoldierAnimationBank::MAP)0;
@@ -278,12 +279,10 @@ void SoldierElement::RenderUsingContext(const PblMatrix& mContext, const RedColo
         mRender.m[1][3] = 0.0f;
 
         PblVector3 vBack = -mScreen[2];
-        PblVector3 vCross = CrossProduct(vBack, mGroundNormal);
-        mRender[0] = Normalize(vCross);
+        mRender[0] = Normalize(CrossProduct(vBack, mGroundNormal));
         mRender.m[0][3] = 0.0f;
 
-        vCross = CrossProduct(mScreen[0], mGroundNormal);
-        mRender[2] = Normalize(vCross);
+        mRender[2] = Normalize(CrossProduct(mScreen[0], mGroundNormal));
         mRender.m[2][3] = 0.0f;
     }
 
@@ -294,7 +293,7 @@ void SoldierElement::RenderUsingContext(const PblMatrix& mContext, const RedColo
 
     if (mClass->mAddon)
     {
-        mClass->mAddon->Render(mTentacles, gVectorZero, &pose, mRender, color, 0x4000000);
+        mClass->mAddon->Render(mTentacles, gVectorZero, &pose, PblMatrix(mRender), color, 0x4000000);
     }
     else if (mTentacles)
     {
@@ -328,15 +327,15 @@ void SoldierElement::RenderUsingContext(const PblMatrix& mContext, const RedColo
 
         RedShadingPose shadingPose;
         shadingPose.BindToModel((RedModel*)mModel->GetRedModel(0));
-        if (RedShadingState* pState = shadingPose.CreateShadingState(0xdc5803e9))
+        if (RedShadingState* pState = shadingPose.CreateShadingState(0xdc5803e9 /* "override_texture" */))
         {
-            pState->GetIntParam(0x891891e9) = mClass->mOverrideTextureHash;
+            pState->GetIntParam(0x891891e9 /* "diffuse_texture" */) = mClass->mOverrideTextureHash;
         }
         if (mClass->mOverrideTextureHash2)
         {
-            if (RedShadingState* pState = shadingPose.CreateShadingState(0xb98e11c1))
+            if (RedShadingState* pState = shadingPose.CreateShadingState(0xb98e11c1 /* "override_texture2" */))
             {
-                pState->GetIntParam(0x891891e9) = mClass->mOverrideTextureHash2;
+                pState->GetIntParam(0x891891e9 /* "diffuse_texture" */) = mClass->mOverrideTextureHash2;
             }
         }
         ((RedModel*)mModel->GetRedModel(0))->Render(&mRender, &pose, color, 0x4000000, &shadingPose);

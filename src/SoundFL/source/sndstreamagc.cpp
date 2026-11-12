@@ -51,9 +51,9 @@ StreamPacket* StreamAGC::GetPacket(unsigned int uiOutput)
         : 0;
     if (pPacket != 0)
     {
-        short* const pSamples = (short*)pPacket->mBuffer;
-        const unsigned int uiNumSamples = pPacket->mBufferUsed >> 1;
-        mPlaybackPosition = pPacket->mPos;
+        short* const pSamples = (short*)pPacket->GetBuffer();
+        const unsigned int uiNumSamples = pPacket->GetUsed() >> 1;
+        mPlaybackPosition = pPacket->GetPosition();
 
         for (unsigned int i = 0; i < uiNumSamples; i++)
         {
@@ -98,7 +98,7 @@ StreamPacket* StreamAGC::GetPacket(unsigned int uiOutput)
             }
         }
 
-        if ((pPacket->mFlags & 1) != 0)
+        if (pPacket->GetLast())
         {
             Stop();
         }

@@ -15,15 +15,15 @@
 #include "PebbleFL/Common/PblFile.h"
 
 // FUNCTION: SWBF2 0x00628c00
-bool* PAAnimationGroup::EnterClient()
+void PAAnimationGroup::EnterClient()
 {
-    return mActive = &mClientActive;
+    mActive = &mClientActive;
 }
 
 // FUNCTION: SWBF2 0x00628c10
-bool* PAAnimationGroup::LeaveClient()
+void PAAnimationGroup::LeaveClient()
 {
-    return mActive = &mHostActive;
+    mActive = &mHostActive;
 }
 
 // FUNCTION: SWBF2 0x00628530
@@ -60,118 +60,6 @@ void PAAnimationGroup::ClientGeometryCreated(CollisionObject* pHost, CollisionOb
 extern PblVector3 gVectorZero;
 extern bool netIsLocalTurn;
 extern bool netFrameLock;
-
-// FUNCTION: SWBF2 0x00628eb0
-void PAManagerInterpolator::Destroy()
-{
-    if (!netFrameLock)
-    {
-        DeactivateThread();
-    }
-}
-
-// FUNCTION: SWBF2 0x00628ed0
-bool PAManagerInterpolator::Update(float)
-{
-    mIsFrameUpdate = true;
-    if (mNextTotalTurnTime > 0.0f)
-    {
-        float fRemaining = mTotalTurnTime - mTotalFrameTime - mNextTotalTurnTime;
-        mTotalTurnTime = mNextTotalTurnTime;
-        mNextTotalTurnTime = 0.0f;
-        mTotalFrameTime = 0.0f;
-        PAManager::sInstance->Update(fRemaining);
-    }
-    float fTurnRatio = NetGame::GetTurnRatio();
-    PAManager::sInstance->Update(mTotalTurnTime * fTurnRatio - mTotalFrameTime);
-    mIsFrameUpdate = false;
-    mTotalFrameTime = mTotalTurnTime * fTurnRatio;
-    return true;
-}
-
-// FUNCTION: SWBF2 0x00629160
-void PAManager::CreateClient()
-{
-    pamanagerInterpolator.Create();
-    if (NetGame::IsOneWorld())
-    {
-        sInstance->DeactivateThread();
-        sInstance->ActivateThread(-99, PER_TURN);
-    }
-    else
-    {
-        sClientInstance = new PAManager;
-    }
-}
-
-// FUNCTION: SWBF2 0x00629200
-void PAManager::DestroyClient()
-{
-    if (NetGame::IsOneWorld())
-    {
-        pamanagerInterpolator.Destroy();
-    }
-    delete sClientInstance;
-    sClientInstance = NULL;
-}
-
-// FUNCTION: SWBF2 0x006292e0
-void PAManager::EnterClient()
-{
-    if (NetGame::IsOneWorld())
-    {
-        return;
-    }
-    sInstance = sClientInstance;
-    for (PblHashTable<PAAnimationGroup, 32>::Itor it = PAAnimationGroup::_HashTable.Begin();
-         it != PAAnimationGroup::_HashTable.End(); ++it)
-    {
-        (*it).EnterClient();
-    }
-    for (int i = 0; i < 255; ++i)
-    {
-        sPAAnims[i].mTimer = &sPAAnims[i].mClientTimer;
-        sPAAnims[i].mGeometry = &sPAAnims[i].mClientGeometry;
-    }
-    for (int i = 0; i < PAAnimationGroup::mNumHierarchies; ++i)
-    {
-        PAHierarchy& hierarchy = *PAAnimationGroup::mHierarchies[i];
-        hierarchy.mRoot.mGeometry = &hierarchy.mRoot.mClientGeometry;
-        for (int j = 0; j < hierarchy.mNumObjs; ++j)
-        {
-            hierarchy.mObjs[j].mGeometry = &hierarchy.mObjs[j].mClientGeometry;
-        }
-    }
-}
-
-// FUNCTION: SWBF2 0x006293d0
-void PAManager::LeaveClient()
-{
-    if (NetGame::IsOneWorld())
-    {
-        return;
-    }
-    sInstance = sHostInstance;
-    for (PblHashTable<PAAnimationGroup, 32>::Itor it = PAAnimationGroup::_HashTable.Begin();
-         it != PAAnimationGroup::_HashTable.End(); ++it)
-    {
-        (*it).LeaveClient();
-    }
-    for (int i = 0; i < 255; ++i)
-    {
-        sPAAnims[i].mTimer = &sPAAnims[i].mHostTimer;
-        sPAAnims[i].mGeometry = &sPAAnims[i].mHostGeometry;
-    }
-    for (int i = 0; i < PAAnimationGroup::mNumHierarchies; ++i)
-    {
-        PAHierarchy& hierarchy = *PAAnimationGroup::mHierarchies[i];
-        hierarchy.mRoot.mGeometry = &hierarchy.mRoot.mHostGeometry;
-        for (int j = 0; j < hierarchy.mNumObjs; ++j)
-        {
-            hierarchy.mObjs[j].mGeometry = &hierarchy.mObjs[j].mHostGeometry;
-        }
-    }
-}
 void ReadMatrix(NetPktGroup& group, PblMatrix& matrix);
 void WriteMatrix(NetPktGroup& group, const PblMatrix& matrix);
 
@@ -193,7 +81,7 @@ void __cdecl PAAnimationGroup::ReadHierarchy(PblFileChunk& chunk)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x4f464e49)
+        if (child._iId != CHUNK_ID('I', 'N', 'F', 'O'))
         {
             continue;
         }
@@ -320,7 +208,7 @@ void PAAnimation::Read(PblFileChunk& chunk)
     {
         PblFileChunk child = chunk.ReadNextChild();
         unsigned int uiId = child._iId;
-        if (uiId == 0x4B534F50 || uiId == 0x4B544F52)
+        if (uiId == CHUNK_ID('P', 'O', 'S', 'K') || uiId == CHUNK_ID('R', 'O', 'T', 'K'))
         {
             if (!pAnim)
             {
@@ -349,7 +237,7 @@ void PAAnimation::Read(PblFileChunk& chunk)
             key.mSlope1.x = child._pFile->ReadFloat();
             key.mSlope1.y = child._pFile->ReadFloat();
             key.mSlope1.z = child._pFile->ReadFloat();
-            if (uiId == 0x4B544F52)
+            if (uiId == CHUNK_ID('R', 'O', 'T', 'K'))
             {
                 pAnim->AddRotationKey(key);
             }
@@ -358,7 +246,7 @@ void PAAnimation::Read(PblFileChunk& chunk)
                 pAnim->AddPositionKey(key);
             }
         }
-        else if (uiId == 0x4F464E49)
+        else if (uiId == CHUNK_ID('I', 'N', 'F', 'O'))
         {
             char acName[128];
             char* pcName = child.ReadString(acName, 128);
@@ -769,10 +657,10 @@ void PAAnimationGroup::Read(PblFileChunk& chunk)
         char acName[128];
         switch (child._iId)
         {
-        case 0x49484F4E:
+        case CHUNK_ID('N', 'O', 'H', 'I'):
             pGroup->mDisableHierarchies = true;
             break;
-        case 0x4D494E41:
+        case CHUNK_ID('A', 'N', 'I', 'M'):
         {
             if (!pGroup)
             {
@@ -783,7 +671,7 @@ void PAAnimationGroup::Read(PblFileChunk& chunk)
             pGroup->AddAnimation(uiAnimHash, uiObjHash);
             break;
         }
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
         {
             char* pcName = child.ReadString(acName, 128);
             pGroup = new PAAnimationGroup;
@@ -898,42 +786,40 @@ void PAAnimationGroup::UpdateAnimations(float fDeltaTime)
 
     for (int i = mStartAnim; i < mStartAnim + mNumAnims; ++i)
     {
-        PAAnimationData& data = sPAAnims[i];
-        PblMatrix& initial = data.mInitialMatrix;
-        PAAnimation* pAnim = PAAnimation::Find(data.mAnimHash);
-        if (!pAnim || !*data.mGeometry)
+        PAAnimation* pAnim = PAAnimation::_HashTable.Find(sPAAnims[i].mAnimHash);
+        if (!pAnim || !*sPAAnims[i].mGeometry)
         {
             continue;
         }
 
-        if (mStopWhenControlled && (*data.mGeometry)->GetGameObject() &&
-            (*data.mGeometry)->GetGameObject()->GetTeam())
+        if (mStopWhenControlled && (*sPAAnims[i].mGeometry)->GetGameObject() &&
+            (*sPAAnims[i].mGeometry)->GetGameObject()->GetTeam())
         {
-            *data.mTimer = 0.0f;
-            initial = (*data.mGeometry)->GetMatrix();
+            *sPAAnims[i].mTimer = 0.0f;
+            sPAAnims[i].mInitialMatrix = (*sPAAnims[i].mGeometry)->GetMatrix();
         }
         else if (mEndTime > 0.0f)
         {
-            if (*data.mTimer >= mEndTime)
+            if (*sPAAnims[i].mTimer >= mEndTime)
             {
                 *mActive = false;
             }
-            else if (*data.mTimer + fDeltaTime > mEndTime)
+            else if (*sPAAnims[i].mTimer + fDeltaTime > mEndTime)
             {
-                pAnim->Update(mEndTime - *data.mTimer, *data.mTimer, *data.mGeometry, initial);
+                pAnim->Update(mEndTime - *sPAAnims[i].mTimer, *sPAAnims[i].mTimer, *sPAAnims[i].mGeometry, sPAAnims[i].mInitialMatrix);
                 *mActive = false;
             }
             else
             {
-                pAnim->Update(fDeltaTime, *data.mTimer, *data.mGeometry, initial);
+                pAnim->Update(fDeltaTime, *sPAAnims[i].mTimer, *sPAAnims[i].mGeometry, sPAAnims[i].mInitialMatrix);
             }
         }
         else
         {
-            pAnim->Update(fDeltaTime, *data.mTimer, *data.mGeometry, initial);
+            pAnim->Update(fDeltaTime, *sPAAnims[i].mTimer, *sPAAnims[i].mGeometry, sPAAnims[i].mInitialMatrix);
         }
 
-        PblMatrix matrix = (*data.mGeometry)->GetMatrix();
+        PblMatrix matrix = (*sPAAnims[i].mGeometry)->GetMatrix();
         if (mDisableHierarchies)
         {
             continue;
@@ -941,7 +827,7 @@ void PAAnimationGroup::UpdateAnimations(float fDeltaTime)
 
         for (int h = 0; h < mNumHierarchies; ++h)
         {
-            if (mHierarchies[h]->mRoot.mObjHash != data.mObjHash)
+            if (mHierarchies[h]->mRoot.mObjHash != sPAAnims[i].mObjHash)
             {
                 continue;
             }
@@ -1058,6 +944,34 @@ void PAManagerInterpolator::Create()
     }
 }
 
+// FUNCTION: SWBF2 0x00628eb0
+void PAManagerInterpolator::Destroy()
+{
+    if (!netFrameLock)
+    {
+        DeactivateThread();
+    }
+}
+
+// FUNCTION: SWBF2 0x00628ed0
+bool PAManagerInterpolator::Update(float)
+{
+    mIsFrameUpdate = true;
+    if (mNextTotalTurnTime > 0.0f)
+    {
+        float fRemaining = mTotalTurnTime - mTotalFrameTime - mNextTotalTurnTime;
+        mTotalTurnTime = mNextTotalTurnTime;
+        mNextTotalTurnTime = 0.0f;
+        mTotalFrameTime = 0.0f;
+        PAManager::sInstance->Update(fRemaining);
+    }
+    float fTurnRatio = NetGame::GetTurnRatio();
+    PAManager::sInstance->Update(mTotalTurnTime * fTurnRatio - mTotalFrameTime);
+    mIsFrameUpdate = false;
+    mTotalFrameTime = mTotalTurnTime * fTurnRatio;
+    return true;
+}
+
 // FUNCTION: SWBF2 0x00628f60
 PAManager::PAManager()
 {
@@ -1105,6 +1019,32 @@ void PAManager::Destroy()
     PAAnimationGroup::mNumHierarchies = 0;
 }
 
+// FUNCTION: SWBF2 0x00629160
+void PAManager::CreateClient()
+{
+    pamanagerInterpolator.Create();
+    if (NetGame::IsOneWorld())
+    {
+        sInstance->DeactivateThread();
+        sInstance->ActivateThread(-99, PER_TURN);
+    }
+    else
+    {
+        sClientInstance = new PAManager;
+    }
+}
+
+// FUNCTION: SWBF2 0x00629200
+void PAManager::DestroyClient()
+{
+    if (NetGame::IsOneWorld())
+    {
+        pamanagerInterpolator.Destroy();
+    }
+    delete sClientInstance;
+    sClientInstance = NULL;
+}
+
 // FUNCTION: SWBF2 0x00629230
 bool PAManager::Update(float fDeltaTime)
 {
@@ -1119,4 +1059,62 @@ bool PAManager::Update(float fDeltaTime)
         (*i).UpdateAnimations(fDeltaTime);
     }
     return true;
+}
+
+// FUNCTION: SWBF2 0x006292e0
+void PAManager::EnterClient()
+{
+    if (NetGame::IsOneWorld())
+    {
+        return;
+    }
+    sInstance = sClientInstance;
+    for (PblHashTable<PAAnimationGroup, 32>::Itor it = PAAnimationGroup::_HashTable.Begin();
+         it != PAAnimationGroup::_HashTable.End(); ++it)
+    {
+        (*it).EnterClient();
+    }
+    for (int i = 0; i < 255; ++i)
+    {
+        sPAAnims[i].mTimer = &sPAAnims[i].mClientTimer;
+        sPAAnims[i].mGeometry = &sPAAnims[i].mClientGeometry;
+    }
+    for (int i = 0; i < PAAnimationGroup::mNumHierarchies; ++i)
+    {
+        PAHierarchy& hierarchy = *PAAnimationGroup::mHierarchies[i];
+        hierarchy.mRoot.mGeometry = &hierarchy.mRoot.mClientGeometry;
+        for (int j = 0; j < hierarchy.mNumObjs; ++j)
+        {
+            hierarchy.mObjs[j].mGeometry = &hierarchy.mObjs[j].mClientGeometry;
+        }
+    }
+}
+
+// FUNCTION: SWBF2 0x006293d0
+void PAManager::LeaveClient()
+{
+    if (NetGame::IsOneWorld())
+    {
+        return;
+    }
+    sInstance = sHostInstance;
+    for (PblHashTable<PAAnimationGroup, 32>::Itor it = PAAnimationGroup::_HashTable.Begin();
+         it != PAAnimationGroup::_HashTable.End(); ++it)
+    {
+        (*it).LeaveClient();
+    }
+    for (int i = 0; i < 255; ++i)
+    {
+        sPAAnims[i].mTimer = &sPAAnims[i].mHostTimer;
+        sPAAnims[i].mGeometry = &sPAAnims[i].mHostGeometry;
+    }
+    for (int i = 0; i < PAAnimationGroup::mNumHierarchies; ++i)
+    {
+        PAHierarchy& hierarchy = *PAAnimationGroup::mHierarchies[i];
+        hierarchy.mRoot.mGeometry = &hierarchy.mRoot.mHostGeometry;
+        for (int j = 0; j < hierarchy.mNumObjs; ++j)
+        {
+            hierarchy.mObjs[j].mGeometry = &hierarchy.mObjs[j].mHostGeometry;
+        }
+    }
 }

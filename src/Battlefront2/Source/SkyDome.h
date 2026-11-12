@@ -15,34 +15,6 @@ class RedModel;
 class ParticleEmitterObject;
 class SkyStars;
 
-// VTABLE: SWBF2 0x0079661c
-class SkyFogRenderable : public Renderable
-{
-public:
-
-    SkyFogRenderable()
-        : Renderable(5), m_pPrimitive(0), m_pShader(0)
-    {
-    }
-
-    virtual ~SkyFogRenderable();
-
-    // SYNTHETIC: SWBF2 0x00428920
-    // SkyFogRenderable::`scalar deleting destructor'
-
-    virtual void Render(int value);
-
-    void Init();
-
-    void Cleanup();
-
-    pcRedPrimitive* m_pPrimitive;
-    pcRedShader* m_pShader;
-};
- 
- 
- 
-
 // VTABLE: SWBF2 0x007ae618 Renderable
 // VTABLE: SWBF2 0x007ae600 Thread
 class SkyDome : public Renderable, public Thread
@@ -70,7 +42,7 @@ public:
         float timer;
         float fRestartTimeMin;
         float fRestartTimeMax;
-        PblVector3 pos;
+        mutable PblVector3 pos;
     };
 
     struct DomeModel
@@ -103,7 +75,9 @@ public:
     // SYNTHETIC: SWBF2 0x00638719
     // ??_ESkyDome@@WBM@AEPAXI@Z
 
-    virtual void Render(int value);
+    int Build();
+
+    virtual void Render(unsigned int value) const;
 
     virtual bool Update(float fDeltaTime);
 

@@ -39,7 +39,7 @@ void PropLayer::Read(PblFileChunk& chunk)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x41544144)
+        if (child._iId != CHUNK_ID('D', 'A', 'T', 'A'))
         {
             continue;
         }
@@ -49,7 +49,7 @@ void PropLayer::Read(PblFileChunk& chunk)
 
         switch (uiHash)
         {
-        case 0xdbe276e9:
+        case 0xdbe276e9: /* "SpreadFactor" */
         {
             const float fSpread = child._pFile->ReadFloat();
             mSpreadFactor = (int)fSpread;
@@ -63,7 +63,7 @@ void PropLayer::Read(PblFileChunk& chunk)
             }
             break;
         }
-        case 0xa100bebc:
+        case 0xa100bebc: /* "Mesh" */
         {
             PropModelMesh* pModel = new PropModelMesh;
             PblFileChunk modelChunk = chunk.ReadNextChild();

@@ -30,7 +30,7 @@ public:
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
 
     bool Init();
     bool UpdateParticle(DustParticle& particle, float fDeltaTime,

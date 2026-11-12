@@ -1,4 +1,5 @@
 #include "StatusDisplay.h"
+#include "FriendBuddyList.h"
 #include "PebbleFL/Common/PblMath.h"
 
 #include <math.h>
@@ -28,7 +29,7 @@ RedInterfaceScreen* GetInterfaceView(int iView);
 
 static inline bool IsFlyerAutoCorrecting(const Controllable* pControllable)
 {
-    return static_cast<const EntityFlyer*>(pControllable)->mFlyerAutoCorrectingToStayInBattlefield;
+    return ((const EntityFlyer*)pControllable)->mFlyerAutoCorrectingToStayInBattlefield;
 }
 
 namespace GameVoiceChat
@@ -36,15 +37,10 @@ namespace GameVoiceChat
 class Transport;
 Transport* GetTransport();
 }
-namespace FriendBuddyList
-{
-    bool __fastcall IsFriendBuddy(int ignored, int iPlayer);
-}
 
 extern int gDebugCount;
 
-extern RedColor gVoiceChatTeamColors[2];
-extern RedColor gHudHighlightColor;
+extern RedColor gVoiceChatTeamColors[3];
 
 // GLOBAL: SWBF2 0x01eafb4c
 StatusDisplay* StatusDisplay::sInstance[1];
@@ -102,7 +98,7 @@ void DamageArrowGroup::Init()
     for (int i = 0; i < 4; ++i)
     {
         Arrow& arrow = mArrows[i];
-        arrow.mBitmap.SetTexture(0x3e7f6167u);
+        arrow.mBitmap.SetTexture(0x3e7f6167u /* "ambush_icon" */);
     }
 }
 
@@ -318,7 +314,7 @@ void OutOfBoundsGroup::Init()
     mText.Enable(true);
     mText.Visible(true);
     mText.SetColor(RedColor::RED);
-    if (const unsigned short* pText = RedLocalizeDB::Find(0x3a1fed50u, false))
+    if (const unsigned short* pText = RedLocalizeDB::Find(0x3a1fed50u /* "game.tooltips.leaving_battlefield" */, false))
     {
         mText.SetText(pText, true);
     }
@@ -407,7 +403,7 @@ void VoiceChatGroup::Init()
 // FUNCTION: SWBF2 0x006514f0
 void VoiceChatGroup::Bind(unsigned int hView)
 {
-    RedFont* pFont = RedFont::Find(0x46f060d5);
+    RedFont* pFont = RedFont::Find(0x46f060d5 /* "gamefont_tiny" */);
     RedInterfaceScreen* pScreen = FLRenderer::GetInterfaceView(hView);
     float fWidth, fHeight, fOffsetX, fOffsetY;
     pScreen->GetSafeZone(fWidth, fHeight, fOffsetX, fOffsetY);
@@ -511,7 +507,7 @@ void VoiceChatGroup::UpdateLines()
             mLines[i].mText.SetColor(gVoiceChatTeamColors[pLocal->mTeamNumber != pCharacter->mTeamNumber]);
             if (FriendBuddyList::IsFriendBuddy(0, mLines[i].mId))
             {
-                mLines[i].mText.SetColor(gHudHighlightColor);
+                mLines[i].mText.SetColor(gVoiceChatTeamColors[2]);
             }
         }
     }
@@ -688,17 +684,3 @@ DamageArrowGroup::Data DamageArrowGroup::sData[4] =
     { RedInterfaceScreen::CENTER, RedInterfaceScreen::TOP, 0.0f, 0.0f, PblMath::fPi },
 };
 
-extern RedColor gFriendColor;
-extern RedColor gEnemyColor;
-
-
-// SYNTHETIC: SWBF2 0x00406940
-// `dynamic initializer for 'gVoiceChatTeamColors''
-
-// GLOBAL: SWBF2 0x007ec388
-// gVoiceChatTeamColors
-RedColor gVoiceChatTeamColors[2] = { gFriendColor, gEnemyColor };
-
-// GLOBAL: SWBF2 0x007ec390, BGRA bytes CA F9 10 FF.
-
-RedColor gHudHighlightColor = { 0x10, 0xF9, 0xCA, 0xFF };

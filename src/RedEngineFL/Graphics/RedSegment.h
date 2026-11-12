@@ -41,17 +41,39 @@ public:
 
     virtual unsigned int GetRenderTypeHash() const = 0;
 
-    virtual void Free();
+    // FUNCTION: SWBF2 0x00717b70
+    virtual void Free()
+    {
+    }
 
-    virtual RedShadingState* CreateShadingState() const;
+    // FUNCTION: SWBF2 0x00717b40
+    virtual RedShadingState* CreateShadingState() const
+    {
+        return 0;
+    }
 
-    virtual void SetData(const RedShaderData& data);
+    // FUNCTION: SWBF2 0x00718950
+    virtual void SetData(const RedShaderData&)
+    {
+    }
 
-    virtual bool IsTransparent() const;
+    // FUNCTION: SWBF2 0x00717cf0
+    virtual bool IsTransparent() const
+    {
+        return false;
+    }
 
-    virtual bool IsLit() const;
+    // FUNCTION: SWBF2 0x00717cc0
+    virtual bool IsLit() const
+    {
+        return true;
+    }
 
-    virtual bool IsVertexLit() const;
+    // FUNCTION: SWBF2 0x00717d40
+    virtual bool IsVertexLit() const
+    {
+        return false;
+    }
 
     static RedSegment* __cdecl Read(PblFileChunk& chunk, const RedModel* pModel);
 

@@ -47,7 +47,10 @@ public:
     static void Read(PblFileChunk& chunk);
     static void Activate();
     static void Deactivate();
+    static const unsigned char* GetFoliage() { return _Foliage; }
     static void Render(unsigned int uiFlags);
+
+    static void AdjustTerrainMemoryUsage(int Delta) { mTerrainBytesUsed += Delta; }
 
     static float GetHeight(int iX, int iZ);
 
@@ -74,6 +77,9 @@ public:
     static const PblVector3 GetInterpolatedNormal(float fX, float fZ);
 
     static bool PointInHole(const PblVector3& vPos);
+    static float _CalcWorldPosX(int iX) { return (float)iX * _fMetersPerPoint - _fTerrainCenterX; }
+    static float _CalcWorldPosZ(int iZ) { return (float)iZ * _fMetersPerPoint - _fTerrainCenterZ; }
+
     static PblBox GetBoundingBox();
     static void Reset();
 
@@ -129,12 +135,14 @@ public:
     static bool RenderDetail;
     static HeightExpand* _pHeightExpand;
     static HeightMinMax* _pHeightMinMax;
-    static unsigned char* _Foliage;
     static bool mTerrainColorDarkeningFlag;
     static bool _bEnable;
     static int mTerrainBytesUsed;
     static float _fMetersPerPoint;
     static int _iNumPatches;
+
+protected:
+    static unsigned char* _Foliage;
 
 private:
 
@@ -146,15 +154,33 @@ private:
 
 public:
 
-    static void ProcessHoles(void (__cdecl *callback)(void*));
+    static void ProcessHoles(void (__cdecl *callbackfn)(Hole*));
 };
 
 class RedTerrain::Hole : public TreeGridObject
 {
 public:
-    Hole();
+    // FUNCTION: SWBF2 0x006c15f0
+    Hole() : TreeGridObject(-1)
+    {
+        SetObjectData(0, COLL_HOLE);
+        iNumPlanes = 0;
+        aPlanes = 0;
+    }
 
-    Hole(Hole* pSource);
+    // FUNCTION: SWBF2 0x005b4300
+    Hole(Hole* pSource) : TreeGridObject(-1)
+    {
+        SetObjectData(0, COLL_HOLE);
+        SetCollisionCenter(pSource->GetCollisionCenter());
+        SetCollisionRadius(pSource->GetCollisionRadius());
+        iNumPlanes = pSource->iNumPlanes;
+        aPlanes = new PblVector4[iNumPlanes];
+        for (int i = 0; i < iNumPlanes; ++i)
+        {
+            aPlanes[i] = pSource->aPlanes[i];
+        }
+    }
 
     int iNumPlanes;
     PblVector4* aPlanes;

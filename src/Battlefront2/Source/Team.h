@@ -261,6 +261,25 @@ public:
     bool mbAllowAISpawn;
     bool mbInitialUpdateDone;
 };
+
+// FUNCTION: SWBF2 0x005b41d0
+inline int Team::FindSide(Side eSide)
+{
+    for (int i = 0; i < Team::kMaxTeams; i++)
+    {
+        if (sTeams[i]->GetSide() == eSide)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// FUNCTION: SWBF2 0x005b4210
+inline void Team::OverrideMaxReinforcements(int iTeam, int iMax)
+{
+    sTeamMaxReinforcementsOverride[iTeam] = iMax;
+}
  
  
  

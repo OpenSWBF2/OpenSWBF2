@@ -6,7 +6,9 @@
 
 #include "CollisionModel.h"
 #include "CollisionObject.h"
+#include "Chunk.h"
 #include "Entity.h"
+#include "PebbleFL/Common/PblRtti.h"
 #include "FoleyFX.h"
 #include "GameModel.h"
 #include "PebbleFL/Common/PblMatrix.h"
@@ -21,38 +23,6 @@ class GameObject;
 class RedLodData;
 class RedPose;
 
-class ChunkDescriptor
-{
-public:
-
-    void Init();
-
-    PblMatrix mMatrix;
-    PblVector3 mVelocity;
-    GameModel* mModel;
-    CollisionBodyPrimitive* mPrimitive;
-    unsigned char mMaxTerrainCollisions;
-    unsigned int mTerrainImpactEffect;
-
-    int mPhysicsType;
-    PblVector3 mOmega;
-    PblVector3 mGravity;
-    CollisionModel* mFullCollisionModel;
-    float mCoefficientOfRestitution;
-    float mCoefficientOfFriction;
-    float mSimpleFrictionConstant;
-    float mMinDeathCollisionSpeed;
-    bool mForceZeroYAxisVelocity;
-    float mMaxStaticLifetime;
-    unsigned int mTrailEffect[3];
-    unsigned int mSmokeEffect[3];
-    unsigned int mTrailAttachPoints[3];
-    unsigned int mSmokeAttachPoints[3];
-    bool mNoBuildingCollisions;
-    bool mKeepSoldierCollisions;
-    float mLinearDamping;
-    float mAngularDamping;
-};
  
  
  
@@ -85,6 +55,7 @@ class EntityGeometryClass : public EntityClass,
                             public FoleyFXColliderClass
 {
 public:
+    static const int kMaxChunks = 10;
 
     struct HitLocationData
     {
@@ -126,15 +97,15 @@ public:
     static PblHash rttiHashEntityGeometryClass;
     static const char rttiNameEntityGeometryClass[];
 
-    ChunkDescriptor* mChunkDescriptors[10];
-    CollisionModel* mFullChunkCollisions[10];
-    float mInitialChunkSpeed[10];
-    float mChunkVelocityFactor[10];
-    float mChunkUpFactor[10];
+    ChunkDescriptor* mChunkDescriptors[kMaxChunks];
+    CollisionModel* mFullChunkCollisions[kMaxChunks];
+    float mInitialChunkSpeed[kMaxChunks];
+    float mChunkVelocityFactor[kMaxChunks];
+    float mChunkUpFactor[kMaxChunks];
     bool m_bDynamicLighting;
     float mMaxShadowLength;
     float _fPriorityMod;
-    unsigned int mChunkAttachPoints[10];
+    unsigned int mChunkAttachPoints[kMaxChunks];
     GameModel* mModel;
     int mLODClass;
     CollisionModel mCollisionModel;
@@ -169,14 +140,39 @@ public:
 class EntityGeometry : public EntityEx, public CollisionObject, public RedSceneObject
 {
 public:
+    // FUNCTION: SWBF2 0x004440d0
+    // EntityGeometry::IsRtti
+    // FUNCTION: SWBF2 0x004ba080
+    // EntityGeometry::GetDerivedRtti
+    // FUNCTION: SWBF2 0x004ba090
+    // EntityGeometry::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(EntityGeometry, EntityEx)
+
     EntityGeometry(EntityGeometryClass* pClass, const EntityDesc& desc, CollisionObjectType eType,
                    const RedLodData* pLodData);
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
     virtual ~EntityGeometry();
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
+    // FUNCTION: SWBF2 0x00444100
+    virtual const PblVector3& GetPosition() const { return mMatrix.GetTranslation(); }
+
+    // FUNCTION: SWBF2 0x004920e0
+    virtual void SetPosition(const PblVector3& vPos)
+    {
+        PblMatrix& rMatrix = mMatrix;
+        rMatrix[3] = vPos;
+        rMatrix.m[3][3] = 1.0f;
+
+        PblVector3 vCenter;
+        D3DXVec3TransformCoord((D3DXVECTOR3*)&vCenter,
+                               (const D3DXVECTOR3*)&mModel->_mModel->_BoundingSphere.GetCenter(),
+                               (const D3DXMATRIX*)&rMatrix);
+        SetCollisionCenter(vCenter);
+        RecalculateAABB();
+        SetRenderPos(GetCollisionCenter());
+    }
+
+    virtual float GetSmallestCollisionDim() const;
     // FUNCTION: SWBF2 0x00444120
     virtual Entity* GetEntity() { return this; }
     // [thunk]:EntityGeometry::GetEntity`adjustor{12}'
@@ -205,7 +201,29 @@ public:
         mModel = const_cast<GameModel*>(pModel);
         _pLodData = &mModel->_mLodData;
     }
-    virtual void SetupPose(RedPose& pose) const;
+    // FUNCTION: SWBF2 0x00444180
+    virtual const RedPose* GetPose() const { return 0; }
+
+    // FUNCTION: SWBF2 0x00444190
+    virtual void SetupPose(RedPose& pose) const
+    {
+        mModel->GetRedModel(0)->SetupPose(pose);
+    }
+    // FUNCTION: SWBF2 0x004921c0
+    virtual void SetMatrix(const PblMatrix& matrix)
+    {
+        mMatrix = matrix;
+
+        PblVector3 vCenter;
+        D3DXVec3TransformCoord((D3DXVECTOR3*)&vCenter,
+                               (const D3DXVECTOR3*)&mModel->_mModel->_BoundingSphere.GetCenter(),
+                               (const D3DXMATRIX*)&mMatrix);
+        SetCollisionCenter(vCenter);
+        RecalculateAABB();
+        SetRenderPos(GetCollisionCenter());
+    }
+    // FUNCTION: SWBF2 0x00475da0
+    virtual const PblMatrix& GetMatrix() const { return mMatrix; }
     virtual const PblVector3& GetVelocity() const;
 
     // FUNCTION: SWBF2 0x00475dc0
@@ -214,17 +232,7 @@ public:
     virtual PblVector3 GetTargetPoint(const PblVector3& vPos, const PblVector3& vDir, int iBodyId) const;
     virtual PblVector3 GetTargetPointMissVector() const;
 
-    // FUNCTION: SWBF2 0x00444100
-    virtual const PblVector3& GetPosition() const { return mMatrix.GetTranslation(); }
-
-    virtual void SetPosition(const PblVector3& vPos);
-
-    virtual void SetMatrix(const PblMatrix& matrix);
-    virtual float GetSmallestCollisionDim() const;
-    // FUNCTION: SWBF2 0x00475da0
-    virtual const PblMatrix& GetMatrix() const { return mMatrix; }
-    // FUNCTION: SWBF2 0x00444180
-    virtual const RedPose* GetPose() const { return 0; }
+    void CreateChunkCluster(float fScale);
 
     void BuildEffects();
 
@@ -233,31 +241,18 @@ public:
 
     void SetupLightingState(unsigned int& uFlags);
 
-    void CreateChunkCluster(float fScale);
-
     PblMatrix mMatrix;
     GameModel* mModel;
     float mSmallestCollisionDim;
     AttachedEffects* m_pAttachedEffects;
 
-    static PblHash rttiHashEntityGeometry;
-    static const char rttiNameEntityGeometry[];
+
 };
  
  
  
  
  
-
-// FUNCTION: SWBF2 0x004440d0
-inline bool EntityGeometry::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashEntityGeometry == uRtti)
-    {
-        return true;
-    }
-    return EntityEx::IsRtti(uRtti);
-}
 
 // FUNCTION: SWBF2 0x004441b0
 inline bool EntityGeometryClass::IsRtti(unsigned int uRtti) const
@@ -267,18 +262,6 @@ inline bool EntityGeometryClass::IsRtti(unsigned int uRtti) const
         return true;
     }
     return EntityClass::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x004ba080
-inline unsigned int EntityGeometry::GetDerivedRtti() const
-{
-    return rttiHashEntityGeometry;
-}
-
-// FUNCTION: SWBF2 0x004ba090
-inline const char* EntityGeometry::GetDerivedRttiName() const
-{
-    return rttiNameEntityGeometry;
 }
 
 // FUNCTION: SWBF2 0x004ba0d0

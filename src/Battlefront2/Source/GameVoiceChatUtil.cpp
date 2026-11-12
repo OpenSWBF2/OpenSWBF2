@@ -7,34 +7,9 @@
 #include "VoiceChatNode.h"
 
 #include "NetPacket.h"
+#include "RedEngineFL/Memory/RedMemory.h"
 #include "SoundFL/source/sndqueue.h"
 
-
-// FUNCTION: SWBF2 0x0053e300
-void* VoiceChat::NetPacketAudio::Receive()
-{
-    NetPacket* pPacket = 0;
-    for (unsigned int i = 0; i < 4; ++i)
-    {
-        if (!GameVoiceChat::gPacketQueue[i].IsEmpty())
-        {
-            GameVoiceChat::gPacketQueue[i].Get(pPacket);
-            break;
-        }
-    }
-
-    if (pPacket == 0)
-    {
-        pPacket = NetComm::Recv(PKT_VOICE, PKT_NONE);
-        if (pPacket == 0)
-        {
-            return 0;
-        }
-    }
-
-    pPacket->BeginRead();
-    return pPacket;
-}
 
 // FUNCTION: SWBF2 0x0053e170
 VoiceChat::NetPacketAudio::NetPacketAudio(void* packet) : mAppPacket(packet) {}
@@ -76,16 +51,6 @@ void* VoiceChat::NetPacketAudio::Alloc()
     }
     return 0;
 }
-
-// FUNCTION: SWBF2 0x0053e380
-void VoiceChat::NetPacketAudio::Free(void* pPacket)
-{
-    ((NetPacket*)pPacket)->Free();
-}
-
-// TEMPLATE: SWBF2 0x0053e3e0
-// Snd::Queue<NetPacket *,4>::~Queue<NetPacket *,4>
-template Snd::Queue<NetPacket*, 4>::~Queue();
 
 namespace GameVoiceChat
 {
@@ -141,10 +106,62 @@ bool __cdecl SendVoice(NetPacket* packet, unsigned char destination, unsigned in
 void __cdecl VoiceChat::NetPacketAudio::Send(NetPacketAudio* packet, unsigned char destination,
                             unsigned int voiceDataOffset)
 {
-    NetPacket* appPacket = static_cast<NetPacket*>(packet->mAppPacket);
+    NetPacket* appPacket = (NetPacket*)packet->mAppPacket;
     appPacket->EndWrite();
     GameVoiceChat::SendVoice(appPacket, destination, voiceDataOffset);
 }
+
+// FUNCTION: SWBF2 0x0053e300
+void* VoiceChat::NetPacketAudio::Receive()
+{
+    NetPacket* pPacket = 0;
+    for (unsigned int i = 0; i < 4; ++i)
+    {
+        if (!GameVoiceChat::gPacketQueue[i].IsEmpty())
+        {
+            GameVoiceChat::gPacketQueue[i].Get(pPacket);
+            break;
+        }
+    }
+
+    if (pPacket == 0)
+    {
+        pPacket = NetComm::Recv(PKT_VOICE, PKT_NONE);
+        if (pPacket == 0)
+        {
+            return 0;
+        }
+    }
+
+    pPacket->BeginRead();
+    return pPacket;
+}
+
+// FUNCTION: SWBF2 0x0053e380
+void VoiceChat::NetPacketAudio::Free(void* pPacket)
+{
+    ((NetPacket*)pPacket)->Free();
+}
+
+// GLOBAL: SWBF2 0x01e56bc8
+
+int GameVoiceChat::gHeap;
+
+// FUNCTION: SWBF2 0x0053e390
+void* VoiceChat::Alloc(unsigned int uiSize)
+{
+    return RedAllocFromHeap(GameVoiceChat::gHeap, uiSize, 0);
+}
+
+// FUNCTION: SWBF2 0x0053e3b0
+void VoiceChat::Free(void* pBlock)
+{
+    RedFreeToHeap(GameVoiceChat::gHeap, pBlock, 0);
+}
+
+// TEMPLATE: SWBF2 0x0053e3e0
+// Snd::Queue<NetPacket *,4>::~Queue<NetPacket *,4>
+template Snd::Queue<NetPacket*, 4>::~Queue();
 
 // TEMPLATE: SWBF2 0x0053e3f0
 // Snd::Queue<NetPacket *,4>::Add

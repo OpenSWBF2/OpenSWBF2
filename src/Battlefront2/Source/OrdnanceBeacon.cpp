@@ -46,24 +46,6 @@ const PblVector3& OrdnanceBullet::GetVelocity() const
     return mVelocity;
 }
 
-// FUNCTION: SWBF2 0x005f8b60
-float OrdnanceBulletClass::GetVelocity()
-{
-    return mVelocity;
-}
-
-// FUNCTION: SWBF2 0x005f8b70
-float OrdnanceBulletClass::GetRange()
-{
-    return mVelocity * mLifeSpan;
-}
-
-// FUNCTION: SWBF2 0x005f8be0
-float OrdnanceShellClass::GetGravity()
-{
-    return mGravity;
-}
-
 
 
 
@@ -87,53 +69,49 @@ OrdnanceBeacon::~OrdnanceBeacon()
 }
 
 // FUNCTION: SWBF2 0x005f8de0
-bool OrdnanceBeacon::Update(float fDeltaTime)
+bool OrdnanceBeacon::Update(float aDt)
 {
-    while (mSalvoCount > 0 && fDeltaTime > mLifeTime)
+    while (mSalvoCount > 0 && aDt > mLifeTime)
     {
-        PblMatrix aim;
-        aim.SetRotateX(-static_cast<OrdnanceBeaconClass*>(mClass)->mAimElevation);
-        aim.RotateY(static_cast<OrdnanceBeaconClass*>(mClass)->mAimAzimuth);
+        PblMatrix matrix;
+        matrix.SetRotateX(-((OrdnanceBeaconClass*)mClass)->mAimElevation);
+        matrix.RotateY(((OrdnanceBeaconClass*)mClass)->mAimAzimuth);
 
         OrdnanceDesc desc;
         desc.mPosition = mPosition;
-        const float fDist = static_cast<OrdnanceBeaconClass*>(mClass)->mAimDistance;
-        desc.mPosition += aim[2] * fDist;
+        desc.mPosition += ((OrdnanceBeaconClass*)mClass)->mAimDistance * matrix[2];
+        desc.mPosition += (PblRandom::GetSim().GetFloat() - PblRandom::GetSim().GetFloat()) *
+                          ((OrdnanceBeaconClass*)mClass)->mScatterDistance * matrix[0];
+        desc.mPosition += (PblRandom::GetSim().GetFloat() - PblRandom::GetSim().GetFloat()) *
+                          ((OrdnanceBeaconClass*)mClass)->mScatterDistance * matrix[1];
 
-        const float fRight = (PblRandom::GetSim().GetFloat() - PblRandom::GetSim().GetFloat()) *
-                             static_cast<OrdnanceBeaconClass*>(mClass)->mScatterDistance;
-        desc.mPosition += aim[0] * fRight;
-        const float fUp = (PblRandom::GetSim().GetFloat() - PblRandom::GetSim().GetFloat()) *
-                          static_cast<OrdnanceBeaconClass*>(mClass)->mScatterDistance;
-        desc.mPosition += aim[1] * fUp;
-
-        desc.mDirection = PblVector3(-aim.m[2][0], -aim.m[2][1], -aim.m[2][2]);
+        desc.mDirection = -matrix[2];
         desc.mStrength = 1.0f;
-        desc.mOwner = mOwner.GetObjectA();
+        desc.mOwner = mOwner;
         desc.mDamageOwner = mDamageOwner;
-        desc.mTarget = mStickInfo ? mStickInfo->mCollHandle.GetObjectA() : 0;
+        desc.mTarget = mStickInfo ? static_cast<GameObject*>(mStickInfo->mCollHandle) : 0;
         desc.mBodyID = mStickInfo ? mStickInfo->mCollBodyID : -1;
 
-        if (NetGame::IsEnabled() && NetGame::IsClient())
+        if (NetGame::IsEnabled() && (netEnabledNext && netClientActive))
         {
             if (netIsLocalTurn)
             {
-                static_cast<OrdnanceBeaconClass*>(mClass)->mOrdnanceClass->Build(desc);
+                ((OrdnanceBeaconClass*)mClass)->mOrdnanceClass->Build(desc);
             }
         }
         else
         {
             if (NetGame::IsEnabled())
             {
-                NetGame::CreateEvent_CreateOrdnance(static_cast<OrdnanceBeaconClass*>(mClass)->mOrdnanceClass, desc);
+                NetGame::CreateEvent_CreateOrdnance(((OrdnanceBeaconClass*)mClass)->mOrdnanceClass, desc);
             }
-            static_cast<OrdnanceBeaconClass*>(mClass)->mOrdnanceClass->Build(desc);
+            ((OrdnanceBeaconClass*)mClass)->mOrdnanceClass->Build(desc);
         }
 
         --mSalvoCount;
-        mLifeTime += static_cast<OrdnanceBeaconClass*>(mClass)->mSalvoDelay;
+        mLifeTime += ((OrdnanceBeaconClass*)mClass)->mSalvoDelay;
     }
-    return OrdnanceSticky::Update(fDeltaTime);
+    return OrdnanceSticky::Update(aDt);
 }
 
 
@@ -181,32 +159,32 @@ void OrdnanceBeaconClass::SetProperty(unsigned int uProperty, const char* pszVal
 {
     switch (uProperty)
     {
-    case 0x3186FBFE:
+    case 0x3186FBFE: /* "AimAzimuth" */
         if (sscanf(pszValue, "%f", &mAimAzimuth))
         {
             mAimAzimuth *= 0.017453292f;
         }
         break;
-    case 0x8339FB35:
+    case 0x8339FB35: /* "AimElevation" */
         if (sscanf(pszValue, "%f", &mAimElevation))
         {
             mAimElevation *= 0.017453292f;
         }
         break;
-    case 0xECDB9D1D:
+    case 0xECDB9D1D: /* "AimDistance" */
         sscanf(pszValue, "%f", &mAimDistance);
         break;
-    case 0x9260EA63:
+    case 0x9260EA63: /* "SalvoCount" */
         sscanf(pszValue, "%i", &mSalvoCount);
         break;
-    case 0xD76F37DB:
+    case 0xD76F37DB: /* "SalvoDelay" */
         sscanf(pszValue, "%f", &mSalvoDelay);
         break;
-    case 0xEBD81A5E:
+    case 0xEBD81A5E: /* "ScatterDistance" */
         sscanf(pszValue, "%f", &mScatterDistance);
         break;
-    case 0x399BF05D:
-    case 0xF8899C5E:
+    case 0x399BF05D: /* "Ordnance" */
+    case 0xF8899C5E: /* "OrdnanceName" */
         mOrdnanceClass = Factory<Ordnance, OrdnanceClass, OrdnanceDesc>::Find(PblHash(pszValue));
         break;
     default:

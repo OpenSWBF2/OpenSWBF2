@@ -29,6 +29,9 @@ void RawControllerInputs::ClearInputsToOff()
     }
 }
 
+// FUNCTION: SWBF2 0x0052b500
+int RawControllerInputs::GetFunctionForAnalog(int, int) { return 0; }
+
 // FUNCTION: SWBF2 0x0052b620
 ProcessedInputs::ProcessedInputs()
 {

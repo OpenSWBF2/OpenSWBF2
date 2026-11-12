@@ -13,7 +13,7 @@
 #include "GameObject.h"
 #include "GameLoop.h"
 #include "UnitController.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblRandom.h"
@@ -166,7 +166,7 @@ bool OrdnanceMissile::Update(float fDeltaTime)
             {
                 if (it->GetEnemyLockedOnMeState() < 2.0f || it->GetEnemyLockedOnMeState() > 0.2f)
                 {
-                    it->SetEnemyLockedOnMeState(2.0f, this, Distance(static_cast<const CollisionObject*>(pTarget)->GetCollisionCenter(), mPosition));
+                    it->SetEnemyLockedOnMeState(2.0f, this, Distance(((const CollisionObject*)pTarget)->GetCollisionCenter(), mPosition));
                 }
             }
         }
@@ -290,39 +290,33 @@ OrdnanceMissileClass::OrdnanceMissileClass(OrdnanceMissileClass* pBase, unsigned
 
 
 
-// FUNCTION: SWBF2 0x006049a0
-float OrdnanceMissileClass::GetVelocity()
-{
-    return 3.0e8f;
-}
-
 // FUNCTION: SWBF2 0x00605910
 void OrdnanceMissileClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x73E5A988:
+    case 0x73E5A988: /* "ScaleTime" */
         if (sscanf(pszValue, "%f", &mScaleRate))
         {
             mScaleRate = 1.0f / mScaleRate;
         }
         return;
-    case 0x0F77C4E8:
+    case 0x0F77C4E8: /* "TurnRate" */
         sscanf(pszValue, "%f", &mTurnRate);
         return;
-    case 0x6D4A8840:
+    case 0x6D4A8840: /* "WaverRate" */
         sscanf(pszValue, "%f", &mWaverRate);
         return;
-    case 0x129F08C1:
+    case 0x129F08C1: /* "WaverTurn" */
         sscanf(pszValue, "%f", &mWaverTurn);
         return;
-    case 0x9371AECD:
+    case 0x9371AECD: /* "LockedOnSound" */
         mLockedOnSound.SetID(pszValue, false, false);
         return;
-    case 0xFBE2EB62:
+    case 0xFBE2EB62: /* "MinSpeed" */
         sscanf(pszValue, "%f", &mMinSpeed);
 
-    case 0x2FA0BA9D:
+    case 0x2FA0BA9D: /* "Acceleration" */
         sscanf(pszValue, "%f", &mAcceleration);
 
     default:

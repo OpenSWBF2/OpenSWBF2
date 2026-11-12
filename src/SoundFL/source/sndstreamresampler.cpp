@@ -21,8 +21,8 @@ StreamResampler::StreamResampler()
 void StreamResampler::SetBuffer(void* pBuffer, unsigned int uiSize)
 {
     mBufferSize = uiSize;
-    mOutputPacket.mBuffer = pBuffer;
-    mOutputPacket.mBufferUsed = 0;
+    mOutputPacket.SetBuffer(pBuffer);
+    mOutputPacket.SetUsed(0);
 }
 
 
@@ -31,14 +31,14 @@ void StreamResampler::CompletePacket()
 {
     bool bLast = false;
     bool bDiscontinuity = false;
-    unsigned int uiInputSamples = mInputPacket->mBufferUsed >> 1;
+    unsigned int uiInputSamples = mInputPacket->GetUsed() >> 1;
 
-    if (mOutputPacket.mBufferUsed != 0)
+    if (mOutputPacket.GetUsed() != 0)
     {
         mOutputPacket.Lock();
     }
     StreamPacket* const pInput = mInputPacket;
-    mOutputPacket.mPos = pInput->mPos;
+    mOutputPacket.SetPosition(pInput->GetPosition());
 
     if (mInputPacketReadPos >= uiInputSamples)
     {
@@ -60,7 +60,7 @@ void StreamResampler::Flush()
     mSampleOffset = 0;
     if (mInputPacket != 0)
     {
-        if (mInputPacket->mRefCount > 0)
+        if (mInputPacket->IsLocked())
         {
             mInputPacket->Unlock();
         }
@@ -77,20 +77,20 @@ StreamPacket* StreamResampler::GetPacket(unsigned int)
         StreamPacket* const pInput = mInputPacket;
         if (pInput != 0)
         {
-            if (mOutputPacket.mRefCount > 0)
+            if (mOutputPacket.IsLocked())
             {
                 return 0;
             }
-            unsigned int uiCount = (pInput->mBufferUsed >> 1) - mInputPacketReadPos;
+            unsigned int uiCount = (pInput->GetUsed() >> 1) - mInputPacketReadPos;
             if (uiCount > mBufferSize >> 1)
             {
                 uiCount = mBufferSize >> 1;
             }
-            memcpy(mOutputPacket.mBuffer, (short*)pInput->mBuffer + mInputPacketReadPos, uiCount * 2);
+            memcpy(mOutputPacket.GetBuffer(), (short*)pInput->GetBuffer() + mInputPacketReadPos, uiCount * 2);
             mInputPacketReadPos += uiCount;
-            mOutputPacket.mBufferUsed = uiCount;
+            mOutputPacket.SetUsed(uiCount);
             CompletePacket();
-            if (mOutputPacket.mRefCount > 0)
+            if (mOutputPacket.IsLocked())
             {
                 return &mOutputPacket;
             }
@@ -98,7 +98,7 @@ StreamPacket* StreamResampler::GetPacket(unsigned int)
         return ConnectionGetPacket();
     }
 
-    if (mStepSize == 0 || mOutputPacket.mRefCount > 0)
+    if (mStepSize == 0 || mOutputPacket.IsLocked())
     {
         return 0;
     }
@@ -113,11 +113,11 @@ StreamPacket* StreamResampler::GetPacket(unsigned int)
         }
     }
 
-    if (mInputPacketReadPos < pInput->mBufferUsed)
+    if (mInputPacketReadPos < pInput->GetUsed())
     {
-        const short* pSrc = (const short*)pInput->mBuffer + mInputPacketReadPos;
-        const short* const pSrcEnd = (const short*)((const char*)pInput->mBuffer + pInput->mBufferUsed);
-        short* pDst = (short*)mOutputPacket.mBuffer;
+        const short* pSrc = (const short*)pInput->GetBuffer() + mInputPacketReadPos;
+        const short* const pSrcEnd = (const short*)((const char*)pInput->GetBuffer() + pInput->GetUsed());
+        short* pDst = (short*)mOutputPacket.GetBuffer();
         short* const pDstEnd = (short*)((char*)pDst + mBufferSize);
         while (pSrc < pSrcEnd && pDst < pDstEnd)
         {
@@ -131,17 +131,17 @@ StreamPacket* StreamResampler::GetPacket(unsigned int)
                 pSrc += iAdvance;
             }
         }
-        mOutputPacket.mBufferUsed = (char*)pDst - (char*)mOutputPacket.mBuffer;
-        mInputPacketReadPos = pSrc - (const short*)pInput->mBuffer;
+        mOutputPacket.SetUsed((char*)pDst - (char*)mOutputPacket.GetBuffer());
+        mInputPacketReadPos = pSrc - (const short*)pInput->GetBuffer();
     }
     else
     {
-        mInputPacketReadPos -= pInput->mBufferUsed;
+        mInputPacketReadPos -= pInput->GetUsed();
     }
 
     mInputPacket = pInput;
     CompletePacket();
-    if (mOutputPacket.mRefCount > 0)
+    if (mOutputPacket.IsLocked())
     {
         return &mOutputPacket;
     }

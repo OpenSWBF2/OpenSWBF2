@@ -48,10 +48,10 @@ void ChatMessageDisplay::Init()
     }
 
     mTextElement.SetFont(uiFont);
-    mBitmapBackground.SetTexture(0x298058FE);
+    mBitmapBackground.SetTexture(0x298058FE /* "tooltip_bg" */);
     mTextElementPrompt.SetFont(uiFont);
     mTextElementPrompt.SetColor(RedColor::YELLOW);
-    mTextElementPrompt.SetText(RedLocalizeDB::Find(0x3DFA66F3, false), true);
+    mTextElementPrompt.SetText(RedLocalizeDB::Find(0x3DFA66F3 /* "common.mp.chat.prompt" */, false), true);
 
     sCanRender = true;
     unsigned char ucFontHeight = mTextElement.m_pFont->m_uiHeight;
@@ -116,13 +116,13 @@ void ChatMessageDisplay::Show(bool bShow, unsigned short usType)
     Show(bShow);
     if (usType == 2)
     {
-        mTextElementPrompt.SetText(RedLocalizeDB::Find(0xAEBD5182, false), true);
+        mTextElementPrompt.SetText(RedLocalizeDB::Find(0xAEBD5182 /* "common.mp.chat.teamprompt" */, false), true);
         mTextElementPrompt.SetColor(RedColor::GREEN);
         mTextElement.SetColor(RedColor::GREEN);
     }
     else
     {
-        mTextElementPrompt.SetText(RedLocalizeDB::Find(0x3DFA66F3, false), true);
+        mTextElementPrompt.SetText(RedLocalizeDB::Find(0x3DFA66F3 /* "common.mp.chat.prompt" */, false), true);
         mTextElementPrompt.SetColor(RedColor::YELLOW);
         mTextElement.SetColor(RedColor::YELLOW);
     }

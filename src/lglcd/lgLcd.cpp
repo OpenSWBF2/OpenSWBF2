@@ -3,11 +3,9 @@
 #include "lgLcd.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
 
-// GLOBAL: SWBF2 0x01e2fd04
-int dword_1E2FD04;
+int g_lgLcdLibIsInitialized;
 
-// GLOBAL: SWBF2 0x01fac3b0
-lgLcdInterface* dword_1FAC3B0;
+lgLcdInterface* g_lgLcdLibLinkedRemoteInterface;
 
 // GLOBAL: SWBF2 0x01e2fbf8
 HMODULE hLibModule;
@@ -24,8 +22,7 @@ char ProcName[] = "GetInterface";
 
 typedef lgLcdInterface* (WINAPI *GetInterfaceFn)(int iVersion);
 
-// FUNCTION: SWBF2 0x004012d4
-BOOL sub_4012D4()
+BOOL LinkLgLcdDLL()
 {
     BOOL bOk = FALSE;
 
@@ -43,13 +40,13 @@ BOOL sub_4012D4()
                 dword_1E2FBFC = GetProcAddress(hLibModule, ProcName);
                 if (dword_1E2FBFC)
                 {
-                    dword_1FAC3B0 = ((GetInterfaceFn)dword_1E2FBFC)(1);
-                    bOk = (dword_1FAC3B0 != 0);
+                    g_lgLcdLibLinkedRemoteInterface = ((GetInterfaceFn)dword_1E2FBFC)(1);
+                    bOk = (g_lgLcdLibLinkedRemoteInterface != 0);
                 }
 
                 if (!bOk)
                 {
-                    sub_40136C();
+                    UnlinkLgLcdDLL();
                 }
             }
         }
@@ -59,84 +56,77 @@ BOOL sub_4012D4()
     return bOk;
 }
 
-// FUNCTION: SWBF2 0x0040136c
-BOOL sub_40136C()
+BOOL UnlinkLgLcdDLL()
 {
     if (hLibModule)
     {
         FreeLibrary(hLibModule);
         hLibModule = 0;
     }
-    dword_1FAC3B0 = 0;
+    g_lgLcdLibLinkedRemoteInterface = 0;
 
     return TRUE;
 }
 
-// FUNCTION: SWBF2 0x004012a5
 DWORD WINAPI lgLcdInit()
 {
-    if (dword_1E2FD04)
+    if (g_lgLcdLibIsInitialized)
     {
         return LGLCD_E_ALREADY_INITIALIZED;
     }
 
-    if (!sub_4012D4())
+    if (!LinkLgLcdDLL())
     {
         return LGLCD_E_SERVER_UNAVAILABLE;
     }
 
-    dword_1E2FD04 = 1;
-    return dword_1FAC3B0->Init();
+    g_lgLcdLibIsInitialized = 1;
+    return g_lgLcdLibLinkedRemoteInterface->Init();
 }
 
-// FUNCTION: SWBF2 0x004013b5
 DWORD WINAPI lgLcdConnectA(lgLcdConnectContextA* pCtx)
 {
-    if (!dword_1E2FD04)
+    if (!g_lgLcdLibIsInitialized)
     {
         return LGLCD_E_SERVICE_NOT_ACTIVE;
     }
-    return dword_1FAC3B0->Connect(pCtx);
+    return g_lgLcdLibLinkedRemoteInterface->Connect(pCtx);
 }
 
-// FUNCTION: SWBF2 0x004013f3
 DWORD WINAPI lgLcdEnumerate(int iConnection, int iIndex, lgLcdDeviceDesc* pDesc)
 {
-    if (!dword_1E2FD04)
+    if (!g_lgLcdLibIsInitialized)
     {
         return LGLCD_E_SERVICE_NOT_ACTIVE;
     }
-    return dword_1FAC3B0->Enumerate(iConnection, iIndex, pDesc);
+    return g_lgLcdLibLinkedRemoteInterface->Enumerate(iConnection, iIndex, pDesc);
 }
 
-// FUNCTION: SWBF2 0x0040141a
 DWORD WINAPI lgLcdOpen(lgLcdOpenContext* pCtx)
 {
-    if (!dword_1E2FD04)
+    if (!g_lgLcdLibIsInitialized)
     {
         return LGLCD_E_SERVICE_NOT_ACTIVE;
     }
-    return dword_1FAC3B0->Open(pCtx);
+    return g_lgLcdLibLinkedRemoteInterface->Open(pCtx);
 }
 
-// FUNCTION: SWBF2 0x00401458
 DWORD WINAPI lgLcdReadSoftButtons(int iDevice, DWORD* pdwButtons)
 {
-    if (!dword_1E2FD04)
+    if (!g_lgLcdLibIsInitialized)
     {
         return LGLCD_E_SERVICE_NOT_ACTIVE;
     }
-    return dword_1FAC3B0->ReadSoftButtons(iDevice, pdwButtons);
+    return g_lgLcdLibLinkedRemoteInterface->ReadSoftButtons(iDevice, pdwButtons);
 }
 
-// FUNCTION: SWBF2 0x0040147b
 DWORD WINAPI lgLcdUpdateBitmap(int iDevice, void const* pBitmap, DWORD dwPriority)
 {
-    if (!dword_1E2FD04)
+    if (!g_lgLcdLibIsInitialized)
     {
         return LGLCD_E_SERVICE_NOT_ACTIVE;
     }
-    return dword_1FAC3B0->UpdateBitmap(iDevice, pBitmap, dwPriority);
+    return g_lgLcdLibLinkedRemoteInterface->UpdateBitmap(iDevice, pBitmap, dwPriority);
 }
 
 
@@ -163,28 +153,25 @@ DWORD WINAPI lgLcdUpdateBitmap(int iDevice, void const* pBitmap, DWORD dwPriorit
 
 
 
-// FUNCTION: SWBF2 0x0040138e
 DWORD WINAPI lgLcdDeInit()
 {
-    if (!dword_1E2FD04)
+    if (!g_lgLcdLibIsInitialized)
     {
         return 0;
     }
-    DWORD dwResult = dword_1FAC3B0->DeInit();
-    sub_40136C();
-    dword_1E2FD04 = 0;
+    DWORD dwResult = g_lgLcdLibLinkedRemoteInterface->DeInit();
+    UnlinkLgLcdDLL();
+    g_lgLcdLibIsInitialized = 0;
     return dwResult;
 }
 
-// FUNCTION: SWBF2 0x004013d4
 DWORD WINAPI lgLcdDisconnect(int iConnection)
 {
-    return dword_1E2FD04 ? dword_1FAC3B0->Disconnect(iConnection) : LGLCD_E_SERVICE_NOT_ACTIVE;
+    return g_lgLcdLibIsInitialized ? g_lgLcdLibLinkedRemoteInterface->Disconnect(iConnection) : LGLCD_E_SERVICE_NOT_ACTIVE;
 }
 
-// FUNCTION: SWBF2 0x00401439
 DWORD WINAPI lgLcdClose(int iDevice)
 {
     typedef DWORD (WINAPI* CloseFn)(int);
-    return dword_1E2FD04 ? ((CloseFn)dword_1FAC3B0->mUnknown001C)(iDevice) : LGLCD_E_SERVICE_NOT_ACTIVE;
+    return g_lgLcdLibIsInitialized ? ((CloseFn)g_lgLcdLibLinkedRemoteInterface->mUnknown001C)(iDevice) : LGLCD_E_SERVICE_NOT_ACTIVE;
 }

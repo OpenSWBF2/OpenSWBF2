@@ -23,14 +23,29 @@ namespace ReserveManager
 
 namespace
 {
+    inline unsigned int GameObjectHandleId(const GameObject* pObject)
+    {
+        return pObject->GetHandleId();
+    }
+
+    inline const GameObject* HandleObject(PblHandle<const GameObject>& handle)
+    {
+        if (handle.mObject && GameObjectHandleId(handle.mObject) != handle.mSavedHandleId)
+        {
+            handle.mObject = 0;
+            handle.mSavedHandleId = 0;
+        }
+        return handle.mObject;
+    }
+
     inline const PblVector3& GameObjectPosition(const GameObject* pObject)
     {
-        return static_cast<const CollisionObject&>(*pObject).GetPosition();
+        return ((const CollisionObject&)(*pObject)).GetPosition();
     }
 
     const PblMatrix& GameObjectMatrix(const GameObject* pObject)
     {
-        return static_cast<const CollisionObject&>(*pObject).GetMatrix();
+        return ((const CollisionObject&)(*pObject)).GetMatrix();
     }
 
 }
@@ -73,7 +88,7 @@ const char NavigatorFollowTarget::rttiNameNavigatorFollowTarget[] = "NavigatorFo
 // FUNCTION: SWBF2 0x005ac590
 NavigatorFollowTarget* NavigatorFollowTargetPtr(Navigator* pNavigator)
 {
-    if (pNavigator && pNavigator->IsRtti(NavigatorFollowTarget::rttiHashNavigatorFollowTarget))
+    if (pNavigator && pNavigator->IsRtti(NavigatorFollowTarget::GetRtti()))
     {
         return (NavigatorFollowTarget*)pNavigator;
     }
@@ -323,16 +338,14 @@ void NavigatorFollowTarget::UpdateFollowCrumbs()
     {
         if (pHim->mState == SoldierState::JET_HOVER)
         {
-            const bool bHover = pMe->mClass->mJetTypeHover;
-            if (bHover)
+            if ((bool)(pMe->mClass->mJetTypeHover))
             {
                 mOwner->SetJetJump(PblVector3(0.0f, 0.0f, 0.0f));
             }
         }
         if (pHim->mState == SoldierState::JET_JUMP)
         {
-            const bool bHover = pMe->mClass->mJetTypeHover;
-            if (!bHover)
+            if (!(bool)(pMe->mClass->mJetTypeHover))
             {
                 mOwner->SetJetJump(PblVector3(0.0f, 0.0f, 0.0f));
             }

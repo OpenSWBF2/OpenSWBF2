@@ -61,23 +61,9 @@ enum FindType
     FT_CURRENT = 4
 };
 
-bool __fastcall IsGalaxyIdValid(const unsigned __int64* pThis);
+#include "NetMatch.h"
 
-struct NetSessionId
-{
 
-    // FUNCTION: SWBF2 0x00591430
-    NetSessionId() : id(0) {}
-
-    NetSessionId& operator=(const NetSessionId& other);
-
-    unsigned __int64 id;
-
-    // FUNCTION: SWBF2 0x00591440
-    void SetNULL() { id = 0; }
-
-    bool IsNULL() { return !IsGalaxyIdValid(&id); }
-};
 
 struct FindGamePlayer;
 struct FindGameRules;
@@ -238,42 +224,7 @@ struct IntraSessionPlayer
     bool isTeam1;
 };
 
-// SYNTHETIC: SWBF2 0x005d7620
-// NetAddr::operator=
-#pragma pack(push, 4)
-struct NetAddr
-{
-    galaxy::api::GalaxyID mGalaxyId;
-    bool hasPriv;
-    int privAddr;
-    int privPort;
 
-    // FUNCTION: SWBF2 0x005d46a0
-    NetAddr() : hasPriv(false), privAddr(0), privPort(0) {}
-
-    NetAddr(int addr, int port, int overridePort);
-
-    bool operator==(const NetAddr& other)
-    {
-        if (hasPriv)
-        {
-            if (privAddr != other.privAddr)
-            {
-                return false;
-            }
-            if (privPort != other.privPort)
-            {
-                return false;
-            }
-        }
-        return other.mGalaxyId == mGalaxyId;
-    }
-
-
-
-    void GetAddr(NetSocketPeerRecord& out, NetKey* key) const;
-};
-#pragma pack(pop)
  
  
  
@@ -582,11 +533,7 @@ public:
  
  
 
-struct NetKey
-{
-    unsigned int id;
-    unsigned int key;
-};
+
 
 struct FindGameData
 {

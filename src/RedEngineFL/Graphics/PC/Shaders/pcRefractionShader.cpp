@@ -47,21 +47,25 @@ PblMatrix s_bumpMat;
 // s_refractionTexMat
 PblMatrix s_refractionTexMat;
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
-
 static inline unsigned long FloatBits_(float f)
 {
     return *(const unsigned long*)&f;
 }
 
+// GLOBAL: SWBF2 0x009ca374
+// pcRefractionShader::s_uiID
 unsigned int pcRefractionShader::s_uiID;
+// GLOBAL: SWBF2 0x009ca378
+// pcRefractionShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcRefractionShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca384
+// pcRefractionShader::BeginFuncArray
 pcRedShader::BeginFuncT pcRefractionShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca390
+// pcRefractionShader::EndFuncArray
 pcRedShader::EndFuncT pcRefractionShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca39c
+// pcRefractionShader::RenderFuncArray
 pcRedShader::RenderFuncT pcRefractionShader::RenderFuncArray[MAX_PIPELINES];
 
 // FUNCTION: SWBF2 0x0070cae0
@@ -308,19 +312,13 @@ void pcRefractionShader::Begin_Prog1(unsigned int uiState, unsigned int) const
     }
 }
 
-// FUNCTION: SWBF2 0x0070d750
-void pcRefractionShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x0070d770
 RedShadingState* pcRefractionShader::CreateShadingState() const
 {
     RedShadingState* pState = new RedShadingState(GetRenderTypeHash());
-    pState->AddColorParam(0xbc6f8a5e) = m_colorRefraction;
-    pState->AddIntParam(0x7802a19a) = m_material.materialFlags & 0x44;
-    pState->AddIntParam(0x891891e9) = m_material.diffuseMapHash;
+    pState->AddColorParam(0xbc6f8a5e /* "refraction_color" */) = m_colorRefraction;
+    pState->AddIntParam(0x7802a19a /* "REFRACTIVE" */) = m_material.materialFlags & 0x44;
+    pState->AddIntParam(0x891891e9 /* "diffuse_texture" */) = m_material.diffuseMapHash;
     RedTextureTransform& transform = pState->AddTextureTransformParam(0x3f0d728a);
     transform.m_bTransform = m_material.diffuseTexTransform.m_bTransform;
     if (transform.m_bTransform)
@@ -344,22 +342,10 @@ void pcRefractionShader::End_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetTexture(2, 0);
 }
 
-// FUNCTION: SWBF2 0x0070d8c0
-unsigned int pcRefractionShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x0070d8e0
 RenderPhaseT pcRefractionShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_TRANSPARENT;
-}
-
-// FUNCTION: SWBF2 0x0070d8f0
-unsigned int pcRefractionShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
 }
 
 // FUNCTION: SWBF2 0x0070d900
@@ -370,7 +356,7 @@ unsigned short pcRefractionShader::GetShaderChain(pcRedShader** const ppOut,
     bool bRefract = (m_material.materialFlags & 0x44) != 0;
     if (pItem->pShadingState)
     {
-        bRefract = pItem->pShadingState->GetIntParam(0x7802a19a) != 0;
+        bRefract = pItem->pShadingState->GetIntParam(0x7802a19a /* "REFRACTIVE" */) != 0;
     }
 
     if (bRefract && !(pItem->flags & 0x10220000))
@@ -380,12 +366,6 @@ unsigned short pcRefractionShader::GetShaderChain(pcRedShader** const ppOut,
     }
     *ppOut = RedRenderer::pcGetSystemShader(SYSTEM_SHADER_NORMAL);
     return 1;
-}
-
-// FUNCTION: SWBF2 0x0070d960
-pcRedShaderDef* pcRefractionShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x0070d970
@@ -457,7 +437,9 @@ void pcRefractionShader::RenderZPrepass(const RenderItem* pItem) const
     RedRenderer::pcSetCullMode((uiMatFlags & 0x10000) ? PCREDCULL_NONE : PCREDCULL_BACK);
 
     const unsigned int uiAlphaTest = (uiMatFlags >> 1) & 1;
-    if (uiAlphaTest == 1)
+    switch (uiAlphaTest)
+    {
+    case 1:
     {
         RedColor color = pItem->tweakColor * pMaterial->diffuseColor;
 
@@ -467,7 +449,7 @@ void pcRefractionShader::RenderZPrepass(const RenderItem* pItem) const
         const RedTextureTransform* pTransform = 0;
         if (pItem->pShadingState)
         {
-            uiDiffuseMap = pItem->pShadingState->GetIntParam(0x891891e9);
+            uiDiffuseMap = pItem->pShadingState->GetIntParam(0x891891e9 /* "diffuse_texture" */);
             pTransform = &pItem->pShadingState->GetTextureTransformParam(0x3f0d728a);
             if (!pTransform->m_bTransform)
             {
@@ -497,6 +479,8 @@ void pcRefractionShader::RenderZPrepass(const RenderItem* pItem) const
             pRegs[41].SetFloats(0.0f, 1.0f, 0.0f, 0.0f);
         }
         RedRenderer::pcUnlockVertexShaderConstants(pRegs);
+    }
+    break;
     }
 
     RedRenderer::pcLoadFormat(m_pZPrepassVertexInputFormat);
@@ -598,7 +582,7 @@ void pcRefractionShader::Render_Prog1(const RenderItem* pItem, unsigned int) con
     RedColor refraction = m_colorRefraction;
     if (pItem->pShadingState)
     {
-        refraction = pItem->pShadingState->GetColorParam(0xbc6f8a5e);
+        refraction = pItem->pShadingState->GetColorParam(0xbc6f8a5e /* "refraction_color" */);
     }
     const float fAlpha = refraction.a * (1.0f / 255.0f);
 
@@ -858,22 +842,22 @@ void pcRefractionShader::_Init(unsigned int uiFlags,
 void pcRefractionShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcRefractionShader::GetState_Fixed);
+        (GetStateFuncT)(&pcRefractionShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcRefractionShader::Begin_Fixed);
+        (BeginFuncT)(&pcRefractionShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcRefractionShader::End_Fixed);
+        (EndFuncT)(&pcRefractionShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcRefractionShader::Render_Fixed);
+        (RenderFuncT)(&pcRefractionShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcRefractionShader::GetState_Prog1);
+        (GetStateFuncT)(&pcRefractionShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcRefractionShader::Begin_Prog1);
+        (BeginFuncT)(&pcRefractionShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcRefractionShader::End_Prog1);
+        (EndFuncT)(&pcRefractionShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcRefractionShader::Render_Prog1);
+        (RenderFuncT)(&pcRefractionShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x0070edd0
@@ -882,7 +866,7 @@ void pcRefractionShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }

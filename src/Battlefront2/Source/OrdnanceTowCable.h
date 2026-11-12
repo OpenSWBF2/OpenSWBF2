@@ -65,6 +65,7 @@ struct TowCableAttachPointData
 class TowCableRenderObject
 {
 public:
+    static const int kNumAttachPoints = 13;
     TowCableRenderObject();
     ~TowCableRenderObject() {}
 
@@ -74,7 +75,7 @@ public:
     void Render(GameObject* pObject, unsigned char ucViewport, float fDist, unsigned int uiFlags);
 
     TowCableState mTowState;
-    TowCableAttachPointData mAttachPoints[13];
+    TowCableAttachPointData mAttachPoints[kNumAttachPoints];
 };
  
 

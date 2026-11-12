@@ -133,16 +133,6 @@ const unsigned short* PlayerProfile::GetDefaultProfileName()
 {
     return mDefaultProfile.mName;
 }
-namespace PlayerPrefs
-{
-
-// SYNTHETIC: SWBF2 0x00405f30
-// PlayerPrefs::`dynamic initializer for 'mAllUserPrefs''
-
-// GLOBAL: SWBF2 0x01ef7fa0
-// mAllUserPrefs
-OnePrefs mAllUserPrefs[1];
-}
 namespace PlayerProfile
 {
 
@@ -155,35 +145,6 @@ bool mSafeMode;
 
 // GLOBAL: SWBF2 0x01fa9268
 int mNumMemoryProfiles;
-
-// GLOBAL: SWBF2 0x009661bc
-bool RedParticleRenderer::s_blurEnable;
-
-// FUNCTION: SWBF2 0x0061c410
-void PlayerPrefs::OnePrefs::Clear()
-{
-    mPlayerId = -1;
-    mViewport = 0;
-    mJoystick = 0;
-    mTeamNum = PlayerPrefs::gDefaultTeamNum;
-    mDifficulty = (eGAME_DIFFICULTY)PlayerPrefs::gDefaultDifficulty;
-    pProfile = 0;
-    hasChallenge = false;
-}
-
-// FUNCTION: SWBF2 0x0061c440
-void PlayerPrefs::InitAll()
-{
-    PlayerProfile::ResetAllProfiles();
-    PlayerPrefs::mAllUserPrefs[0].Clear();
-
-    PlayerPrefs::mAllUserPrefs[0].mViewport = 0;
-    PlayerPrefs::mAllUserPrefs[0].mPlayerId = 0;
-    PlayerPrefs::mAllUserPrefs[0].mJoystick = 0;
-
-    PlayerPrefs::mAllUserPrefs[0].pProfile = PlayerProfile::GetProfile(0);
-    *(PlayerProfile::tProfile**)((char*)&mDefaultProfile + 0x10) = PlayerProfile::GetProfile(1);
-}
 
 // FUNCTION: SWBF2 0x0061c4d0
 double ConvertMouseScaleToRawScale(float fScale, int iMode)
@@ -343,7 +304,7 @@ void PlayerProfile::tSoundOpt::ResetToDefault()
     mu8MusicVol = 7;
     mu8SFXVol = 7;
     mu8SpeechVol = 9;
-    mPlaybackMode = (unsigned char)(GameSoundEngine::gDefaultSpeakerConfig == 0
+    mPlaybackMode = (unsigned char)(GameSoundEngine::gDefaultSpeakerConfig == Snd::EngineBase::speakerConfig_Invalid
                         ? Snd::EngineBase::speakerConfig_Stereo
                         : GameSoundEngine::gDefaultSpeakerConfig);
     mMixerMode = 1;
@@ -496,64 +457,7 @@ struct TargetMode
     unsigned long ulMSQuality;
 };
 
-static DisplayRequestTag sAppliedPC = { false, 0, 0, 0, false, false, (D3DMULTISAMPLE_TYPE)0, 0,
-                                        false, 0, 0, false, false };
-
-static bool sArmMenuConfirm;
-static DisplayLogic::ConfirmPhase sConfirmPhase = DisplayLogic::kConfirmNone;
-static DWORD sConfirmStart;
-static unsigned int sConfirmSkewMs;
-static DisplayRequestTag sConfirmRevert = { false, 0, 0, 0, false, false, (D3DMULTISAMPLE_TYPE)0,
-                                            0, false, 0, 0, false, false };
-static bool sConfirmHaveTarget;
-static unsigned int sConfirmResult;
-static bool sConfirmCliCleared;
-static bool sConfirmCliPrev;
-static unsigned int sConfirmPrevFps;
-static bool sConfirmPrevNoWait;
-static DisplayCfg::DisplaySettings sMarkDisplay;
-static DisplayCfg::DisplaySettings sDeferBase;
-static bool sSaveDeferred;
-static unsigned int sKeepSaveResult;
-static bool sMarkCliWindowed;
-static bool sMarked;
-
-static void StageRequestTag(const PlayerProfile::tPCOpt& rOpt)
-{
-    DisplayRequestTag kTag;
-    kTag.bValid = true;
-    kTag.uiOwner = PlayerProfile::GetCurProfileIndex();
-    kTag.resX = rOpt.mResolutionX;
-    kTag.resY = rOpt.mResolutionY;
-    kTag.windowed = rOpt.mWindowed;
-    kTag.vsync = rOpt.mVSync;
-    kTag.ms = rOpt.mMultiSample;
-    kTag.msq = rOpt.mMultiSampleQuality;
-    kTag.bBorderless = DisplayCfg::gDisplay.bBorderless;
-    kTag.uiRefresh = DisplayCfg::gDisplay.uiRefresh;
-    kTag.uiVsync = DisplayCfg::gDisplay.uiVsync;
-    kTag.bVsyncSet = (DisplayCfg::gDisplay.uiSet & DisplayCfg::kVsync) != 0;
-    kTag.bConfirm = sArmMenuConfirm;
-    RedRenderer::pcStageRequestTag(kTag);
-}
-
-static bool ProfileSizeUsable(unsigned int uiW, unsigned int uiH)
-{
-    if (uiW == 0 && uiH == 0)
-    {
-        return true;
-    }
-    unsigned int uiMaxW = 0;
-    unsigned int uiMaxH = 0;
-    RedRenderer::pcGetMaxTextureSize(uiMaxW, uiMaxH);
-    return DisplayLogic::SizeInBounds(uiW, uiH) &&
-           DisplayLogic::SizeFitsCaps(uiW, uiH, uiMaxW, uiMaxH);
-}
-
-static void ComputeTargetMode(const PlayerProfile::tPCOpt& rOpt, bool bQuiet, TargetMode& rOut)
-{
-    const bool bIsShell = (GameState::GetState() == 0x11E1FC01);
-    RedRenderer::pcSetShellActive(bIsShell);
+    const bool bIsShell = (GameState::GetState() == 0x11E1FC01 /* "shell" */);
 
     unsigned int uiWidth = 0;
     unsigned int uiHeight = 0;
@@ -1352,11 +1256,11 @@ void PlayerProfile::tOnlineOpt::ApplySettings()
     }
 
     unsigned int uiState = GameState::GetState();
-    bool bShellOrNet = uiState == 0x11E1FC01 || NetGame::IsEnabled();
+    bool bShellOrNet = uiState == 0x11E1FC01 /* "shell" */ || NetGame::IsEnabled();
 
     VoiceChat::Node* pNode = (VoiceChat::Node*)GameVoiceChat::FindNodeByDeviceID(iIndex);
     int iPlayer = FLInputManager::s_instance.GetPlayerFromHWPort(iIndex);
-    if (uiState != 0x11E1FC01)
+    if (uiState != 0x11E1FC01 /* "shell" */)
     {
         iIndex = iPlayer >= 0 ? NetGame::GetLocalIndex(iPlayer) : -1;
     }
@@ -1763,6 +1667,16 @@ bool tProfile::IsDirty(bool bNoCache)
     }
     mLastDirtyCRC[0] = mCRC;
     return true;
+}
+}
+
+namespace PlayerProfile
+{
+
+// FUNCTION: SWBF2 0x0061d8f0
+void SetSafeMode()
+{
+    mSafeMode = true;
 }
 }
 

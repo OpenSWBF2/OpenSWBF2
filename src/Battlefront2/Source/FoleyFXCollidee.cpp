@@ -29,7 +29,7 @@ FoleyFXCollideeClass::FoleyFXCollideeClass(const FoleyFXCollideeClass* pClass)
 // FUNCTION: SWBF2 0x0052c450
 bool FoleyFXCollideeClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty != 0xa1c9cbc5)
+    if (uProperty != 0xa1c9cbc5 /* "FoleyFXGroup" */)
     {
         return false;
     }

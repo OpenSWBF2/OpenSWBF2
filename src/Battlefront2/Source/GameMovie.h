@@ -28,7 +28,6 @@ public:
     static void Update(float fDeltaTime);
 
     static bool IsPlaying();
-    static void StartInGameMoviePlay(const char* pcFile, const char* pcName);
 
     static void Play(const char* const pcProperties, const char* const pcPropertiesAtEnd,
                      unsigned int uiY, unsigned int uiX, unsigned int uiWidth,
@@ -53,5 +52,6 @@ public:
 
 void UpdatInGameMovie();
 
+void StartInGameMoviePlay(const char* pcFile, const char* pcName);
 void StopInGameMoviePlay();
 void EnableSceneAndInterface(bool bEnable);

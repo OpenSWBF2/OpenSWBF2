@@ -62,6 +62,7 @@ class EntityWalker : public GameObject,
                      public VehicleEngine
 {
 public:
+    static const int kMaxTurrets = 8;
 
     enum eState
     {
@@ -125,6 +126,7 @@ public:
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
     virtual bool IsRtti(unsigned int uRtti) const;
+    static unsigned int GetRtti() { return rttiHashEntityWalker; }
     virtual unsigned int GetDerivedRtti() const;
     virtual const char* GetDerivedRttiName() const;
     virtual void Init();
@@ -255,7 +257,7 @@ public:
     // FUNCTION: SWBF2 0x0047fb30
     virtual Trackable* GetTrackable()
     {
-        return static_cast<Trackable*>(this);
+        return (Trackable*)this;
     }
     virtual float GetSoundRadius() const;
     virtual float GetAimTurnRate() const;
@@ -308,7 +310,16 @@ protected:
 
 public:
 
-    void RotateY(const PblAngle& rAngle);
+    // FUNCTION: SWBF2 0x004ff510
+    void RotateY(const PblAngle& aAngle)
+    {
+        const PblAngle angle = aAngle.Double();
+        const float c = angle.mCos;
+        const float s = angle.mSin;
+        PblMatrix rot(PblVector3(c, 0.0f, -s), PblVector3(0.0f, 1.0f, 0.0f),
+                      PblVector3(s, 0.0f, c), PblVector3(0.0f, 0.0f, 0.0f));
+        mMatrix = rot * mMatrix;
+    }
     void DoFootImpactEffects();
     int GetFirstPersonIndex();
     int GetJoystickIndex();
@@ -348,7 +359,7 @@ public:
     RedAnimation* mAnimObj;
     PblVector3 mVelocity;
     PassengerSlot* mPassengerSlots[4];
-    MountedTurret* mTurret[8];
+    MountedTurret* mTurret[kMaxTurrets];
     int mNumTurrets;
     RedStencilShadow* mStencilShadow;
     float mLegAngle;
@@ -358,8 +369,8 @@ public:
     float mBodyRoll;
     float mStopTime;
     Aimer* mAimer[4];
-    Weapon* mWeapon[4];
-    int mWeaponIndex[2];
+    Weapon* mWeapon[kMaxWeapons];
+    int mWeaponIndex[kNumWeaponChannels];
     ZephyrSkeleton<64> mZephyrSkeleton;
     ZephyrPoseStatic<64> mZephyrPoseStatic;
     WalkerBlend* mBlend;
@@ -457,6 +468,7 @@ class EntityWalkerClass : public GameObjectClass,
                           public VehicleEngineClass
 {
 public:
+    static const int kMaxTurrets = EntityWalker::kMaxTurrets;
     virtual ~EntityWalkerClass();
 
 
@@ -483,14 +495,14 @@ public:
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual void PostReadSetup();
     // FUNCTION: SWBF2 0x0047fcc0
-    virtual int GetVehicleType() const
+    virtual GameObjectClass::VehicleType GetVehicleType() const
     {
         return mVehicleType;
     }
     // FUNCTION: SWBF2 0x0047fd30
     virtual const ControllableClass* GetControllableClass() const
     {
-        return static_cast<const ControllableClass*>(this);
+        return (const ControllableClass*)this;
     }
     // FUNCTION: SWBF2 0x0047fcd0
     virtual int GetWeaponCount() const
@@ -545,7 +557,7 @@ public:
     bool m_bAnimationBlending;
     unsigned char m_uiNumAttackAnims;
     WalkerAttackAnim m_aAttackAnims[4];
-    int mVehicleType;
+    GameObjectClass::VehicleType mVehicleType;
     float mAcceleration;
     float mMaxSpeed;
     float mBoostSpeed;
@@ -575,8 +587,8 @@ public:
     float mCollisionInflict;
     AimerClass mAimerClass[4];
     WeaponClass* mWeaponClass[4];
-    WeaponAmmoDesc mWeaponAmmo[4];
-    int mWeaponChannel[4];
+    WeaponAmmoDesc mWeaponAmmo[kMaxWeapons];
+    int mWeaponChannel[kMaxWeapons];
     int mWeaponCount;
     float mStompRumbleLight;
     float mStompRumbleHeavy;
@@ -590,7 +602,7 @@ public:
     CameraTrackSetting mCameraSettings;
     PassengerSlotClass* mPassengerSlotClass;
     unsigned char mNumPassengerSlots;
-    MountedTurretClass* mTurretClass[8];
+    MountedTurretClass* mTurretClass[kMaxTurrets];
     ExplosionClass* mExplosion;
     PblVector3 mExplosionOffset;
     ExplosionClass* mFinalExplosion;

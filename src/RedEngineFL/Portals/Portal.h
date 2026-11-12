@@ -9,6 +9,7 @@
 #include "RedEngineFL/geometry/vector.h"
 #include "RedEngineFL/geometry/polygons.h"
 #include "RedEngineFL/geometry/Primitives.h"
+#include "BaseDisplayable.h"
 
 namespace pvs
 {
@@ -52,68 +53,6 @@ namespace pvs
 
 int GetCurrentFrame_();
 
-// VTABLE: SWBF2 0x00783534
-class IManager
-{
-public:
-    virtual void Update(const pvs::ICamera &, pvs::ITraverser *) = 0;
-    virtual void RegisterDynamic(pvs::IDisplayable &) = 0;
-    virtual void UnregisterDynamic(pvs::IDisplayable &) = 0;
-    virtual void RegisterStatic(pvs::IDisplayable &) = 0;
-    virtual void UnregisterStatic(pvs::IDisplayable &) = 0;
-    virtual pvs::ISector & GetRootSector() = 0;
-    virtual bool IsActive() = 0;
-    virtual void SetActive(bool) = 0;
-    virtual void Allocate(int, int) = 0;
-    virtual pvs::IPortal * GetPortal(int) = 0;
-    virtual pvs::ISector * GetSector(int) = 0;
-    virtual pvs::IPortal * NewPortal() = 0;
-    virtual pvs::ISector * NewSector() = 0;
-    virtual pvs::IPortal * FindNearestPortal(const geo::Sphere &, float) = 0;
-    // FUNCTION: SWBF2 0x006deec0
-    virtual ~IManager() {}
-
-    static IManager & GetInstance();
-    static void SetInstance(IManager & rManager);
-    static void ClearInstance();
-    static void ReserveDisplayables();
-};
-}
-
-namespace pvs
-{
-
-class IPortal
-{
-public:
-    virtual void SetActive(bool) = 0;
-    virtual bool IsActive() = 0;
-    virtual pvs::ISector * GetLeft() = 0;
-    virtual pvs::ISector * GetRight() = 0;
-    virtual void SetLeft(pvs::ISector *) = 0;
-    virtual void SetRight(pvs::ISector *) = 0;
-    virtual geo::Poly3D & GetPoly() = 0;
-    virtual const geo::Poly3D & GetPoly() const = 0;
-    virtual void Init(pvs::Sector *, pvs::Sector *) = 0;
-    virtual void InitBound() = 0;
-};
-}
-
-namespace pvs
-{
-
-class ISector
-{
-public:
-    virtual void RegisterDynamic(pvs::IDisplayable &) = 0;
-    virtual void UnregisterDynamic(pvs::IDisplayable &) = 0;
-    virtual void RegisterStatic(pvs::IDisplayable &) = 0;
-    virtual void UnregisterStatic(pvs::IDisplayable &) = 0;
-    virtual util::Vector<unsigned int> & GetStaticNames() = 0;
-    virtual void AddPortal(pvs::IPortal *) = 0;
-    virtual void SetBound(const geo::ExtrudedPoly3D &) = 0;
-    virtual geo::ExtrudedPoly3D & GetBound() = 0;
-};
 }
 
 namespace pvs
@@ -130,10 +69,22 @@ public:
     virtual void UnregisterDynamic(pvs::IDisplayable &);
     virtual void RegisterStatic(pvs::IDisplayable &);
     virtual void UnregisterStatic(pvs::IDisplayable &);
-    virtual util::Vector<unsigned int> & GetStaticNames();
+    // FUNCTION: SWBF2 0x006e0a80
+    virtual util::Vector<unsigned int>& GetStaticNames()
+    {
+        return staticNames_;
+    }
     virtual void AddPortal(pvs::IPortal *);
-    virtual void SetBound(const geo::ExtrudedPoly3D &);
-    virtual geo::ExtrudedPoly3D & GetBound();
+    // FUNCTION: SWBF2 0x006e14e0
+    virtual void SetBound(const geo::ExtrudedPoly3D& rBound)
+    {
+        bound_ = rBound;
+    }
+    // FUNCTION: SWBF2 0x006e0660
+    virtual geo::ExtrudedPoly3D& GetBound()
+    {
+        return bound_;
+    }
 
     bool Contains(const geo::Vector3<float> &);
     bool Overlap(const geo::Sphere &);
@@ -276,15 +227,53 @@ public:
     // pvs::Portal::`scalar deleting destructor'
     virtual ~Portal() {}
 
-    virtual void SetActive(bool);
-    virtual bool IsActive();
-    virtual pvs::ISector * GetLeft();
-    virtual pvs::ISector * GetRight();
-    virtual void SetLeft(pvs::ISector *);
-    virtual void SetRight(pvs::ISector *);
-    virtual geo::Poly3D & GetPoly();
-    virtual const geo::Poly3D & GetPoly() const;
-    virtual void Init(pvs::Sector *, pvs::Sector *);
+    // FUNCTION: SWBF2 0x006e14c0
+    virtual void SetActive(bool bActive)
+    {
+        active_ = bActive;
+    }
+    // FUNCTION: SWBF2 0x006e0be0
+    virtual bool IsActive()
+    {
+        return active_;
+    }
+    // FUNCTION: SWBF2 0x006e0990
+    virtual pvs::ISector* GetLeft()
+    {
+        return left_;
+    }
+    // FUNCTION: SWBF2 0x006e09e0
+    virtual pvs::ISector* GetRight()
+    {
+        return right_;
+    }
+    // FUNCTION: SWBF2 0x006e15b0
+    virtual void SetLeft(pvs::ISector* pLeft)
+    {
+        left_ = (pvs::Sector*)pLeft;
+    }
+    // FUNCTION: SWBF2 0x006e15d0
+    virtual void SetRight(pvs::ISector* pRight)
+    {
+        right_ = (pvs::Sector*)pRight;
+    }
+    // FUNCTION: SWBF2 0x006e09b0
+    virtual geo::Poly3D& GetPoly()
+    {
+        return poly_;
+    }
+    // FUNCTION: SWBF2 0x006e09c0
+    virtual const geo::Poly3D& GetPoly() const
+    {
+        return poly_;
+    }
+    // FUNCTION: SWBF2 0x006e0aa0
+    virtual void Init(pvs::Sector* pLeft, pvs::Sector* pRight)
+    {
+        left_ = pLeft;
+        active_ = true;
+        right_ = pRight;
+    }
     virtual void InitBound();
 
     void FindNormal();
@@ -322,80 +311,6 @@ struct Box;
 namespace pvs
 {
 
-class IDisplayable
-{
-public:
-    virtual void OnTraverse(pvs::ITraverser &) = 0;
-    virtual void SetActive(int) = 0;
-    virtual bool IsActive(int) const = 0;
-    virtual void SetProcessed(int) = 0;
-    virtual bool IsProcessed(int) const = 0;
-    virtual void GetAABound(geo::Box &) const = 0;
-    virtual void GetSphereBound(geo::Sphere &) const = 0;
-    virtual bool PortalClip() const = 0;
-    virtual void SetPortalClip(bool) = 0;
-    virtual bool PortalActive() const = 0;
-    virtual void SetPortalActive(bool) = 0;
-    virtual bool Dynamic() const = 0;
-    virtual void SetDynamic(bool) = 0;
-    virtual pvs::Sector * GetSector() = 0;
-    virtual void SetSector(pvs::Sector *) = 0;
-    virtual void Update(pvs::Manager &) = 0;
-};
-
-template <class T>
-class BaseDisplayable : public T
-{
-public:
-    BaseDisplayable() : sector_(0), flags_(0), aframe_(0), pframe_(0) {}
-
-    virtual ~BaseDisplayable() {}
-
-    virtual void OnTraverse(pvs::ITraverser &);
-    virtual void SetActive(int);
-    virtual bool IsActive(int) const;
-    virtual void SetProcessed(int);
-    virtual bool IsProcessed(int) const;
-    virtual bool PortalClip() const;
-    virtual void SetPortalClip(bool);
-    virtual bool PortalActive() const;
-    virtual void SetPortalActive(bool bActive)
-    {
-        if (bActive)
-        {
-            flags_ |= 2;
-        }
-        else
-        {
-            flags_ &= ~2u;
-        }
-    }
-    virtual bool Dynamic() const;
-    virtual void SetDynamic(bool);
-    virtual pvs::Sector * GetSector();
-    virtual void SetSector(pvs::Sector *);
-    virtual void Update(pvs::Manager &);
-
-    pvs::Sector* sector_;
-    unsigned int flags_;
-    int aframe_;
-    int pframe_;
-};
-
-// VTABLE: SWBF2 0x007835bc
-class DynDisplayable : public pvs::BaseDisplayable<pvs::IDisplayable>
-{
-public:
-    DynDisplayable();
-    virtual ~DynDisplayable();
-
-    virtual void SetSector(pvs::Sector *);
-    virtual void Update(pvs::Manager &);
-
-    float nextCheckDist_;
-    geo::Vector3<float> lastCheckPos_;
-};
-
 class ICamera
 {
 public:
@@ -417,5 +332,3 @@ public:
 };
 }
 
-// VTABLE: SWBF2 0x00783574
-// class pvs::BaseDisplayable<pvs::IDisplayable>

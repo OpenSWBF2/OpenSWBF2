@@ -8,21 +8,25 @@
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
+// GLOBAL: SWBF2 0x009c9bec
+// pcClearShader::s_uiID
 unsigned int pcClearShader::s_uiID;
+// GLOBAL: SWBF2 0x009c9bf0
+// pcClearShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcClearShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9bfc
+// pcClearShader::BeginFuncArray
 pcRedShader::BeginFuncT pcClearShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9c08
+// pcClearShader::EndFuncArray
 pcRedShader::EndFuncT pcClearShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9c14
+// pcClearShader::RenderFuncArray
 pcRedShader::RenderFuncT pcClearShader::RenderFuncArray[MAX_PIPELINES];
-// SYNTHETIC: SWBF2 0x00409de0
-// `dynamic initializer for 'pcClearShader::s_shaderDef''
-// SYNTHETIC: SWBF2 0x00769e00
-// `dynamic atexit destructor for 'pcClearShader::s_shaderDef''
-
-// GLOBAL: SWBF2 0x009c9c5c
-// pcClearShader::s_shaderDef
-pcRedShaderDef pcClearShader::s_shaderDef;
 
 // FUNCTION: SWBF2 0x00706840
 pcClearShader::pcClearShader()
@@ -77,39 +81,15 @@ void pcClearShader::Begin_Fixed(unsigned int, unsigned int) const
     }
 }
 
-// FUNCTION: SWBF2 0x00706aa0
-void pcClearShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x00706ac0
 void pcClearShader::End_Fixed(unsigned int, unsigned int) const
 {
-}
-
-// FUNCTION: SWBF2 0x00706ad0
-unsigned int pcClearShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
 }
 
 // FUNCTION: SWBF2 0x00706af0
 RenderPhaseT pcClearShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_OPAQUE;
-}
-
-// FUNCTION: SWBF2 0x00706b00
-unsigned int pcClearShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x00706b10
-pcRedShaderDef* pcClearShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x00706b20
@@ -262,13 +242,13 @@ void pcClearShader::_Init(unsigned int uiFlags,
 void pcClearShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcClearShader::GetState_Fixed);
+        (GetStateFuncT)(&pcClearShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcClearShader::Begin_Fixed);
+        (BeginFuncT)(&pcClearShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcClearShader::End_Fixed);
+        (EndFuncT)(&pcClearShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcClearShader::Render_Fixed);
+        (RenderFuncT)(&pcClearShader::Render_Fixed);
 }
 
 // FUNCTION: SWBF2 0x00706e70
@@ -277,7 +257,7 @@ void pcClearShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -319,6 +299,15 @@ unsigned int pcClearShader::s_uiRenderTypeHash = PblHash("clear");
 // GLOBAL: SWBF2 0x009c9c24
 // pcClearShader::s_Factory
 pcClearShader pcClearShader::s_Factory;
+
+// SYNTHETIC: SWBF2 0x00409de0
+// `dynamic initializer for 'pcClearShader::s_shaderDef''
+// SYNTHETIC: SWBF2 0x00769e00
+// `dynamic atexit destructor for 'pcClearShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9c5c
+// pcClearShader::s_shaderDef
+pcRedShaderDef pcClearShader::s_shaderDef;
 
 // SYNTHETIC: SWBF2 0x00409e20
 // PblMath::`dynamic initializer for 'fOneOverHalfPi''

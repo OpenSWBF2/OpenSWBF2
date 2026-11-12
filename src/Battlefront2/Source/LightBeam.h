@@ -16,13 +16,13 @@ class LightBeamEffect : public FLEffect
 public:
 
     LightBeamEffect()
-        : FLEffect(0xE8651328u, 3)
+        : FLEffect(0xE8651328u /* "LightBeam" */, RENDERABLE_POSTWORLD)
     {
         m_pShader = 0;
     }
 
     virtual ~LightBeamEffect();
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Init();
     virtual void Cleanup();
     virtual void ReadConfig(PblConfig& config);
@@ -55,7 +55,26 @@ private:
 {
 public:
     LightBeam();
-    LightBeam(const LightBeam& that);
+    // FUNCTION: SWBF2 0x0056fb10
+    LightBeam(const LightBeam& that)
+        : _Flare(that._Flare)
+        , _vHeadPosition(that._vHeadPosition)
+        , _vDirection(that._vDirection)
+        , _color(that._color)
+        , _fLength(that._fLength)
+        , _fHeadSizeX(that._fHeadSizeX)
+        , _fHeadSizeZ(that._fHeadSizeZ)
+        , _fTailSizeX(that._fTailSizeX)
+        , _fTailSizeZ(that._fTailSizeZ)
+        , _fFadeLength(that._fFadeLength)
+        , _fFadeAmount(that._fFadeAmount)
+        , _fSquaredDrawDistance(that._fSquaredDrawDistance)
+        , _fFlareIntensity(that._fFlareIntensity)
+        , _fBeamIntensity(that._fBeamIntensity)
+        , _fFlareCosAngle(0.5f)
+    {
+    }
+
     virtual ~LightBeam();
     virtual FLEffectObject* BuildEffect();
     virtual void SetHeadPosition(const PblVector3& vPos);
@@ -184,6 +203,26 @@ public:
 };
  
  
+
+// FUNCTION: SWBF2 0x004cc5d0
+inline void ManagedLightBeam::SetInitialWidth(float fWidth)
+{
+    LightBeam::SetInitialWidth(fWidth);
+    if (_bActive)
+    {
+        _UpdateBoundingSphere();
+    }
+}
+
+// FUNCTION: SWBF2 0x004cc660
+inline void ManagedLightBeam::SetInitialWidth(float fWidthX, float fWidthZ)
+{
+    LightBeam::SetInitialWidth(fWidthX, fWidthZ);
+    if (_bActive)
+    {
+        _UpdateBoundingSphere();
+    }
+}
 
 // FUNCTION: SWBF2 0x004cc4c0
 inline void ManagedLightBeam::SetHeadTailPosition(const PblVector3& vHead, const PblVector3& vTail)

@@ -26,8 +26,19 @@ public:
     virtual RedPose* UpdatePose();
     virtual void Update(float fElapsed);
 
+    // FUNCTION: SWBF2 0x0056a180
     void SetUpperLowerAnimations(unsigned int uUpperAnimHash, unsigned int uLowerAnimHash,
-                                 float fTransitionTime);
+                                 float fTransitionTime)
+    {
+        Close();
+        mAnimHash = uUpperAnimHash;
+        mLowerAnimHash = uLowerAnimHash;
+        mQueuedAnim = 0;
+        mQueuedLowerAnim = 0;
+        mAnimTransitionTimeTotal = fTransitionTime;
+        mAnimTransitionTime = 0.0f;
+        Open();
+    }
     void QueueUpperLowerAnimations(unsigned int uUpperAnimHash, unsigned int uLowerAnimHash);
 
     static PblHash rttiHashIFaceSoldierAnimator;

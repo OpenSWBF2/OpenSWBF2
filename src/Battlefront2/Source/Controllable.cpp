@@ -11,7 +11,7 @@
 #include "LockOnManager.h"
 #include "NetGame.h"
 #include "UnitController.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "WeaponShield.h"
 #include "CollisionObject.h"
 #include "GameObject.h"
@@ -66,19 +66,6 @@ float Controllable::GetSoundRadius() const
     return 0.0f;
 }
 
-// FUNCTION: SWBF2 0x00483510
-GameObject* LockOnManager::GetLockedTarget() const
-{
-    return mLockedObj;
-}
-
-// FUNCTION: SWBF2 0x00483540
-void LockOnManager::ForceNewTargetLock(GameObject* pObject)
-{
-    mForceNewLock = 5;
-    mForceNewLockTarget = pObject;
-}
-
 // FUNCTION: SWBF2 0x00483580
 unsigned int LockOnManager::GetTargetLockedChangedTurn() const
 {
@@ -119,7 +106,7 @@ void Controllable::ClearControllable()
     mControlStrafe = 0.0f;
     mControlTurn = 0.0f;
     mControlPitch = 0.0f;
-    for (int i = 0; i < 2; ++i)
+    for (int i = 0; i < kNumWeaponChannels; ++i)
     {
         mControlSwitch[i] = 0.0f;
         mTriggerControlSwitch[i].Clear();
@@ -185,9 +172,9 @@ Controllable* Controllable::GetEnteredRemoteOrVehicleIfNotMe()
     {
         return 0;
     }
-    if (mCharacter->mRemote)
+    if (mCharacter->GetRemote())
     {
-        return mCharacter->mRemote != this ? mCharacter->mRemote : 0;
+        return mCharacter->GetRemote() != this ? mCharacter->GetRemote() : 0;
     }
     if (mCharacter->mVehicle)
     {
@@ -385,7 +372,7 @@ void Controllable::SetWeaponIndex(int iChannel, int iIndex)
 void Controllable::SetCharacter(Character* pCharacter)
 {
     mCharacter = pCharacter;
-    mPlayerId = pCharacter ? pCharacter->mPlayerId : -1;
+    mPlayerId = pCharacter ? pCharacter->GetPlayerId() : -1;
     if (pCharacter)
     {
         mInitialPlayerId = mPlayerId;
@@ -690,57 +677,57 @@ bool ControllableClass::SetProperty(unsigned int uProperty, const char* pszValue
 
     switch (uProperty)
     {
-    case 0x11CE2025:
+    case 0x11CE2025: /* "AnimatedPilotPosition" */
         mAnimatedPilotNodeFlag = true;
         mPilotParentNodeHash = PblTEMPHash(pszValue);
         return true;
-    case 0x104CD1B8:
+    case 0x104CD1B8: /* "CockpitTension" */
         sscanf(pszValue, "%f", &mCockpitTension);
         return true;
-    case 0x20728C12:
+    case 0x20728C12: /* "ThirdPersonFOV" */
         sscanf(pszValue, "%f", &mThirdPersonFOV);
         mThirdPersonFOV *= 0.017453292f;
         return true;
-    case 0x4785D6B7:
+    case 0x4785D6B7: /* "FirstPersonFOV" */
         sscanf(pszValue, "%f", &mFirstPersonFOV);
         mFirstPersonFOV *= 0.017453292f;
         return true;
-    case 0x325F7C20:
+    case 0x325F7C20: /* "CapturePosts" */
         mCanCapturePosts = atoi(pszValue) != 0;
         return true;
-    case 0x2B60E217:
+    case 0x2B60E217: /* "IsPilotExposed" */
         mIsPilotExposed = atoi(pszValue) != 0;
         return true;
-    case 0x44C77C95:
+    case 0x44C77C95: /* "ControlsUnit" */
         mControlsUnit = atoi(pszValue) != 0;
         return true;
-    case 0x83192029:
+    case 0x83192029: /* "AnimatesUnitAsTurret" */
         mAnimatesUnitAsTurret = atoi(pszValue) != 0;
         return true;
-    case 0x848819E7:
+    case 0x848819E7: /* "IgnoreHintNodes" */
         mIgnoreHintNodes = atoi(pszValue) != 0;
         return true;
-    case 0x939B9985:
+    case 0x939B9985: /* "NoEnterVehicles" */
         mCanEnterVehicles = atoi(pszValue) == 0;
         return true;
-    case 0x72CCBDE1:
+    case 0x72CCBDE1: /* "ShakeScale" */
         sscanf(pszValue, "%f", &mShakeScale);
         return true;
-    case 0x9D1F5707:
+    case 0x9D1F5707: /* "ForceMode" */
         sscanf(pszValue, "%d", &mForceMode);
         return true;
-    case 0x8A301535:
+    case 0x8A301535: /* "NumBobPoints" */
         sscanf(pszValue, "%d", &mBobPath.numPoints);
         return true;
     case 0xEF20A0A0:
         sscanf(pszValue, "%i %f %f %f", &iIndex, &fX, &fY, &fZ);
         mBobPath.Vec[iIndex] = PblVector3(fX, fY, fZ);
         return true;
-    case 0x49824403:
+    case 0x49824403: /* "BobSlope" */
         sscanf(pszValue, "%i %f %f %f", &iIndex, &fX, &fY, &fZ);
         mBobPath.Slope[iIndex] = PblVector3(fX, fY, fZ);
         return true;
-    case 0x35341815:
+    case 0x35341815: /* "BobOrient" */
         sscanf(pszValue, "%i %f %f %f", &iIndex, &fX, &fY, &fZ);
         mBobPath.Ore[iIndex] = PblVector3(fX, fY, fZ);
         return true;
@@ -752,13 +739,13 @@ bool ControllableClass::SetProperty(unsigned int uProperty, const char* pszValue
         sscanf(pszValue, "%i %f", &iIndex, &fX);
         mBobPath.Time[iIndex] = fX;
         return true;
-    case 0xA976D065:
+    case 0xA976D065: /* "Pilot9Pose" */
         mIsPilotAnimation9Pose = true;
 
-    case 0x6E4FC069:
+    case 0x6E4FC069: /* "PilotAnimation" */
         mPilotAnimation = SoldierAnimationBank::AddAnimation(pszValue);
         return true;
-    case 0x51CA39A6:
+    case 0x51CA39A6: /* "PilotPosition" */
     {
 
         unsigned int uBone = PblTEMPHash(pszValue);
@@ -768,25 +755,25 @@ bool ControllableClass::SetProperty(unsigned int uProperty, const char* pszValue
         }
         return true;
     }
-    case 0xDA1B8C0C:
+    case 0xDA1B8C0C: /* "VehiclePosition" */
         sscanf(pszValue, "%s", szBuffer);
         mLocalNameID = PblHash(szBuffer);
         return true;
-    case 0x91EE6929:
+    case 0x91EE6929: /* "PilotType" */
         switch (PblHash(pszValue))
         {
-        case 0xADA7AFDB: mPilotType = PILOT_NONE; break;
-        case 0x645BA277: mPilotType = PILOT_SELF; break;
-        case 0x71CD882F: mPilotType = PILOT_VEHICLE; break;
-        case 0xC78D7953: mPilotType = PILOT_REMOTE; break;
-        case 0x1FE70361: mPilotType = PILOT_VEHICLESELF; break;
+        case 0xADA7AFDB: /* "none" */ mPilotType = PILOT_NONE; break;
+        case 0x645BA277: /* "self" */ mPilotType = PILOT_SELF; break;
+        case 0x71CD882F: /* "vehicle" */ mPilotType = PILOT_VEHICLE; break;
+        case 0xC78D7953: /* "remote" */ mPilotType = PILOT_REMOTE; break;
+        case 0x1FE70361: /* "vehicleself" */ mPilotType = PILOT_VEHICLESELF; break;
         }
         return true;
-    case 0x81BCE0F9:
+    case 0x81BCE0F9: /* "PilotDeath" */
         switch (PblHash(pszValue))
         {
-        case 0xBFF162E2: mPilotDeathType = PILOTDEATH_FLY; break;
-        case 0xF85A0760: mPilotDeathType = PILOTDEATH_FALL; break;
+        case 0xBFF162E2: /* "fly" */ mPilotDeathType = PILOTDEATH_FLY; break;
+        case 0xF85A0760: /* "fall" */ mPilotDeathType = PILOTDEATH_FALL; break;
         }
         return true;
     }
@@ -921,7 +908,7 @@ void Controllable::GetPilotMatrix(const PblMatrix& mIn, PblMatrix& mOut)
         const PblMatrix& mPilotMatrix = pPilot->GetMatrix();
         PblMatrix mResult;
         PblMatrix mRelative;
-        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mResult), reinterpret_cast<const D3DXMATRIX*>(&mPilotMatrix), reinterpret_cast<const D3DXMATRIX*>(&static_cast<EntitySoldier*>(pPilot)->mLastVehicleMatrix.GetInverseFast()));
+        D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mResult), reinterpret_cast<const D3DXMATRIX*>(&mPilotMatrix), reinterpret_cast<const D3DXMATRIX*>(&((EntitySoldier*)pPilot)->mLastVehicleMatrix.GetInverseFast()));
         mRelative = mResult;
         D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mResult), reinterpret_cast<const D3DXMATRIX*>(&mRelative), reinterpret_cast<const D3DXMATRIX*>(&mIn));
         mOut = mResult;

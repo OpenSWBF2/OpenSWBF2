@@ -19,7 +19,7 @@ StreamPacket* StreamSourceMemory::GetPacket(unsigned int uiOutput, bool bUpdate)
     StreamPacket* const pPacket = StreamSourceProducer::GetPacket(uiOutput);
     if (pPacket != 0)
     {
-        if (pPacket->mFlags & 1)
+        if (pPacket->GetLast())
         {
             Stop();
         }
@@ -70,7 +70,7 @@ void StreamSourceMemory::Update()
         {
             unsigned int uiSize = mSegment.mLength - uiPos;
             bool bLast = false;
-            pPacket->mBuffer = (unsigned char*)mData + mSegment.mOffset + uiPos;
+            pPacket->SetBuffer((unsigned char*)mData + mSegment.mOffset + uiPos);
             if (uiSize > uiPacketSize)
             {
                 uiSize = uiPacketSize;

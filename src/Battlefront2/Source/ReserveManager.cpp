@@ -1,6 +1,7 @@
 #include "Controllable.h"
 #include "GameLoop.h"
 #include "GameObject.h"
+#include "ReserveManager.h"
 #include "ListPool.h"
 #include "PlayerController.h"
 #include "PebbleFL/Common/PblHandle.h"
@@ -72,7 +73,7 @@ bool sValidateTimeStamp(ReserveStruct& rEntry, float fTimeout)
 }
 
 // FUNCTION: SWBF2 0x00630030
-const GameObject* __fastcall GetFirstReserver(const GameObject* pObj)
+const GameObject* GetFirstReserver(const GameObject* pObj, ReserveType eType)
 {
     for (int i = 0; i < sList->GetLength();)
     {
@@ -81,7 +82,7 @@ const GameObject* __fastcall GetFirstReserver(const GameObject* pObj)
         {
             continue;
         }
-        if (rEntry.mObj == pObj && rEntry.mType == RT_BOARD)
+        if (rEntry.mObj == pObj && rEntry.mType == eType)
         {
             return rEntry.mReserver;
         }

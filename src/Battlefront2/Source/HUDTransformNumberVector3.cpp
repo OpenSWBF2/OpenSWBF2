@@ -5,7 +5,7 @@
 
 
 
-static const unsigned int kNumberVector3Hash = 0x37737dd4;
+static const unsigned int kNumberVector3Hash = 0x37737dd4 /* "NumberVector3" */;
 
 static const unsigned int kMaxMappings = 256;
 

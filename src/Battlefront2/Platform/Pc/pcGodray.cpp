@@ -23,13 +23,13 @@ void GodrayManager::PlatformInit()
     if (RedRenderer::pcGetGeometryMode())
     {
         m_pShader = pcRedShader::Create(
-            0x8a8743bf, 0x9282,
+            0x8a8743bf /* "PARTICLE" */, 0x9282,
             &m_uiTextureHash, 1, 0x10044, RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
     else
     {
         m_pShader = pcRedShader::Create(
-            0x8a8743bf, 0x282,
+            0x8a8743bf /* "PARTICLE" */, 0x282,
             &m_uiTextureHash, 1, 0x10044, RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
 }
@@ -108,7 +108,7 @@ void GodrayManager::PlatformRender(unsigned int uiRenderFlags) const
     unsigned int i;
     for (i = 0; i < m_uiNumVisibleGodrays; i++)
     {
-        if (m_aVisibleGodrays[i].fAlpha > 0.0f)
+        if (!(m_aVisibleGodrays[i].fAlpha <= 0.0f))
         {
             uiNumVertices += 12 * m_aVisibleGodrays[i].uiNumRays;
             uiNumIndices += 22 * m_aVisibleGodrays[i].uiNumRays;
@@ -152,7 +152,7 @@ void GodrayManager::PlatformRender(unsigned int uiRenderFlags) const
     for (i = 0; i < m_uiNumVisibleGodrays; i++)
     {
         const VisibleGodray* pVisible = &m_aVisibleGodrays[i];
-        if (!(pVisible->fAlpha > 0.0f))
+        if (pVisible->fAlpha <= 0.0f)
         {
             continue;
         }
@@ -225,84 +225,108 @@ void GodrayManager::PlatformRender(unsigned int uiRenderFlags) const
             if (RedRenderer::pcGetGeometryMode())
             {
                 GodrayVertex::VertexC* pVertex = (GodrayVertex::VertexC*)pVertexData;
-                pVertex[0].SetPos(pVisible->vStartPosClipped + avWidth[1]);
-                pVertex[0].SetColor(colorEdge);
-                pVertex[0].SetUV(afU[0], afV[1]);
-                pVertex[1].SetPos(pVisible->vStartPosClipped + avWidth[2]);
-                pVertex[1].SetColor(colorEdge);
-                pVertex[1].SetUV(afU[0], afV[2]);
-                pVertex[2].SetPos(vLength1 + avWidth[0]);
-                pVertex[2].SetColor(colorEdge);
-                pVertex[2].SetUV(afU[1], afV[0]);
-                pVertex[3].SetPos(vLength1 + avWidth[1]);
-                pVertex[3].SetColor(color);
-                pVertex[3].SetUV(afU[1], afV[1]);
-                pVertex[4].SetPos(vLength1 + avWidth[2]);
-                pVertex[4].SetColor(color);
-                pVertex[4].SetUV(afU[1], afV[2]);
-                pVertex[5].SetPos(vLength1 + avWidth[3]);
-                pVertex[5].SetColor(colorEdge);
-                pVertex[5].SetUV(afU[1], afV[3]);
-                pVertex[6].SetPos(vLength2 + avWidth[0]);
-                pVertex[6].SetColor(colorEdge);
-                pVertex[6].SetUV(afU[2], afV[0]);
-                pVertex[7].SetPos(vLength2 + avWidth[1]);
-                pVertex[7].SetColor(color);
-                pVertex[7].SetUV(afU[2], afV[1]);
-                pVertex[8].SetPos(vLength2 + avWidth[2]);
-                pVertex[8].SetColor(color);
-                pVertex[8].SetUV(afU[2], afV[2]);
-                pVertex[9].SetPos(vLength2 + avWidth[3]);
-                pVertex[9].SetColor(colorEdge);
-                pVertex[9].SetUV(afU[2], afV[3]);
-                pVertex[10].SetPos(pVisible->vEndPosClipped + avWidth[1]);
-                pVertex[10].SetColor(colorEdge);
-                pVertex[10].SetUV(afU[3], afV[1]);
-                pVertex[11].SetPos(pVisible->vEndPosClipped + avWidth[2]);
-                pVertex[11].SetColor(colorEdge);
-                pVertex[11].SetUV(afU[3], afV[2]);
-                pVertexData = pVertex + 12;
+                pVertex->SetPos(pVisible->vStartPosClipped + avWidth[1]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[0], afV[1]);
+                pVertex++;
+                pVertex->SetPos(pVisible->vStartPosClipped + avWidth[2]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[0], afV[2]);
+                pVertex++;
+                pVertex->SetPos(vLength1 + avWidth[0]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[1], afV[0]);
+                pVertex++;
+                pVertex->SetPos(vLength1 + avWidth[1]);
+                pVertex->SetColor(color);
+                pVertex->SetUV(afU[1], afV[1]);
+                pVertex++;
+                pVertex->SetPos(vLength1 + avWidth[2]);
+                pVertex->SetColor(color);
+                pVertex->SetUV(afU[1], afV[2]);
+                pVertex++;
+                pVertex->SetPos(vLength1 + avWidth[3]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[1], afV[3]);
+                pVertex++;
+                pVertex->SetPos(vLength2 + avWidth[0]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[2], afV[0]);
+                pVertex++;
+                pVertex->SetPos(vLength2 + avWidth[1]);
+                pVertex->SetColor(color);
+                pVertex->SetUV(afU[2], afV[1]);
+                pVertex++;
+                pVertex->SetPos(vLength2 + avWidth[2]);
+                pVertex->SetColor(color);
+                pVertex->SetUV(afU[2], afV[2]);
+                pVertex++;
+                pVertex->SetPos(vLength2 + avWidth[3]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[2], afV[3]);
+                pVertex++;
+                pVertex->SetPos(pVisible->vEndPosClipped + avWidth[1]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[3], afV[1]);
+                pVertex++;
+                pVertex->SetPos(pVisible->vEndPosClipped + avWidth[2]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[3], afV[2]);
+                pVertex++;
+                pVertexData = pVertex;
             }
             else
             {
                 GodrayVertex::VertexU* pVertex = (GodrayVertex::VertexU*)pVertexData;
-                pVertex[0].SetPos(pVisible->vStartPosClipped + avWidth[1]);
-                pVertex[0].SetColor(colorEdge);
-                pVertex[0].SetUV(afU[0], afV[1]);
-                pVertex[1].SetPos(pVisible->vStartPosClipped + avWidth[2]);
-                pVertex[1].SetColor(colorEdge);
-                pVertex[1].SetUV(afU[0], afV[2]);
-                pVertex[2].SetPos(vLength1 + avWidth[0]);
-                pVertex[2].SetColor(colorEdge);
-                pVertex[2].SetUV(afU[1], afV[0]);
-                pVertex[3].SetPos(vLength1 + avWidth[1]);
-                pVertex[3].SetColor(color);
-                pVertex[3].SetUV(afU[1], afV[1]);
-                pVertex[4].SetPos(vLength1 + avWidth[2]);
-                pVertex[4].SetColor(color);
-                pVertex[4].SetUV(afU[1], afV[2]);
-                pVertex[5].SetPos(vLength1 + avWidth[3]);
-                pVertex[5].SetColor(colorEdge);
-                pVertex[5].SetUV(afU[1], afV[3]);
-                pVertex[6].SetPos(vLength2 + avWidth[0]);
-                pVertex[6].SetColor(colorEdge);
-                pVertex[6].SetUV(afU[2], afV[0]);
-                pVertex[7].SetPos(vLength2 + avWidth[1]);
-                pVertex[7].SetColor(color);
-                pVertex[7].SetUV(afU[2], afV[1]);
-                pVertex[8].SetPos(vLength2 + avWidth[2]);
-                pVertex[8].SetColor(color);
-                pVertex[8].SetUV(afU[2], afV[2]);
-                pVertex[9].SetPos(vLength2 + avWidth[3]);
-                pVertex[9].SetColor(colorEdge);
-                pVertex[9].SetUV(afU[2], afV[3]);
-                pVertex[10].SetPos(pVisible->vEndPosClipped + avWidth[1]);
-                pVertex[10].SetColor(colorEdge);
-                pVertex[10].SetUV(afU[3], afV[1]);
-                pVertex[11].SetPos(pVisible->vEndPosClipped + avWidth[2]);
-                pVertex[11].SetColor(colorEdge);
-                pVertex[11].SetUV(afU[3], afV[2]);
-                pVertexData = pVertex + 12;
+                pVertex->SetPos(pVisible->vStartPosClipped + avWidth[1]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[0], afV[1]);
+                pVertex++;
+                pVertex->SetPos(pVisible->vStartPosClipped + avWidth[2]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[0], afV[2]);
+                pVertex++;
+                pVertex->SetPos(vLength1 + avWidth[0]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[1], afV[0]);
+                pVertex++;
+                pVertex->SetPos(vLength1 + avWidth[1]);
+                pVertex->SetColor(color);
+                pVertex->SetUV(afU[1], afV[1]);
+                pVertex++;
+                pVertex->SetPos(vLength1 + avWidth[2]);
+                pVertex->SetColor(color);
+                pVertex->SetUV(afU[1], afV[2]);
+                pVertex++;
+                pVertex->SetPos(vLength1 + avWidth[3]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[1], afV[3]);
+                pVertex++;
+                pVertex->SetPos(vLength2 + avWidth[0]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[2], afV[0]);
+                pVertex++;
+                pVertex->SetPos(vLength2 + avWidth[1]);
+                pVertex->SetColor(color);
+                pVertex->SetUV(afU[2], afV[1]);
+                pVertex++;
+                pVertex->SetPos(vLength2 + avWidth[2]);
+                pVertex->SetColor(color);
+                pVertex->SetUV(afU[2], afV[2]);
+                pVertex++;
+                pVertex->SetPos(vLength2 + avWidth[3]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[2], afV[3]);
+                pVertex++;
+                pVertex->SetPos(pVisible->vEndPosClipped + avWidth[1]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[3], afV[1]);
+                pVertex++;
+                pVertex->SetPos(pVisible->vEndPosClipped + avWidth[2]);
+                pVertex->SetColor(colorEdge);
+                pVertex->SetUV(afU[3], afV[2]);
+                pVertex++;
+                pVertexData = pVertex;
             }
 
             if (uiNumVerticesWritten)

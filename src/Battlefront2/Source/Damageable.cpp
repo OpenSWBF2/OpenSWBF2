@@ -255,7 +255,7 @@ void Damageable::ApplyNetClientDamage(const DamageDesc& damage, unsigned int uFl
 {
     GameObject* pObject = GetGameObject();
     float fDamage = damage.mBaseValue * fMultiplier * damage.mDamageOwner.mDamageMultiplier;
-    if (damage.mDamageOwner.mTeam == static_cast<const GameObject*>(this)->GetTeam())
+    if (damage.mDamageOwner.mTeam == ((const GameObject*)this)->GetTeam())
     {
         Character* pAttacker = damage.mDamageOwner.mCharacter;
         if (pAttacker && pAttacker->mPlayerId < 0 && pObject->GetControllable() &&
@@ -299,7 +299,7 @@ void Damageable::ApplyNetClientDamage(const DamageDesc& damage, unsigned int uFl
                         ScreenFilterEffect::Instance()->TimedFilter(
                             iViewport, fAmount * 0.15f + 0.15f, 0.0f, fAmount * 0.15f + 0.15f,
                             RedColor(RedColor::RED, (unsigned char)(int)(fAmount * 96.0f + 32.0f)),
-                            0xDE020766);
+                            0xDE020766 /* "white" */);
                     }
                 }
             }
@@ -369,7 +369,7 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
     }
 
     float fDamage = damage.mBaseValue * fMultiplier * damage.mDamageOwner.mDamageMultiplier;
-    if (Team::sTeams[static_cast<const GameObject*>(this)->GetTeam()]->GetAffiliation(damage.mDamageOwner.mTeam) > 0)
+    if (Team::sTeams[((const GameObject*)this)->GetTeam()]->GetAffiliation(damage.mDamageOwner.mTeam) > 0)
     {
         Character* pAttacker = damage.mDamageOwner.mCharacter;
         if (pAttacker && pAttacker->mPlayerId < 0 && pObject->GetControllable() &&
@@ -472,7 +472,7 @@ void Damageable::ApplyDamageCommon(const DamageDesc& damage, unsigned int uFlags
                         ScreenFilterEffect::Instance()->TimedFilter(
                             iViewport, fAmount * 0.15f + 0.15f, 0.0f, fAmount * 0.15f + 0.15f,
                             RedColor(RedColor::RED, (unsigned char)(int)(fAmount * 96.0f + 32.0f)),
-                            0xDE020766);
+                            0xDE020766 /* "white" */);
                     }
                 }
             }
@@ -534,11 +534,11 @@ bool Damageable::ApplyDamage(const DamageDesc& damage, const PblVector3& vDir,
         pAttackerObject->GetAffiliationToMe(GetGameObject()) < 0 &&
         damage.mHealthScale[mHealthType] >= 1.0f)
     {
-        if (!(NetGame::IsEnabled() && NetGame::IsClient()) && damage.mDamageOwner.mCharacter)
+        if (!(NetGame::IsEnabled() && (netEnabledNext && netClientActive)) && damage.mDamageOwner.mCharacter)
         {
             Character::GetPlayerStats(damage.mDamageOwner.mCharacter).AddCriticalShot();
         }
-        FLEffectClass* pClass = FLEffect::s_EffectClasses.Find(0xD7A77563);
+        FLEffectClass* pClass = FLEffect::s_EffectClasses.Find(0xD7A77563 /* "headshot" */);
         if (pClass)
         {
             FLEffectObject* pEffect = pClass->BuildEffect();
@@ -623,7 +623,7 @@ void Damageable::SpreadDamageEvent(const DamageDesc& damage, bool bIsShot, const
     {
         if (it->mCtrl && it->mCtrl->IsRtti(UnitController::GetRtti()))
         {
-            UnitController* pUnit = static_cast<UnitController*>(it->mCtrl);
+            UnitController* pUnit = (UnitController*)it->mCtrl;
             AI::EventInfo_Damaged info(damage.mDamageOwner.mCharacter, bIsShot, vPos, fHealthLost, false);
             pUnit->SendEvent(&info);
         }
@@ -707,7 +707,7 @@ void Damageable::HealthChangeCallback(bool, float)
             }
             if (pEffectClass->mType == 1)
             {
-                ParticleEmitterObject* pEmitter = static_cast<ParticleEmitterObject*>(static_cast<FLEffectObject*>(mDamageEffect[i]));
+                ParticleEmitterObject* pEmitter = (ParticleEmitterObject*)(FLEffectObject*)mDamageEffect[i];
                 pEmitter->ScaleMultiply(pStage->mScale);
                 pEmitter->SetInheritVelocity(pStage->mInheritVelocity);
             }

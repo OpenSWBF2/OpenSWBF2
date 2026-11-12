@@ -246,15 +246,15 @@ int ScriptCB_GetCustomResolution(lua_State*)
 int ScriptCB_IsVideoModeSupported(lua_State*)
 {
     int iArgs = LuaHelper::GetTop();
-    if ((unsigned)(iArgs - 2) > 2 || !lua_isnumber(LuaHelper::mState, 1) ||
-        !lua_isnumber(LuaHelper::mState, 2))
+    if ((unsigned)(iArgs - 2) > 2 || !LuaHelper::IsNumber(1) ||
+        !LuaHelper::IsNumber(2))
     {
         return 0;
     }
     unsigned long dwMultisampleType = 0;
     unsigned long dwMultisampleQuality = 0;
-    int iWidth = (int)luaL_checknumber(LuaHelper::mState, 1);
-    int iHeight = (int)luaL_checknumber(LuaHelper::mState, 2);
+    int iWidth = LuaHelper::GetInt(1);
+    int iHeight = LuaHelper::GetInt(2);
     if (iArgs > 2)
     {
         if (LuaHelper::IsNumber(3))

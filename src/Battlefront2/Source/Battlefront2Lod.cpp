@@ -51,20 +51,6 @@ SoldierLodData::SoldierLodData(const RedModel* pModel, const RedModel* pLowResMo
     }
 }
 
-// SYNTHETIC: SWBF2 0x00402310
-// `dynamic initializer for 'ordnanceloddata''
-
-// GLOBAL: SWBF2 0x01eb0570
-// ordnanceloddata
-OrdnanceLodData ordnanceloddata;
-
-// SYNTHETIC: SWBF2 0x00402320
-// `dynamic initializer for 'noloddata''
-
-// GLOBAL: SWBF2 0x01eb0550
-// noloddata
-NoLodData noloddata;
-
 // FUNCTION: SWBF2 0x00448760
 ModelLodData::ModelLodData(int, const RedModel* pLod0, const RedModel* pLod1, const RedModel* pLod2,
                            const RedModel* pLod3)
@@ -174,3 +160,17 @@ MediumEffectLodData mediumEffectLodData;
 // GLOBAL: SWBF2 0x01eb05b0
 // largeEffectLodData
 LargeEffectLodData largeEffectLodData;
+
+// SYNTHETIC: SWBF2 0x00402310
+// `dynamic initializer for 'ordnanceloddata''
+
+// GLOBAL: SWBF2 0x01eb0570
+// ordnanceloddata
+OrdnanceLodData ordnanceloddata;
+
+// SYNTHETIC: SWBF2 0x00402320
+// `dynamic initializer for 'noloddata''
+
+// GLOBAL: SWBF2 0x01eb0550
+// noloddata
+NoLodData noloddata;

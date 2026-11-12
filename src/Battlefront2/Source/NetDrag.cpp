@@ -1,6 +1,7 @@
 #include <winsock2.h>
 #include "NetComm.h"
 #include "NetGame.h"
+#include "NetDrag.h"
 #include "NetPacket.h"
 #include "pcNetSocket.h"
 #include "PebbleFL/Common/PblJournal.h"
@@ -42,18 +43,6 @@ extern int netOutBytes;
 void AddToBandwidth(NetPacket* pPacket, int iDest);
 void Deliver(NetPacket* pPacket, int iDest);
 
-class NetDrag
-{
-public:
-    static void Create(bool bMission);
-    static void Reset();
-    static void BeginShell();
-    static void Update();
-    static void EndShell();
-    static void Send(NetPacket* pPacket, int iDest);
-    static void FreePackets();
-    static NetPacket* ReceiveLocal();
-};
 
 void CreateAll();
 
@@ -108,16 +97,17 @@ void CreateAll()
 // FUNCTION: SWBF2 0x005b3940
 bool DoDrag(int iDest)
 {
-    if (dragEnabled)
+    if (!dragEnabled)
     {
-        if (dragEnabledHost || !netIsHost)
-        {
-            return true;
-        }
-        if (iDest != 64 && iDest != NetComm::GetLocalIndex(0))
-        {
-            return true;
-        }
+        return false;
+    }
+    if (dragEnabledHost || !netIsHost)
+    {
+        return true;
+    }
+    if (iDest != 64 && iDest != NetComm::GetLocalIndex(0))
+    {
+        return true;
     }
     return false;
 }
@@ -152,13 +142,13 @@ float __fastcall GetBandwidth(int iDest)
 // FUNCTION: SWBF2 0x005b3b20
 void NetDrag::Send(NetPacket* pPacket, int iDest)
 {
-    if (DoDrag(iDest))
+    if (!DoDrag(iDest))
     {
-        AddToBandwidth(pPacket, iDest);
+        Deliver(pPacket, iDest);
     }
     else
     {
-        Deliver(pPacket, iDest);
+        AddToBandwidth(pPacket, iDest);
     }
 }
 

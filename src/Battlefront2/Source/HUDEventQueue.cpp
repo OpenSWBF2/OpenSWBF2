@@ -68,6 +68,25 @@ void HUD::EventQueue::Destroy()
     sEventQueue.DeactivateThread();
 }
 
+// FUNCTION: SWBF2 0x0055e220
+void HUD::EventQueue::AddEvent(const HUD::Event* pEvent, float fDelay)
+{
+    if (!pEvent)
+    {
+        return;
+    }
+    for (int i = 0; i < 32; ++i)
+    {
+        HUD::DelayedEvent& slot = HUD::gEventList[i];
+        if (slot.activationTime < 0.0f)
+        {
+            slot.e = *pEvent;
+            slot.activationTime = GameLoop::GetMissionTime() + fDelay;
+            return;
+        }
+    }
+}
+
 // FUNCTION: SWBF2 0x0055e270
 HUD::EventQueue::EventQueue()
 {

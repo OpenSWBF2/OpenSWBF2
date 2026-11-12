@@ -28,6 +28,17 @@ int __cdecl DecodeBase64(unsigned char* pOutput, unsigned int uiOutputCapacity, 
 // GLOBAL: SWBF2 0x01e65044
 unsigned int gListedLobbyCount;
 
+// FUNCTION: SWBF2 0x005d45f0
+void ProcessGalaxyData()
+{
+    if (!galaxy::api::GalaxyFactory::GetInstance())
+    {
+        return;
+    }
+    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    pGalaxy->ProcessData();
+}
+
 // FUNCTION: SWBF2 0x005d4610
 galaxy::api::IUser* GetGalaxyUser()
 {
@@ -82,30 +93,6 @@ galaxy::api::INetworking* GetGalaxyNetworkingInterface()
     galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
     return pGalaxy->Networking();
 }
-
-// GLOBAL: SWBF2 0x01e64f0c
-gf::GalaxyLobbyDataListener* gGalaxyLobbyDataListener;
-
-// GLOBAL: SWBF2 0x01e64f10
-gf::GalaxyLobbyCreatedListener* gGalaxyLobbyCreatedListener;
-
-// GLOBAL: SWBF2 0x01e64f14
-gf::GalaxyAuthListener* gGalaxyAuthListener;
-
-// GLOBAL: SWBF2 0x01e64f18
-gf::GalaxyLobbyListListener* gGalaxyLobbyListListener;
-
-// GLOBAL: SWBF2 0x01e64f1c
-gf::GalaxyLobbyMemberStateListener* gGalaxyLobbyMemberStateListener;
-
-// GLOBAL: SWBF2 0x01e64f20
-gf::GalaxyLobbyLeftListener* gGalaxyLobbyLeftListener;
-
-// GLOBAL: SWBF2 0x01e64f24
-gf::GalaxyLobbyEnteredListener* gGalaxyLobbyEnteredListener;
-
-// GLOBAL: SWBF2 0x01e64f28
-gf::GalaxyLobbyOwnerChangeListener* gGalaxyLobbyOwnerChangeListener;
 
 // FUNCTION: SWBF2 0x005d4b80
 void gf::GalaxyAuthListener::OnAuthSuccess()
@@ -412,54 +399,6 @@ void gf::GalaxyLobbyOwnerChangeListener::OnLobbyOwnerChanged(const galaxy::api::
     }
     galaxy::api::IMatchmaking* pMatchmaking = GetGalaxyMatchmaking();
     pMatchmaking->LeaveLobby(lobbyID);
-}
-
-// FUNCTION: SWBF2 0x005d6160
-void NetMatch::StartLogin(int iViewport, bool bArg2, char const* pcArg3, char const* pcArg4,
-                char const* pcArg5, bool bArg6)
-{
-    if (!gf::isInitialized() && gf::initialize())
-    {
-        gGalaxyAuthListener = gf::Allocate<gf::GalaxyAuthListener>(iViewport);
-        gGalaxyLobbyCreatedListener = gf::Allocate<gf::GalaxyLobbyCreatedListener>();
-        gGalaxyLobbyLeftListener = gf::Allocate<gf::GalaxyLobbyLeftListener>();
-        gGalaxyLobbyMemberStateListener = gf::Allocate<gf::GalaxyLobbyMemberStateListener>();
-        gGalaxyLobbyEnteredListener = gf::Allocate<gf::GalaxyLobbyEnteredListener>();
-        gGalaxyLobbyListListener = gf::Allocate<gf::GalaxyLobbyListListener>();
-        gGalaxyLobbyDataListener = gf::Allocate<gf::GalaxyLobbyDataListener>();
-        gGalaxyLobbyOwnerChangeListener = gf::Allocate<gf::GalaxyLobbyOwnerChangeListener>();
-    }
-    netLoginFailureReason = 0;
-    if (!gf::isInitialized())
-    {
-        return;
-    }
-
-    galaxy::api::IUser* pUser = GetGalaxyUser();
-    if (pUser->SignedIn() || netLoginPending)
-    {
-        return;
-    }
-
-    netLoginPending = true;
-    NetMatch::SetLocalGSID(0);
-    if (gf::_sap())
-    {
-        const char* pcPersonaName = gf::_sap()->GetPersonaName();
-        char acTicket[256] = { 0 };
-        const int iTicketSize = gf::_sap()->GetEncryptedAppTicket(acTicket, sizeof(acTicket));
-        if (pcPersonaName && iTicketSize > 0)
-        {
-            pUser = GetGalaxyUser();
-            pUser->SignInWithSteam(acTicket, iTicketSize, pcPersonaName);
-            if (!gf::checkError())
-            {
-                return;
-            }
-        }
-    }
-    netLoginPending = false;
-    netLoginFailureReason = 0;
 }
 
 // SYNTHETIC: SWBF2 0x005d4c60

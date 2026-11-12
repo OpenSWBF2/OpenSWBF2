@@ -79,7 +79,7 @@ namespace
 
     inline const CollisionObject* GetGeometryCollision(const GameObject* pObj)
     {
-        return static_cast<const CollisionObject*>(pObj);
+        return (const CollisionObject*)pObj;
     }
 
     inline float GetMaxSpeed(GameObject* pObj)
@@ -95,17 +95,17 @@ namespace
 
     inline const EntitySoldierClass* GetSoldierClass(const Entity* pSoldier)
     {
-        return static_cast<const EntitySoldier*>(pSoldier)->mClass;
+        return ((const EntitySoldier*)pSoldier)->mClass;
     }
 
     const void* GetAcklayData(const Entity* pSoldier)
     {
-        return static_cast<const EntitySoldier*>(pSoldier)->mAcklayData;
+        return ((const EntitySoldier*)pSoldier)->mAcklayData;
     }
 
     inline float GetJetFuel(const Entity* pSoldier)
     {
-        return static_cast<const EntitySoldier*>(pSoldier)->mJetFuel;
+        return ((const EntitySoldier*)pSoldier)->mJetFuel;
     }
 
 }
@@ -783,7 +783,7 @@ void AttackPatterns::DoMelee()
     mOwner->FaceTarget(HEIGHT_STAND);
 
     if (GetMe()->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier) &&
-        static_cast<const EntitySoldier*>(GetMe()->GetEntity())->mAcklayData)
+        ((const EntitySoldier*)GetMe()->GetEntity())->mAcklayData)
     {
         const PblVector3 vDiff = GetMe()->GetMatrix().GetTranslation() -
                                  GetAttackHelper()->GetTarget()->GetMatrix().GetTranslation();

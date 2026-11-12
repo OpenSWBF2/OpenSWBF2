@@ -72,7 +72,7 @@ void OrdnanceLaserClass::SetProperty(unsigned int uProperty, const char* pszValu
 {
     switch (uProperty)
     {
-    case 0x30580110:
+    case 0x30580110: /* "LaserGlowColor" */
     {
         int r, g, b, a;
         sscanf(pszValue, "%i %i %i %i", &r, &g, &b, &a);
@@ -84,7 +84,7 @@ void OrdnanceLaserClass::SetProperty(unsigned int uProperty, const char* pszValu
         mGlowColor = color;
         break;
     }
-    case 0x266F54F7:
+    case 0x266F54F7: /* "EndLaserGlowColor" */
     {
         int r, g, b, a;
         sscanf(pszValue, "%i %i %i %i", &r, &g, &b, &a);
@@ -96,53 +96,53 @@ void OrdnanceLaserClass::SetProperty(unsigned int uProperty, const char* pszValu
         mEndGlowColor = color;
         break;
     }
-    case 0x3F30370C:
+    case 0x3F30370C: /* "OrdnanceEffect" */
         switch (PblHash(pszValue))
         {
-        case 0xDD9D59EC:
+        case 0xDD9D59EC: /* "red_blaster_bolt" */
             mLaserWidth = 0.35f;
             mLaserLength = 12.0f;
-            mTextureId = 0x5AE97AEA;
+            mTextureId = 0x5AE97AEA /* "com_sfx_laser_red" */;
             mGlowColor = RedColor(0xff, 0x0a, 0x0a, 0x64);
             break;
-        case 0x5BFD7D80:
+        case 0x5BFD7D80: /* "red_blaster_bolt_small" */
             mLaserWidth = 0.1f;
             mLaserLength = 5.0f;
-            mTextureId = 0x5AE97AEA;
+            mTextureId = 0x5AE97AEA /* "com_sfx_laser_red" */;
             mGlowColor = RedColor(0xff, 0x0a, 0x0a, 0x64);
             break;
-        case 0x09D3224C:
+        case 0x09D3224C: /* "green_blaster_bolt" */
             mLaserWidth = 0.35f;
             mLaserLength = 12.0f;
-            mTextureId = 0xD89A2A5A;
+            mTextureId = 0xD89A2A5A /* "com_sfx_laser_green" */;
             mGlowColor = RedColor(0x64, 0xff, 0x64, 0x50);
             break;
-        case 0x8AB31EE0:
+        case 0x8AB31EE0: /* "green_blaster_bolt_small" */
             mLaserWidth = 0.2f;
             mLaserLength = 10.0f;
-            mTextureId = 0xD89A2A5A;
+            mTextureId = 0xD89A2A5A /* "com_sfx_laser_green" */;
             mGlowColor = RedColor(0x64, 0xff, 0x64, 0x50);
             break;
-        case 0xD6578027:
+        case 0xD6578027: /* "blue_blaster_bolt" */
             mLaserWidth = 0.35f;
             mLaserLength = 12.0f;
-            mTextureId = 0xD89A2A5A;
+            mTextureId = 0xD89A2A5A /* "com_sfx_laser_green" */;
             mGlowColor = RedColor(0x0a, 0x0a, 0x7f, 0x64);
             break;
-        case 0x4A4A69FF:
+        case 0x4A4A69FF: /* "blue_blaster_bolt_small" */
             mLaserWidth = 0.2f;
             mLaserLength = 10.0f;
-            mTextureId = 0xD89A2A5A;
+            mTextureId = 0xD89A2A5A /* "com_sfx_laser_green" */;
             mGlowColor = RedColor(0x0a, 0x0a, 0x7f, 0x64);
             break;
         }
         mGlowLength = ClampLength(mLaserLength * 3.0f);
         mBlurLength = ClampLength(mLaserLength * 15.0f);
         break;
-    case 0x6F179AB8:
+    case 0x6F179AB8: /* "LaserWidth" */
         sscanf(pszValue, "%f", &mLaserWidth);
         break;
-    case 0x798DC484:
+    case 0x798DC484: /* "FadeOutTime" */
         sscanf(pszValue, "%f", &mFadeOutSpeed);
         if (mFadeOutSpeed <= 0.0f)
         {
@@ -153,20 +153,20 @@ void OrdnanceLaserClass::SetProperty(unsigned int uProperty, const char* pszValu
             mFadeOutSpeed = 1.0f / mFadeOutSpeed;
         }
         break;
-    case 0xB709B5E7:
+    case 0xB709B5E7: /* "LaserTexture" */
         mTextureId = PblHash(pszValue);
         break;
-    case 0x9D0FB7A4:
+    case 0x9D0FB7A4: /* "BlurLength" */
         sscanf(pszValue, "%f", &mBlurLength);
         mBlurLength = ClampLength(mBlurLength);
         break;
-    case 0xBA858240:
+    case 0xBA858240: /* "LaserLength" */
         sscanf(pszValue, "%f", &mLaserLength);
         mLaserLength = ClampLength(mLaserLength);
         mGlowLength = ClampLength(mLaserLength * 3.0f);
         mBlurLength = ClampLength(mLaserLength * 15.0f);
         break;
-    case 0xC3A8B510:
+    case 0xC3A8B510: /* "GlowLength" */
         sscanf(pszValue, "%f", &mGlowLength);
         mGlowLength = ClampLength(mGlowLength);
         break;
@@ -384,7 +384,7 @@ void OrdnanceLaser::Render(unsigned char, float, unsigned int)
     {
 
         const RedColor glowColor = color * mRenderColor;
-        RedParticleRenderer::SubmitTexture(0x716BD81A, BLEND_ADDITIVE, 0);
+        RedParticleRenderer::SubmitTexture(0x716BD81A /* "lightglow" */, BLEND_ADDITIVE, 0);
         fWidth *= 2.0f;
         RedParticleRenderer::SubmitParticle(PIT_LASER_START, mPosition, glowColor, fWidth, 1.0f,
                                             texCoords, gVectorUnitX, gVectorUnitY);

@@ -26,6 +26,15 @@ public:
                    unsigned int uiFrequency, bool b3D, unsigned long ulFlags,
                    float fBufferMs);
 
+    void Set3DMode(bool enable3D)
+    {
+        if (mFormat != SampleInfo::format_Unknown
+            && Get3DMode() != enable3D && mNumChannels == 1)
+        {
+            SetFormat(mFormat, 1, mFrequency, enable3D, mChannelMask, 200.0f);
+        }
+    }
+
     void Flush();
 
     void Update();

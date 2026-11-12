@@ -27,7 +27,11 @@ public:
     virtual const char* GetDerivedRttiName() const;
     static const char rttiNameOrdnanceBeamClass[];
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
-    virtual float GetRange();
+    // FUNCTION: SWBF2 0x005f9690
+    virtual float GetRange() const
+    {
+        return mRange;
+    }
 
     float mRange;
     float mBeamWidth;

@@ -9,6 +9,7 @@
 #include "SoundFL/source/sndsoundstream.h"
 #include "SoundFL/source/win/sndstream.h"
 
+// FUNCTION: SWBF2 0x0065d620
 void TriggerSoundRegion::Group::DestroyAll()
 {
     while (!sList.IsEmpty())
@@ -17,15 +18,6 @@ void TriggerSoundRegion::Group::DestroyAll()
         delete pGroup;
     }
 }
-
-// SYNTHETIC: SWBF2 0x00406be0
-// `dynamic initializer for 'TriggerSoundRegion::sList''
-// SYNTHETIC: SWBF2 0x007696a0
-// `dynamic atexit destructor for 'TriggerSoundRegion::sList''
-
-// GLOBAL: SWBF2 0x007ebe78
-// TriggerSoundRegion::sList
-PblListSingle TriggerSoundRegion::sList;
 
 // FUNCTION: SWBF2 0x0065d6d0
 unsigned int TriggerSoundRegion::Properties::GetID() const
@@ -58,6 +50,15 @@ const TriggerSoundRegion::Properties* TriggerSoundRegion::Properties::FindByID(u
 // TriggerSoundRegion::Group::sMemoryPool
 MemoryPool TriggerSoundRegion::Group::sMemoryPool("TriggerSoundRegion::Group", sizeof(TriggerSoundRegion::Group));
 
+// SYNTHETIC: SWBF2 0x00406b80
+// `dynamic initializer for 'TriggerSoundRegion::Group::sList''
+// SYNTHETIC: SWBF2 0x00769660
+// `dynamic atexit destructor for 'TriggerSoundRegion::Group::sList''
+
+// GLOBAL: SWBF2 0x007ebe98
+// TriggerSoundRegion::Group::sList
+PblListSingle TriggerSoundRegion::Group::sList;
+
 // SYNTHETIC: SWBF2 0x00406b90
 // `dynamic initializer for 'TriggerSoundRegion::Properties::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769670
@@ -67,6 +68,14 @@ MemoryPool TriggerSoundRegion::Group::sMemoryPool("TriggerSoundRegion::Group", s
 // TriggerSoundRegion::Properties::sMemoryPool
 MemoryPool TriggerSoundRegion::Properties::sMemoryPool("TriggerSoundRegion::Properties", sizeof(TriggerSoundRegion::Properties));
 
+// SYNTHETIC: SWBF2 0x00406bb0
+// `dynamic initializer for 'TriggerSoundRegion::Properties::sList''
+// SYNTHETIC: SWBF2 0x00769680
+// `dynamic atexit destructor for 'TriggerSoundRegion::Properties::sList''
+
+// GLOBAL: SWBF2 0x007ebe7c
+// TriggerSoundRegion::Properties::sList
+PblListSingle TriggerSoundRegion::Properties::sList;
 // SYNTHETIC: SWBF2 0x00406bc0
 // `dynamic initializer for 'TriggerSoundRegion::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769690
@@ -75,6 +84,15 @@ MemoryPool TriggerSoundRegion::Properties::sMemoryPool("TriggerSoundRegion::Prop
 // GLOBAL: SWBF2 0x01f9a158
 // TriggerSoundRegion::sMemoryPool
 MemoryPool TriggerSoundRegion::sMemoryPool("TriggerSoundRegion", sizeof(TriggerSoundRegion));
+
+// SYNTHETIC: SWBF2 0x00406be0
+// `dynamic initializer for 'TriggerSoundRegion::sList''
+// SYNTHETIC: SWBF2 0x007696a0
+// `dynamic atexit destructor for 'TriggerSoundRegion::sList''
+
+// GLOBAL: SWBF2 0x007ebe78
+// TriggerSoundRegion::sList
+PblListSingle TriggerSoundRegion::sList;
 
 // FUNCTION: SWBF2 0x0065d400
 TriggerSoundRegion::Group::Group()
@@ -99,22 +117,22 @@ void TriggerSoundRegion::Group::Read(PblFileChunk& chunk)
 
         switch (uHash)
         {
-        case 0x8d39bde6:
+        case 0x8d39bde6: /* "name" */
             mID = data._pFile->Read32();
             break;
-        case 0x581a579b:
+        case 0x581a579b: /* "Reinforcements" */
             mReinforcementCount = data._pFile->ReadFloat();
             break;
-        case 0x1d083cc0:
+        case 0x1d083cc0: /* "alliance" */
             mSound[Team::side_Alliance].SetID(data._pFile->Read32(), false, false);
             break;
-        case 0x2c5f5065:
+        case 0x2c5f5065: /* "empire" */
             mSound[Team::side_Empire].SetID(data._pFile->Read32(), false, false);
             break;
-        case 0xc7836fe1:
+        case 0xc7836fe1: /* "republic" */
             mSound[Team::side_Republic].SetID(data._pFile->Read32(), false, false);
             break;
-        case 0xf387c5d6:
+        case 0xf387c5d6: /* "cis" */
             mSound[Team::side_CIS].SetID(data._pFile->Read32(), false, false);
             break;
         }
@@ -191,10 +209,10 @@ void TriggerSoundRegion::Properties::Read(PblFileChunk& chunk)
 
         switch (uHash)
         {
-        case 0x8d39bde6:
+        case 0x8d39bde6: /* "name" */
             mID = data._pFile->Read32();
             break;
-        case 0x5fb91e8c:
+        case 0x5fb91e8c: /* "Group" */
         {
             Group* const pGroup = Group::FindByID(data._pFile->Read32());
             if (!pGroup)
@@ -228,7 +246,7 @@ void TriggerSoundRegion::Properties::Load(PblFileChunk& chunk)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x41544144)
+        if (child._iId != CHUNK_ID('D', 'A', 'T', 'A'))
         {
             continue;
         }
@@ -237,14 +255,14 @@ void TriggerSoundRegion::Properties::Load(PblFileChunk& chunk)
         child._pFile->Read8();
         switch (uHash)
         {
-        case 0x5fb91e8c:
+        case 0x5fb91e8c: /* "Group" */
         {
             Group* pGroup = new Group;
             child = chunk.ReadNextChild();
             pGroup->Read(child);
             break;
         }
-        case 0x031afe7d:
+        case 0x031afe7d: /* "Region" */
         {
             Properties* pProperties = new Properties;
             child = chunk.ReadNextChild();
@@ -347,20 +365,3 @@ void TriggerSoundRegion::DestroyAll()
     Group::DestroyAll();
 }
 
-// SYNTHETIC: SWBF2 0x00406b80
-// `dynamic initializer for 'TriggerSoundRegion::Group::sList''
-// SYNTHETIC: SWBF2 0x00769660
-// `dynamic atexit destructor for 'TriggerSoundRegion::Group::sList''
-
-// GLOBAL: SWBF2 0x007ebe98
-// TriggerSoundRegion::Group::sList
-PblListSingle TriggerSoundRegion::Group::sList;
-
-// SYNTHETIC: SWBF2 0x00406bb0
-// `dynamic initializer for 'TriggerSoundRegion::Properties::sList''
-// SYNTHETIC: SWBF2 0x00769680
-// `dynamic atexit destructor for 'TriggerSoundRegion::Properties::sList''
-
-// GLOBAL: SWBF2 0x007ebe7c
-// TriggerSoundRegion::Properties::sList
-PblListSingle TriggerSoundRegion::Properties::sList;

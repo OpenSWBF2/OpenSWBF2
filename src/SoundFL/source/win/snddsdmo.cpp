@@ -66,7 +66,7 @@ MediaType::MediaType(const StreamFormat& rFormat)
     : mWaveformat(rFormat.GetFormat(), rFormat.GetNumChannels(),
                   rFormat.GetFrequency(), false, 0)
 {
-    memset(static_cast<DMO_MEDIA_TYPE*>(this), 0, sizeof(DMO_MEDIA_TYPE));
+    memset((DMO_MEDIA_TYPE*)this, 0, sizeof(DMO_MEDIA_TYPE));
 
     majortype = kMediaTypeAudio;
     subtype = kMediaSubTypePcm;

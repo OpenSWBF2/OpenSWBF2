@@ -17,10 +17,11 @@
 #include "Trigger.h"
 #include "SoundFL/source/sndvoicevirtual.h"
 
-namespace GameLoop
-{
-extern float sClientDeltaTime;
-}
+#include "GameLoop.h"
+
+
+
+
 
 
 
@@ -101,16 +102,16 @@ void WeaponShieldClass::SetProperty(unsigned int uProperty, const char* pszValue
 {
     switch (uProperty)
     {
-    case 0xda3491bc:
+    case 0xda3491bc: /* "MaxShield" */
         sscanf(pszValue, "%f", &mMaxShield);
         break;
-    case 0xbad94c15:
+    case 0xbad94c15: /* "AddShield" */
         sscanf(pszValue, "%f", &mAddShield);
         break;
-    case 0x729dfa7a:
+    case 0x729dfa7a: /* "AddShieldOff" */
         sscanf(pszValue, "%f", &mAddShieldOff);
         break;
-    case 0x1d726313:
+    case 0x1d726313: /* "ShieldOffset" */
     {
         float x = 0.0f, y = 0.0f, z = 0.0f;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -119,7 +120,7 @@ void WeaponShieldClass::SetProperty(unsigned int uProperty, const char* pszValue
         m_vShieldOffset.z = z;
         break;
     }
-    case 0x5a9201b6:
+    case 0x5a9201b6: /* "ShieldRadius" */
     {
         float x = 0.0f, y = 0.0f, z = 0.0f;
         int iCount = sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -136,13 +137,13 @@ void WeaponShieldClass::SetProperty(unsigned int uProperty, const char* pszValue
         m_vShieldSize.z = z;
         break;
     }
-    case 0xddb924a1:
+    case 0xddb924a1: /* "ShieldEffect" */
         mShieldEffect = FLEffect::s_EffectClasses.Find(PblHash(pszValue));
         break;
-    case 0xd85503ff:
+    case 0xd85503ff: /* "ShieldSound" */
         mSoundShield.SetID(pszValue, false, false);
         break;
-    case 0x5df6c1a4:
+    case 0x5df6c1a4: /* "ShieldOffSound" */
         mSoundShieldOff.SetID(pszValue, false, false);
         break;
     default:
@@ -196,16 +197,16 @@ WeaponShield::WeaponShield(const WeaponShieldClass* pClass, const WeaponDesc& de
     mParent->mParent = this;
     mShieldEffect = 0;
 
-    mOwner->GetGameObject()->SetMaxShield(static_cast<const WeaponShieldClass*>(mClass)->mMaxShield);
+    mOwner->GetGameObject()->SetMaxShield(((const WeaponShieldClass*)mClass)->mMaxShield);
     if (m_pAmmoCounter->HasInfiniteAmmo())
     {
-        mOwner->GetGameObject()->SetCurShield(static_cast<const WeaponShieldClass*>(mClass)->mMaxShield, false, 0);
+        mOwner->GetGameObject()->SetCurShield(((const WeaponShieldClass*)mClass)->mMaxShield, false, 0);
     }
     else
     {
         mOwner->GetGameObject()->SetCurShield(0.0f, false, 0);
     }
-    mOwner->GetGameObject()->SetAddShield(static_cast<const WeaponShieldClass*>(mClass)->mAddShieldOff);
+    mOwner->GetGameObject()->SetAddShield(((const WeaponShieldClass*)mClass)->mAddShieldOff);
     mOwner->GetGameObject()->SetIsShielded(false);
 }
 
@@ -233,13 +234,13 @@ WeaponShield::~WeaponShield()
 // FUNCTION: SWBF2 0x00691750
 const CollisionObject* WeaponShield::GetCollisionObject() const
 {
-    return this ? static_cast<const CollisionObject*>(this) : 0;
+    return this ? (const CollisionObject*)this : 0;
 }
 
 // FUNCTION: SWBF2 0x00691760
 CollisionObject* WeaponShield::GetCollisionObject()
 {
-    return this ? static_cast<CollisionObject*>(this) : 0;
+    return this ? (CollisionObject*)this : 0;
 }
 
 // FUNCTION: SWBF2 0x00691a40
@@ -255,9 +256,13 @@ bool WeaponShield::Update(float fDeltaTime)
     float fCurShield = mOwner->GetGameObject()->GetCurShield();
     bool bShielded = mOwner->GetGameObject()->IsShielded();
 
-    if (fCurShield <= 0.0f || !mOwner->GetGameObject()->IsAlive() ||
-        (mOwner->GetGameObject()->IsRtti(EntityDroideka::rttiHashEntityDroideka) &&
-         reinterpret_cast<const EntityDroideka*>(mOwner->GetGameObject())->IsRollingOrTransition()))
+    bool bBlocked = fCurShield <= 0.0f || !mOwner->GetGameObject()->IsAlive();
+    if (!bBlocked && mOwner->GetGameObject()->IsRtti(EntityDroideka::rttiHashEntityDroideka))
+    {
+        const EntityDroideka* pDroideka = reinterpret_cast<const EntityDroideka*>(mOwner->GetGameObject());
+        bBlocked = pDroideka->IsRollingOrTransition();
+    }
+    if (bBlocked)
     {
         bShielded = false;
     }
@@ -278,28 +283,28 @@ bool WeaponShield::Update(float fDeltaTime)
 
     if (bShielded)
     {
-        mOwner->GetGameObject()->SetAddShield(static_cast<const WeaponShieldClass*>(mClass)->mAddShield);
+        mOwner->GetGameObject()->SetAddShield(((const WeaponShieldClass*)mClass)->mAddShield);
         if (!mShieldEffect)
         {
-            FLEffectClass* pShieldEffectClass = static_cast<const WeaponShieldClass*>(mClass)->mShieldEffect;
+            FLEffectClass* pShieldEffectClass = ((const WeaponShieldClass*)mClass)->mShieldEffect;
             if (pShieldEffectClass)
             {
-                mSoundControl.Play(&static_cast<const WeaponShieldClass*>(mClass)->mSoundShield,
+                mSoundControl.Play(&((const WeaponShieldClass*)mClass)->mSoundShield,
                                    &mOwner->GetGameObject()->GetMatrix().GetTranslation(),
                                    &mOwner->GetGameObject()->GetVelocity(), true);
                 PlayFireSound(false);
                 mShieldEffect = pShieldEffectClass->BuildEffect();
                 if (mShieldEffect)
                 {
-                    mShieldEffect->AttachEffectToObject(mOwner->GetGameObject(),
-                                                        static_cast<const WeaponShieldClass*>(mClass)->mCollisionBody->mMatrix, true);
+                    const PblMatrix& rOffset = ((const WeaponShieldClass*)mClass)->mCollisionBody->mMatrix;
+                    mShieldEffect->AttachEffectToObject(mOwner->GetGameObject(), rOffset, true);
                     mShieldEffect->ActivateEffect();
                 }
             }
         }
         if (mSoundControl.GetPlaying())
         {
-            mSoundControl.Update(&static_cast<const WeaponShieldClass*>(mClass)->mSoundShield,
+            mSoundControl.Update(&((const WeaponShieldClass*)mClass)->mSoundShield,
                                  &mOwner->GetGameObject()->GetMatrix().GetTranslation(),
                                  &mOwner->GetGameObject()->GetVelocity());
         }
@@ -307,15 +312,13 @@ bool WeaponShield::Update(float fDeltaTime)
         float fSpent = 1.0f - fCurShield / mOwner->GetGameObject()->GetMaxShield();
         if (Snd::VoiceVirtual* pVoice = mSoundControl.GetVoiceVirtual())
         {
-            pVoice->SetGain(static_cast<const WeaponShieldClass*>(mClass)->mSoundShield.GetGain() * (1.0f - fSpent * fSpent));
+            pVoice->SetGain(((const WeaponShieldClass*)mClass)->mSoundShield.GetGain() * (1.0f - fSpent * fSpent));
         }
 
-        if (static_cast<const WeaponShieldClass*>(mClass)->m_vShieldSize.x > 0.0f)
+        if (((const WeaponShieldClass*)mClass)->m_vShieldSize.x > 0.0f)
         {
-            PblVector3 vCenter;
-            D3DXVec3TransformCoord((D3DXVECTOR3*)&vCenter,
-                                   (const D3DXVECTOR3*)&static_cast<const WeaponShieldClass*>(mClass)->mCollisionBody->mMatrix.GetTranslation(),
-                                   (const D3DXMATRIX*)&GetMatrix());
+            PblVector3 vCenter = GetMatrix().ApplyTransform(
+                static_cast<const WeaponShieldClass*>(mClass)->mCollisionBody->mMatrix.GetTranslation());
             SetCollisionCenter(vCenter);
             RecalculateAABB();
             if (!IsInCollisionList())
@@ -326,7 +329,7 @@ bool WeaponShield::Update(float fDeltaTime)
     }
     else
     {
-        mOwner->GetGameObject()->SetAddShield(static_cast<const WeaponShieldClass*>(mClass)->mAddShieldOff);
+        mOwner->GetGameObject()->SetAddShield(((const WeaponShieldClass*)mClass)->mAddShieldOff);
         if (mShieldEffect)
         {
             mShieldEffect->StopAndFinish();
@@ -335,7 +338,7 @@ bool WeaponShield::Update(float fDeltaTime)
         if (mSoundControl.GetPlaying())
         {
             mSoundControl.Stop(true);
-            static_cast<const WeaponShieldClass*>(mClass)->mSoundShieldOff.Play(&mOwner->GetGameObject()->GetMatrix().GetTranslation(),
+            ((const WeaponShieldClass*)mClass)->mSoundShieldOff.Play(&mOwner->GetGameObject()->GetMatrix().GetTranslation(),
                                          &mOwner->GetGameObject()->GetVelocity(), false, true);
         }
         if (IsInCollisionList())
@@ -391,9 +394,9 @@ bool WeaponShield::UpdateFire(float fDeltaTime)
     if (mStateTimer == 0.0f)
     {
         GameObject* pObject = mOwner->GetGameObject();
-        pObject->SetMaxShield(static_cast<const WeaponShieldClass*>(mClass)->mMaxShield);
-        pObject->SetCurShield(static_cast<const WeaponShieldClass*>(mClass)->mMaxShield, false, 0);
-        pObject->SetAddShield(static_cast<const WeaponShieldClass*>(mClass)->mAddShield);
+        pObject->SetMaxShield(((const WeaponShieldClass*)mClass)->mMaxShield);
+        pObject->SetCurShield(((const WeaponShieldClass*)mClass)->mMaxShield, false, 0);
+        pObject->SetAddShield(((const WeaponShieldClass*)mClass)->mAddShield);
         pObject->SetIsShielded(true);
         m_pAmmoCounter->ExpendRounds(mClass->mRoundsPerShot);
         m_pEnergyBar->SpendEnergy(mClass->mHeatPerShot);

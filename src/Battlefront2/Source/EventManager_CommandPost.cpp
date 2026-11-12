@@ -66,6 +66,8 @@
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "FLJoystick.h"
 
+#include "EventManager_LuaCallback.h"
+
 namespace EventManager
 {
 namespace CommandPostEvent
@@ -174,45 +176,11 @@ bool LuaPushItem<unsigned __int64>(unsigned __int64& mask)
 
 
 
-// TEMPLATE: SWBF2 0x005115c0
-// EventManager::LuaCallback<CommandPost,DamageOwner>::LuaCallback<CommandPost,DamageOwner>
-template <class ITEM, class PARAM>
-LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
-{
-    mFunction = -1;
-    if (LuaHelper::PushRefProc(iRef))
-    {
-        mFunction = luaL_ref(LuaHelper::mState, LUA_REGISTRYINDEX);
-    }
-}
-
 // TEMPLATE: SWBF2 0x00511770
 // EventManager::LuaCallback<CommandPost,char>::LuaCallback<CommandPost,char>
 
 // TEMPLATE: SWBF2 0x00511410
 // EventManager::LuaCallback<CommandPost,unsigned __int64>::LuaCallback<CommandPost,unsigned __int64>
-
-// TEMPLATE: SWBF2 0x005100a0
-// EventManager::RegisterLuaCallback<CommandPost,unsigned __int64>
-template <class ITEM, class PARAM>
-int RegisterLuaCallback(lua_State*)
-{
-    Event<ITEM, PARAM>* pEvent =
-        (Event<ITEM, PARAM>*)lua_topointer(LuaHelper::mState, lua_upvalueindex(1));
-    if (lua_isfunction(LuaHelper::mState, 1))
-    {
-        lua_pushvalue(LuaHelper::mState, 1);
-        int iRef = luaL_ref(LuaHelper::mState, LUA_REGISTRYINDEX);
-        LuaCallback<ITEM, PARAM>* pCallback = new LuaCallback<ITEM, PARAM>(iRef);
-        pCallback->AttachToParent(&pEvent->mRoot);
-        luaL_unref(LuaHelper::mState, LUA_REGISTRYINDEX, iRef);
-        lua_pushlightuserdata(LuaHelper::mState, pCallback);
-        pCallback->Release();
-        return 1;
-    }
-    lua_pushnil(LuaHelper::mState);
-    return 1;
-}
 
 // TEMPLATE: SWBF2 0x00510750
 // EventManager::RegisterLuaCallback<CommandPost,DamageOwner>
@@ -221,30 +189,6 @@ int RegisterLuaCallback(lua_State*)
 // EventManager::RegisterLuaCallback<CommandPost,char>
 
 
-
-template <class ITEM, class PARAM>
-bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
-{
-    if (mFunction == -1 || !LuaHelper::PushRefProc(mFunction))
-    {
-        return false;
-    }
-
-    if (!LuaPushItem(item))
-    {
-        lua_pop(LuaHelper::mState, 1);
-        return false;
-    }
-
-    if (!LuaPushItem(param))
-    {
-        lua_pop(LuaHelper::mState, 2);
-        return false;
-    }
-
-    LuaHelper::CallProc(0);
-    return true;
-}
 
 // TEMPLATE: SWBF2 0x0050fcf0
 // EventManager::Event<CommandPost,unsigned __int64>::Callback::operator()
@@ -450,23 +394,6 @@ PostMatchesTeam<char> LuaGetItem<PostMatchesTeam<char> >(int)
 
 // TEMPLATE: SWBF2 0x0050ff30
 // EventManager::UnregisterLuaCallback<CommandPost,unsigned __int64>
-template <class ITEM, class PARAM>
-int UnregisterLuaCallback(lua_State*)
-{
-    Event<ITEM, PARAM>* pEvent =
-        (Event<ITEM, PARAM>*)lua_topointer(LuaHelper::mState, lua_upvalueindex(1));
-    if (lua_islightuserdata(LuaHelper::mState, 1))
-    {
-        typename Event<ITEM, PARAM>::Callback* pCallback =
-            (typename Event<ITEM, PARAM>::Callback*)LuaHandleArg::Get(LuaHelper::mState, 1);
-        if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)
-        {
-            pEvent->Unregister(*pCallback);
-        }
-    }
-    return 0;
-}
-
 // TEMPLATE: SWBF2 0x00510250
 // EventManager::RegisterLuaCallback<CommandPost,unsigned __int64,EventManager::PostMatchesName<unsigned __int64> >
 template <class ITEM, class PARAM, class PREDICATE>
@@ -482,7 +409,7 @@ int RegisterLuaCallback(lua_State*)
         typename Event<ITEM, PARAM>::template Filter<PREDICATE>* pFilter =
             pEvent->GetFilter(predicate);
         LuaCallback<ITEM, PARAM>* pCallback = new LuaCallback<ITEM, PARAM>(iRef);
-        pCallback->AttachToParent(pFilter ? (Node*)pFilter : (Node*)&pEvent->mRoot);
+        pEvent->Register(*pCallback, pFilter);
         luaL_unref(LuaHelper::mState, LUA_REGISTRYINDEX, iRef);
         pFilter->Release();
         lua_pushlightuserdata(LuaHelper::mState, pCallback);
@@ -499,27 +426,10 @@ int RegisterLuaCallback(lua_State*)
 // EventManager::Event<CommandPost,unsigned __int64>::GetFilter<EventManager::PostMatchesName<unsigned __int64> >
 
 template <class ITEM, class PARAM>
-void RegisterUnregisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
-{
-    char acName[64];
-    _snprintf(acName, sizeof(acName) - 1, "Release%s", event.mName);
-    acName[sizeof(acName) - 1] = 0;
-    lua_pushlightuserdata(LuaHelper::mState, &event);
-    if (NetGame::IsEnabled() && NetGame::IsClient())
-    {
-        LuaHelper::Register(acName, pfnClient, 0);
-    }
-    else
-    {
-        LuaHelper::Register(acName, UnregisterLuaCallback<ITEM, PARAM>, 1);
-    }
-}
-
-template <class ITEM, class PARAM>
 void RegisterRegisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
 {
     char acName[64];
-    _snprintf(acName, sizeof(acName) - 1, "On%s", event.mName);
+    _snprintf(acName, sizeof(acName) - 1, "On%s", event.GetName());
     acName[sizeof(acName) - 1] = 0;
     lua_pushlightuserdata(LuaHelper::mState, &event);
     if (NetGame::IsEnabled() && NetGame::IsClient())
@@ -536,7 +446,7 @@ template <class ITEM, class PARAM, class PREDICATE>
 void RegisterRegisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
 {
     char acName[64];
-    _snprintf(acName, sizeof(acName) - 1, "On%s%s", event.mName, PREDICATE::GetName());
+    _snprintf(acName, sizeof(acName) - 1, "On%s%s", event.GetName(), PREDICATE::GetName());
     acName[sizeof(acName) - 1] = 0;
     lua_pushlightuserdata(LuaHelper::mState, &event);
     if (NetGame::IsEnabled() && NetGame::IsClient())

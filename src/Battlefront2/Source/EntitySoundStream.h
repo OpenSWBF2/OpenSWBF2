@@ -35,6 +35,7 @@ public:
 class EntitySoundStream : public EntitySound, public Thread
 {
 public:
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
     EntitySoundStream(EntitySoundStreamClass* pClass, const EntityDesc& desc);
     virtual ~EntitySoundStream();
 
@@ -54,6 +55,23 @@ public:
     static const char rttiNameEntitySoundStream[];
 
     Snd::SoundStream mSoundStream;
+};
+
+// VTABLE: SWBF2 0x0079fc28
+class SoundStreamRegionFactory : public RedRegionFactory
+{
+public:
+    SoundStreamRegionFactory() : RedRegionFactory("soundstream") {}
+
+    // SYNTHETIC: SWBF2 0x00539440
+    // SoundStreamRegionFactory::`scalar deleting destructor'
+
+    // FUNCTION: SWBF2 0x005393d0
+    virtual void* CreateRegion(RedRegionDesc& desc, const char* pcName) const
+    {
+        EntitySoundStreamClass soundClass(0x93D6C380);
+        return EntitySoundClass::CreateSoundFromRegion(desc, pcName, GetPrefix(), soundClass);
+    }
 };
  
  

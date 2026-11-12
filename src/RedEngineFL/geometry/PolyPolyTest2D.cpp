@@ -4,6 +4,7 @@
 #include "polygons.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblVector.h"
+#include "TransformOps.h"
 
 
 // FUNCTION: SWBF2 0x00724ef0

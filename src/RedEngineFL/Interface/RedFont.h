@@ -99,9 +99,14 @@ public:
 {
 
     CustomFontData()
-        : nameHash_(0), numGlyphs_(0), glyphHeight_(0), glyphs_(0),
-          textureHashes_(0), numTextures_(0), oneTexPerGlyph(true)
     {
+        nameHash_ = 0;
+        numGlyphs_ = 0;
+        glyphHeight_ = 0;
+        glyphs_ = 0;
+        textureHashes_ = 0;
+        numTextures_ = 0;
+        oneTexPerGlyph = true;
     }
 
     ~CustomFontData()

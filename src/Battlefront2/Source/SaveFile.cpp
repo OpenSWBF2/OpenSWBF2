@@ -1,5 +1,19 @@
 #include "Battlefront2/Platform/Pc/pcSaveFile.h"
 #include <ctype.h>
+#include "PebbleFL/Common/PblUnicode.h"
+
+// FUNCTION: SWBF2 0x00631380
+void SaveFile::TimeToString(unsigned short* pusDest, int iYear, int iMonth, int iDay,
+                       int iHour, int iMinute, int iSecond, unsigned int uiOutLen)
+{
+    const unsigned int uStamp = iSecond + 60 * (iMinute + 60 *
+        (iHour + 24 * (iDay % 32 + 32 *
+        (iMonth + 13 * (iYear + iMonth / -13 - 100 * (iYear / 100))) - iHour / 24)
+        - iMinute / 60) - iSecond / 60);
+    char acStamp[12];
+    _snprintf(acStamp, 9, "%08x", uStamp);
+    PblUnicode::ustrncnv(pusDest, acStamp, uiOutLen);
+}
 
 // FUNCTION: SWBF2 0x00631460
 void SaveFile::StringToTime(const unsigned short* pusString, int& iYear, int& iMonth,

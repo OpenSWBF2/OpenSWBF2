@@ -4,16 +4,7 @@
 
 class PblMemChunk;
 
-class ZephyrJointSet
-{
-public:
-    unsigned char m_puJoints[32];
-    unsigned char m_puSkinSets[16];
-    unsigned char m_uNumJoints;
-    unsigned char m_uNumSkinSets;
-};
 
- 
 
 class ZephyrSkinShared
 {

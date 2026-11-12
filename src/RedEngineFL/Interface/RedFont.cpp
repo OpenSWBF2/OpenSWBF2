@@ -33,15 +33,15 @@ PblHashTable<RedFont, 16> RedFont::s_fontHashTable;
 bool RedFont::sJapaneseOnly;
 
 // GLOBAL: SWBF2 0x007df534
-unsigned int RedFont::GAMEFONT_LARGE = 0xB3E564DEu;
+unsigned int RedFont::GAMEFONT_LARGE = 0xB3E564DEu /* "gamefont_large" */;
 // GLOBAL: SWBF2 0x007df538
-unsigned int RedFont::GAMEFONT_MEDIUM = 0xAA8876FCu;
+unsigned int RedFont::GAMEFONT_MEDIUM = 0xAA8876FCu /* "gamefont_medium" */;
 // GLOBAL: SWBF2 0x007df53c
-unsigned int RedFont::GAMEFONT_SMALL = 0x8F4B7122u;
+unsigned int RedFont::GAMEFONT_SMALL = 0x8F4B7122u /* "gamefont_small" */;
 // GLOBAL: SWBF2 0x007df540
-unsigned int RedFont::GAMEFONT_TINY = 0x46F060D5u;
+unsigned int RedFont::GAMEFONT_TINY = 0x46F060D5u /* "gamefont_tiny" */;
 // GLOBAL: SWBF2 0x007df544
-unsigned int RedFont::GAMEFONT_SUPER_TINY = 0x548190D5u;
+unsigned int RedFont::GAMEFONT_SUPER_TINY = 0x548190D5u /* "gamefont_super_tiny" */;
 
 // GLOBAL: SWBF2 0x00773210
 const unsigned short RedFont::s_pcSystemFontBitmapData[32768] = {
@@ -2345,7 +2345,7 @@ void RedFont::Init()
     memcpy(lr.pBits, s_pcSystemFontBitmapData, 0x10000);
     pTexture->UnlockRect(0);
 
-    s_systemFontTexture = new RedTexture(pTexture, 0x274E1290);
+    s_systemFontTexture = new RedTexture(pTexture, 0x274E1290 /* "Font" */);
     pTexture->Release();
 
     new RedFixedWidthFont("systemfont", s_systemFontTexture, 0x10, 0x15, 0x12, 0xa0);

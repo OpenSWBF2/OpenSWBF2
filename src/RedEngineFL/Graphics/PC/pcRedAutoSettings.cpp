@@ -1,3 +1,5 @@
+#pragma init_seg(lib)
+
 #include <windows.h>
 #include <mmsystem.h>
 
@@ -1050,16 +1052,16 @@ void VidMode_Init(IDirect3D9* pD3D)
                     }
                 }
 
-                IDirect3DTexture9* pMultiSampleTexture = 0;
+                IDirect3DTexture9* pAATex[1] = { 0 };
 
                 if (iMultiSampleType != 0)
                 {
                     if (pDevice->CreateTexture(uiTexWidth, uiTexHeight, 1,
                                                D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
-                                               D3DPOOL_DEFAULT, &pMultiSampleTexture, 0) != D3D_OK)
+                                               D3DPOOL_DEFAULT, &pAATex[0], 0) != D3D_OK)
                     {
 
-                        pMultiSampleTexture = 0;
+                        pAATex[0] = 0;
                         bAllSurfaces = false;
                     }
                 }
@@ -1090,9 +1092,9 @@ void VidMode_Init(IDirect3D9* pD3D)
                         apDepthStencil[j]->Release();
                     }
                 }
-                if (pMultiSampleTexture)
+                if (pAATex[0])
                 {
-                    pMultiSampleTexture->Release();
+                    pAATex[0]->Release();
                 }
                 pDevice->Release();
             }
@@ -1261,32 +1263,32 @@ bool VidMode_Usable(int iWidth, int iHeight, D3DMULTISAMPLE_TYPE eMultiSampleTyp
 }
 
 static const unsigned int HASH_NONMASKABLE     = 0x05f14b14u;
-static const unsigned int HASH_MASTERQUALITY   = 0x0ae6a228u;
+static const unsigned int HASH_MASTERQUALITY   = 0x0ae6a228u /* "masterQuality" */;
 static const unsigned int HASH_SHADOWVOLUMES   = 0x00b4b3e8u;
-static const unsigned int HASH_NONPOW2TEXTURES = 0x08657a18u;
-static const unsigned int HASH_TEXTURECAPS     = 0x1373c7f5u;
-static const unsigned int HASH_GEOMETRYMODE    = 0x146f012eu;
-static const unsigned int HASH_VOLUMEMAPS      = 0x18185ab4u;
-static const unsigned int HASH_BUMPMAPPING     = 0x1cdb7895u;
-static const unsigned int HASH_TERRAINQUALITY  = 0x1d6194abu;
-static const unsigned int HASH_SPECULARQUALITY = 0x2b24b6d1u;
-static const unsigned int HASH_SKINNING        = 0x496610feu;
-static const unsigned int HASH_DEFAULTHEIGHT   = 0x4d51a215u;
-static const unsigned int HASH_WATERQUALITY    = 0x577bb6a1u;
-static const unsigned int HASH_SHADOWQUALITY   = 0x590f9cd2u;
-static const unsigned int HASH_TEXTUREQUALITY  = 0x79f4f255u;
-static const unsigned int HASH_GENERATION      = 0x708174b7u;
+static const unsigned int HASH_NONPOW2TEXTURES = 0x08657a18u /* "nonpow2textures" */;
+static const unsigned int HASH_TEXTURECAPS     = 0x1373c7f5u /* "TextureCaps" */;
+static const unsigned int HASH_GEOMETRYMODE    = 0x146f012eu /* "geometryMode" */;
+static const unsigned int HASH_VOLUMEMAPS      = 0x18185ab4u /* "volumemaps" */;
+static const unsigned int HASH_BUMPMAPPING     = 0x1cdb7895u /* "bumpmapping" */;
+static const unsigned int HASH_TERRAINQUALITY  = 0x1d6194abu /* "terrainquality" */;
+static const unsigned int HASH_SPECULARQUALITY = 0x2b24b6d1u /* "specularquality" */;
+static const unsigned int HASH_SKINNING        = 0x496610feu /* "skinning" */;
+static const unsigned int HASH_DEFAULTHEIGHT   = 0x4d51a215u /* "defaultHeight" */;
+static const unsigned int HASH_WATERQUALITY    = 0x577bb6a1u /* "waterquality" */;
+static const unsigned int HASH_SHADOWQUALITY   = 0x590f9cd2u /* "shadowquality" */;
+static const unsigned int HASH_TEXTUREQUALITY  = 0x79f4f255u /* "texturequality" */;
+static const unsigned int HASH_GENERATION      = 0x708174b7u /* "generation" */;
 
-static const unsigned int HASH_ENABLE_HDR = 0x726f6d36u;
-static const unsigned int HASH_PARTICLEQUALITY = 0x818751e4u;
-static const unsigned int HASH_VENDOR          = 0x97b0c453u;
-static const unsigned int HASH_CUBEMAPS        = 0x9c96013fu;
-static const unsigned int HASH_TEXTUREDETAIL   = 0xa6af22e5u;
-static const unsigned int HASH_DEFAULTWIDTH    = 0xb58502bau;
-static const unsigned int HASH_DISTORTION      = 0xbc5efeaau;
-static const unsigned int HASH_BACKBUFFERCOPY  = 0xbf962ad1u;
-static const unsigned int HASH_DEVICE          = 0xd07076f3u;
-static const unsigned int HASH_PIPELINE        = 0xd3442983u;
+static const unsigned int HASH_ENABLE_HDR = 0x726f6d36u /* "lightbloom" */;
+static const unsigned int HASH_PARTICLEQUALITY = 0x818751e4u /* "particlequality" */;
+static const unsigned int HASH_VENDOR          = 0x97b0c453u /* "vendor" */;
+static const unsigned int HASH_CUBEMAPS        = 0x9c96013fu /* "cubemaps" */;
+static const unsigned int HASH_TEXTUREDETAIL   = 0xa6af22e5u /* "texturedetail" */;
+static const unsigned int HASH_DEFAULTWIDTH    = 0xb58502bau /* "defaultWidth" */;
+static const unsigned int HASH_DISTORTION      = 0xbc5efeaau /* "distortion" */;
+static const unsigned int HASH_BACKBUFFERCOPY  = 0xbf962ad1u /* "backBufferCopy" */;
+static const unsigned int HASH_DEVICE          = 0xd07076f3u /* "device" */;
+static const unsigned int HASH_PIPELINE        = 0xd3442983u /* "pipeline" */;
 
 namespace RedRenderCapOverrides
 {
@@ -1364,13 +1366,11 @@ void _LoadVendorDeviceOverrides()
     D3DADAPTER_IDENTIFIER9 identifier = RedRenderer::pcGetAdaptorIdentifier();
 
     char szToken[256];
-    bool bDeviceMatched;
-    bool bVendorMatched;
-    bool bDone;
-    bDone = bVendorMatched = bDeviceMatched = false;
-
+    bool bDeviceMatched = false;
     unsigned int uiLen = 0;
+    bool bVendorMatched = false;
     int iKey = 0;
+    bool bDone = false;
 
     PblFile file;
 

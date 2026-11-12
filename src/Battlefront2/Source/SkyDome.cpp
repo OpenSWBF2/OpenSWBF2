@@ -32,7 +32,7 @@ void SkyDome::Create()
 
 // FUNCTION: SWBF2 0x00637270
 SkyDome::SkyDome()
-    : Renderable(0)
+    : Renderable(RENDERABLE_SKY)
 {
     mForceHiDetail = false;
     Renderable::Activate(-9999);
@@ -42,15 +42,14 @@ SkyDome::SkyDome()
     mNumDomeModels = 0;
     for (int i = 0; i < 10; ++i)
     {
-        DomeModel& model = mDomeModels[i];
-        model.mModel = 0;
-        model.mType = TRACK_CAMERA;
-        model.mOffset = 0.0f;
-        model.mMovementScale = 1.0f;
-        model.mReflectionFlag = false;
-        model.mRotationSpeed = 0.0f;
-        model.mRotationAxis = PblVector3(0.0f, 1.0f, 0.0f);
-        model.mNumEffectData = 0;
+        mDomeModels[i].mModel = 0;
+        mDomeModels[i].mType = TRACK_CAMERA;
+        mDomeModels[i].mOffset = 0.0f;
+        mDomeModels[i].mMovementScale = 1.0f;
+        mDomeModels[i].mReflectionFlag = false;
+        mDomeModels[i].mRotationAxis = PblVector3(0.0f, 1.0f, 0.0f);
+        mDomeModels[i].mRotationSpeed = 0.0f;
+        mDomeModels[i].mNumEffectData = 0;
     }
 
     mTerrainTextureHash = 0;
@@ -89,7 +88,7 @@ void SkyDome::Read(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x3CE6A053u:
+        case 0x3CE6A053u: /* "CloudLayer" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             while (!scope.IsDone())
@@ -97,23 +96,23 @@ void SkyDome::Read(PblConfig& config)
                 PblConfig::Data cloud = scope.ReadNextData();
                 switch (cloud.GetId())
                 {
-                case 0xAB409A38u:
+                case 0xAB409A38u: /* "Odf" */
                     pCloudClass = EntityClass::Find(PblHash(cloud.GetStringArg(0)));
                     break;
-                case 0xD5BDBB42u:
+                case 0xD5BDBB42u: /* "Height" */
                     fCloudHeight = cloud.GetFloatArg(0);
                     break;
                 }
             }
             break;
         }
-        case 0x4939F3F8u:
+        case 0x4939F3F8u: /* "threshold" */
             RedRenderer::SetAmbientThreshold(data.GetInt32Arg(0));
             break;
-        case 0x8563E50Au:
+        case 0x8563E50Au: /* "Intensity" */
             RedRenderer::SetAmbientIntensity(data.GetInt32Arg(0));
             break;
-        case 0x82681057u:
+        case 0x82681057u: /* "DomeModel" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             while (!scope.IsDone())
@@ -121,7 +120,7 @@ void SkyDome::Read(PblConfig& config)
                 PblConfig::Data model = scope.ReadNextData();
                 switch (model.GetId())
                 {
-                case 0x32048FBAu:
+                case 0x32048FBAu: /* "RotationSpeed" */
                 {
                     mDomeModels[mNumDomeModels].mRotationSpeed = model.GetFloatArg(0);
                     PblVector3 vAxis(model.GetFloatArg(1), model.GetFloatArg(2), model.GetFloatArg(3));
@@ -131,15 +130,15 @@ void SkyDome::Read(PblConfig& config)
                     mDomeModels[mNumDomeModels].mRotationAxis = vNormal;
                     break;
                 }
-                case 0x2A6D8591u:
+                case 0x2A6D8591u: /* "Geometry" */
                     mDomeModels[mNumDomeModels].mModel =
                         const_cast<RedModel*>(RedModel::Find(PblHash(model.GetStringArg(0))));
                     break;
-                case 0x14C8D3CAu:
+                case 0x14C8D3CAu: /* "Offset" */
                     mDomeModels[mNumDomeModels].mOffset = model.GetFloatArg(0);
                     mDomeModels[mNumDomeModels].mType = STATIC_HEIGHT;
                     break;
-                case 0x6E6E8D54u:
+                case 0x6E6E8D54u: /* "Effect" */
                 {
                     const int iEffect = mDomeModels[mNumDomeModels].mNumEffectData;
                     if (iEffect < 20)
@@ -183,10 +182,10 @@ void SkyDome::Read(PblConfig& config)
                     }
                     break;
                 }
-                case 0x92C778AAu:
+                case 0x92C778AAu: /* "Reflect" */
                     mDomeModels[mNumDomeModels].mReflectionFlag = true;
                     break;
-                case 0xFD58FBFAu:
+                case 0xFD58FBFAu: /* "MovementScale" */
                     mDomeModels[mNumDomeModels].mMovementScale = model.GetFloatArg(0);
                     mDomeModels[mNumDomeModels].mType = STATIC_HEIGHT;
                     break;
@@ -195,7 +194,7 @@ void SkyDome::Read(PblConfig& config)
             ++mNumDomeModels;
             break;
         }
-        case 0x622B0026u:
+        case 0x622B0026u: /* "Stars" */
         {
             delete m_pStars;
             m_pStars = new SkyStars();
@@ -203,24 +202,24 @@ void SkyDome::Read(PblConfig& config)
             m_pStars->Read(scope);
             break;
         }
-        case 0x8958BCDAu:
+        case 0x8958BCDAu: /* "Softness" */
             RedRenderer::SetSoftnessEnable(data.GetInt32Arg(0) != 0);
             break;
-        case 0x8A81DE8Bu:
+        case 0x8A81DE8Bu: /* "ReflectionColor" */
             mReflectionColor.r = data.GetUint8Arg(0);
             mReflectionColor.g = data.GetUint8Arg(1);
             mReflectionColor.b = data.GetUint8Arg(2);
             break;
-        case 0x9010BF4Au:
+        case 0x9010BF4Au: /* "TerrainBumpSpecularTexture" */
             if (data.GetNumArgs() >= 2)
             {
                 RedTerrain::SetBumpSpecularTexture(PblHash(data.GetStringArg(0)), data.GetFloatArg(1));
             }
             break;
-        case 0xC7E16877u:
+        case 0xC7E16877u: /* "Filter" */
             RedRenderer::SetAmbientFilter(data.GetUint32Arg(0) != 0);
             break;
-        case 0xDDF0C29Eu:
+        case 0xDDF0C29Eu: /* "LowResTerrain" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             while (!scope.IsDone())
@@ -228,25 +227,25 @@ void SkyDome::Read(PblConfig& config)
                 PblConfig::Data terrain = scope.ReadNextData();
                 switch (terrain.GetId())
                 {
-                case 0x6021B96Fu:
+                case 0x6021B96Fu: /* "DetailTextureScale" */
                     mTerrainDetailTextureScale = terrain.GetFloatArg(0);
                     break;
-                case 0x3C6468F4u:
+                case 0x3C6468F4u: /* "Texture" */
                     mTerrainTextureHash = PblHash(terrain.GetStringArg(0));
                     break;
-                case 0x3F2E0EAFu:
+                case 0x3F2E0EAFu: /* "DetailTexture" */
                     mTerrainDetailTextureHash = PblHash(terrain.GetStringArg(0));
                     break;
-                case 0x41CA1C56u:
+                case 0x41CA1C56u: /* "ForceHiDetail" */
                     mForceHiDetail = terrain.GetBoolArg(0);
                     break;
-                case 0x6D9B436Eu:
+                case 0x6D9B436Eu: /* "TextureScale" */
                     mTerrainTextureScale = terrain.GetFloatArg(0);
                     break;
-                case 0x6EF738FBu:
+                case 0x6EF738FBu: /* "PatchResolution" */
                     mTerrainPatchResolution = terrain.GetInt32Arg(0);
                     break;
-                case 0xE6915CF6u:
+                case 0xE6915CF6u: /* "MaxDistance" */
                     mTerrainMaxDist = terrain.GetFloatArg(0);
                     break;
                 }
@@ -257,10 +256,10 @@ void SkyDome::Read(PblConfig& config)
             RedTerrain::SetForceHiDetail(mForceHiDetail);
             break;
         }
-        case 0xD8A93A22u:
+        case 0xD8A93A22u: /* "TerrainColorDarkening" */
             RedTerrain::mTerrainColorDarkeningFlag = true;
             break;
-        case 0xE1BCA028u:
+        case 0xE1BCA028u: /* "atmosphereColor" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             int iColor = 0;
@@ -269,7 +268,7 @@ void SkyDome::Read(PblConfig& config)
                 PblConfig::Data atmosphere = scope.ReadNextData();
                 switch (atmosphere.GetId())
                 {
-                case 0x3D7E6258u:
+                case 0x3D7E6258u: /* "Color" */
                 {
                     RedColor color;
                     color.r = atmosphere.GetUint8Arg(0);
@@ -279,14 +278,14 @@ void SkyDome::Read(PblConfig& config)
                     RedRenderer::SetFilterColor(color, iColor++);
                     break;
                 }
-                case 0x61342FD0u:
+                case 0x61342FD0u: /* "on" */
                     RedRenderer::SetColorFilter(atmosphere.GetInt32Arg(0) != 0);
                     break;
                 }
             }
             break;
         }
-        case 0xEEEB3A51u:
+        case 0xEEEB3A51u: /* "TerrainBumpTexture" */
             if (data.GetNumArgs() >= 3)
             {
                 RedTerrain::SetBumpDetailTexture(PblHash(data.GetStringArg(0)), data.GetFloatArg(1),
@@ -297,7 +296,7 @@ void SkyDome::Read(PblConfig& config)
                 RedTerrain::SetBumpDetailTexture(PblHash(data.GetStringArg(0)), data.GetFloatArg(1), 0.5f);
             }
             break;
-        case 0xFEF82E0Bu:
+        case 0xFEF82E0Bu: /* "SoftnessParam" */
             RedRenderer::SetSoftnessValue(data.GetInt32Arg(0));
             break;
         }
@@ -356,7 +355,7 @@ bool SkyDome::Update(float fDeltaTime)
                 {
                     continue;
                 }
-                rData.effect = PblHandle<ParticleEmitterObject>(static_cast<ParticleEmitterObject*>(pClass->BuildEffect()));
+                rData.effect = PblHandle<ParticleEmitterObject>((ParticleEmitterObject*)pClass->BuildEffect());
                 if (!rData.effect)
                 {
                     continue;
@@ -366,8 +365,7 @@ bool SkyDome::Update(float fDeltaTime)
                 rData.effect->AttachEffectToVector(&rData.pos, true);
 
                 ParticleEmitterObject* pEmitter = rData.effect;
-                pEmitter->Deactivate();
-                pEmitter->mbAddedToScene = false;
+                pEmitter->PermaRemoveParticleEffect();
             }
         }
     }

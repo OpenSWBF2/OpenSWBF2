@@ -54,7 +54,7 @@ GameObjectClass::GameObjectClass(unsigned int uHash)
     mPilotSkillRepairScale = 0.005f;
     mScanningRange = 0.0f;
     mTransmitRange = 0.0f;
-    mAIType = 1;
+    mAIType = ConnectivityGraph::CGT_FLAG_SOLDIER;
     mSwitchClassRadius = -1.0f;
     mHoldForPlayer = false;
 
@@ -68,7 +68,7 @@ GameObjectClass::GameObjectClass(unsigned int uHash)
     mLockOnMaxDist = 100.0f;
     mLockOnMaxTrackDist = 200000.0f;
     mPointsToUnlock = 0;
-    mDisabledEffect = 0xBB7E863Du;
+    mDisabledEffect = 0xBB7E863Du /* "com_sfx_hackedvehicle" */;
     mRadiusDamageSizeScale = 1.0f;
 }
 
@@ -145,7 +145,7 @@ bool GameObject::Deflect(const Ordnance* pOrdnance, const PblVector3& vPos, cons
 
 namespace AIUtil
 {
-bool __fastcall IsSpied(Character* pCharacter, Character* pOther);
+bool IsSpied(Character* pCharacter, Character* pOther);
 }
 
 
@@ -187,56 +187,56 @@ void GameObject::SetProperty(unsigned int uProperty, const char* pszValue)
     float fValue;
     switch (uProperty)
     {
-    case 0x19971f1b:
+    case 0x19971f1b: /* "MaxHealth" */
         if (sscanf(pszValue, "%f", &fValue))
         {
             mMaxHealth = fValue;
         }
         break;
-    case 0x3f9ab262:
+    case 0x3f9ab262: /* "AddHealth" */
         if (sscanf(pszValue, "%f", &fValue))
         {
             mAddHealth = fValue;
         }
         break;
-    case 0xf2bf9d5f:
+    case 0xf2bf9d5f: /* "CurHealth" */
         if (sscanf(pszValue, "%f", &fValue))
         {
             SetCurHealth(fValue, true, 0);
         }
         break;
-    case 0xda3491bc:
+    case 0xda3491bc: /* "MaxShield" */
         if (sscanf(pszValue, "%f", &fValue))
         {
             mMaxShield = fValue;
         }
         break;
-    case 0xbad94c15:
+    case 0xbad94c15: /* "AddShield" */
         if (sscanf(pszValue, "%f", &fValue))
         {
             mAddShield = fValue;
         }
         break;
-    case 0xcbbafa80:
+    case 0xcbbafa80: /* "CurShield" */
         if (sscanf(pszValue, "%f", &fValue))
         {
             SetCurShield(fValue, true, 0);
         }
         break;
-    case 0x1c1694fa:
+    case 0x1c1694fa: /* "DisableTime" */
         if (sscanf(pszValue, "%f", &fValue))
         {
             mDisableTime = fValue;
         }
         break;
-    case 0xa2fd7d0c:
+    case 0xa2fd7d0c: /* "team" */
         SetTeam(atoi(pszValue));
         mPerceivedTeam = atoi(pszValue);
         break;
-    case 0x52a9ef0f:
+    case 0x52a9ef0f: /* "PerceivedTeam" */
         mPerceivedTeam = atoi(pszValue);
         break;
-    case 0xb54cdd84:
+    case 0xb54cdd84: /* "PhysicsActive" */
         if (atoi(pszValue))
         {
             ActivatePhysics();
@@ -460,7 +460,7 @@ bool GameObject::FoliageCollision()
 {
     bool bPlayed = false;
     const PblVector3& vPos = GetMatrix().GetTranslation();
-    const PropObjectMesh* pFoliage = static_cast<const PropObjectMesh*>(
+    const PropObjectMesh* pFoliage = (const PropObjectMesh*)(
         PropGenerator::FindPropObject(vPos, false));
     float fCrouch = 0.8f;
     float fStand = 1.0f;
@@ -911,124 +911,124 @@ void GameObjectClass::SetProperty(unsigned int uProperty, const char* pszValue)
     char acBuffer[512];
     switch (uProperty)
     {
-    case 0x19971f1b:
+    case 0x19971f1b: /* "MaxHealth" */
         sscanf(pszValue, "%f", &mMaxHealth);
         break;
-    case 0x3f9ab262:
+    case 0x3f9ab262: /* "AddHealth" */
         sscanf(pszValue, "%f", &mAddHealth);
         break;
-    case 0xda3491bc:
+    case 0xda3491bc: /* "MaxShield" */
         sscanf(pszValue, "%f", &mMaxShield);
         break;
-    case 0xbad94c15:
+    case 0xbad94c15: /* "AddShield" */
         sscanf(pszValue, "%f", &mAddShield);
         break;
-    case 0x0842b6a7:
+    case 0x0842b6a7: /* "PilotSkillRepairScale" */
         sscanf(pszValue, "%f", &mPilotSkillRepairScale);
         break;
-    case 0x465909fb:
+    case 0x465909fb: /* "ScanningRange" */
         sscanf(pszValue, "%f", &mScanningRange);
         break;
-    case 0xeb460a76:
+    case 0xeb460a76: /* "TransmitRange" */
         sscanf(pszValue, "%f", &mTransmitRange);
         break;
-    case 0x56dbdfe1:
+    case 0x56dbdfe1: /* "LockOnMinDist" */
         sscanf("%f", pszValue, &mLockOnMinDist);
         break;
-    case 0x0aa7e7a3:
+    case 0x0aa7e7a3: /* "LockOnMaxDist" */
         sscanf("%f", pszValue, &mLockOnMaxDist);
         break;
-    case 0x596d0d56:
+    case 0x596d0d56: /* "LockOnMaxTrackDist" */
         sscanf("%f", pszValue, &mLockOnMaxTrackDist);
         break;
-    case 0x714b2463:
+    case 0x714b2463: /* "PointsToUnlock" */
         sscanf(pszValue, "%d", &mPointsToUnlock);
         break;
-    case 0x4bc9b119:
+    case 0x4bc9b119: /* "SwitchClassRadius" */
         mSwitchClassRadius = (float)atof(pszValue);
         break;
-    case 0x4217f84f:
+    case 0x4217f84f: /* "AICollisionRadius" */
         mAICollisionRadius = (float)atof(pszValue);
         break;
-    case 0x9c1a4523:
+    case 0x9c1a4523: /* "RadiusDamageSizeScale" */
         mRadiusDamageSizeScale = (float)atof(pszValue);
         break;
-    case 0xc9239720:
+    case 0xc9239720: /* "VORadius" */
         mVORadius = (float)atof(pszValue);
         mVORadius = __max(mVORadius, 0.0f);
         break;
-    case 0x6196493c:
+    case 0x6196493c: /* "VOUnitType" */
         mVOUnitType = atoi(pszValue);
         mVOUnitType = Clamp(mVOUnitType, 0, 255);
         break;
-    case 0xa8da4b94:
+    case 0xa8da4b94: /* "DisabledEffect" */
         mDisabledEffect = PblHash(pszValue);
         break;
-    case 0xadf73cb1:
+    case 0xadf73cb1: /* "ReserveOneForPlayer" */
         mHoldForPlayer = atoi(pszValue) != 0;
         break;
 
-    case 0xe8821677:
+    case 0xe8821677: /* "HealthType" */
         switch (PblHash(pszValue))
         {
-        case 0xd397b280: mHealthType = HEALTH_TYPE_PERSON; break;
-        case 0xc238e05d: mHealthType = HEALTH_TYPE_ANIMAL; break;
-        case 0xeddb2a39: mHealthType = HEALTH_TYPE_DROID; break;
-        case 0x71cd882f: mHealthType = HEALTH_TYPE_VEHICLE; break;
-        case 0x38df0375: mHealthType = HEALTH_TYPE_BUILDING; break;
-        case 0x7e89edb6: mHealthType = HEALTH_TYPE_MINE; break;
+        case 0xd397b280: /* "Person" */ mHealthType = HEALTH_TYPE_PERSON; break;
+        case 0xc238e05d: /* "Animal" */ mHealthType = HEALTH_TYPE_ANIMAL; break;
+        case 0xeddb2a39: /* "Droid" */ mHealthType = HEALTH_TYPE_DROID; break;
+        case 0x71cd882f: /* "vehicle" */ mHealthType = HEALTH_TYPE_VEHICLE; break;
+        case 0x38df0375: /* "Building" */ mHealthType = HEALTH_TYPE_BUILDING; break;
+        case 0x7e89edb6: /* "Mine" */ mHealthType = HEALTH_TYPE_MINE; break;
         }
         break;
-    case 0x82f3bb78:
+    case 0x82f3bb78: /* "HealthTypeForLockOn" */
         switch (PblHash(pszValue))
         {
-        case 0xd397b280: mHealthTypeForLockOn = HEALTH_TYPE_PERSON; break;
-        case 0xc238e05d: mHealthTypeForLockOn = HEALTH_TYPE_ANIMAL; break;
-        case 0xeddb2a39: mHealthTypeForLockOn = HEALTH_TYPE_DROID; break;
-        case 0x71cd882f: mHealthTypeForLockOn = HEALTH_TYPE_VEHICLE; break;
-        case 0x38df0375: mHealthTypeForLockOn = HEALTH_TYPE_BUILDING; break;
-        case 0x7e89edb6: mHealthTypeForLockOn = HEALTH_TYPE_MINE; break;
+        case 0xd397b280: /* "Person" */ mHealthTypeForLockOn = HEALTH_TYPE_PERSON; break;
+        case 0xc238e05d: /* "Animal" */ mHealthTypeForLockOn = HEALTH_TYPE_ANIMAL; break;
+        case 0xeddb2a39: /* "Droid" */ mHealthTypeForLockOn = HEALTH_TYPE_DROID; break;
+        case 0x71cd882f: /* "vehicle" */ mHealthTypeForLockOn = HEALTH_TYPE_VEHICLE; break;
+        case 0x38df0375: /* "Building" */ mHealthTypeForLockOn = HEALTH_TYPE_BUILDING; break;
+        case 0x7e89edb6: /* "Mine" */ mHealthTypeForLockOn = HEALTH_TYPE_MINE; break;
         }
         break;
 
-    case 0xaff22806:
+    case 0xaff22806: /* "AISizeType" */
         if (!_stricmp(pszValue, "SOLDIER"))
         {
-            mAIType = 1;
+            mAIType = ConnectivityGraph::CGT_FLAG_SOLDIER;
         }
         else if (!_stricmp(pszValue, "HOVER"))
         {
-            mAIType = 2;
+            mAIType = ConnectivityGraph::CGT_FLAG_HOVER;
         }
         else if (!_stricmp(pszValue, "SMALL"))
         {
-            mAIType = 4;
+            mAIType = ConnectivityGraph::CGT_FLAG_SMALL;
         }
         else if (!_stricmp(pszValue, "MEDIUM"))
         {
-            mAIType = 8;
+            mAIType = ConnectivityGraph::CGT_FLAG_MEDIUM;
         }
         else if (!_stricmp(pszValue, "HUGE"))
         {
-            mAIType = 16;
+            mAIType = ConnectivityGraph::CGT_FLAG_HUGE;
         }
         else if (!_stricmp(pszValue, "FLYER"))
         {
-            mAIType = 32;
+            mAIType = ConnectivityGraph::CGT_FLAG_FLYER;
         }
         else
         {
-            mAIType = 1;
+            mAIType = ConnectivityGraph::CGT_FLAG_SOLDIER;
         }
         break;
 
-    case 0xbbbf02b1:
+    case 0xbbbf02b1: /* "AINoRepair" */
         mAINoRepair = atoi(pszValue) != 0;
         break;
-    case 0x0ffe3c06:
+    case 0x0ffe3c06: /* "AvailableForAnyTeam" */
         mAvailableForAnyTeam = atoi(pszValue) != 0;
         break;
-    case 0xe921a7d8:
+    case 0xe921a7d8: /* "HideHealthBar" */
         mbHideHealthBar = atol(pszValue) != 0;
         break;
     case 0xa1c0f27b:
@@ -1037,24 +1037,24 @@ void GameObjectClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mbHideHealthBar = true;
         }
         break;
-    case 0x1b2d820b:
+    case 0x1b2d820b: /* "IsNotTargetableByPlayer" */
         if (atoi(pszValue))
         {
             mIsNotTargetableByPlayer = true;
         }
         break;
 
-    case 0x6a9d502c:
+    case 0x6a9d502c: /* "DeathSound" */
         mSoundDeath.SetID(pszValue, false, false);
         break;
-    case 0x72981af7:
+    case 0x72981af7: /* "HurtSound" */
         mSoundHurt.SetID(pszValue, false, false);
         break;
-    case 0xf3697818:
+    case 0xf3697818: /* "HurtFallSound" */
         mSoundHurtFall.SetID(pszValue, false, false);
         break;
 
-    case 0x7241c3bb:
+    case 0x7241c3bb: /* "DamageRegionSound" */
     {
         acSound[0] = 0;
         acRegion[0] = 0;
@@ -1068,7 +1068,7 @@ void GameObjectClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0x172645b9:
+    case 0x172645b9: /* "VOSound" */
     {
         strncpy(acBuffer, pszValue, 511);
         acBuffer[511] = 0;
@@ -1097,7 +1097,7 @@ void GameObjectClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0x06182385:
+    case 0x06182385: /* "DamageStartPercent" */
         sCurDamageEffect = 0;
         for (int i = 0; i < 10; ++i)
         {
@@ -1114,7 +1114,7 @@ void GameObjectClass::SetProperty(unsigned int uProperty, const char* pszValue)
             }
         }
         break;
-    case 0x37fe5ca9:
+    case 0x37fe5ca9: /* "DamageStopPercent" */
         if (sCurDamageEffect)
         {
             float fPercent = (float)atof(pszValue) / 100.0f;
@@ -1125,19 +1125,19 @@ void GameObjectClass::SetProperty(unsigned int uProperty, const char* pszValue)
             }
         }
         break;
-    case 0xae2bfdd1:
+    case 0xae2bfdd1: /* "DamageEffect" */
         if (sCurDamageEffect)
         {
             sCurDamageEffect->mNameHash = PblHash(pszValue);
         }
         break;
-    case 0xca698181:
+    case 0xca698181: /* "DamageAttachPoint" */
         if (sCurDamageEffect)
         {
             sCurDamageEffect->mHardPoint = PblTEMPHash(pszValue);
         }
         break;
-    case 0xdd5c94da:
+    case 0xdd5c94da: /* "DamageAttachOffset" */
         if (sCurDamageEffect)
         {
             float x, y, z;
@@ -1145,19 +1145,19 @@ void GameObjectClass::SetProperty(unsigned int uProperty, const char* pszValue)
             sCurDamageEffect->mAttachOffset = PblVector3(x, y, z);
         }
         break;
-    case 0x57ce6c85:
+    case 0x57ce6c85: /* "DamageEffectScale" */
         if (sCurDamageEffect)
         {
             sCurDamageEffect->mScale = (float)atof(pszValue);
         }
         break;
-    case 0xd06d0b7c:
+    case 0xd06d0b7c: /* "DamageInheritVelocity" */
         if (sCurDamageEffect)
         {
             sCurDamageEffect->mInheritVelocity = (float)atof(pszValue);
         }
         break;
-    case 0x27cd02e8:
+    case 0x27cd02e8: /* "DamageEffectSound" */
         if (sCurDamageEffect)
         {
             sCurDamageEffect->mSound.SetID(pszValue, false, false);
@@ -1175,15 +1175,15 @@ GameObjectClass::VehicleType GameObjectClass::FindVehicleType(const char* pszNam
 {
     switch (PblHash(pszName))
     {
-    case 0xc322ad05: return VEHICLE_SCOUT;
-    case 0xe29d1e2f: return VEHICLE_LIGHT;
-    case 0x35afd776: return VEHICLE_MEDIUM;
-    case 0x119f9d40: return VEHICLE_HEAVY;
-    case 0x79610f82: return VEHICLE_FIGHTER;
-    case 0xd32f6312: return VEHICLE_TRANSPORT;
-    case 0xe5264e25: return VEHICLE_CAPITOL;
-    case 0x8908744f: return VEHICLE_REMOTE_TERMINAL;
-    case 0x2078f3ad: return VEHICLE_ATAT;
+    case 0xc322ad05: /* "Scout" */ return VEHICLE_SCOUT;
+    case 0xe29d1e2f: /* "LIGHT" */ return VEHICLE_LIGHT;
+    case 0x35afd776: /* "MEDIUM" */ return VEHICLE_MEDIUM;
+    case 0x119f9d40: /* "HEAVY" */ return VEHICLE_HEAVY;
+    case 0x79610f82: /* "FIGHTER" */ return VEHICLE_FIGHTER;
+    case 0xd32f6312: /* "TRANSPORT" */ return VEHICLE_TRANSPORT;
+    case 0xe5264e25: /* "CAPITOL" */ return VEHICLE_CAPITOL;
+    case 0x8908744f: /* "REMOTETERMINAL" */ return VEHICLE_REMOTE_TERMINAL;
+    case 0x2078f3ad: /* "ATAT" */ return VEHICLE_ATAT;
     default: return VEHICLE_UNKNOWN;
     }
 }

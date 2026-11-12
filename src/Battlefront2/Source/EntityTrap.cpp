@@ -26,12 +26,6 @@
 #include "Zephyr/Source/ZephyrPoseStatic.h"
 
 
-static PblMatrix _IdentityMatrix(
-    PblVector4{ 1.0f, 0.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 1.0f, 0.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 1.0f, 0.0f },
-    PblVector4{ 0.0f, 0.0f, 0.0f, 1.0f });
-
 // FUNCTION: SWBF2 0x004fe100
 EntityTrapClass::EntityTrapClass(unsigned int uHash)
     : EntityBuildingClass(uHash)
@@ -218,9 +212,9 @@ void EntityTrap::HealthChangeCallback(bool bArg, float fDelta)
         {
             m_pHologram->TurnOnNow();
         }
-        if (mBuildBox->IsRtti(EntityProp::rttiHashEntityProp))
+        if (mBuildBox->IsRtti(EntityProp::GetRtti()))
         {
-            EntityProp* pProp = static_cast<EntityProp*>(mBuildBox);
+            EntityProp* pProp = (EntityProp*)mBuildBox;
             pProp->Deactivate();
             pProp->RemoveFromCollisionManager();
         }
@@ -315,25 +309,25 @@ void EntityTrapClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x98557a5e:
+    case 0x98557a5e: /* "AnimationName" */
         InitAnimations(pszValue);
         break;
 
-    case 0x2fd8a07b:
+    case 0x2fd8a07b: /* "BuildAnimation" */
         if (mAnimObj)
         {
             mAnimBuildTrap = (ZephyrAnim*)mAnimObj->FindAnimation(pszValue);
         }
         break;
 
-    case 0xf7a5d75b:
+    case 0xf7a5d75b: /* "TriggerAnimation" */
         if (mAnimObj)
         {
             mAnimTriggerTrap = (ZephyrAnim*)mAnimObj->FindAnimation(pszValue);
         }
         break;
 
-    case 0x619005ab:
+    case 0x619005ab: /* "BuildPoint" */
     {
         if (mUnbuiltModel)
         {
@@ -346,11 +340,11 @@ void EntityTrapClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0x138b5187:
+    case 0x138b5187: /* "BuildModelOdf" */
         mBuildBoxOdf = EntityClass::Find(PblHash(pszValue));
         break;
 
-    case 0x47c86b4a:
+    case 0x47c86b4a: /* "GeometryName" */
     {
         EntityBuildingClass::SetProperty(uProperty, pszValue);
         const CollisionMesh* pMesh = CollisionMesh::Find(PblHash(pszValue));
@@ -376,33 +370,33 @@ void EntityTrapClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0xabcb950a:
+    case 0xabcb950a: /* "TriggerTeam" */
         switch (PblTEMPHash(pszValue))
         {
-        case 0x335dfa3a: mTriggerSide = 1; break;
-        case 0x969c1fca: mTriggerSide = 2; break;
-        case 0x0df20559: mTriggerSide = 3; break;
-        case 0xd38f258c: mTriggerSide = 4; break;
+        case 0x335dfa3a: /* "All" */ mTriggerSide = 1; break;
+        case 0x969c1fca: /* "IMP" */ mTriggerSide = 2; break;
+        case 0x0df20559: /* "REP" */ mTriggerSide = 3; break;
+        case 0xd38f258c: /* "CIS" */ mTriggerSide = 4; break;
         default:         mTriggerSide = 0; break;
         }
         break;
 
-    case 0x2e4c2b79:
+    case 0x2e4c2b79: /* "ResetTeam" */
         switch (PblTEMPHash(pszValue))
         {
-        case 0x335dfa3a: mResetSide = 1; break;
-        case 0x969c1fca: mResetSide = 2; break;
-        case 0x0df20559: mResetSide = 3; break;
-        case 0xd38f258c: mResetSide = 4; break;
+        case 0x335dfa3a: /* "All" */ mResetSide = 1; break;
+        case 0x969c1fca: /* "IMP" */ mResetSide = 2; break;
+        case 0x0df20559: /* "REP" */ mResetSide = 3; break;
+        case 0xd38f258c: /* "CIS" */ mResetSide = 4; break;
         default:         mResetSide = 0; break;
         }
         break;
 
-    case 0x58fe8213:
+    case 0x58fe8213: /* "TriggerNode" */
         mTriggerNode = PblTEMPHash(pszValue);
         break;
 
-    case 0xfe7c5230:
+    case 0xfe7c5230: /* "TriggerOffset" */
     {
         float x, y, z;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -412,23 +406,23 @@ void EntityTrapClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0xc461d811:
+    case 0xc461d811: /* "TriggerRadius" */
         sscanf(pszValue, "%f", &mTriggerRadius);
         break;
 
-    case 0x479e5b63:
+    case 0x479e5b63: /* "MinEnemyRadius" */
         sscanf(pszValue, "%f", &mMinEnemyRadius);
         break;
 
-    case 0xb4c6360c:
+    case 0xb4c6360c: /* "DeathTime" */
         sscanf(pszValue, "%f", &mDeathTime);
         break;
 
-    case 0xf138015c:
+    case 0xf138015c: /* "DeathEffect" */
         mDeathEffect = PblHash(pszValue);
         break;
 
-    case 0x29824727:
+    case 0x29824727: /* "DeathEffectOffset" */
     {
         float x, y, z;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -438,40 +432,40 @@ void EntityTrapClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0x836ff8c2:
+    case 0x836ff8c2: /* "TriggerSound" */
         mTriggerSound.SetID(pszValue, false, false);
         break;
 
-    case 0x146ffe85:
+    case 0x146ffe85: /* "TriggerCollision" */
         if (atoi(pszValue))
         {
             mCollisionOnTrigger = true;
         }
         break;
 
-    case 0x06b4bbb5:
+    case 0x06b4bbb5: /* "BuiltCollision" */
         if (atoi(pszValue))
         {
             mCollisionOnBuilt = true;
         }
         break;
 
-    case 0x3fd818d0:
+    case 0x3fd818d0: /* "DeathOnCollision" */
         if (atoi(pszValue))
         {
             mDeathOnCollision = true;
         }
         break;
 
-    case 0x42e950ab:
+    case 0x42e950ab: /* "RayTriggerWidth" */
         sscanf(pszValue, "%f", &mRayTriggerWidth);
         break;
 
-    case 0xdc6a93e6:
+    case 0xdc6a93e6: /* "RayTriggerMinSpeed" */
         sscanf(pszValue, "%f", &mRayTriggerMinSpeed);
         break;
 
-    case 0x0d689977:
+    case 0x0d689977: /* "HideUnbuiltModel" */
         if (atoi(pszValue))
         {
             mHideUnbuiltModel = true;
@@ -761,9 +755,9 @@ bool EntityTrap::Update(float fDeltaTime)
             m_pHologram->TurnOn();
         }
         mUnbuiltTime = 0.0f;
-        if (mBuildBox->IsRtti(EntityProp::rttiHashEntityProp))
+        if (mBuildBox->IsRtti(EntityProp::GetRtti()))
         {
-            EntityProp* pProp = static_cast<EntityProp*>(mBuildBox);
+            EntityProp* pProp = (EntityProp*)mBuildBox;
             pProp->Activate();
             pProp->AddStaticToCollisionManager();
         }
@@ -794,11 +788,11 @@ Entity* EntityTrapClass::Build(const EntityDesc& desc)
             PblMatrix mHologram = kBoxDesc.mMatrix;
             if (pTrap->mBuildBox->IsRtti(EntityProp::rttiHashEntityProp))
             {
-                EntityProp* pProp = static_cast<EntityProp*>(pTrap->mBuildBox);
+                EntityProp* pProp = (EntityProp*)pTrap->mBuildBox;
                 if (pProp->GetModel())
                 {
                     PblMatrix mBone;
-                    if (pProp->GetModel()->GetRedModel(0)->GetBoneMatrix(0xD1E4CC7A, mBone))
+                    if (pProp->GetModel()->GetRedModel(0)->GetBoneMatrix(0xD1E4CC7A /* "hp_hologram" */, mBone))
                     {
                         mHologram = mBone * pProp->GetMatrix();
                     }
@@ -815,7 +809,7 @@ Entity* EntityTrapClass::Build(const EntityDesc& desc)
         PblVector3 vHalfSize(0.75f, 0.75f, 0.75f);
         if (pTrap->mBuildBox->IsRtti(EntityProp::rttiHashEntityProp))
         {
-            EntityProp* pProp = static_cast<EntityProp*>(pTrap->mBuildBox);
+            EntityProp* pProp = (EntityProp*)pTrap->mBuildBox;
             if (pProp->GetModel())
             {
                 PblBox kBox = pProp->GetModel()->_mModel->_TotalBoundingBox;

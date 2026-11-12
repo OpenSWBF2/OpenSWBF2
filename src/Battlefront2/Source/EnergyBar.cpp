@@ -37,7 +37,7 @@ bool EnergyBarClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x97105D6A:
+    case 0x97105D6A: /* "EnergyBar" */
         sscanf(pszValue, "%f", &m_fEnergyMax);
         if (0.0f > m_fEnergyMax)
         {
@@ -49,7 +49,7 @@ bool EnergyBarClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         return true;
 
-    case 0x5621511E:
+    case 0x5621511E: /* "HeatThreshold" */
         sscanf(pszValue, "%f", &m_fEnergyOverheat);
         if (m_fEnergyOverheat >= 1.0f)
         {
@@ -65,8 +65,8 @@ bool EnergyBarClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         return true;
 
-    case 0xA733FBF5:
-    case 0xF03FFABB:
+    case 0xA733FBF5: /* "EnergyOverheat" */
+    case 0xF03FFABB: /* "EnergyMinSprint" */
         sscanf(pszValue, "%f", &m_fEnergyOverheat);
         if (0.0f > m_fEnergyOverheat)
         {

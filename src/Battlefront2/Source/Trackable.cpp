@@ -17,6 +17,7 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
+#include "EntityFlyer.h"
 
 // FUNCTION: SWBF2 0x004832d0
 GameObject* Trackable::GetGameObject() { return 0; }
@@ -45,12 +46,6 @@ namespace FLRenderer
 {
     unsigned int GetCurrentViewport();
 }
-
-class EntityFlyer
-{
-public:
-    static PblHash rttiHashEntityFlyer;
-};
 
 namespace
 {
@@ -212,7 +207,7 @@ bool Trackable::CheckFirstPerson(int iPlayer) const
             }
             if (iPlayer >= 0)
             {
-                if (NetGame::IsEnabled() && !NetGame::IsClient() &&
+                if (NetGame::IsEnabled() && !(netEnabledNext && netClientActive) &&
                     !(NetGame::IsHost() && NetGame::IsOneWorld() && !NetGame::IsDedicated()))
                 {
                     return NetGame::IsCockpitCam(iPlayer);
@@ -338,10 +333,8 @@ PblVector3 CameraTrackSetting::CalcCameraSafePoint(const PblMatrix& rMatrix)
 // FUNCTION: SWBF2 0x00658b80
 PblVector3 CameraTrackSetting::CalcCameraPoint(const PblMatrix& rMatrix, const PblMatrix& rRotation)
 {
-    PblVector3 vOffset;
-    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vOffset), reinterpret_cast<const D3DXVECTOR3*>(&mCameraTrackOffset), reinterpret_cast<const D3DXMATRIX*>(&rRotation));
-    PblVector3 vCenter;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXVECTOR3*>(&mCameraTrackCenter), reinterpret_cast<const D3DXMATRIX*>(&rMatrix));
+    PblVector3 vOffset = rRotation.ApplyRotation(mCameraTrackOffset);
+    PblVector3 vCenter = rMatrix.ApplyTransform(mCameraTrackCenter);
     PblVector3 vPoint;
     vPoint.x = vOffset.x + vCenter.x;
     vPoint.y = vCenter.y + vOffset.y;
@@ -717,7 +710,7 @@ bool CameraTrackSetting::SetProperty(unsigned int uProperty, const char* pszValu
     float* pB;
     switch (uProperty)
     {
-    case 0x41568C97:
+    case 0x41568C97: /* "EyePointOffset" */
     {
         float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
@@ -729,7 +722,7 @@ bool CameraTrackSetting::SetProperty(unsigned int uProperty, const char* pszValu
         mCameraTrackCenter.z = fZ;
         return true;
     }
-    case 0xE85D5895:
+    case 0xE85D5895: /* "TrackCenter" */
     {
         float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
@@ -738,7 +731,7 @@ bool CameraTrackSetting::SetProperty(unsigned int uProperty, const char* pszValu
         mCameraTrackCenter.z = fZ;
         return true;
     }
-    case 0xFD3D9507:
+    case 0xFD3D9507: /* "TrackOffset" */
     {
         float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
@@ -747,7 +740,7 @@ bool CameraTrackSetting::SetProperty(unsigned int uProperty, const char* pszValu
         mCameraTrackOffset.z = fZ;
         return true;
     }
-    case 0x21050BF6:
+    case 0x21050BF6: /* "MoveTension" */
     {
         float fX;
         if (sscanf(pszValue, "%f", &fX))
@@ -761,22 +754,22 @@ bool CameraTrackSetting::SetProperty(unsigned int uProperty, const char* pszValu
         }
         return true;
     }
-    case 0x88F1308A:
+    case 0x88F1308A: /* "MoveTensionX" */
         pB = &mCameraMoveTensionR;
         pA = &mCameraMoveTensionL;
         break;
-    case 0x89F1321D:
+    case 0x89F1321D: /* "MoveTensionY" */
         pB = &mCameraMoveTensionD;
         pA = &mCameraMoveTensionU;
         break;
-    case 0x86F12D64:
+    case 0x86F12D64: /* "MoveTensionZ" */
         pB = &mCameraMoveTensionB;
         pA = &mCameraMoveTensionF;
         break;
-    case 0x5E3171CC:
+    case 0x5E3171CC: /* "AimTension" */
         sscanf(pszValue, "%f", &mCameraAimTension);
         return true;
-    case 0x359D5227:
+    case 0x359D5227: /* "TiltValue" */
         sscanf(pszValue, "%f", &mCameraTiltValue);
         mCameraTiltValue *= 0.017453292f;
         return true;

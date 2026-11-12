@@ -15,9 +15,16 @@ enum SaveFsmQueueOp
 // VTABLE: SWBF2 0x007ae3a8
 class SaveFsm : public Fsm
 {
+    enum
+    {
+        STATE_InitialMemcardCheck = 5
+    };
+
 public:
 
     SaveFsm();
+
+    void StartInitialMemcardCheck();
 
     void StartPreOp(bool bAllowFormat, unsigned int uiCheckFreeBytes,
                      unsigned int uiCheckFreeFiles, unsigned short const* pusFailOpStr,

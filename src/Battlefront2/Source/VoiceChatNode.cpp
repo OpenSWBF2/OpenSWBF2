@@ -207,13 +207,12 @@ bool VoiceChat::Node::Open(unsigned int captureDeviceIndex, unsigned int renderD
             const unsigned char uiNodes = ((const VoiceChat::Transport*)(VoiceChat::Node::sTransport))->GetNumNodes();
             const unsigned int uiAlignedBytes = (uiBytes + 3u) & ~3u;
 
-            char* const pBlock = (char*)VoiceChat::Alloc(
+            mReceiveStreams = (ReceiveStream*)VoiceChat::Alloc(
                 ((uiAlignedBytes + 0x10u) * uiPackets + 0x1Cu) * uiNodes + 0x0Cu);
-            mReceiveStreams = (ReceiveStream*)pBlock;
 
-            if (pBlock)
+            if (mReceiveStreams)
             {
-                AudioPacket* pPackets = (AudioPacket*)(pBlock + uiNodes * sizeof(ReceiveStream));
+                AudioPacket* pPackets = (AudioPacket*)(mReceiveStreams + uiNodes);
                 unsigned char* pData = (unsigned char*)(((unsigned long)(pPackets + uiPackets * uiNodes) + 3u) & ~3u);
 
                 mIsOpen = true;
@@ -352,22 +351,22 @@ void VoiceChat::Node::SetID(unsigned char uChannel)
     mNodeID = uChannel;
 }
 
-// FUNCTION: SWBF2 0x00673ee0
-void VoiceChat::Node::CloseStatic()
+// FUNCTION: SWBF2 0x00672f10
+unsigned char VoiceChat::Node::GetID() const
 {
+    return mNodeID;
+}
 
-    VoiceChat::Node::sTransport = 0;
-    VoiceChat::Free(VoiceChat::Node::sReadHeader.mBitmap);
-    VoiceChat::Node::sReadHeader.mBitmap = 0;
-    VoiceChat::Node::sReadHeader.mSize = 0;
-    VoiceChat::Node::sReadHeader.mBits = 0;
-    VoiceChat::Node::sWriteHeader.mBitmap = 0;
-    VoiceChat::Node::sWriteHeader.mSize = 0;
-    VoiceChat::Node::sWriteHeader.mBits = 0;
-    VoiceChat::Node::sReceiveMetrics = 0;
-    VoiceChat::Node::sBufferSizeMs = 0.0f;
-    VoiceChat::Node::sTime = 0;
+// FUNCTION: SWBF2 0x00672f20
+VoiceChat::Encoder& VoiceChat::Node::GetEncoder() const
+{
+    return *mEncoder;
+}
 
+// FUNCTION: SWBF2 0x00672f30
+VoiceChat::Decoder& VoiceChat::Node::GetDecoder() const
+{
+    return *mDecoder;
 }
 
 
@@ -1167,28 +1166,28 @@ bool Node::DecoderIsStarving(unsigned char stream, bool force)
 }
 }
 
-// FUNCTION: SWBF2 0x00672f10
-unsigned char VoiceChat::Node::GetID() const
-{
-    return mNodeID;
-}
-
-// FUNCTION: SWBF2 0x00672f20
-VoiceChat::Encoder& VoiceChat::Node::GetEncoder() const
-{
-    return *mEncoder;
-}
-
-// FUNCTION: SWBF2 0x00672f30
-VoiceChat::Decoder& VoiceChat::Node::GetDecoder() const
-{
-    return *mDecoder;
-}
-
 // FUNCTION: SWBF2 0x00673ed0
 bool VoiceChat::Node::IsOpenStatic()
 {
     return VoiceChat::Node::sTransport != 0;
+}
+
+// FUNCTION: SWBF2 0x00673ee0
+void VoiceChat::Node::CloseStatic()
+{
+
+    VoiceChat::Node::sTransport = 0;
+    VoiceChat::Free(VoiceChat::Node::sReadHeader.mBitmap);
+    VoiceChat::Node::sReadHeader.mBitmap = 0;
+    VoiceChat::Node::sReadHeader.mSize = 0;
+    VoiceChat::Node::sReadHeader.mBits = 0;
+    VoiceChat::Node::sWriteHeader.mBitmap = 0;
+    VoiceChat::Node::sWriteHeader.mSize = 0;
+    VoiceChat::Node::sWriteHeader.mBits = 0;
+    VoiceChat::Node::sReceiveMetrics = 0;
+    VoiceChat::Node::sBufferSizeMs = 0.0f;
+    VoiceChat::Node::sTime = 0;
+
 }
 
 // FUNCTION: SWBF2 0x00674020

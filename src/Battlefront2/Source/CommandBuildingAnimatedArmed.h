@@ -76,13 +76,7 @@ inline bool CommandBuildingAnimatedArmed::IsRtti(unsigned int uRtti) const
     {
         return true;
     }
-    return EntityBuildingAnimatedArmed::rttiHashEntityBuildingAnimatedArmed == uRtti ||
-           EntityBuildingAnimated::rttiHashEntityBuildingAnimated == uRtti ||
-           EntityBuilding::rttiHashEntityBuilding == uRtti ||
-           GameObject::rttiHashGameObject == uRtti ||
-           EntityGeometry::rttiHashEntityGeometry == uRtti ||
-           EntityEx::rttiHashEntityEx == uRtti ||
-           Entity::rttiHashEntity == uRtti;
+    return EntityBuildingAnimatedArmed::IsRtti(uRtti);
 }
 
 // FUNCTION: SWBF2 0x00476830

@@ -54,5 +54,5 @@ namespace VisionManager
 
 namespace VisionManager
 {
-void __fastcall AddFakeRayhitResult(UnitController* pUnit, const GameObject* pObject);
+void AddFakeRayhitResult(UnitController* pUnit, const GameObject* pObject);
 }

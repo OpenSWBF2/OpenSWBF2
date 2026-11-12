@@ -18,14 +18,14 @@ public:
     // FUNCTION: SWBF2 0x0059b540
     void SetGain(float fGain)
     {
-        SourceBus::SetGain(static_cast<Source2D3D*>(this), fGain);
+        SourceBus::SetGain((Source2D3D*)this, fGain);
     }
 
     float GetGain() const { return SourceBus::GetGain(); }
 
     void Update()
     {
-        SourceBus::Update(static_cast<Source2D3D*>(this), this);
+        SourceBus::Update((Source2D3D*)this, this);
     }
 };
 

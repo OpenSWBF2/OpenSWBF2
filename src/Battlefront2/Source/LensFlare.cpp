@@ -44,13 +44,13 @@ FLEffectClass* LensFlareEffect::BuildClass(PblConfig& config) const
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x23a0d95cu:
+        case 0x23a0d95cu: /* "Size" */
             pFlare->SetSize(data.GetFloatArg(0));
             break;
-        case 0x1612c34cu:
+        case 0x1612c34cu: /* "DrawDistance" */
             pFlare->SetDrawDistance(data.GetFloatArg(0));
             break;
-        case 0x3d7e6258u:
+        case 0x3d7e6258u: /* "Color" */
         {
             RedColor color;
             color.r = data.GetUint8Arg(0);
@@ -60,7 +60,7 @@ FLEffectClass* LensFlareEffect::BuildClass(PblConfig& config) const
             pFlare->SetColor(color);
             break;
         }
-        case 0x934f4e0au:
+        case 0x934f4e0au: /* "Position" */
         {
             const PblVector3 vPos(data.GetFloatArg(0), data.GetFloatArg(1), data.GetFloatArg(2));
             pFlare->SetPosition(vPos);
@@ -70,15 +70,6 @@ FLEffectClass* LensFlareEffect::BuildClass(PblConfig& config) const
     }
     pFlare->ActivateEffect();
     return pFlare;
-}
-
-// FUNCTION: SWBF2 0x0056f4a0
-LensFlare::LensFlare(const LensFlare& that)
-    : _fSize(that._fSize)
-    , _color(that._color)
-    , _fSquaredDrawDistance(that._fSquaredDrawDistance)
-    , _uiHideInView(0)
-{
 }
 
 // FUNCTION: SWBF2 0x0056f8c0

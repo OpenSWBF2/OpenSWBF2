@@ -31,8 +31,6 @@
 
 void __cdecl PblTraceP(const char* Format, ...);
 
-namespace pcCrash { void __cdecl Exit(int); }
-
 namespace Snd
 {
 
@@ -56,7 +54,7 @@ StreamCaptureSource::StreamCaptureSource()
     {
         PrintDebugMessage("Unable to create semaphore : out of system "
                           "resources!");
-        pcCrash::Exit(1);
+        exit(0);
     }
 
     Engine::GetThreadUpdate()->AddObject(this);
@@ -311,11 +309,11 @@ void StreamCaptureSource::UpdateObject()
                     mPackets
                     + mReadPacketIndex;
 
-                if (pPacket->mRefCount > 0)
+                if (pPacket->IsLocked())
                 {
                     break;
                 }
-                if (pPacket->mBufferUsed != 0)
+                if (pPacket->GetUsed() != 0)
                 {
                     break;
                 }
@@ -421,10 +419,10 @@ void StreamCaptureSource::UpdateObject()
                         const unsigned int uiPos =
                             mPlaybackPosition;
 
-                        pPacket->mBufferUsed = mPacketSize;
-                        pPacket->mFlags = (unsigned short)
-                            (pPacket->mFlags & 0xFFFCu);
-                        pPacket->mPos = uiPos;
+                        pPacket->SetUsed(mPacketSize);
+                        pPacket->SetDiscontinuity(false);
+                        pPacket->SetLast(false);
+                        pPacket->SetPosition(uiPos);
                         mOutputPacket.Reset();
 
                         mPlaybackPosition =

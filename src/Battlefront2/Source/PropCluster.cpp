@@ -49,7 +49,7 @@ void PropCluster::Init(unsigned char id, float fSize)
     mMapIndex = -1;
     mSize = fSize;
 
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < kMaxLayers; i++)
     {
         while (mLayers[i].mObjects.GetCount() > 0)
         {
@@ -89,7 +89,7 @@ void PropCluster::Render(unsigned char ucViewport, float fDist, unsigned int uiF
 
     if (fScale * fCamDist > -mSize)
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < kMaxLayers; i++)
         {
             float fLayerDist = PropGenerator::GetLayerMaxDist(i) * fScale;
 
@@ -193,7 +193,7 @@ void PropCluster::Setup(int iMapIndex, float fX, float fZ)
         SetRenderPos(vPos);
         SetRenderRadius(mSize);
         Activate();
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < kMaxLayers; i++)
         {
             mLayers[i].mCreateObjectsFlag = true;
         }
@@ -207,7 +207,7 @@ void PropCluster::DeleteObjects()
     {
         Deactivate();
     }
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < kMaxLayers; i++)
     {
         UncreateObjects(i);
     }
@@ -220,7 +220,7 @@ const PropObject* PropCluster::FindPropObject(const PblVector3& vPos, bool) cons
     float fBest = FLT_MAX;
     const PropObject* pBest = 0;
 
-    for (unsigned int i = 0; i < 4; i++)
+    for (unsigned int i = 0; i < kMaxLayers; i++)
     {
         for (PblList<PropObject>::Itor it(mLayers[i].mObjects); (PropObject*)it; ++it)
         {

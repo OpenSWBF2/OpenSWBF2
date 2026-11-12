@@ -79,36 +79,36 @@ void RumbleEffectClass::SetProperty(unsigned int uProperty, const char* pszValue
 {
     switch (uProperty)
     {
-    case 0x5a4042b1: sscanf(pszValue, "%f", &mRumbleRegionDesc.mLight[0]); break;
-    case 0x569c3e43: sscanf(pszValue, "%f", &mRumbleRegionDesc.mLight[1]); break;
-    case 0x4456e84a: sscanf(pszValue, "%f", &mRumbleRegionDesc.mHeavy[0]); break;
-    case 0x25779a5c: sscanf(pszValue, "%f", &mRumbleRegionDesc.mHeavy[1]); break;
-    case 0xa4fbdbc8: sscanf(pszValue, "%f", &mRumbleRegionDesc.mHeavyDecay[0]); break;
-    case 0xf440c23a: sscanf(pszValue, "%f", &mRumbleRegionDesc.mHeavyDecay[1]); break;
-    case 0x1c5461b1: sscanf(pszValue, "%f", &mRumbleRegionDesc.mLightDecay[0]); break;
-    case 0x78221603: sscanf(pszValue, "%f", &mRumbleRegionDesc.mLightDecay[1]); break;
-    case 0xe1c681ca: sscanf(pszValue, "%f", &mRumbleRegionDesc.mDelayLight[0]); break;
-    case 0xe2742820: sscanf(pszValue, "%f", &mRumbleRegionDesc.mDelayLight[1]); break;
-    case 0x1cb9e68d: sscanf(pszValue, "%f", &mRumbleRegionDesc.mDelayHeavy[0]); break;
-    case 0x7189dcc3: sscanf(pszValue, "%f", &mRumbleRegionDesc.mDelayHeavy[1]); break;
-    case 0xbf6413ae: sscanf(pszValue, "%f", &mRumbleRegionDesc.mTimeLeftHeavy[0]); break;
-    case 0x220abe04: sscanf(pszValue, "%f", &mRumbleRegionDesc.mTimeLeftHeavy[1]); break;
-    case 0x4104158d: sscanf(pszValue, "%f", &mRumbleRegionDesc.mTimeLeftLight[0]); break;
-    case 0x931a6a3b: sscanf(pszValue, "%f", &mRumbleRegionDesc.mTimeLeftLight[1]); break;
-    case 0xf8c69a26: sscanf(pszValue, "%f", &mRumbleRegionDesc.mInitialTime[0]); break;
-    case 0x8b37cab4: sscanf(pszValue, "%f", &mRumbleRegionDesc.mInitialTime[1]); break;
-    case 0x4fb4269f: sscanf(pszValue, "%f", &mRumbleRegionDesc.mShakeAmt[0]); break;
-    case 0xc3e9c081: sscanf(pszValue, "%f", &mRumbleRegionDesc.mShakeAmt[1]); break;
-    case 0xcff18812: sscanf(pszValue, "%f", &mRumbleRegionDesc.mShakeLen[0]); break;
-    case 0x626eeba0: sscanf(pszValue, "%f", &mRumbleRegionDesc.mShakeLen[1]); break;
-    case 0xb5234678:
+    case 0x5a4042b1: /* "MinLight" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mLight[0]); break;
+    case 0x569c3e43: /* "MaxLight" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mLight[1]); break;
+    case 0x4456e84a: /* "MinHeavy" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mHeavy[0]); break;
+    case 0x25779a5c: /* "MaxHeavy" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mHeavy[1]); break;
+    case 0xa4fbdbc8: /* "MinHeavyDecay" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mHeavyDecay[0]); break;
+    case 0xf440c23a: /* "MaxHeavyDecay" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mHeavyDecay[1]); break;
+    case 0x1c5461b1: /* "MinLightDecay" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mLightDecay[0]); break;
+    case 0x78221603: /* "MaxLightDecay" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mLightDecay[1]); break;
+    case 0xe1c681ca: /* "MinDelayLight" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mDelayLight[0]); break;
+    case 0xe2742820: /* "MaxDelayLight" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mDelayLight[1]); break;
+    case 0x1cb9e68d: /* "MinDelayHeavy" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mDelayHeavy[0]); break;
+    case 0x7189dcc3: /* "MaxDelayHeavy" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mDelayHeavy[1]); break;
+    case 0xbf6413ae: /* "MinTimeLeftHeavy" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mTimeLeftHeavy[0]); break;
+    case 0x220abe04: /* "MaxTimeLeftHeavy" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mTimeLeftHeavy[1]); break;
+    case 0x4104158d: /* "MinTimeLeftLight" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mTimeLeftLight[0]); break;
+    case 0x931a6a3b: /* "MaxTimeLeftLight" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mTimeLeftLight[1]); break;
+    case 0xf8c69a26: /* "MinInterval" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mInitialTime[0]); break;
+    case 0x8b37cab4: /* "MaxInterval" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mInitialTime[1]); break;
+    case 0x4fb4269f: /* "MinShakeAmt" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mShakeAmt[0]); break;
+    case 0xc3e9c081: /* "MaxShakeAmt" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mShakeAmt[1]); break;
+    case 0xcff18812: /* "MinShakeLen" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mShakeLen[0]); break;
+    case 0x626eeba0: /* "MaxShakeLen" */ sscanf(pszValue, "%f", &mRumbleRegionDesc.mShakeLen[1]); break;
+    case 0xb5234678: /* "FXName" */
     {
         char name[32];
         sscanf(pszValue, "%s", name);
         mRumbleRegionDesc.mParticleID = PblHash(name);
         break;
     }
-    case 0x7a5ff18f:
+    case 0x7a5ff18f: /* "SoundName" */
     {
         char name[32];
         sscanf(pszValue, "%s", name);

@@ -110,7 +110,7 @@ EntitySoundStream::~EntitySoundStream()
 // FUNCTION: SWBF2 0x004fbb80
 void EntitySoundStream::Play()
 {
-    if (GameState::GetState() != 0x11E1FC01 && GameLoop::IsGameOver())
+    if (GameState::GetState() != 0x11E1FC01 /* "shell" */ && GameLoop::IsGameOver())
     {
         return;
     }

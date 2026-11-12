@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 #include "Weapon.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
 // VTABLE: SWBF2 0x007b1010

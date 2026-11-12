@@ -8,6 +8,7 @@
 #include "AILowLevel.h"
 #include "AIUtil.h"
 #include "Character.h"
+#include "EntitySoldier.h"
 #include "Controllable.h"
 #include "Entity.h"
 #include "GameLoop.h"
@@ -16,11 +17,6 @@
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMath.h"
 
-class EntitySoldier
-{
-public:
-    static PblHash rttiHashEntitySoldier;
-};
 
 namespace AI
 {
@@ -99,7 +95,7 @@ void IdleHelper::EnterState()
     switch (mCurState)
     {
     case STATE_START:
-        if (!mOwner->mCtrl->mOwner->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
+        if (!mOwner->mCtrl->mOwner->GetEntity()->IsRtti(EntitySoldier::GetRtti()))
         {
             SetNextState(STATE_VehicleIdle);
         }

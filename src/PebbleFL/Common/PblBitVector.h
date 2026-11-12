@@ -10,6 +10,14 @@ public:
 
     PblBitVector() {}
 
+    PblBitVector(bool bValue)
+    {
+        if (bValue)
+            SetAll();
+        else
+            ClearAll();
+    }
+
     PblBitVector(const PblBitVector& v)
     {
         *this = v;
@@ -61,6 +69,11 @@ public:
         {
             m_auiData[i] &= rOther.m_auiData[i];
         }
+    }
+    const PblBitVector& operator&=(const PblBitVector& other)
+    {
+        And(other);
+        return *this;
     }
     const PblBitVector operator~() const
     {

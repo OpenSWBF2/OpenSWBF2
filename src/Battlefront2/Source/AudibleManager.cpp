@@ -69,7 +69,7 @@ void AudibleManager::UpdateAudience(Controller* pController)
     }
 
     if (!pObject->IsRtti(EntitySoldier::rttiHashEntitySoldier) ||
-        static_cast<const EntitySoldier*>(pObject)->GetInvisibilityFactor() < 0.1f)
+        ((const EntitySoldier*)pObject)->GetInvisibilityFactor() < 0.1f)
     {
         if (!(fRadius > 8.0f))
         {
@@ -105,7 +105,7 @@ void AudibleManager::UpdateAudience(Controller* pController)
                 continue;
             }
 
-            UnitController* pUnit = static_cast<UnitController*>(it->mCtrl);
+            UnitController* pUnit = (UnitController*)it->mCtrl;
             AI::UnitThreatManager& threats = pUnit->mThreatManager;
             if (vDelta.x * vDelta.x + vDelta.y * vDelta.y + vDelta.z * vDelta.z > 9.0f)
             {

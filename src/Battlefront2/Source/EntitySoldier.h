@@ -4,6 +4,7 @@
 #include "PebbleFL/Common/PblBitVector.h"
 
 #include <stddef.h>
+#include <d3dx9math.h>
 
 #include "GameSound.h"
 #include "CollisionMesh.h"
@@ -55,6 +56,7 @@ public:
 #include "EnergyBar.h"
 #include "GameMusic.h"
 #include "GameObject.h"
+#include "GameModel.h"
 #include "GameSound.h"
 #include "PlayableEntitySounds.h"
 #include "SoldierAnimationBank.h"
@@ -75,11 +77,12 @@ class EntitySoldierClass : public GameObjectClass,
                            public PlayableEntitySoundsClass
 {
 public:
+    static const int kMaxWeapons = 8;
     EntitySoldierClass(unsigned int uHash);
     EntitySoldierClass(EntitySoldierClass* pBase, unsigned int uHash);
     virtual ~EntitySoldierClass();
 
-    int FindSoldierType(const char* pszName);
+    GameObjectClass::SoldierType FindSoldierType(const char* pszName);
 
     virtual EntityClass* Derive(unsigned int uHash);
     virtual Entity* Build(const EntityDesc& desc);
@@ -88,10 +91,18 @@ public:
     virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
     virtual void PostReadSetup();
-    virtual int GetSoldierType() const;
+    virtual GameObjectClass::SoldierType GetSoldierType() const;
     virtual const ControllableClass* GetControllableClass() const;
-    virtual int GetWeaponCount() const;
-    virtual const WeaponClass* GetWeaponClass(int iIndex) const;
+    // FUNCTION: SWBF2 0x004de490
+    virtual int GetWeaponCount() const
+    {
+        return mWeaponCount;
+    }
+    // FUNCTION: SWBF2 0x004de4a0
+    virtual const WeaponClass* GetWeaponClass(int iIndex) const
+    {
+        return mWeaponClass[iIndex];
+    }
 
     unsigned int GetSndHeroSelectable() { return mSndHeroSelectable; }
     unsigned int GetSndHeroSpawned() { return mSndHeroSpawned; }
@@ -142,8 +153,8 @@ public:
     float mCollisionScale[3];
     float mCollisionInflict;
     WeaponClass* mWeaponClass[8];
-    WeaponAmmoDesc mWeaponAmmo[8];
-    char mWeaponChannel[8];
+    WeaponAmmoDesc mWeaponAmmo[kMaxWeapons];
+    char mWeaponChannel[kMaxWeapons];
     char mWeaponCount;
     unsigned int mOverrideTextureHash;
     unsigned int mOverrideTextureHash2;
@@ -179,7 +190,7 @@ public:
     unsigned int mFootWaterSplashEffect;
     unsigned int mWakeWaterSplashEffect;
     float mNoiseFactor;
-    int mSoldierType;
+    GameObjectClass::SoldierType mSoldierType;
     bool mImmuneToMines;
     AimerClass* mAimerClass;
     CameraTrackSetting mCameraSettings[4][2];
@@ -376,6 +387,9 @@ class EntitySoldier : public GameObject,
                       public PlayableEntitySounds
 {
 public:
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
+    static const int kMaxWeapons = EntitySoldierClass::kMaxWeapons;
+    static const int kMaxSmolderEffects = 5;
 
     // VTABLE: SWBF2 0x0079d094
     class PostCollision : public Thread
@@ -445,14 +459,26 @@ public:
     virtual Entity* GetEntity();
     virtual const GameObject* GetGameObject() const;
     virtual GameObject* GetGameObject();
-    virtual const PblVector3& GetVelocity() const;
-    virtual void SetVelocity(const PblVector3& vVelocity);
+    // FUNCTION: SWBF2 0x004de100
+    virtual const PblVector3& GetVelocity() const
+    {
+        return mVelocity;
+    }
+    // FUNCTION: SWBF2 0x004de110
+    virtual void SetVelocity(const PblVector3& vVelocity)
+    {
+        mVelocity = vVelocity;
+    }
     virtual int GetTargetBodyID(const PblVector3& vPos, const PblVector3& vDir) const;
     virtual PblVector3 GetTargetPoint(const PblVector3& vPos, const PblVector3& vDir,
                                       int iBodyId) const;
     virtual float GetMaxSpeed() const;
     virtual float GetMaxStrafe() const;
-    virtual TargetInfo* GetTargetInfo();
+    // FUNCTION: SWBF2 0x004de280
+    virtual TargetInfo* GetTargetInfo()
+    {
+        return &mTargetInfo;
+    }
     virtual const Controllable* GetControllable() const;
     virtual Controllable* GetControllable();
     virtual const PlayableEntitySounds* GetPlayableEntitySounds() const;
@@ -467,7 +493,11 @@ public:
     virtual int GetReservableSlots(ReserveType eType) const;
     virtual void ActivatePhysics();
     virtual void DeactivatePhysics();
-    virtual GameObjectType GetGameObjectType();
+    // FUNCTION: SWBF2 0x004de360
+    virtual GameObjectType GetGameObjectType()
+    {
+        return GO_SOLDIER;
+    }
     virtual void AcquiredTarget();
     virtual void Hiding();
     virtual void ApproachingTarget();
@@ -491,7 +521,16 @@ public:
     virtual bool EnterControllable(Controllable* pControllable);
     virtual int GetWeaponChannelByWeaponIndex(int iIndex) const;
 
-    virtual void SetPosition(const PblVector3& vPosition);
+    // FUNCTION: SWBF2 0x004de130
+    virtual void SetPosition(const PblVector3& vPosition)
+    {
+        mMatrix.SetTranslation(vPosition);
+
+        PblVector3 center;
+        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&center), reinterpret_cast<const D3DXVECTOR3*>(&mModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+        SetCollisionCenter(center);
+        RecalculateAABB();
+    }
     virtual void SetMatrix(const PblMatrix& matrix);
     virtual float GetSmallestCollisionDim() const;
     virtual bool CollisionCallback(const CollisionResult* pResult, CollisionObject* pOther,
@@ -499,7 +538,11 @@ public:
     virtual bool CollideTrisWithAllPrimitives() const;
 
     virtual const PblMatrix& GetMatrix() const;
-    virtual const RedPose* GetPose() const;
+    // FUNCTION: SWBF2 0x004de080
+    virtual const RedPose* GetPose() const
+    {
+        return mAcklayData ? mAcklayData->GetPose() : 0;
+    }
     virtual void RecalculateAABB();
 
     virtual void Render(unsigned char ucViewport, float fDist, unsigned int uiFlags);
@@ -511,17 +554,37 @@ public:
     virtual void HealthChangeCallback(bool bArg, float fArg);
 
     virtual bool Update(float fDeltaTime);
-    virtual Trackable* GetTrackable();
+    // FUNCTION: SWBF2 0x004de290
+    virtual Trackable* GetTrackable()
+    {
+        return this;
+    }
     virtual float GetTargetBubbleStanceModifier() const;
     virtual float GetSoundRadius() const;
     virtual float GetAimTurnRate() const;
     virtual int GetWeaponCount() const;
-    virtual int GetWeaponIndex(int iChannel) const;
-    virtual Weapon* GetWeaponPtr(int iIndex) const;
-    virtual EnergyBar* GetEnergyBar();
+    // FUNCTION: SWBF2 0x004de2f0
+    virtual int GetWeaponIndex(int iChannel) const
+    {
+        return mWeaponIndex[iChannel];
+    }
+    // FUNCTION: SWBF2 0x004de320
+    virtual Weapon* GetWeaponPtr(int iIndex) const
+    {
+        return mWeapon[iIndex];
+    }
+    // FUNCTION: SWBF2 0x004de340
+    virtual EnergyBar* GetEnergyBar()
+    {
+        return &mEnergyBar;
+    }
     virtual SoldierAnimationBank::BANK GetSoldierAnimationBank() const;
     virtual void SetWeaponIndex(int iChannel, int iIndex);
-    virtual const Aimer* GetAimer(int iIndex) const;
+    // FUNCTION: SWBF2 0x004de350
+    virtual const Aimer* GetAimer(int iIndex) const
+    {
+        return &mAimer;
+    }
     virtual bool CanEnterRemote(const GameObject* pObject) const;
     virtual bool CanEnterVehicle(const GameObject* pObject) const;
     virtual bool EnterVehicle(GameObject* pObject);
@@ -539,7 +602,11 @@ public:
     virtual void GetPitchYawLimits(float& fPitchMin, float& fPitchMax,
                                    float& fYawMin, float& fYawMax) const;
     virtual float GetOffenseMultiplier() const;
-    virtual int GetActiveWeaponChannel();
+    // FUNCTION: SWBF2 0x004de310
+    virtual int GetActiveWeaponChannel()
+    {
+        return mActiveChannel;
+    }
     virtual bool UpdateIndirect(float fDeltaTime);
     virtual void DeactivateIndirect();
 
@@ -552,7 +619,19 @@ public:
     virtual CameraTrackSetting* GetCameraTrackSettings();
     virtual bool RenderTrackable(unsigned int uView) const;
     virtual bool IsFirstPersonAvailablePS2() const;
-    virtual bool IsForcedThirdPerson() const;
+    // FUNCTION: SWBF2 0x004de390
+    virtual bool IsForcedThirdPerson() const
+    {
+        for (int i = 0; i < kNumWeaponChannels; ++i)
+        {
+            int iIndex = mWeaponIndex[i];
+            if (iIndex >= 0 && mWeapon[iIndex]->IsMelee())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
 protected:
 
@@ -717,8 +796,8 @@ public:
     float mKickBuild;
     float mTurnAngle;
     Aimer mAimer;
-    Weapon* mWeapon[8];
-    char mWeaponIndex[2];
+    Weapon* mWeapon[kMaxWeapons];
+    char mWeaponIndex[kNumWeaponChannels];
     char mActiveIndex : 4;
     char mActiveChannel : 2;
     unsigned char mStanceIndex : 2;
@@ -779,9 +858,9 @@ public:
     PblHandle<FLEffectObject> mBuffDefenseEffectHandle;
     PblHandle<FLEffectObject> mDebuffEffectHandle;
     PblHandle<FLEffectObject> mInvincibleEffectHandle;
-    PblHandle<FLEffectObject> mSmolderEffectHandle[5];
-    unsigned int mSmolderEffectBone[5];
-    unsigned int mSmolderEffect[5];
+    PblHandle<FLEffectObject> mSmolderEffectHandle[kMaxSmolderEffects];
+    unsigned int mSmolderEffectBone[kMaxSmolderEffects];
+    unsigned int mSmolderEffect[kMaxSmolderEffects];
     unsigned int mLastPilotInfoFrame;
     float mJetFuel;
     PblVector3 m_vPosFootRight;
@@ -913,6 +992,13 @@ inline const char* EntitySoldierClass::GetDerivedRttiName() const
 {
     return rttiNameEntitySoldierClass;
 }
+
+// FUNCTION: SWBF2 0x004de4c0
+inline GameObjectClass::SoldierType EntitySoldierClass::GetSoldierType() const
+{
+    return mSoldierType;
+}
+
 
 
 

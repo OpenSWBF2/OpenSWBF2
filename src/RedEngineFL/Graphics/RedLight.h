@@ -3,12 +3,12 @@
 #include <stddef.h>
 
 #include "PebbleFL/Common/PblList.h"
+#include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "RedMaterial.h"
 
 class PblConfig;
 class PblFileChunk;
-class PblMatrix;
 class RedCamera;
 class RedAmbientLight;
 class RedDirectionalLight;
@@ -23,6 +23,7 @@ struct RedLightingState;
 class RedLight
 {
 public:
+    static const int kMaxDirectionalLights = 2;
 
     static void UpdateAllVisibility(const RedCamera* pCamera, unsigned int uiView);
 
@@ -55,7 +56,8 @@ public:
     virtual bool IsVisible(const RedCamera* pCamera) const = 0;
     virtual bool SphereIntersect(const PblVector3& vCenter, float fRadius) const = 0;
     virtual bool AABBIntersect(const PblVector3& vMin, const PblVector3& vMax) const = 0;
-    virtual const PblMatrix& GetProjectionMatrix() const;
+    // FUNCTION: SWBF2 0x006b16e0
+    virtual const PblMatrix& GetProjectionMatrix() const { return gMatrixIdentity; }
 
     bool IsStatic() const { return (m_uiFlags & LIGHT_FLAG_STATIC) != 0; }
 
@@ -145,6 +147,8 @@ public:
                                                     bool bNoShadowRegions, bool bStatic,
                                                     bool bNoProjectedLights);
 
+    const RedColorValue& GetColor() const { return m_color; }
+
     float GetIntensity() const
     {
         return m_color.r * 0.3f + m_color.g * 0.45f + m_color.b * 0.25f;
@@ -173,10 +177,10 @@ public:
     static PblList<RedLight> s_VisibleSpotLightList;
     static PblList<RedLight> s_VisibleDirectionalLightList;
     static RedShadowRegionFactory* s_pShadowRegionFactory;
-    static RedDirectionalLight* m_sGlobalDirectionals[2];
+    static RedDirectionalLight* m_sGlobalDirectionals[kMaxDirectionalLights];
     static RedAmbientLight* m_sGlobalAmbient;
     static unsigned int m_sGlobalEnvMapHash;
-    static float m_sGlobalDirectionalFactor[2];
+    static float m_sGlobalDirectionalFactor[kMaxDirectionalLights];
 };
  
  
@@ -209,6 +213,26 @@ public:
 };
 
 #include "RedAmbientLight.h"
+
+struct RedLightingState
+{
+
+    RedLightingState& operator=(const RedLightingState& rOther);
+
+    RedAmbientLight ambientLight;
+    RedDirectionalLight* pDirectionalLights[RedLight::kMaxDirectionalLights];
+    RedOmniLight* pOmniLights[4];
+    RedSpotLight* pSpotLights[1];
+    float pDirectionalFactor[RedLight::kMaxDirectionalLights];
+    RedLight* pProjectedLight;
+    RedTexture* pEnvMap;
+    float envMapFactor;
+    unsigned char numDirectionalLights;
+    unsigned char numOmniLights;
+    unsigned char numSpotLights;
+    unsigned char bStaticLighting;
+    unsigned char numSpecularLights;
+};
 
 // FUNCTION: SWBF2 0x006afd00
 inline RedLight::RedLight(TypeT eType)

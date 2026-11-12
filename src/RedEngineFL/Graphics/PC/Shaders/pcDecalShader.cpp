@@ -9,12 +9,24 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
+// GLOBAL: SWBF2 0x009ca634
+// pcDecalShader::s_uiID
 unsigned int pcDecalShader::s_uiID;
+// GLOBAL: SWBF2 0x009ca638
+// pcDecalShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcDecalShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca644
+// pcDecalShader::BeginFuncArray
 pcRedShader::BeginFuncT pcDecalShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca650
+// pcDecalShader::EndFuncArray
 pcRedShader::EndFuncT pcDecalShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca65c
+// pcDecalShader::RenderFuncArray
 pcRedShader::RenderFuncT pcDecalShader::RenderFuncArray[MAX_PIPELINES];
 
 // FUNCTION: SWBF2 0x0070efa0
@@ -108,12 +120,6 @@ void pcDecalShader::Begin_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 }
 
-// FUNCTION: SWBF2 0x0070f370
-void pcDecalShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x0070f390
 void pcDecalShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -124,28 +130,10 @@ void pcDecalShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x0070f3b0
-unsigned int pcDecalShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x0070f3d0
 RenderPhaseT pcDecalShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_OPAQUE;
-}
-
-// FUNCTION: SWBF2 0x0070f3e0
-unsigned int pcDecalShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x0070f3f0
-pcRedShaderDef* pcDecalShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x0070f400
@@ -257,22 +245,22 @@ void pcDecalShader::_Init(unsigned int uiFlags,
 void pcDecalShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcDecalShader::GetState_Fixed);
+        (GetStateFuncT)(&pcDecalShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcDecalShader::Begin_Fixed);
+        (BeginFuncT)(&pcDecalShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcDecalShader::End_Fixed);
+        (EndFuncT)(&pcDecalShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcDecalShader::Render_Fixed);
+        (RenderFuncT)(&pcDecalShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcDecalShader::GetState_Prog1);
+        (GetStateFuncT)(&pcDecalShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcDecalShader::Begin_Prog1);
+        (BeginFuncT)(&pcDecalShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcDecalShader::End_Prog1);
+        (EndFuncT)(&pcDecalShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcDecalShader::Render_Prog1);
+        (RenderFuncT)(&pcDecalShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x0070f720
@@ -281,7 +269,7 @@ void pcDecalShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }

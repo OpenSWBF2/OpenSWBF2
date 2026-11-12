@@ -36,7 +36,7 @@ unsigned int StreamPacketIOLite::GetOffset() const
 // FUNCTION: SWBF2 0x0073ce30
 void* StreamPacketIOLite::GetData(const StreamPacket* const pPacket) const
 {
-    return (char*)pPacket->mBuffer + mOffset;
+    return (char*)pPacket->GetBuffer() + mOffset;
 }
 
 // FUNCTION: SWBF2 0x0073ce60
@@ -97,7 +97,7 @@ void StreamPacketIO::Flush()
 // FUNCTION: SWBF2 0x0073ce10
 void* StreamPacketIO::GetData() const
 {
-    return (char*)mPacket->mBuffer + mOffset;
+    return (char*)mPacket->GetBuffer() + mOffset;
 }
 
 // FUNCTION: SWBF2 0x0073ce40
@@ -161,7 +161,7 @@ namespace Snd
 // FUNCTION: SWBF2 0x0073ce20
 void* StreamPacketIOHeavy::GetData() const
 {
-    return (char*)mPacket->mBuffer + mOffset;
+    return (char*)mPacket->GetBuffer() + mOffset;
 }
 }
 

@@ -12,23 +12,16 @@
 #include "TargetManager.h"
 #include "Team.h"
 #include "PebbleFL/Common/PblMath.h"
+#include "EntityFlyer.h"
 
- 
-
-class EntityFlyer
-{
-public:
-    static PblHash rttiHashEntityFlyer;
-};
-
-static const unsigned int kMinScaleHash = 0x4d3600d7;
-static const unsigned int kMaxScaleHash = 0xb43f812d;
-static const unsigned int kColorInterpHash = 0x937114c6;
-static const unsigned int kColorFriendlyHash = 0x70141317;
-static const unsigned int kFourSegmentLockOnHash = 0x6703febc;
-static const unsigned int kEventResetTargetCommonHash = 0x92c1cee6;
-static const unsigned int kEventResetTargetPlayerHash = 0x9d34215e;
-static const unsigned int kBitmapHash = 0x46544626;
+static const unsigned int kMinScaleHash = 0x4d3600d7 /* "MinScale" */;
+static const unsigned int kMaxScaleHash = 0xb43f812d /* "MaxScale" */;
+static const unsigned int kColorInterpHash = 0x937114c6 /* "ColorInterp" */;
+static const unsigned int kColorFriendlyHash = 0x70141317 /* "ColorFriendly" */;
+static const unsigned int kFourSegmentLockOnHash = 0x6703febc /* "FourSegmentLockOn" */;
+static const unsigned int kEventResetTargetCommonHash = 0x92c1cee6 /* "EventResetTargetCommon" */;
+static const unsigned int kEventResetTargetPlayerHash = 0x9d34215e /* "EventResetTargetPlayer" */;
+static const unsigned int kBitmapHash = 0x46544626 /* "Bitmap" */;
 
 // GLOBAL: SWBF2 0x00789b10
 
@@ -90,7 +83,7 @@ void* HUD::ElementTarget::GetParent()
 
 // FUNCTION: SWBF2 0x00558c90
 HUD::ElementTarget::Target::Factory::Factory()
-    : HUD::ElementBitmapBase::Factory(0xCCD2D3D9u)
+    : HUD::ElementBitmapBase::Factory(0xCCD2D3D9u /* "TargetIcon" */)
 {
     mName = "TargetIcon";
 
@@ -152,19 +145,12 @@ void HUD::ElementTarget::Target::Update(float fDeltaTime, HUD::ElementBitmap& bi
                 }
                 else
                 {
-                    color = m_color;
+                    color = RedColor(m_color);
                 }
             }
             else
             {
-                if (bEnabled)
-                {
-                    color = bitmap.m_color;
-                }
-                else
-                {
-                    color = m_color;
-                }
+                color = bEnabled ? RedColor(bitmap.m_color) : RedColor(m_color);
             }
             bitmap = *this;
             bitmap.SetColorOnly(color);
@@ -192,11 +178,11 @@ void HUD::ElementTarget::Target::Update(float fDeltaTime, HUD::ElementBitmap& bi
     bool bVehicleView;
     float fVehicleScale;
     if (info.mOnScreen && pCharacter && pCharacter->mVehicle &&
-        static_cast<const Controllable*>(pCharacter->mVehicle)->GetGameObject() &&
-        (static_cast<const Controllable*>(pCharacter->mVehicle)
+        ((const Controllable*)pCharacter->mVehicle)->GetGameObject() &&
+        (((const Controllable*)pCharacter->mVehicle)
              ->GetGameObject()
              ->IsRtti(EntityFlyer::rttiHashEntityFlyer) ||
-         static_cast<const Controllable*>(pCharacter->mVehicle)
+         ((const Controllable*)pCharacter->mVehicle)
              ->GetGameObject()
              ->IsRtti(EntityRemoteTerminal::rttiHashEntityRemoteTerminal)))
     {
@@ -486,7 +472,7 @@ void HUD::ElementTarget::Target::WriteData(HUD::File& file, unsigned int uTabs)
 
 // FUNCTION: SWBF2 0x00559db0
 HUD::ElementTarget::Factory::Factory()
-    : HUD::ElementGroupPlayer::Factory(0x32608848u)
+    : HUD::ElementGroupPlayer::Factory(0x32608848u /* "target" */)
 {
     mName = "Target";
 
@@ -498,7 +484,7 @@ HUD::ElementTarget::Factory::Factory()
 // FUNCTION: SWBF2 0x00559ec0
 HUD::ElementTarget::ElementTarget(const char* const pName, Factory::ItemCallback pCallback,
                                   void* const pUserData)
-    : HUD::ElementGroupPlayer(*static_cast<RedGroupElement*>(this), pName, pCallback, pUserData)
+    : HUD::ElementGroupPlayer(*(RedGroupElement*)this, pName, pCallback, pUserData)
 {
     mFourSegmentLockOn = false;
 
@@ -527,7 +513,7 @@ HUD::ElementTarget::ElementTarget(const char* const pName, Factory::ItemCallback
         mTargetCommon[i].HUD::Element::Enable(false);
         mTargetCommonState[i] = targetCommonState_OnScreen;
     }
-    for (i = 0; i < 64; ++i)
+    for (i = 0; i < LockOnManager::kMaxTargets; ++i)
     {
         ElementGroupBase::AddElement(&mTargetPlayer[i]);
         mTargetPlayer[i].mDynamicAlloc = false;
@@ -576,7 +562,7 @@ void HUD::ElementTarget::Update(const float fDeltaTime)
         const LockOnManager::TargetInfo* pInfos = pManager->GetPlayerTargetInfos();
         bool bAnyLocked = false;
         unsigned int i;
-        for (i = 0; i < 64; ++i)
+        for (i = 0; i < LockOnManager::kMaxTargets; ++i)
         {
             const TargetPlayerState eState = TranslatePlayerTargetInfo(pInfos[i]);
             const bool bStateChanged = eState != mTargetPlayerState[i];
@@ -636,7 +622,7 @@ void HUD::ElementTarget::Read(PblConfig& config, Factory::ItemCallback pCallback
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (config.m_pChunk->PeekNextChildId() == 0x504f4353)
+        if (config.m_pChunk->PeekNextChildId() == CHUNK_ID('S', 'C', 'O', 'P'))
         {
             bool bHandled = false;
             for (i = 0; i < targetCommonState_MAX; ++i)
@@ -800,7 +786,7 @@ void HUD::ElementTarget::WriteData(HUD::File& file, unsigned int uTabs)
 // FUNCTION: SWBF2 0x0055ab30
 void HUD::ElementTarget::EventRefreshTargetCommon(const HUD::Event& event, void* const pData)
 {
-    ElementTarget* pTarget = static_cast<ElementTarget*>(pData);
+    ElementTarget* pTarget = (ElementTarget*)pData;
     if (event.GetClass()->GetType() != HUD::EventClass::type_Uint)
     {
         return;

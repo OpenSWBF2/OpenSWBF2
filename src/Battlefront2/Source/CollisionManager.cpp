@@ -251,6 +251,35 @@ bool CollisionManager::I_RemoveOrdnance(Ordnance* pOrdnance)
     return true;
 }
 
+// FUNCTION: SWBF2 0x004608a0
+bool CollisionManager::I_DeactivateItem(CollisionObject* pObject)
+{
+    CollisionManager* pManager = this;
+    PerformSafeRemove(pObject);
+    PblList<CollisionObject>::Node* pNode = &pObject->mCollisionObjectNode;
+    if (!pNode->IsInList())
+    {
+        return false;
+    }
+
+    GameObject* pGameObject = pObject->GetGameObject();
+    if (pGameObject)
+    {
+        TeamManager::RemoveObject(pGameObject);
+    }
+    if (pObject->GetCollisionType() == COLL_ITEM)
+    {
+        pManager->mItemBodies.Remove(pNode);
+    }
+    return true;
+}
+
+// FUNCTION: SWBF2 0x00460920
+bool CollisionManager::DeactivateItem(CollisionObject* pObject)
+{
+    return sInstance->I_DeactivateItem(pObject);
+}
+
 // FUNCTION: SWBF2 0x004606c0
 bool CollisionManager::I_RemoveBody(CollisionObject* pObject)
 {
@@ -1251,9 +1280,9 @@ void CollisionManager::UpdateRestricted(PblList<CollisionObject>& aList, int aTy
     data.mLength = 0;
     Restrictor restrictor(10);
 
-    int numCams = CameraManager::Instance()->GetNumCameras();
     int numStoredMatrices = 0;
     int numStoredObjects = 0;
+    int numCams = CameraManager::Instance()->GetNumCameras();
     for (int i = 0; i < numCams; ++i)
     {
         camPos[i] = CameraManager::Instance()->GetCamera(i)->GetMatrix().GetTranslation();
@@ -1333,7 +1362,23 @@ void CollisionManager::UpdateRestricted(PblList<CollisionObject>& aList, int aTy
                                       &data);
             }
 
-            obj->PrioritizeLastCollided(data.mArray, data.mLength);
+            for (int i = 0; i < CollisionObject::kNumLastCollided; ++i)
+            {
+                if (i >= data.mLength)
+                {
+                    break;
+                }
+                for (int j = 0; j < data.mLength; ++j)
+                {
+                    if (obj->mLastCollidedObjs[i] == data.mArray[j] && j != i)
+                    {
+                        CollisionObject* pSwap = data.mArray[i];
+                        data.mArray[i] = data.mArray[j];
+                        data.mArray[j] = pSwap;
+                        break;
+                    }
+                }
+            }
 
             ignoreMasks = (CollisionMask**)stack.Alloc(data.mLength * sizeof(CollisionMask*));
             optimizationInfo.bodyMatrices =
@@ -1536,6 +1581,15 @@ bool CollisionManager::OrdnanceUpdate::Update(float fDeltaTime)
         }
     }
     return true;
+}
+
+// FUNCTION: SWBF2 0x0045f5e0
+void CollisionManager::SetMaxCollisionDistance(float fDistance)
+{
+    if (CollisionManager::sInstance)
+    {
+        CollisionManager::sInstance->mMaxCollisionDistanceSq = fDistance * fDistance;
+    }
 }
 
 // FUNCTION: SWBF2 0x0045dc10

@@ -62,11 +62,11 @@ void WeaponRemoteClass::SetProperty(unsigned int uProperty, const char* pszValue
 {
     switch (uProperty)
     {
-    case 0xC43B77DD:
+    case 0xC43B77DD: /* "SwitchImmediately" */
         mSwitchImmediately = atoi(pszValue) != 0;
         break;
 
-    case 0xED422F60:
+    case 0xED422F60: /* "AllowDestruct" */
         mAllowDestruct = atoi(pszValue) != 0;
         break;
 
@@ -187,7 +187,7 @@ Entity* WeaponRemote::Fire()
             {
                 mItem = pObject;
             }
-            if (static_cast<const WeaponRemoteClass*>(mClass)->mSwitchImmediately && mItem)
+            if (((const WeaponRemoteClass*)mClass)->mSwitchImmediately && mItem)
             {
                 if (Controllable* pPilot = mOwner->mPilot)
                 {

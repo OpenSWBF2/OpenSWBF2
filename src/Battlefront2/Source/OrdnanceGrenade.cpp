@@ -28,16 +28,12 @@ namespace AIUtil
                       float* pLastEventTime);
 }
 
-class PblMatrix;
-extern PblMatrix gMatrixIdentity;
-#define _IdentityMatrix (gMatrixIdentity)
-
 namespace
 {
 
     Damageable* AsDamageable(GameObject* pObject)
     {
-        return static_cast<Damageable*>(pObject);
+        return (Damageable*)pObject;
     }
 }
 
@@ -99,37 +95,37 @@ void OrdnanceGrenadeClass::SetProperty(unsigned int uProperty, const char* pszVa
 {
     switch (uProperty)
     {
-    case 0x678DE338:
+    case 0x678DE338: /* "Rebound" */
     {
         sscanf(pszValue, "%f", &mRebound);
             break;
     }
-    case 0xA51BE2BB:
+    case 0xA51BE2BB: /* "Friction" */
     {
         sscanf(pszValue, "%f", &mFriction);
             break;
     }
-    case 0xB8C524F1:
+    case 0xB8C524F1: /* "CollisionFoliageSound" */
     {
         mSoundCollisionLeaf.SetID(pszValue, false, false);
             break;
     }
-    case 0xEDC6251A:
+    case 0xEDC6251A: /* "CollisionOtherSound" */
     {
         mSoundCollisionOther.SetID(pszValue, false, false);
             break;
     }
-    case 0xECAAA59D:
+    case 0xECAAA59D: /* "ImpactEffectWater" */
     {
         mImpactEffectWater = PblHash(pszValue);
             break;
     }
-    case 0x0D0CDE2B:
+    case 0x0D0CDE2B: /* "StartTimerOnContact" */
     {
         mStartTimerOnContact = atoi(pszValue) != 0;
             break;
     }
-    case 0xDB873344:
+    case 0xDB873344: /* "AlignVertical" */
     {
         mAlignVertical = atoi(pszValue) != 0;
             break;
@@ -216,7 +212,7 @@ void OrdnanceGrenade::Render(unsigned char ucViewport, float fDist, unsigned int
             netInterpolator.GetVec(mInterpIndex, vPos);
         }
 
-        PblMatrix mat = _IdentityMatrix;
+        PblMatrix mat = gMatrixIdentity;
         mat.SetTranslation(vPos);
         ((OrdnanceGrenadeClass*)mClass)->mModel->Render(&mat, 0, RedColor::WHITE, uiFlags, 0);
         return;

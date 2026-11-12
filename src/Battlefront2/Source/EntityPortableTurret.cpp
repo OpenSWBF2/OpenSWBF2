@@ -80,7 +80,8 @@ EntityPortableTurret::EntityPortableTurret(EntityPortableTurretClass* pClass, co
     PblVector3& vFront = mMatrix[2];
     vUp = gVectorUnitY;
     mMatrix.m[1][3] = 0.0f;
-    vRight = Normalize(CrossProduct(vUp, vFront));
+    PblVector3 vCross = CrossProduct(vUp, vFront);
+    vRight = Normalize(vCross);
     mMatrix.m[0][3] = 0.0f;
     vFront = Normalize(CrossProduct(vRight, vUp));
     mMatrix.m[2][3] = 0.0f;
@@ -98,12 +99,12 @@ EntityPortableTurret::EntityPortableTurret(EntityPortableTurretClass* pClass, co
         PblBox bodyBox;
         if (pBody->bIsMesh)
         {
-            bodyBox = static_cast<CollisionBodyMesh*>(pBody)->mMesh->GetWorldspaceAABB(
+            bodyBox = ((CollisionBodyMesh*)pBody)->mMesh->GetWorldspaceAABB(
                 pBody->GetWorldMatrix(mMatrix, &mPose));
         }
         else
         {
-            bodyBox = static_cast<CollisionBodyPrimitive*>(pBody)->mPrimitive.GetWorldspaceAABB(
+            bodyBox = ((CollisionBodyPrimitive*)pBody)->mPrimitive.GetWorldspaceAABB(
                 pBody->GetWorldMatrix(mMatrix, &mPose));
         }
         box._vMin.x = bodyBox._vMin.x > box._vMin.x ? box._vMin.x : bodyBox._vMin.x;
@@ -266,18 +267,6 @@ bool EntityPortableTurret::CollisionCallback(const CollisionResult* pResult, Col
 
 
 
-// FUNCTION: SWBF2 0x004d7c20
-const PblVector3& EntityPortableTurret::GetVelocity() const
-{
-    return mVelocity;
-}
-
-// FUNCTION: SWBF2 0x004d7c30
-void EntityPortableTurret::SetVelocity(const PblVector3& vVelocity)
-{
-    mVelocity = vVelocity;
-}
-
 // FUNCTION: SWBF2 0x004d8220
 void EntityPortableTurret::RecalculateAABB()
 {
@@ -338,23 +327,23 @@ void EntityPortableTurretClass::SetProperty(unsigned int uProperty, const char* 
 {
     switch (uProperty)
     {
-    case 0x5212ABEEu:
+    case 0x5212ABEEu: /* "LifeTime" */
         sscanf(pszValue, "%f", &mLifeTime);
         break;
-    case 0xD209FF45u:
+    case 0xD209FF45u: /* "Gravity" */
         sscanf(pszValue, "%f", &mGravity);
         break;
-    case 0x678DE338u:
+    case 0x678DE338u: /* "Rebound" */
         sscanf(pszValue, "%f", &mRebound);
         break;
-    case 0xA51BE2BBu:
+    case 0xA51BE2BBu: /* "Friction" */
         sscanf(pszValue, "%f", &mFriction);
         break;
-    case 0xC28F0C96u:
-    case 0xEDC6251Au:
+    case 0xC28F0C96u: /* "CollisionSound" */
+    case 0xEDC6251Au: /* "CollisionOtherSound" */
         mCollisionSound.SetID(pszValue, false, false);
         break;
-    case 0x2297E47Du:
+    case 0x2297E47Du: /* "CollisionWaterSound" */
         mCollisionWaterSound.SetID(pszValue, false, false);
         break;
     default:

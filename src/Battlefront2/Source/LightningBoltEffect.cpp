@@ -47,7 +47,7 @@ inline Controllable* GetControllable(GameObject* pObject)
 inline void ReadColor(const PblConfig::Data& data, RedColor& color)
 {
     color.Set(data.GetUint8Arg(0), data.GetUint8Arg(1), data.GetUint8Arg(2),
-              data.GetNumArgs() > 3 ? data.GetUint8Arg(3) : 0xff);
+              data.GetNumArgs() > 3 ? data.GetUint8Arg(3) : (unsigned char)0xff);
 }
 }
 
@@ -84,7 +84,7 @@ FLEffectClass* LightningBoltEffect::BuildClass(PblConfig& config) const
 }
 
 // FUNCTION: SWBF2 0x00570ff0
-void LightningBoltEffect::Render(int)
+void LightningBoltEffect::Render(unsigned int) const
 {
 }
 
@@ -108,7 +108,7 @@ void LightningBoltEffect::CreateClient()
 // FUNCTION: SWBF2 0x00571050
 LightningBoltEffectClass::LightningBoltEffectClass(PblConfig& config)
 {
-    mTexture = 0xE812F405u;
+    mTexture = 0xE812F405u /* "Lightning" */;
     mWidth = 2.0f;
     mFadeTime = 1.0f;
     mBreakDistance = 2.0f;
@@ -132,58 +132,58 @@ LightningBoltEffectClass::LightningBoltEffectClass(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x3D7E6258u:
+        case 0x3D7E6258u: /* "Color" */
             ReadColor(data, mColor);
             break;
-        case 0x33271FF0u:
+        case 0x33271FF0u: /* "ChildColor" */
             ReadColor(data, mChildColor);
             break;
-        case 0x3C6468F4u:
+        case 0x3C6468F4u: /* "Texture" */
             mTexture = PblHash(data.GetStringArg(0));
             break;
-        case 0x95876E1Fu:
+        case 0x95876E1Fu: /* "Width" */
             mWidth = data.GetFloatArg(0);
             break;
-        case 0xA40F930Au:
+        case 0xA40F930Au: /* "FadeTime" */
             mFadeTime = data.GetFloatArg(0);
             break;
-        case 0xDBE276E9u:
+        case 0xDBE276E9u: /* "SpreadFactor" */
             mSpreadFactor = data.GetFloatArg(0);
             break;
-        case 0x9B2BB6E8u:
+        case 0x9B2BB6E8u: /* "InterpolationSpeed" */
             mInterpolationSpeed = data.GetFloatArg(0);
             break;
-        case 0xCEC9B326u:
+        case 0xCEC9B326u: /* "BranchFactor" */
             mBranchFactor = data.GetFloatArg(0);
             break;
-        case 0x43523A69u:
+        case 0x43523A69u: /* "BranchSpreadFactor" */
             mBranchSpreadFactor = data.GetFloatArg(0);
             break;
-        case 0xF609F595u:
+        case 0xF609F595u: /* "BranchLength" */
             mBranchLength = data.GetFloatArg(0);
             break;
-        case 0xFD127D8Du:
+        case 0xFD127D8Du: /* "MaxBranches" */
             mMaxBranches = (int)data.GetFloatArg(0);
             break;
-        case 0x8F813993u:
+        case 0x8F813993u: /* "BreakDistance" */
             mBreakDistance = data.GetFloatArg(0);
             break;
-        case 0x309878ADu:
+        case 0x309878ADu: /* "TextureSize" */
             mTextureSize = data.GetFloatArg(0);
             break;
-        case 0xC37B68ABu:
+        case 0xC37B68ABu: /* "ChildBreakDistance" */
             mChildBreakDistance = data.GetFloatArg(0);
             break;
-        case 0x17E40BE5u:
+        case 0x17E40BE5u: /* "ChildTextureSize" */
             mChildTextureSize = data.GetFloatArg(0);
             break;
-        case 0x30BB2F27u:
+        case 0x30BB2F27u: /* "ChildWidth" */
             mChildWidth = data.GetFloatArg(0);
             break;
-        case 0x8366BEF1u:
+        case 0x8366BEF1u: /* "ChildSpreadFactor" */
             mChildSpreadFactor = data.GetFloatArg(0);
             break;
-        case 0xD80BDB3Cu:
+        case 0xD80BDB3Cu: /* "NumChildren" */
             mNumChildren = (int)data.GetFloatArg(0);
             break;
         }

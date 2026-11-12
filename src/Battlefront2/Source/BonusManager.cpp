@@ -38,12 +38,12 @@ extern bool netHeroFirstUnlocked[3];
 
 static Trackable* GetTrackable(Controllable* pControllable)
 {
-    return static_cast<Trackable*>(pControllable);
+    return (Trackable*)pControllable;
 }
 
 static inline Damageable* GetDamageable(GameObject* pObject)
 {
-    return static_cast<Damageable*>(pObject);
+    return (Damageable*)pObject;
 }
 
 static float& CurHealth(Damageable* pDamageable)
@@ -170,7 +170,7 @@ void BonusManager::ClearTeamBonuses()
 // FUNCTION: SWBF2 0x0044c750
 int BonusManager::GetTeamIndex(int iTeam)
 {
-    if (GameState::GetState() == 0x8FF60339 && GameLoop::AreMetagameRulesOn() &&
+    if (GameState::GetState() == 0x8FF60339 /* "mission" */ && GameLoop::AreMetagameRulesOn() &&
         Team::sTeams[1]->mSide > Team::sTeams[2]->mSide)
     {
         return 2 - iTeam;
@@ -189,7 +189,7 @@ void BonusManager::SetTeamBonusActive(int iTeam, unsigned int uBonus, bool bActi
     if (bActive)
     {
         mTeamBonuses[iIndex] = uBonus;
-        if (GameState::GetState() == 0x8FF60339 && mVOStartTimer < 0.0f)
+        if (GameState::GetState() == 0x8FF60339 /* "mission" */ && mVOStartTimer < 0.0f)
         {
             PlayTeamBonusVO(uBonus, iTeam);
         }
@@ -243,7 +243,7 @@ void BonusManager::UpdateTeamBonuses(float fDeltaTime)
 // FUNCTION: SWBF2 0x0044c9c0
 void BonusManager::UpdateTeamBonusBactaTanks(int iTeam, float fDeltaTime)
 {
-    if (!IsTeamBonusActive(iTeam, 0xc10b9cdc))
+    if (!IsTeamBonusActive(iTeam, 0xc10b9cdc /* "team_bonus_bacta_tanks" */))
     {
         return;
     }
@@ -275,7 +275,7 @@ void BonusManager::UpdateTeamBonusBactaTanks(int iTeam, float fDeltaTime)
 // FUNCTION: SWBF2 0x0044c8d0
 void BonusManager::UpdateTeamBonusLeader(int iTeam, float fDeltaTime)
 {
-    if (!IsTeamBonusActive(iTeam, 0xeac1e9d4))
+    if (!IsTeamBonusActive(iTeam, 0xeac1e9d4 /* "team_bonus_leader" */))
     {
         return;
     }
@@ -307,7 +307,7 @@ void BonusManager::UpdateTeamBonusLeader(int iTeam, float fDeltaTime)
 // FUNCTION: SWBF2 0x0044cfe0
 void BonusManager::UpdateTeamBonusGarrison(int iTeam, float fDeltaTime)
 {
-    if (!IsTeamBonusActive(iTeam, 0x96f36950))
+    if (!IsTeamBonusActive(iTeam, 0x96f36950 /* "team_bonus_garrison" */))
     {
         return;
     }
@@ -318,7 +318,7 @@ void BonusManager::UpdateTeamBonusGarrison(int iTeam, float fDeltaTime)
     {
         pTeam->AddReinforcements((int)(pTeam->mMaxReinforcements * sTeamBonusGarrisonExtraReinforcements));
         mbDidUseGarrison[iTeam - 1] = true;
-        PlayTeamBonusVO(0xd6a6e644, iTeam);
+        PlayTeamBonusVO(0xd6a6e644 /* "team_bonus_garrison_used_by" */, iTeam);
     }
 }
 
@@ -387,7 +387,7 @@ void BonusManager::CleanupTeamBonusAutoturrets()
 // FUNCTION: SWBF2 0x0044cc10
 void BonusManager::UpdateTeamBonusAutoturrets(int iTeam, float fDeltaTime)
 {
-    bool bActive = IsTeamBonusActive(iTeam, 0xde68cb69);
+    bool bActive = IsTeamBonusActive(iTeam, 0xde68cb69 /* "team_bonus_autoturrets" */);
     for (int i = 0; i < mNumCPs; ++i)
     {
         CommandPostData& data = mpCommandPostData[i];
@@ -479,7 +479,7 @@ void BonusManager::RemoveTurretsFromCP(CommandPostData& data)
 // FUNCTION: SWBF2 0x0044cf00
 EntityDefenseGridTurret* BonusManager::MakeNewAutoturret(const PblMatrix& matrix, int iTeam)
 {
-    EntityClass* pClass = EntityClass::Find(0x07673219);
+    EntityClass* pClass = EntityClass::Find(0x07673219 /* "com_bldg_inf_defenseturret" */);
     if (!pClass || !pClass->IsRtti(EntityDefenseGridTurretClass::GetRtti()))
     {
         return 0;
@@ -490,7 +490,7 @@ EntityDefenseGridTurret* BonusManager::MakeNewAutoturret(const PblMatrix& matrix
     Entity* pEntity = pClass->Build(desc);
     if (pEntity)
     {
-        GameObject* pObject = static_cast<EntityDefenseGridTurret*>(pEntity);
+        GameObject* pObject = (EntityDefenseGridTurret*)pEntity;
         pObject->SetTeam(iTeam);
         pObject->SetPerceivedTeam(iTeam);
         pEntity->Init();
@@ -505,17 +505,17 @@ void BonusManager::PlayTeamBonusVO(unsigned int uBonus, int iTeam)
 
     switch (uBonus)
     {
-    case 0x85ad826d: strlcat(acName, "energy_boost", sizeof(acName)); break;
-    case 0x56e2ce71: strlcat(acName, "sensor_array", sizeof(acName)); break;
-    case 0x96f36950: strlcat(acName, "garrison", sizeof(acName)); break;
-    case 0xbb03442e: strlcat(acName, "advanced_blasters", sizeof(acName)); break;
-    case 0xc10b9cdc: strlcat(acName, "bacta_tanks", sizeof(acName)); break;
-    case 0xc81956e6: strlcat(acName, "supplies", sizeof(acName)); break;
-    case 0xd265e905: strlcat(acName, "sabotage", sizeof(acName)); break;
-    case 0xd6a6e644: strlcat(acName, "garrison_used_by", sizeof(acName)); break;
-    case 0xddb212e1: strlcat(acName, "combat_shielding", sizeof(acName)); break;
-    case 0xde68cb69: strlcat(acName, "autoturrets", sizeof(acName)); break;
-    case 0xeac1e9d4: strlcat(acName, "leader", sizeof(acName)); break;
+    case 0x85ad826d: /* "team_bonus_energy_boost" */ strlcat(acName, "energy_boost", sizeof(acName)); break;
+    case 0x56e2ce71: /* "team_bonus_sensor_array" */ strlcat(acName, "sensor_array", sizeof(acName)); break;
+    case 0x96f36950: /* "team_bonus_garrison" */ strlcat(acName, "garrison", sizeof(acName)); break;
+    case 0xbb03442e: /* "team_bonus_advanced_blasters" */ strlcat(acName, "advanced_blasters", sizeof(acName)); break;
+    case 0xc10b9cdc: /* "team_bonus_bacta_tanks" */ strlcat(acName, "bacta_tanks", sizeof(acName)); break;
+    case 0xc81956e6: /* "team_bonus_supplies" */ strlcat(acName, "supplies", sizeof(acName)); break;
+    case 0xd265e905: /* "team_bonus_sabotage" */ strlcat(acName, "sabotage", sizeof(acName)); break;
+    case 0xd6a6e644: /* "team_bonus_garrison_used_by" */ strlcat(acName, "garrison_used_by", sizeof(acName)); break;
+    case 0xddb212e1: /* "team_bonus_combat_shielding" */ strlcat(acName, "combat_shielding", sizeof(acName)); break;
+    case 0xde68cb69: /* "team_bonus_autoturrets" */ strlcat(acName, "autoturrets", sizeof(acName)); break;
+    case 0xeac1e9d4: /* "team_bonus_leader" */ strlcat(acName, "leader", sizeof(acName)); break;
     default: return;
     }
 

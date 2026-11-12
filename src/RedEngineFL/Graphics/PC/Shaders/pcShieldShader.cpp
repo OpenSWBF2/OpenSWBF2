@@ -20,10 +20,20 @@ extern unsigned int kuiLinearRamp;
 static const float kInv255 = 1.0f / 255.0f;
 static const float kfSpecularSizeInv = 0.3f;
 
+// GLOBAL: SWBF2 0x00964f80
+// pcShieldShader::s_uiID
 unsigned int pcShieldShader::s_uiID;
+// GLOBAL: SWBF2 0x00964f84
+// pcShieldShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcShieldShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x00964f90
+// pcShieldShader::BeginFuncArray
 pcRedShader::BeginFuncT pcShieldShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x00964f9c
+// pcShieldShader::EndFuncArray
 pcRedShader::EndFuncT pcShieldShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x00964fa8
+// pcShieldShader::RenderFuncArray
 pcRedShader::RenderFuncT pcShieldShader::RenderFuncArray[MAX_PIPELINES];
 float pcShieldShader::s_fFadeStart;
 float pcShieldShader::s_fFadeEnd;
@@ -32,6 +42,8 @@ float pcShieldShader::s_fFadeEnd;
 // `dynamic initializer for 'pcShieldShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769910
 // `dynamic atexit destructor for 'pcShieldShader::s_shaderDef''
+// GLOBAL: SWBF2 0x0096501c
+// pcShieldShader::s_shaderDef
 pcRedShaderDef pcShieldShader::s_shaderDef("shield_shader.xml");
 
 PblVector3 pcShieldShader::s_vLightDir;
@@ -258,12 +270,6 @@ void pcShieldShader::Begin_Prog1(unsigned int, unsigned int) const
     }
 }
 
-// FUNCTION: SWBF2 0x006cd460
-void pcShieldShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x006cd480
 RedShadingState* pcShieldShader::CreateShadingState() const
 {
@@ -280,28 +286,10 @@ void pcShieldShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x006cd4b0
-unsigned int pcShieldShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x006cd4d0
 RenderPhaseT pcShieldShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_TRANSPARENT;
-}
-
-// FUNCTION: SWBF2 0x006cd4e0
-unsigned int pcShieldShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x006cd4f0
-pcRedShaderDef* pcShieldShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x006cd500
@@ -471,22 +459,22 @@ pcRedShader* pcShieldShader::_Create(unsigned int uiFlags,
 void pcShieldShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcShieldShader::GetState_Fixed);
+        (GetStateFuncT)(&pcShieldShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcShieldShader::Begin_Fixed);
+        (BeginFuncT)(&pcShieldShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcShieldShader::End_Fixed);
+        (EndFuncT)(&pcShieldShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcShieldShader::Render_Fixed);
+        (RenderFuncT)(&pcShieldShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcShieldShader::GetState_Prog1);
+        (GetStateFuncT)(&pcShieldShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcShieldShader::Begin_Prog1);
+        (BeginFuncT)(&pcShieldShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcShieldShader::End_Prog1);
+        (EndFuncT)(&pcShieldShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcShieldShader::Render_Prog1);
+        (RenderFuncT)(&pcShieldShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x006cdfc0
@@ -495,7 +483,7 @@ void pcShieldShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -519,6 +507,8 @@ void pcShieldShader::_Read(PblFileChunk& chunk) const
 
 // SYNTHETIC: SWBF2 0x00407f40
 // `dynamic initializer for 'pcShieldShader::s_uiRenderTypeHash''
+// GLOBAL: SWBF2 0x00965010
+// pcShieldShader::s_uiRenderTypeHash
 unsigned int pcShieldShader::s_uiRenderTypeHash = PblHash("Shield");
 
 // SYNTHETIC: SWBF2 0x00407f00

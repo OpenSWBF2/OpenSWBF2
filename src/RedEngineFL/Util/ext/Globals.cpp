@@ -82,16 +82,10 @@ util::Globals::~Globals()
     }
 }
 
-// TEMPLATE: SWBF2 0x00715090
-// util::BaseArray<float *,util::TypedArrayAllocator<float *,util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray<float *,util::TypedArrayAllocator<float *,util::SingletonAllocator<util::DefaultStaticAllocator> > >
 template util::BaseArray<float*,
     util::TypedArrayAllocator<float*, util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray();
-// TEMPLATE: SWBF2 0x007150e0
-// util::BaseArray<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> > *,util::TypedArrayAllocator<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> > *,util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> > *,util::TypedArrayAllocator<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> > *,util::SingletonAllocator<util::DefaultStaticAllocator> > >
 template util::BaseArray<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >*,
     util::TypedArrayAllocator<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> >*, util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray();
-// TEMPLATE: SWBF2 0x00715130
-// util::BaseArray<bool *,util::TypedArrayAllocator<bool *,util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray<bool *,util::TypedArrayAllocator<bool *,util::SingletonAllocator<util::DefaultStaticAllocator> > >
 template util::BaseArray<bool*,
     util::TypedArrayAllocator<bool*, util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray();
 

@@ -94,7 +94,7 @@ void __fastcall Deactivate(RedRegion* pRegion)
 }
 
 // FUNCTION: SWBF2 0x00437bf0
-RedRegion* __fastcall Find(lua_State*, int iIndex)
+RedRegion* Find(lua_State*, int iIndex)
 {
     if (lua_type(LuaHelper::mState, iIndex) == LUA_TLIGHTUSERDATA)
     {
@@ -275,13 +275,3 @@ void Init()
 }
 
 }
-
-// FUNCTION: SWBF2 0x00437db0
-void* __fastcall InitRawListIterator(void** pCurrent, void*, const void* pSource)
-{
-    *pCurrent = ((void* const*)pSource)[1];
-    return pCurrent;
-}
-
-
-

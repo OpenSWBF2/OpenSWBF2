@@ -26,16 +26,28 @@
 #include "RedEngineFL/Graphics/RedSegment.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 
+#pragma init_seg(lib)
+
 // GLOBAL: SWBF2 0x007846d0
 // __xmm@3f8000003e4ccccd3e4ccccd3e4ccccd
 
 void __cdecl PblTraceP(const char* Format, ...);
 
 
+// GLOBAL: SWBF2 0x009c926c
+// pcNormalShader::s_uiID
 unsigned int pcNormalShader::s_uiID;
+// GLOBAL: SWBF2 0x009c9270
+// pcNormalShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcNormalShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c927c
+// pcNormalShader::BeginFuncArray
 pcRedShader::BeginFuncT pcNormalShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9288
+// pcNormalShader::EndFuncArray
 pcRedShader::EndFuncT pcNormalShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9294
+// pcNormalShader::RenderFuncArray
 pcRedShader::RenderFuncT pcNormalShader::RenderFuncArray[MAX_PIPELINES];
 
 // GLOBAL: SWBF2 0x009c9378
@@ -79,12 +91,6 @@ pcNormalShader::pcNormalShader(unsigned int uiFlags,
     _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
     _Init(uiFlags, pParams, uiNumParams, uiMaterialFlags,
           color0, color1, fSpecularPower);
-}
-
-// FUNCTION: SWBF2 0x006ff7c0
-pcRedShaderDef* pcNormalShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x006ff990
@@ -215,22 +221,22 @@ void pcNormalShader::_Init(unsigned int uiFlags,
 void pcNormalShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcNormalShader::GetState_Fixed);
+        (GetStateFuncT)(&pcNormalShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcNormalShader::Begin_Fixed);
+        (BeginFuncT)(&pcNormalShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcNormalShader::End_Fixed);
+        (EndFuncT)(&pcNormalShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcNormalShader::Render_Fixed);
+        (RenderFuncT)(&pcNormalShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcNormalShader::GetState_Prog1);
+        (GetStateFuncT)(&pcNormalShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcNormalShader::Begin_Prog1);
+        (BeginFuncT)(&pcNormalShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcNormalShader::End_Prog1);
+        (EndFuncT)(&pcNormalShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcNormalShader::Render_Prog1);
+        (RenderFuncT)(&pcNormalShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x007014c0
@@ -239,7 +245,7 @@ void pcNormalShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -330,28 +336,16 @@ bool s_bDetailTextureTransformPrev;
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
-// FUNCTION: SWBF2 0x006fe950
-void RedShadingState::operator delete(void* pBlock)
-{
-    sMemoryPool.Free(pBlock);
-}
-
 
 
 // SYNTHETIC: SWBF2 0x006fe9b0
 // RedShadingState::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x006ff540
-void pcNormalShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x006ff560
 RedShadingState* pcNormalShader::CreateShadingState() const
 {
     RedShadingState* pState = new RedShadingState(GetRenderTypeHash());
-    pState->AddIntParam(0x891891e9) = m_material.diffuseMapHash;
+    pState->AddIntParam(0x891891e9 /* "diffuse_texture" */) = m_material.diffuseMapHash;
     pState->AddTextureTransformParam(0x3f0d728a).m_bTransform = 0;
     return pState;
 }
@@ -366,12 +360,6 @@ void pcNormalShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x006ff650
-unsigned int pcNormalShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x006ff670
 RenderPhaseT pcNormalShader::GetRenderPhase(const RenderItem* pItem, unsigned int) const
 {
@@ -380,12 +368,6 @@ RenderPhaseT pcNormalShader::GetRenderPhase(const RenderItem* pItem, unsigned in
         return RENDERPHASE_TRANSPARENT;
     }
     return RENDERPHASE_OPAQUE;
-}
-
-// FUNCTION: SWBF2 0x006ff6a0
-unsigned int pcNormalShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
 }
 
 // FUNCTION: SWBF2 0x006ff6b0
@@ -494,7 +476,7 @@ int pcNormalShader::GetDiffuseMapHash(int iItem, int)
     const RedMaterial* pMaterial = pItem->pRootShader->m_material;
     if (pItem->pShadingState)
     {
-        return pItem->pShadingState->GetIntParam(0x891891e9);
+        return pItem->pShadingState->GetIntParam(0x891891e9 /* "diffuse_texture" */);
     }
     return pMaterial->diffuseMapHash;
 }
@@ -536,7 +518,7 @@ void pcNormalShader::RenderZPrepass(const RenderItem* pItem) const
         RedRenderer::pcSetCullMode((pMaterial->materialFlags & 0x10000) ? PCREDCULL_NONE : PCREDCULL_BACK);
 
         const unsigned int uiDiffuseMap = pItem->pShadingState
-                                              ? pItem->pShadingState->GetIntParam(0x891891e9)
+                                              ? pItem->pShadingState->GetIntParam(0x891891e9 /* "diffuse_texture" */)
                                               : pMaterial->diffuseMapHash;
         const RedTexture* pTexture;
         if (uiDiffuseMap)
@@ -611,6 +593,32 @@ void pcNormalShader::RenderZPrepass(const RenderItem* pItem) const
                                                            : pItem->pPrim->m_vertexFormat);
     pItem->pPrim->Draw();
 }
+
+// SYNTHETIC: SWBF2 0x004097f0
+// `dynamic initializer for 'pcNormalShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c938c
+// pcNormalShader::s_uiRenderTypeHash
+unsigned int pcNormalShader::s_uiRenderTypeHash = PblHash("Normal");
+
+// SYNTHETIC: SWBF2 0x004097b0
+// `dynamic initializer for 'pcNormalShader::s_Factory''
+// SYNTHETIC: SWBF2 0x00769c30
+// `dynamic atexit destructor for 'pcNormalShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c92a8
+// pcNormalShader::s_Factory
+pcNormalShader pcNormalShader::s_Factory;
+
+// SYNTHETIC: SWBF2 0x004097d0
+// `dynamic initializer for 'pcNormalShader::s_shaderDef''
+// SYNTHETIC: SWBF2 0x00769c50
+// `dynamic atexit destructor for 'pcNormalShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c934c
+// pcNormalShader::s_shaderDef
+// STRING: SWBF2 0x00784650
+pcRedShaderDef pcNormalShader::s_shaderDef("normal_shader.xml");
 
 // SYNTHETIC: SWBF2 0x00409850
 // `dynamic initializer for 'kuiLinearRamp''
@@ -756,9 +764,7 @@ void pcNormalShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) cons
             const PblVector4& vW = RedShadowMap::_vShadowMapTransformW;
             PblMatrix mShadow(PblVector3(vU.x, vV.x, vW.x), PblVector3(vU.y, vV.y, vW.y),
                               PblVector3(vU.z, vV.z, vW.z), PblVector3(vU.w, vV.w, vW.w));
-            PblMatrix mTexture;
-            mTexture = mCamera * mShadow;
-            RedRenderer::pcFFSetTextureTransform(1, mTexture);
+            RedRenderer::pcFFSetTextureTransform(1, mCamera * mShadow);
 
             RedRenderer::pcSetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
             RedRenderer::pcSetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
@@ -1009,7 +1015,7 @@ void pcNormalShader::Render_Fixed(const RenderItem* pItem, unsigned int uiPass) 
         const RedTextureTransform* pTransform = 0;
         if (pItem->pShadingState)
         {
-            uiDiffuseMap = pItem->pShadingState->GetIntParam(0x891891e9);
+            uiDiffuseMap = pItem->pShadingState->GetIntParam(0x891891e9 /* "diffuse_texture" */);
             pTransform = &pItem->pShadingState->GetTextureTransformParam(0x3f0d728a);
             if (!pTransform->m_bTransform)
             {
@@ -1060,7 +1066,6 @@ void pcNormalShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
     const bool bSeparate = m_lightingInSeparatePass && !(pItem->flags & 0x10000000);
     RedRenderer::pcSetCullMode((uiMatFlags & 0x10000) ? PCREDCULL_NONE : PCREDCULL_BACK);
 
-    RedColorValue psConst;
     if (bBlend)
     {
         const bool bZWrite = !bTransparent && !(pItem->flags & 0x20);
@@ -1077,9 +1082,10 @@ void pcNormalShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
             RedRenderer::pcSetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
             RedRenderer::pcSetFogForBlendMode(RedRenderer::FOGFORBLEND_NORMAL);
         }
-        psConst.b = bTransparent ? 1.0f : 0.0f;
-        psConst.a = bFlag10 ? 1.0f : 0.0f;
-        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &psConst.r, 1);
+        RedColorValue pixelShaderConstant;
+        pixelShaderConstant.b = bTransparent ? 1.0f : 0.0f;
+        pixelShaderConstant.a = bFlag10 ? 1.0f : 0.0f;
+        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &pixelShaderConstant.r, 1);
     }
     else if (bSeparate)
     {
@@ -1088,15 +1094,17 @@ void pcNormalShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
         RedRenderer::pcSetRenderState(D3DRS_SRCBLEND, D3DBLEND_DESTCOLOR);
         RedRenderer::pcSetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
         RedRenderer::pcSetFogForBlendMode(RedRenderer::FOGFORBLEND_NORMAL);
-        psConst.b = bTransparent ? 1.0f : 0.0f;
-        psConst.a = bFlag10 ? 1.0f : 0.0f;
-        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &psConst.r, 1);
+        RedColorValue pixelShaderConstant;
+        pixelShaderConstant.b = bTransparent ? 1.0f : 0.0f;
+        pixelShaderConstant.a = bFlag10 ? 1.0f : 0.0f;
+        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &pixelShaderConstant.r, 1);
     }
     else
     {
-        psConst.b = 0.0f;
-        psConst.a = bFlag10 ? 1.0f : 0.0f;
-        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &psConst.r, 1);
+        RedColorValue pixelShaderConstant;
+        pixelShaderConstant.b = 0.0f;
+        pixelShaderConstant.a = bFlag10 ? 1.0f : 0.0f;
+        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(0, &pixelShaderConstant.r, 1);
         RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
         RedRenderer::pcSetRenderState(D3DRS_ZWRITEENABLE, (pItem->flags & 0x20) ? FALSE : TRUE);
         RedRenderer::pcSetFogForBlendMode(RedRenderer::FOGFORBLEND_NORMAL);
@@ -1116,7 +1124,7 @@ void pcNormalShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
     const RedTextureTransform* pTransform = &pMaterial->diffuseTexTransform;
     if (pItem->pShadingState)
     {
-        uiDiffuseMap = pItem->pShadingState->GetIntParam(0x891891e9);
+        uiDiffuseMap = pItem->pShadingState->GetIntParam(0x891891e9 /* "diffuse_texture" */);
         pTransform = &pItem->pShadingState->GetTextureTransformParam(0x3f0d728a);
     }
     else
@@ -1177,9 +1185,9 @@ void pcNormalShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
         RedRenderer::pcSetSamplerState(2, D3DSAMP_ADDRESSV, pItem->pLightingState->pProjectedLight->GetProjectionTextureWrapMode());
         RedRenderer::pcSetSamplerState(2, D3DSAMP_ADDRESSW, pItem->pLightingState->pProjectedLight->GetProjectionTextureWrapMode());
         RedRenderer::pcSetTexture(2, RedTexture::Find(pItem->pLightingState->pProjectedLight->m_uiProjTexHash));
-        psConst = pItem->pLightingState->pProjectedLight->m_color;
-        psConst.a = (float)(int)pItem->pLightingState->pProjectedLight->IsShadowCaster();
-        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(1, &psConst.r, 1);
+        RedColorValue light(pItem->pLightingState->pProjectedLight->GetColor());
+        light.a = (float)(int)pItem->pLightingState->pProjectedLight->IsShadowCaster();
+        RedRenderer::pcGetDevice()->SetPixelShaderConstantF(1, &light.r, 1);
     }
     else
     {
@@ -1326,32 +1334,6 @@ void pcNormalShader::UpdateAnimation()
 
     m_material.diffuseTexTransform.SetOffset(fScrollU, fScrollV);
 }
-
-// SYNTHETIC: SWBF2 0x004097f0
-// `dynamic initializer for 'pcNormalShader::s_uiRenderTypeHash''
-
-// GLOBAL: SWBF2 0x009c938c
-// pcNormalShader::s_uiRenderTypeHash
-unsigned int pcNormalShader::s_uiRenderTypeHash = PblHash("Normal");
-
-// SYNTHETIC: SWBF2 0x004097b0
-// `dynamic initializer for 'pcNormalShader::s_Factory''
-// SYNTHETIC: SWBF2 0x00769c30
-// `dynamic atexit destructor for 'pcNormalShader::s_Factory''
-
-// GLOBAL: SWBF2 0x009c92a8
-// pcNormalShader::s_Factory
-pcNormalShader pcNormalShader::s_Factory;
-
-// SYNTHETIC: SWBF2 0x004097d0
-// `dynamic initializer for 'pcNormalShader::s_shaderDef''
-// SYNTHETIC: SWBF2 0x00769c50
-// `dynamic atexit destructor for 'pcNormalShader::s_shaderDef''
-
-// GLOBAL: SWBF2 0x009c934c
-// pcNormalShader::s_shaderDef
-// STRING: SWBF2 0x00784650
-pcRedShaderDef pcNormalShader::s_shaderDef("normal_shader.xml");
 
 // SYNTHETIC: SWBF2 0x00409810
 // PblMath::`dynamic initializer for 'fOneOverHalfPi''

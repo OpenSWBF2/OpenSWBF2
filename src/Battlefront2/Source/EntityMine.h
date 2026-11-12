@@ -62,10 +62,12 @@ public:
 class EntityMine : public EntityItem
 {
 public:
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
     EntityMine(EntityMineClass* pClass, const EntityDesc& desc);
     virtual ~EntityMine();
 
     virtual bool IsRtti(unsigned int uRtti) const;
+    static unsigned int GetRtti() { return rttiHashEntityMine; }
     virtual unsigned int GetDerivedRtti() const;
     virtual const char* GetDerivedRttiName() const;
     virtual void ClientKill();

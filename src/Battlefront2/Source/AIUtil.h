@@ -8,6 +8,7 @@ GameObject* FindFirstAIInVehicle(GameObject* pVehicle);
 }
 
 #include "PebbleFL/Common/PblHandle.h"
+#include "ConnectivityGraph.h"
 #include "CollisionObject.h"
 #include "PathFollower.h"
 
@@ -149,7 +150,7 @@ namespace AIUtil
     const Obstacle* GetGameObjectBarrier(const GameObject* pObj);
 
     float GetCollisionRadius(const GameObject* pObj);
-    int GetAIType(const GameObject* pObj);
+    ConnectivityGraph::ProhibitFlag GetAIType(const GameObject* pObj);
 
     float StopDist(const Controllable* pControllable);
     float StopDistIntermediate(const Controllable* pControllable);
@@ -189,11 +190,11 @@ bool __cdecl CanPotentiallySee(const Controllable* pMe, const GameObject* pObjec
 }
 namespace AIUtil
 {
-void __fastcall AddSpied(Character* pWatcher, Character* pTarget);
+void AddSpied(Character* pWatcher, Character* pTarget);
 }
 namespace AIUtil
 {
-bool __fastcall IsSpied(Character* pWatcher, Character* pTarget);
+bool IsSpied(Character* pWatcher, Character* pTarget);
 }
 namespace AIUtil
 {

@@ -45,7 +45,7 @@ bool mLoaded;
 PropLayer mPropLayers[4];
 
 // SYNTHETIC: SWBF2 0x00406090
-// `dynamic initializer for 'PropGenerator::m_amCamera''
+// PropGenerator::`dynamic initializer for 'm_amCamera''
 
 // GLOBAL: SWBF2 0x01f03250
 // m_amCamera
@@ -197,9 +197,12 @@ bool PropGenerator::PropGeneratorThread::Update(float fDeltaTime)
 // SYNTHETIC: SWBF2 0x00629fe0
 // PropGenerator::PropGeneratorThread::`scalar deleting destructor'
 
+namespace
+{
 // GLOBAL: SWBF2 0x007e9039
 // flushClusterObjs_
 bool flushClusterObjs_ = true;
+}
 
 // FUNCTION: SWBF2 0x0062a180
 void PropGenerator::SortClusters()
@@ -406,9 +409,9 @@ void PropGenerator::Update()
     for (int i = 0; i < iNumLines; i++)
     {
         afNextDist[i] = 0.0f;
-        avDir[i].y = 0.0f;
-        avStart[i].y = 0.0f;
-        avSide[i].y = 0.0f;
+        avDir[i].SetY(0.0f);
+        avStart[i].SetY(0.0f);
+        avSide[i].SetY(0.0f);
         afDirLength[i] = PblMath::Sqrt(avDir[i].x * avDir[i].x + avDir[i].z * avDir[i].z);
         afSideLength[i] = PblMath::Sqrt(avSide[i].x * avSide[i].x + avSide[i].z * avSide[i].z);
     }
@@ -501,6 +504,12 @@ void CreateTreeLine(PblFileChunk& chunk);
 }
 void CreateTreeLineOnPath(unsigned int uPathName, PblFileChunk& chunk);
 
+// FUNCTION: SWBF2 0x0062b100
+void PropGenerator::FlushClusterObjects()
+{
+    flushClusterObjs_ = true;
+}
+
 // FUNCTION: SWBF2 0x0062b110
 void PropGenerator::FlushClusterObjects_()
 {
@@ -547,7 +556,7 @@ static unsigned char GetLayers(int x, int z)
         return 0;
     }
 
-    const unsigned char* pFoliage = RedTerrain::_Foliage;
+    const unsigned char* pFoliage = RedTerrain::GetFoliage();
     if (!pFoliage)
     {
         return 0;
@@ -584,7 +593,7 @@ void PropGenerator::Read(PblFileChunk& chunk)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x41544144)
+        if (child._iId != CHUNK_ID('D', 'A', 'T', 'A'))
         {
             continue;
         }
@@ -594,7 +603,7 @@ void PropGenerator::Read(PblFileChunk& chunk)
 
         switch (uiHash)
         {
-        case 0x07a640f6:
+        case 0x07a640f6: /* "Layer" */
         {
             const int iLayer = (int)child._pFile->ReadFloat();
             mPropLayers[iLayer].Clear();
@@ -603,7 +612,7 @@ void PropGenerator::Read(PblFileChunk& chunk)
             mLoaded = true;
             break;
         }
-        case 0x40b06ff7:
+        case 0x40b06ff7: /* "TreeLine" */
         {
             PblFileChunk treeLineChunk = chunk.ReadNextChild();
             TreeLine::CreateTreeLine(treeLineChunk);
@@ -612,7 +621,7 @@ void PropGenerator::Read(PblFileChunk& chunk)
         }
     }
 
-    if (RedTerrain::_Foliage)
+    if (RedTerrain::GetFoliage())
     {
         mLayerMapWidth = RedTerrain::_iPointsPerDimension / 2;
         mLayerCellWidth = RedTerrain::_fMetersPerPoint * 2.0f;
@@ -774,7 +783,7 @@ const PropObject* PropGenerator::FindPropObject(const PblVector3& vPos, bool bPa
         if (SquaredLength(vPos - pCluster->GetRenderPos()) < 900.0f)
         {
             const PropObjectMesh* pObject =
-                static_cast<const PropObjectMesh*>(pCluster->FindPropObject(vPos, bParam));
+                (const PropObjectMesh*)pCluster->FindPropObject(vPos, bParam);
             if (pObject)
             {
                 float fVis = pObject->mModel->mAIVisFactorStand + pObject->mModel->mAIVisFactorCrouch;
@@ -801,7 +810,7 @@ const RedLodData* PropGenerator::GetLodData(int iIndex)
             continue;
         }
         const RedLodData* pLodData = mPropLayers[i].mLodData;
-        if (pLodData && (!pBest || pLodData->mMaxDist > pBest->mMaxDist))
+        if (pLodData && (!pBest || pLodData->GetMaxDist() > pBest->GetMaxDist()))
         {
             pBest = pLodData;
         }

@@ -88,7 +88,7 @@ public:
     class Factory : public HUD::Item::Factory
     {
     public:
-        Factory() : HUD::Item::Factory(0xD4E0C797u)
+        Factory() : HUD::Item::Factory(0xD4E0C797u /* "FileInfo" */)
         {
             mName = "FileInfo";
         }

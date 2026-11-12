@@ -75,6 +75,7 @@ public:
         } mData;
         DataType mType;
 
+        static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
         static MemoryPool sMemoryPool;
     };
 
@@ -92,6 +93,7 @@ public:
 
         DataTransformer mData;
 
+        static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
         static MemoryPool sMemoryPool;
     };
 
@@ -109,6 +111,7 @@ public:
 
         DataTransformer mData;
 
+        static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
         static MemoryPool sMemoryPool;
     };
 
@@ -134,6 +137,7 @@ public:
         float mA;
         DataType mType;
 
+        static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
         static MemoryPool sMemoryPool;
     };
 

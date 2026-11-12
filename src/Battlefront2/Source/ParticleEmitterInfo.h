@@ -56,6 +56,7 @@ public:
     ParticleEmitterInfoData* mNext;
     ParticleEmitterInfoData* mPrev;
 
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
     static MemoryPool sMemoryPool;
 };
  

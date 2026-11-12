@@ -115,26 +115,6 @@ void RedMovie::Close()
     RedMoviePlayer::Close();
 }
 
-// FUNCTION: SWBF2 0x006f5240
-int RedMovie::Subtitle::CompareSearch(const void* pKey, const void* pElement)
-{
-    const float fTime = *(const float*)pKey;
-    const Subtitle* pSubtitle = (const Subtitle*)pElement;
-
-    if (fTime >= pSubtitle->mEnableTime && fTime <= pSubtitle->mDisableTime)
-    {
-        return 0;
-    }
-    return (int)((fTime - pSubtitle->mEnableTime) * 100.0f);
-}
-
-// FUNCTION: SWBF2 0x006f5280
-int RedMovie::Subtitle::CompareSort(const void* pElement1, const void* pElement2)
-{
-    return (int)(((const Subtitle*)pElement1)->mEnableTime -
-                 ((const Subtitle*)pElement2)->mEnableTime);
-}
-
 // FUNCTION: SWBF2 0x006f4fb0
 RedMovie::Properties::~Properties()
 {
@@ -408,7 +388,7 @@ void RedMovie::Load(PblFileChunk& chunk, bool bOne)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x41544144)
+        if (child._iId != CHUNK_ID('D', 'A', 'T', 'A'))
         {
             continue;
         }
@@ -418,12 +398,12 @@ void RedMovie::Load(PblFileChunk& chunk, bool bOne)
 
         switch (uiClass)
         {
-        case 0xb0e44c26:
-        case 0xaef39ccf:
+        case 0xb0e44c26: /* "MovieProperties" */
+        case 0xaef39ccf: /* "movie" */
             (new Properties)->Read(child);
             break;
-        case 0x1dcef1fe:
-        case 0xe396fe20:
+        case 0x1dcef1fe: /* "subtitles" */
+        case 0xe396fe20: /* "moviesubtitles" */
             (new SegmentSubtitles)->Read(child);
             break;
         default:
@@ -570,32 +550,32 @@ void RedMovie::Properties::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch ((unsigned int)child._pFile->Read32())
         {
-        case 0x5083ecd9:
+        case 0x5083ecd9: /* "FadeInTime" */
             child._pFile->Read8();
             SetFadeInTime(child._pFile->ReadFloat());
             break;
-        case 0x4d5af670:
+        case 0x4d5af670: /* "CyclePlayback" */
             child._pFile->Read8();
             SetCyclePlayback(child._pFile->Read32() > 0);
             break;
-        case 0x0a8325f2:
+        case 0x0a8325f2: /* "SegmentList" */
             child = chunk.ReadNextChild();
             ReadSegments(child);
             mSelList = &mList;
             break;
-        case 0x798dc484:
+        case 0x798dc484: /* "FadeOutTime" */
             child._pFile->Read8();
             SetFadeOutTime(child._pFile->ReadFloat());
             break;
-        case 0x8d39bde6:
+        case 0x8d39bde6: /* "name" */
             child._pFile->Read8();
             mHashID = child._pFile->Read32();
             break;
-        case 0xaef39ccf:
+        case 0xaef39ccf: /* "movie" */
             child._pFile->Read8();
             SetMovieID(child._pFile->Read32());
             break;
-        case 0xca04efe0:
+        case 0xca04efe0: /* "Inherit" */
         {
             child._pFile->Read8();
             const Properties* pBase = FindByHashID(child._pFile->Read32());
@@ -620,15 +600,15 @@ void RedMovie::SegmentSubtitles::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch ((unsigned int)child._pFile->Read32())
         {
-        case 0x274e1290:
+        case 0x274e1290: /* "Font" */
             child._pFile->Read8();
             mFontID = child._pFile->Read32();
             break;
-        case 0x09836605:
+        case 0x09836605: /* "SubtitleList" */
             child = chunk.ReadNextChild();
             ReadSubtitles(child);
             break;
-        case 0x3d7e6258:
+        case 0x3d7e6258: /* "Color" */
         {
             const char cNumValues = child._pFile->Read8();
             mColor.r = cNumValues >= 1 ? (unsigned char)child._pFile->ReadFloat() : 0xff;
@@ -637,7 +617,7 @@ void RedMovie::SegmentSubtitles::Read(PblFileChunk& chunk)
             mColor.a = cNumValues >= 4 ? (unsigned char)child._pFile->ReadFloat() : 0xff;
             break;
         }
-        case 0xf3c342e6:
+        case 0xf3c342e6: /* "Segment" */
             child._pFile->Read8();
             mSegmentID = child._pFile->Read32();
             break;
@@ -652,7 +632,7 @@ void RedMovie::Properties::ReadSegments(PblFileChunk& chunk)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if ((unsigned int)child._pFile->Read32() != 0xf3c342e6)
+        if ((unsigned int)child._pFile->Read32() != 0xf3c342e6 /* "Segment" */)
         {
             continue;
         }
@@ -686,7 +666,7 @@ void RedMovie::SegmentSubtitles::ReadSubtitles(PblFileChunk& chunk)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if ((unsigned int)child._pFile->Read32() != 0x115bfcb9)
+        if ((unsigned int)child._pFile->Read32() != 0x115bfcb9 /* "Subtitle" */)
         {
             continue;
         }

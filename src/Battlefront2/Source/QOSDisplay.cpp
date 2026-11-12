@@ -175,7 +175,7 @@ void QOSDisplay::InitClient()
     QosIcon.SetRect(64.0f, 64.0f, RedBitmapElement::BITMAP_HALIGN_LEFT,
                     RedBitmapElement::BITMAP_VALIGN_TOP);
     QosIcon.m_color.a = QosIconAlpha;
-    QosIcon.SetTexture(0x298058FEu);
+    QosIcon.SetTexture(0x298058FEu /* "tooltip_bg" */);
     msgGroup.AddElement(&QosIcon);
 
     FLRenderer::AddInterfaceElement(&msgGroup, RedInterfaceScreen::RIGHT,
@@ -337,7 +337,7 @@ bool QOSDisplayThread::DisplayIcon(float fDeltaTime, int iUpdates, int iLag)
         && (iUpdates < QosValue[0][0] || iLag > QosValue[0][1]))
     {
         QosEnable = true;
-        QosIcon.SetTexture(0xF5BDCDDEu);
+        QosIcon.SetTexture(0xF5BDCDDEu /* "qos_veryverybad" */);
     }
     QosIcon.Enable(QosEnable);
     return true;

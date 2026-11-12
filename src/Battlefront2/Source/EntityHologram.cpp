@@ -47,16 +47,6 @@ static const float kfFadeDrawDistanceFactor = 1.0f / (1.0f - kfFadeDrawDistanceS
 
 
 
-// FUNCTION: SWBF2 0x004bd990
-LensFlare::LensFlare()
-    : _fSize(1.0f)
-    , _color(RedColor::WHITE)
-    , _fSquaredDrawDistance(0.0f)
-    , _uiHideInView(0)
-{
-    _fRandomRotOffset = PblRandom::_Global.GetFloat() * PblMath::fTwoPi;
-}
-
 // FUNCTION: SWBF2 0x004bdc00
 LightBeam::LightBeam()
     : _vHeadPosition(0.0f, 0.0f, 0.0f)
@@ -114,16 +104,6 @@ const char EntityHologramClass::rttiNameEntityHologramClass[] = "EntityHologramC
 
 // SYNTHETIC: SWBF2 0x0042cf30
 // PblHandled::`scalar deleting destructor'
-
-// FUNCTION: SWBF2 0x0042cf60
-void FLEffectObject::StopAndFinish()
-{
-    m_uiAttachFlags |= KILL_ON_NEXT_UPDATE;
-    if (!IsThreadActive())
-    {
-        ActivateThread(0, PER_FRAME);
-    }
-}
 
 // FUNCTION: SWBF2 0x0042cf80
 void FLEffectObject::UpdatedWorldMatrix()
@@ -317,7 +297,7 @@ EntityHologram::EntityHologram(EntityHologramClass* pClass, const EntityDesc& de
 // FUNCTION: SWBF2 0x004bea60
 EntityHologram::~EntityHologram()
 {
-    static_cast<RedSceneObject*>(this)->Deactivate();
+    ((RedSceneObject*)this)->Deactivate();
     delete m_apOmniLight[0];
     m_apOmniLight[0] = 0;
     delete m_pLightBeam;
@@ -326,7 +306,7 @@ EntityHologram::~EntityHologram()
 // FUNCTION: SWBF2 0x004beb00
 bool EntityHologram::Update(float fDeltaTime)
 {
-    const EntityHologramClass* pClass = static_cast<const EntityHologramClass*>(mEntityClass);
+    const EntityHologramClass* pClass = (const EntityHologramClass*)mEntityClass;
 
     m_fRotateTimer += fDeltaTime;
     m_fPopTimer += fDeltaTime;
@@ -507,7 +487,7 @@ void EntityHologram::SetTeam(int iTeam)
 void EntityHologram::SetColor(const RedColor& color)
 {
     m_color = color;
-    const EntityHologramClass* pClass = static_cast<const EntityHologramClass*>(mEntityClass);
+    const EntityHologramClass* pClass = (const EntityHologramClass*)mEntityClass;
     if (m_pLightBeam)
     {
         RedColor beamColor = m_color;
@@ -525,7 +505,7 @@ void EntityHologram::SetColor(const RedColor& color)
 // FUNCTION: SWBF2 0x004bf780
 void EntityHologram::SetModel(const RedModel* pModel)
 {
-    m_pHoloModel = const_cast<RedModel*>(pModel);
+    m_pHoloModel = pModel;
 }
 
 // FUNCTION: SWBF2 0x004bf790
@@ -553,7 +533,7 @@ void EntityHologram::SetIntensity(float fIntensity)
     else
     {
         m_fIntensity = fIntensity;
-        const EntityHologramClass* pClass = static_cast<const EntityHologramClass*>(mEntityClass);
+        const EntityHologramClass* pClass = (const EntityHologramClass*)mEntityClass;
         if ((m_bTurnOn || pClass->m_fFadeInTime > m_fFadeInTimer) && !m_bActive)
         {
             if (m_pLightBeam)
@@ -579,7 +559,7 @@ void EntityHologram::TurnOn()
         return;
     }
 
-    const EntityHologramClass* pClass = static_cast<const EntityHologramClass*>(mEntityClass);
+    const EntityHologramClass* pClass = (const EntityHologramClass*)mEntityClass;
     if (pClass->m_fFadeInTime > m_fFadeInTimer)
     {
         m_fFadeInTimer = pClass->m_fFadeInTime - m_fFadeInTimer;
@@ -614,7 +594,7 @@ void EntityHologram::TurnOff()
         return;
     }
 
-    const EntityHologramClass* pClass = static_cast<const EntityHologramClass*>(mEntityClass);
+    const EntityHologramClass* pClass = (const EntityHologramClass*)mEntityClass;
     if (pClass->m_fFadeInTime > m_fFadeInTimer)
     {
         m_fFadeInTimer = pClass->m_fFadeInTime - m_fFadeInTimer;
@@ -630,14 +610,14 @@ void EntityHologram::TurnOff()
 void EntityHologram::TurnOnNow()
 {
     TurnOff();
-    const EntityHologramClass* pClass = static_cast<const EntityHologramClass*>(mEntityClass);
+    const EntityHologramClass* pClass = (const EntityHologramClass*)mEntityClass;
     m_fFadeInTimer = pClass->m_fFadeInTime;
 }
 
 // FUNCTION: SWBF2 0x004bf9a0
 void EntityHologram::Render(unsigned char ucViewport, float fDist, unsigned int uiFlags)
 {
-    const EntityHologramClass* pClass = static_cast<const EntityHologramClass*>(mEntityClass);
+    const EntityHologramClass* pClass = (const EntityHologramClass*)mEntityClass;
     unsigned int uiViewport = FLRenderer::GetCurrentViewport();
     if (m_uiHideInView & (1 << uiViewport))
     {
@@ -791,7 +771,7 @@ void EntityHologram::SetStoredMatrix(const PblMatrix& mMatrix)
         m_apOmniLight[0]->SetPosition(m_WorldMatrix.GetTranslation());
     }
 
-    const EntityHologramClass* pClass = static_cast<const EntityHologramClass*>(mEntityClass);
+    const EntityHologramClass* pClass = (const EntityHologramClass*)mEntityClass;
     float fRadius = pClass->m_fSize * 0.5f + pClass->m_fHeight * 0.5f;
     PblVector3 vCenter;
     {
@@ -900,16 +880,16 @@ EntityHologramClass::EntityHologramClass(EntityHologramClass* pParent, unsigned 
 static RedColor ReadColor(const char* pszValue)
 {
     unsigned int r = 255, g = 255, b = 255, a = 255;
-    if (sscanf(pszValue, "%u %u %u %u", &r, &g, &b, &a) < 3)
+    if (sscanf(pszValue, "%u %u %u %u", &r, &g, &b, &a) >= 3)
     {
-        return RedColor::BLACK;
+        RedColor color;
+        color.b = (unsigned char)b;
+        color.g = (unsigned char)g;
+        color.r = (unsigned char)r;
+        color.a = (unsigned char)a;
+        return color;
     }
-    RedColor color;
-    color.b = (unsigned char)b;
-    color.g = (unsigned char)g;
-    color.r = (unsigned char)r;
-    color.a = (unsigned char)a;
-    return color;
+    return RedColor::BLACK;
 }
 
 // FUNCTION: SWBF2 0x004c0590
@@ -917,7 +897,7 @@ void EntityHologramClass::SetProperty(unsigned int uProperty, const char* pszVal
 {
     switch (uProperty)
     {
-    case 0x02565BD1u:
+    case 0x02565BD1u: /* "HoloType" */
         if (!_strnicmp(pszValue, "aligned", 5))
         {
             m_eType = TYPE_ICON_ALIGNED;
@@ -927,59 +907,59 @@ void EntityHologramClass::SetProperty(unsigned int uProperty, const char* pszVal
             m_eType = TYPE_ICON_BUILD;
         }
         break;
-    case 0x09F126C2u:
+    case 0x09F126C2u: /* "HoloVisibleDistance" */
         sscanf(pszValue, "%f", &m_fVisibleDistance);
         break;
-    case 0x186A4586u:
+    case 0x186A4586u: /* "HoloPopRate" */
         sscanf(pszValue, "%f", &m_fPopRate);
         break;
-    case 0x1D7B0711u:
+    case 0x1D7B0711u: /* "HoloLightRadius" */
         sscanf(pszValue, "%f", &m_fLightRadius);
         break;
-    case 0x1DE206A6u:
+    case 0x1DE206A6u: /* "HoloBeamInitialWidth" */
         sscanf(pszValue, "%f", &m_fBeamInitialWidth);
         break;
-    case 0x3D60BCC8u:
+    case 0x3D60BCC8u: /* "HoloSize" */
         sscanf(pszValue, "%f", &m_fSize);
         break;
-    case 0x3D7E6258u:
+    case 0x3D7E6258u: /* "Color" */
         m_color = ReadColor(pszValue);
         break;
-    case 0x4BF3F668u:
+    case 0x4BF3F668u: /* "HoloTurnOnDistance" */
         sscanf(pszValue, "%f", &m_fTurnOnDistance);
         break;
-    case 0x4CECAC28u:
+    case 0x4CECAC28u: /* "HoloFlareIntensity" */
         sscanf(pszValue, "%f", &m_fFlareIntensity);
         break;
-    case 0x543722AFu:
+    case 0x543722AFu: /* "HoloImageIntensity" */
         sscanf(pszValue, "%f", &m_fImageIntensity);
         break;
-    case 0x78FD34B7u:
+    case 0x78FD34B7u: /* "HoloFlickerAlphaMin" */
         sscanf(pszValue, "%f", &m_fFlickerAlphaMin);
         break;
-    case 0x8710D279u:
+    case 0x8710D279u: /* "HoloFlickerAlphaMax" */
         sscanf(pszValue, "%f", &m_fFlickerAlphaMax);
         break;
-    case 0x9FE971E5u:
+    case 0x9FE971E5u: /* "HoloFadeInTime" */
         sscanf(pszValue, "%f", &m_fFadeInTime);
         break;
-    case 0xA0F13D29u:
+    case 0xA0F13D29u: /* "HoloFlickerRate" */
         sscanf(pszValue, "%f", &m_fFlickerRate);
         break;
-    case 0xAFF1F98Cu:
+    case 0xAFF1F98Cu: /* "HoloRotateRate" */
         sscanf(pszValue, "%f", &m_fRotateRate);
         m_fRotateRate *= PblMath::fTwoPi;
         break;
-    case 0xB64210D2u:
-        m_pHoloModel = RedModel::_HashTable.Find(PblHash(pszValue));
+    case 0xB64210D2u: /* "HoloImageGeometry" */
+        m_pHoloModel = RedModel::Find(PblHash(pszValue));
         break;
-    case 0xB761134Eu:
+    case 0xB761134Eu: /* "HoloHeight" */
         sscanf(pszValue, "%f", &m_fHeight);
         break;
-    case 0xF0AC6DE0u:
+    case 0xF0AC6DE0u: /* "HoloLightIntensity" */
         sscanf(pszValue, "%f", &m_fLightIntensity);
         break;
-    case 0xF31C745Fu:
+    case 0xF31C745Fu: /* "HoloBeamIntensity" */
         sscanf(pszValue, "%f", &m_fBeamIntensity);
         break;
     default:

@@ -35,7 +35,7 @@ void WorldShadowMapEffect::Destroy()
 
 
 // FUNCTION: SWBF2 0x00695070
-void WorldShadowMapEffect::Render(int)
+void WorldShadowMapEffect::Render(unsigned int) const
 {
 }
 
@@ -58,31 +58,31 @@ void WorldShadowMapEffect::ReadConfig(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x60837D9Eu:
+        case 0x60837D9Eu: /* "AnimationAmplitude0" */
             if (data.GetNumArgs() == 2)
             {
                 m_vAnimationAmplitude0 = PblVector3(data.GetFloatArg(0), 0.0f, data.GetFloatArg(1));
             }
             break;
-        case 0x61837F31u:
+        case 0x61837F31u: /* "AnimationAmplitude1" */
             if (data.GetNumArgs() == 2)
             {
                 m_vAnimationAmplitude1 = PblVector3(data.GetFloatArg(0), 0.0f, data.GetFloatArg(1));
             }
             break;
-        case 0x1F3B36E9u:
+        case 0x1F3B36E9u: /* "AnimationFrequency" */
             m_fAnimationFrequency = data.GetFloatArg(0);
             break;
-        case 0x3C6468F4u:
+        case 0x3C6468F4u: /* "Texture" */
             m_uiTextureHash = PblHash(data.GetStringArg(0));
             break;
-        case 0x7FAB682Cu:
+        case 0x7FAB682Cu: /* "LightName" */
             m_uiLightName = PblHash(data.GetStringArg(0));
             break;
-        case 0x6D9B436Eu:
+        case 0x6D9B436Eu: /* "TextureScale" */
             m_fTextureScale = data.GetFloatArg(0);
             break;
-        case 0xAF8BB8CEu:
+        case 0xAF8BB8CEu: /* "Enable" */
             Enable(data.GetUint32Arg(0) != 0);
             break;
         }

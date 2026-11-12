@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "Weapon.h"
+#include "PebbleFL/Common/PblRtti.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
 // VTABLE: SWBF2 0x007b1158
@@ -32,7 +33,7 @@ public:
  
  
 
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 
 // VTABLE: SWBF2 0x007b1190
 class WeaponLaser : public Weapon
@@ -41,9 +42,13 @@ public:
     WeaponLaser(const WeaponLaserClass* pClass, const WeaponDesc& desc);
     virtual ~WeaponLaser();
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
+    // FUNCTION: SWBF2 0x00686a10
+    // WeaponLaser::IsRtti
+    // FUNCTION: SWBF2 0x00686a40
+    // WeaponLaser::GetDerivedRtti
+    // FUNCTION: SWBF2 0x00686a50
+    // WeaponLaser::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(WeaponLaser, Weapon)
     virtual bool IsBusy() const;
     virtual void Write(NetPktGroup& group);
     virtual void Read(NetPktGroup& group);
@@ -59,35 +64,11 @@ protected:
     bool Fire(float fTime);
 
 public:
-    static PblHash rttiHashWeaponLaser;
-    static const char rttiNameWeaponLaser[];
 
     float mSalvoTimer;
 };
   
  
-
-// FUNCTION: SWBF2 0x00686a10
-inline bool WeaponLaser::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashWeaponLaser == uRtti)
-    {
-        return true;
-    }
-    return Weapon::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x00686a40
-inline unsigned int WeaponLaser::GetDerivedRtti() const
-{
-    return rttiHashWeaponLaser;
-}
-
-// FUNCTION: SWBF2 0x00686a50
-inline const char* WeaponLaser::GetDerivedRttiName() const
-{
-    return rttiNameWeaponLaser;
-}
 
 // FUNCTION: SWBF2 0x00686a90
 inline bool WeaponLaserClass::IsRtti(unsigned int uRtti) const

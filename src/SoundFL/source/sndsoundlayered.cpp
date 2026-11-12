@@ -36,23 +36,15 @@ SoundLayered::FireForgetLayer* SoundLayered::smFireForgetLayers;
 bool SoundLayered::smIsOpen;
 // GLOBAL: SWBF2 0x01e29db8
 unsigned char SoundLayered::smFireForgetLayerStorage[5888];
-// SYNTHETIC: SWBF2 0x0040bbb0
-// `dynamic initializer for 'Snd::SoundLayered::FireForgetLayer::smInactiveList''
-// SYNTHETIC: SWBF2 0x0076a3c0
-// `dynamic atexit destructor for 'Snd::SoundLayered::FireForgetLayer::smInactiveList''
 
-// GLOBAL: SWBF2 0x007e36bc
-// SoundLayered::FireForgetLayer::smInactiveList
-PblListDouble SoundLayered::FireForgetLayer::smInactiveList;
+// SYNTHETIC: SWBF2 0x0040bb90
+// `dynamic initializer for 'Snd::SoundLayered::SoundLayer::smFreeList''
+// SYNTHETIC: SWBF2 0x0076a3b0
+// `dynamic atexit destructor for 'Snd::SoundLayered::SoundLayer::smFreeList''
 
-// SYNTHETIC: SWBF2 0x0040bb40
-// `dynamic initializer for 'Snd::SoundLayered::FireForgetLayer::smActiveList''
-// SYNTHETIC: SWBF2 0x0076a370
-// `dynamic atexit destructor for 'Snd::SoundLayered::FireForgetLayer::smActiveList''
-
-// GLOBAL: SWBF2 0x007e36b4
-// SoundLayered::FireForgetLayer::smActiveList
-PblListDouble SoundLayered::FireForgetLayer::smActiveList;
+// GLOBAL: SWBF2 0x007e365c
+// SoundLayered::SoundLayer::smFreeList
+FreeList SoundLayered::SoundLayer::smFreeList(sizeof(SoundLayered::SoundLayer), 1, false, 0x40);
 
 // SYNTHETIC: SWBF2 0x0040bb50
 // `dynamic initializer for 'Snd::SoundLayered::Properties::Layer::smFreeList''
@@ -72,15 +64,6 @@ FreeList SoundLayered::Properties::Layer::smFreeList(sizeof(SoundLayered::Proper
 // SoundLayered::Properties::smFreeList
 FreeList SoundLayered::Properties::smFreeList(0x0c, 1, true, 8);
 
-// SYNTHETIC: SWBF2 0x0040bb90
-// `dynamic initializer for 'Snd::SoundLayered::SoundLayer::smFreeList''
-// SYNTHETIC: SWBF2 0x0076a3b0
-// `dynamic atexit destructor for 'Snd::SoundLayered::SoundLayer::smFreeList''
-
-// GLOBAL: SWBF2 0x007e365c
-// SoundLayered::SoundLayer::smFreeList
-FreeList SoundLayered::SoundLayer::smFreeList(sizeof(SoundLayered::SoundLayer), 1, false, 0x40);
-
 // SYNTHETIC: SWBF2 0x0040bbc0
 // `dynamic initializer for 'Snd::SoundLayered::Properties::smPropertyList''
 // SYNTHETIC: SWBF2 0x0076a3e0
@@ -89,6 +72,23 @@ FreeList SoundLayered::SoundLayer::smFreeList(sizeof(SoundLayered::SoundLayer), 
 // GLOBAL: SWBF2 0x007e36b0
 // SoundLayered::Properties::smPropertyList
 PblListSingle SoundLayered::Properties::smPropertyList;
+
+// SYNTHETIC: SWBF2 0x0040bb40
+// `dynamic initializer for 'Snd::SoundLayered::FireForgetLayer::smActiveList''
+// SYNTHETIC: SWBF2 0x0076a370
+// `dynamic atexit destructor for 'Snd::SoundLayered::FireForgetLayer::smActiveList''
+
+// GLOBAL: SWBF2 0x007e36b4
+// SoundLayered::FireForgetLayer::smActiveList
+PblListDouble SoundLayered::FireForgetLayer::smActiveList;
+// SYNTHETIC: SWBF2 0x0040bbb0
+// `dynamic initializer for 'Snd::SoundLayered::FireForgetLayer::smInactiveList''
+// SYNTHETIC: SWBF2 0x0076a3c0
+// `dynamic atexit destructor for 'Snd::SoundLayered::FireForgetLayer::smInactiveList''
+
+// GLOBAL: SWBF2 0x007e36bc
+// SoundLayered::FireForgetLayer::smInactiveList
+PblListDouble SoundLayered::FireForgetLayer::smInactiveList;
 
 // SYNTHETIC: SWBF2 0x0040bbd0
 // `dynamic initializer for 'Snd::SoundLayered::smSoundLayeredList''
@@ -604,7 +604,7 @@ void SoundLayered::Properties::Read(PblFileChunk& chunk)
         const unsigned int uiID = child._pFile->Read32();
         switch (uiID)
         {
-        case 0x07A640F6u:
+        case 0x07A640F6u: /* "Layer" */
         {
             const char cVersion = child._pFile->Read8();
             const unsigned int uiHashID = child._pFile->Read32();
@@ -621,7 +621,7 @@ void SoundLayered::Properties::Read(PblFileChunk& chunk)
             }
             break;
         }
-        case 0x8D39BDE6u:
+        case 0x8D39BDE6u: /* "name" */
         {
             child._pFile->Read8();
             mHashID = child._pFile->Read32();

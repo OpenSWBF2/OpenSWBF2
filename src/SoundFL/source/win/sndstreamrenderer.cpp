@@ -154,7 +154,16 @@ void StreamRenderer::Update()
         }
         else if (mOutConnIdx != 0xFFFFFFFF)
         {
-            mResampler.StreamNode::Play(true);
+            mResampler.SourceTransport::mFlags = (unsigned short)((mResampler.SourceTransport::mFlags
+                                       & ~(unsigned int)(flags_updateStop
+                                                         | flags_updatePause))
+                                      | (unsigned int)flags_updatePlay);
+            if ((mResampler.SourceTransport::mFlags & flags_updatePlaybackPosition) == 0)
+            {
+                mResampler.mPlaybackPosition = 0;
+                mResampler.SourceTransport::mFlags = (unsigned short)(mResampler.SourceTransport::mFlags
+                                          | (unsigned int)flags_updatePlaybackPosition);
+            }
         }
         break;
     case playState_paused:
@@ -204,9 +213,10 @@ void StreamRenderer::Update()
             GainMatrix matrix;
             if (b3D)
             {
+                const float fReverbGain = mReverbGain;
                 const float fGain = Source::mGain;
                 Source3D::CalculateGain(fGain * CalculateGainEstimate(),
-                                        mReverbGain, matrix);
+                                        fReverbGain, matrix);
             }
             else
             {

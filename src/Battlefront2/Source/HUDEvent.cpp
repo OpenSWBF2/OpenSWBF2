@@ -88,7 +88,7 @@ void HUD::EventClass::Send(const Event& event) const
     for (PblListDouble::Itor itor(mHandlerList);
          itor.GetNode() != mHandlerList.GetTerminator(); ++itor)
     {
-        const EventHandler* pHandler = static_cast<EventHandler*>(
+        const EventHandler* pHandler = (EventHandler*)(
             itor.GetNode()->GetObjectA(&mHandlerList, offsetof(EventHandler, mNode)));
         pHandler->HandleEvent(event);
     }
@@ -194,6 +194,12 @@ HUD::Event::Event(const EventClass* const pClass, const RedTexture* const pTextu
     mData.texture = const_cast<RedTexture*>(pTexture);
 }
 
+// FUNCTION: SWBF2 0x0055dbf0
+HUD::EventClass* HUD::EventHandler::GetRegisteredClass() const
+{
+    return mClass;
+}
+
 // FUNCTION: SWBF2 0x0055dc00
 const char* HUD::EventHandler::GetRegisteredClassName(bool bEmptyIfMissing) const
 {
@@ -245,27 +251,8 @@ HUD::EventClass* HUD::EventClass::GetNext(EventClass* pEvent)
 // FUNCTION: SWBF2 0x0055df80
 HUD::EventClass* HUD::EventClass::GetPrevious(EventClass* pEvent)
 {
-    return static_cast<EventClass*>(pEvent->mNode.GetPrevious()->GetObjectA(
+    return (EventClass*)(pEvent->mNode.GetPrevious()->GetObjectA(
         &sList, offsetof(EventClass, mNode)));
-}
-
-// FUNCTION: SWBF2 0x0055e220
-void HUD::EventQueue::AddEvent(const HUD::Event* pEvent, float fDelay)
-{
-    if (!pEvent)
-    {
-        return;
-    }
-    for (int i = 0; i < 32; ++i)
-    {
-        HUD::DelayedEvent& slot = HUD::gEventList[i];
-        if (slot.activationTime < 0.0f)
-        {
-            slot.e = *pEvent;
-            slot.activationTime = GameLoop::GetMissionTime() + fDelay;
-            return;
-        }
-    }
 }
 
 // FUNCTION: SWBF2 0x0055e110
@@ -295,6 +282,13 @@ void HUD::EventClass::RegisterEventHandler(EventHandler& handler)
     handler.mClass = this;
 }
 
+// FUNCTION: SWBF2 0x0055ddb0
+void HUD::EventClass::UnregisterEventHandler(HUD::EventHandler& handler)
+{
+    handler.mNode.Remove();
+    handler.mClass = 0;
+}
+
 // FUNCTION: SWBF2 0x0055de00
 unsigned int HUD::EventClass::AddRef()
 {
@@ -307,7 +301,7 @@ HUD::EventClass* HUD::EventClass::FindByHashID(unsigned int uHashID)
     for (PblListSingle::Itor itor(sList);
          itor.GetNode() != sList.GetTerminator(); ++itor)
     {
-        EventClass* pEvent = static_cast<EventClass*>(
+        EventClass* pEvent = (EventClass*)(
             itor.GetNode()->GetObjectA(&sList, offsetof(EventClass, mNode)));
         if (pEvent->mHashID == uHashID)
         {

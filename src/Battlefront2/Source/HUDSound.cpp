@@ -11,9 +11,9 @@
 // HUD::Sound::sList
 PblListSingle HUD::Sound::sList;
 
-static const unsigned int kSoundHash = 0x0e0d9594;
-static const unsigned int kEventTriggerHash = 0x4cb6be21;
-static const unsigned int kEventStopHash = 0xc061c1e7;
+static const unsigned int kSoundHash = 0x0e0d9594 /* "Sound" */;
+static const unsigned int kEventTriggerHash = 0x4cb6be21 /* "EventTrigger" */;
+static const unsigned int kEventStopHash = 0xc061c1e7 /* "EventStop" */;
 
 // FUNCTION: SWBF2 0x00566f60
 bool HUD::Sound::SetProperty(const unsigned int, const void* const)

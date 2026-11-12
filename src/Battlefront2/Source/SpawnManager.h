@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 
+#include "Team.h"
 #include "Thread.h"
 
 class Character;
@@ -57,14 +58,14 @@ private:
     int GetTotalCharacterCount();
 
 public:
-    int mMaxUnitCount[8];
-    int mCurrentUnitCount[8];
+    int mMaxUnitCount[Team::kMaxTeams];
+    int mCurrentUnitCount[Team::kMaxTeams];
     int mAllyUnitCount;
-    float mCycleDelay[8];
-    float mSlotDelay[8];
-    float mCycleTimer[8];
-    int mCycleIndex[8];
-    float mSlotTimer[8];
+    float mCycleDelay[Team::kMaxTeams];
+    float mSlotDelay[Team::kMaxTeams];
+    float mCycleTimer[Team::kMaxTeams];
+    int mCycleIndex[Team::kMaxTeams];
+    float mSlotTimer[Team::kMaxTeams];
     bool mHistorical;
 
     static SpawnManager* sInstance;

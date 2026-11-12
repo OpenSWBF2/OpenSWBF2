@@ -6,24 +6,7 @@
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "SoundFL/source/sndspace.h"
 
-class SoundSpaceRegion : public Snd::Space::Region
-{
-public:
 
-    SoundSpaceRegion(const RedRegion& rRegion) : Region(rRegion) {}
-
-    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
-
-    ~SoundSpaceRegion() {}
-
-    // SYNTHETIC: SWBF2 0x004fad10
-    // SoundSpaceRegion::operator delete
-    static void operator delete(void* p) { sMemoryPool.Free(p); }
-
-    static void DestroyAll();
-
-    static MemoryPool sMemoryPool;
-};
  
 
 // SYNTHETIC: SWBF2 0x00402dd0
@@ -36,6 +19,15 @@ PblHash EntitySound::rttiHashEntitySound("EntitySound");
 // GLOBAL: SWBF2 0x007895e4
 // EntitySound::rttiNameEntitySound
 const char EntitySound::rttiNameEntitySound[] = "EntitySound";
+
+// SYNTHETIC: SWBF2 0x00402de0
+// `dynamic initializer for 'EntitySound::sEntitySoundList''
+// SYNTHETIC: SWBF2 0x00766fd0
+// `dynamic atexit destructor for 'EntitySound::sEntitySoundList''
+
+// GLOBAL: SWBF2 0x007eb884
+// EntitySound::sEntitySoundList
+PblListSingle EntitySound::sEntitySoundList;
 
 // SYNTHETIC: SWBF2 0x00402df0
 // `dynamic initializer for 'EntitySoundClass::rttiHashEntitySoundClass''
@@ -57,14 +49,7 @@ const char EntitySoundClass::rttiNameEntitySoundClass[] = "EntitySoundClass";
 // SoundSpaceRegion::sMemoryPool
 MemoryPool SoundSpaceRegion::sMemoryPool("SoundSpaceRegion", sizeof(SoundSpaceRegion));
 
-// SYNTHETIC: SWBF2 0x00402de0
-// `dynamic initializer for 'EntitySound::sEntitySoundList''
-// SYNTHETIC: SWBF2 0x00766fd0
-// `dynamic atexit destructor for 'EntitySound::sEntitySoundList''
 
-// GLOBAL: SWBF2 0x007eb884
-// EntitySound::sEntitySoundList
-PblListSingle EntitySound::sEntitySoundList;
 
 
 
@@ -115,15 +100,15 @@ void EntitySound::SetProperty(unsigned int uProperty, const char* pcValue)
     float fValue;
     switch (uProperty)
     {
-    case 0x0E0D9594:
-    case 0x2E93EF4C:
+    case 0x0E0D9594: /* "Sound" */
+    case 0x2E93EF4C: /* "SoundStream" */
         mSoundId = PblHash(pcValue);
         break;
-    case 0xB835CF50:
+    case 0xB835CF50: /* "MinDistance" */
         sscanf(pcValue, "%f", &fValue);
         SetMinDistance(fValue);
         break;
-    case 0xE6915CF6:
+    case 0xE6915CF6: /* "MaxDistance" */
         sscanf(pcValue, "%f", &fValue);
         SetMuteDistance(fValue);
         SetMaxDistance(fValue);
@@ -146,7 +131,8 @@ void EntitySound::DestroyAll()
 {
     while (sEntitySoundList.mHead.mNext != &sEntitySoundList.mHead)
     {
-        delete (EntitySound*)((char*)sEntitySoundList.mHead.mNext - offsetof(EntitySound, mNode));
+        delete (EntitySound*)sEntitySoundList.mHead.mNext->GetObjectA(
+            &sEntitySoundList, offsetof(EntitySound, mNode));
     }
 }
 
@@ -178,15 +164,15 @@ void EntitySoundClass::SetProperty(unsigned int uProperty, const char* pcValue)
     float fValue;
     switch (uProperty)
     {
-    case 0x0E0D9594:
-    case 0x2E93EF4C:
+    case 0x0E0D9594: /* "Sound" */
+    case 0x2E93EF4C: /* "SoundStream" */
         mSoundId = PblHash(pcValue);
         break;
-    case 0xB835CF50:
+    case 0xB835CF50: /* "MinDistance" */
         sscanf(pcValue, "%f", &fValue);
         SetMinDistance(fValue);
         break;
-    case 0xE6915CF6:
+    case 0xE6915CF6: /* "MaxDistance" */
         sscanf(pcValue, "%f", &fValue);
         SetMuteDistance(fValue);
         SetMaxDistance(fValue);
@@ -300,7 +286,7 @@ void SoundSpaceRegion::DestroyAll()
         while (pSpace->GetRegionCount())
         {
             SoundSpaceRegion* pRegion =
-                static_cast<SoundSpaceRegion*>(pSpace->FindRegionByIndex(0));
+                (SoundSpaceRegion*)pSpace->FindRegionByIndex(0);
             delete pRegion;
         }
     }

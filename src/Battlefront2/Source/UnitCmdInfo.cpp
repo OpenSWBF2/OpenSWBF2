@@ -10,8 +10,8 @@ DroidRepairInfo::DroidRepairInfo(PblHandle<const GameObject> who,
                                  PblHandle<const GameObject> owner)
     : UnitCmdInfo(CMD_REPAIR, 0, PblVector3(0, 0, 0), 0)
 {
-    mWho = const_cast<GameObject*>(static_cast<const GameObject*>(who));
-    mOwner = const_cast<GameObject*>(static_cast<const GameObject*>(owner));
+    mWho = const_cast<GameObject*>((const GameObject*)who);
+    mOwner = const_cast<GameObject*>((const GameObject*)owner);
 }
 
 // FUNCTION: SWBF2 0x006626b0
@@ -45,7 +45,7 @@ UnitCombatInfo::UnitCombatInfo(State eState, PblHandle<const GameObject> who)
     : UnitCmdInfo(CMD_COMBAT, 0, PblVector3(0, 0, 0), 0)
 {
     SetState(eState);
-    mWho = PblHandle<GameObject>(const_cast<GameObject*>(static_cast<const GameObject*>(who)));
+    mWho = PblHandle<GameObject>(const_cast<GameObject*>((const GameObject*)who));
 }
 
 // FUNCTION: SWBF2 0x006627d0
@@ -151,7 +151,7 @@ UnitGoalAgentInfo::UnitGoalAgentInfo(UnitControllerCommand eCmd, const AI::GoalT
     mPos = pTarget->mPos;
     mParam = pTarget->mType;
     mChr = const_cast<Character*>(pTarget->mChr);
-    mWho = const_cast<GameObject*>(static_cast<const GameObject*>(pTarget->mGameObj));
+    mWho = const_cast<GameObject*>((const GameObject*)pTarget->mGameObj);
 }
 
 // FUNCTION: SWBF2 0x00662c70
@@ -172,7 +172,7 @@ const PblVector3 UnitGoalAgentInfo::GetPos() const
 // FUNCTION: SWBF2 0x00662d70
 const FlagItem* UnitGoalAgentInfo::GetFlag() const
 {
-    return reinterpret_cast<const FlagItem*>(static_cast<const GameObject*>(mFlag));
+    return reinterpret_cast<const FlagItem*>((const GameObject*)mFlag);
 }
 
 // FUNCTION: SWBF2 0x00662da0
@@ -181,5 +181,5 @@ void UnitGoalAgentInfo::GetGoalTarget(AI::GoalTarget& target) const
     target.mType = (AI::GoalTargetType)mParam;
     target.mPos = mPos;
     target.mChr = mChr;
-    target.mGameObj = static_cast<GameObject*>(mWho);
+    target.mGameObj = (GameObject*)mWho;
 }

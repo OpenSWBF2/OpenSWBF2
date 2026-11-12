@@ -38,13 +38,15 @@ float g_InGameMovieStartSystemTime;
 
 extern float g_fFixedRate;
 
-extern bool g_InGameMoviePlayerUpdateEnable;
-
 // GLOBAL: SWBF2 0x01e56274
 RedMovie* GameMovie::sRedMovie;
 
 // GLOBAL: SWBF2 0x01e56136
 bool GameMovie::sMemoryReserved;
+
+// GLOBAL: SWBF2 0x01e56137
+
+bool g_InGameMoviePlayerUpdateEnable;
 
 // GLOBAL: SWBF2 0x007e67c8
 int GameMovie::sDefaultHeap = -1;
@@ -74,10 +76,10 @@ void GameMovie::Create(const int defaultHeap)
 
         RedSetCurrentHeap(iOldHeap);
 
-        if (GameState::GetState() != 0x11E1FC01)
+        if (GameState::GetState() != 0x11E1FC01 /* "shell" */)
         {
 
-            Snd::Bus* pBus = Snd::Bus::FindByHashID(0xF4EB2B40);
+            Snd::Bus* pBus = Snd::Bus::FindByHashID(0xF4EB2B40 /* "shellmovies" */);
             if (!pBus)
             {
                 pBus = &Snd::Bus::smRootBus;
@@ -316,7 +318,7 @@ void UpdatInGameMovie()
             {
                 const unsigned int* pName = g_InGameMovieQueue.IsEmpty()
                     ? 0
-                    : static_cast<const unsigned int*>(g_InGameMovieQueue.QueueBase::Get(
+                    : (const unsigned int*)(g_InGameMovieQueue.QueueBase::Get(
                         sizeof(unsigned int), g_InGameMovieQueue.mElements, 12));
                 const RedMovie::Properties* pProperty = RedMovie::Properties::FindByHashID(*pName);
                 if (pProperty)
@@ -425,6 +427,27 @@ void GameMovie::Update(float fDeltaTime)
     {
         sRedMovie->Update(fDeltaTime);
     }
+}
+
+// FUNCTION: SWBF2 0x00534bd0
+void StartInGameMoviePlay(const char* pcFile, const char* pcName)
+{
+    if (g_InGameMoviePlayerState)
+    {
+        return;
+    }
+
+    g_InGameMoviePlayerUpdateEnable = true;
+    g_InGameMoviePlayerState = 1;
+    const unsigned int uiView = CameraManager::sInstance->m_hView[0];
+    g_InGameMoviePlayerFrame = 0;
+    FLRenderer::SetSceneEnable(uiView, false);
+    FLRenderer::SetInterfaceEnable(uiView, false);
+    strcpy(g_InGameMovieFilename, "Movies\\");
+    strcat(g_InGameMovieFilename, pcFile);
+    strcpy(ingame_movie_idname, pcName);
+    unsigned __int64 perfCount = PblTime::GetTickCount();
+    g_InGameMovieStartTime = perfCount;
 }
 
 // FUNCTION: SWBF2 0x00534ca0

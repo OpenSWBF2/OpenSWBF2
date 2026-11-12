@@ -33,24 +33,24 @@ static const float ANIM_FRAME_SPEED = 1.0f / 30.0f;
 SoldierAnimatorClass* SoldierAnimatorClass::sInstance;
 
 // GLOBAL: SWBF2 0x007ae72c
-static const unsigned int s_auiAnimatedJoints[] = { 0x16e27226, 0x2b960099, 0 };
+static const unsigned int s_auiAnimatedJoints[] = { 0x16e27226 /* "bone_root" */, 0x2b960099 /* "hp_weapons" */, 0 };
 
 // GLOBAL: SWBF2 0x007ae740
-static const unsigned int s_auiAnimatedJoints_93e93819[] = { 0x16e27226, 0x8afdf5e4, 0x98b5d322, 0xa1296ed1,
-                                                             0x3ce47edc, 0x0578c32f, 0 };
+static const unsigned int s_auiAnimatedJoints_93e93819[] = { 0x16e27226 /* "bone_root" */, 0x8afdf5e4 /* "bone_head" */, 0x98b5d322 /* "bone_lb_wrist" */, 0xa1296ed1 /* "bone_lf_wrist" */,
+                                                             0x3ce47edc /* "bone_rb_wrist" */, 0x0578c32f /* "bone_rf_wrist" */, 0 };
 
 // GLOBAL: SWBF2 0x007ae75c
-static const unsigned int s_auiAnimatedJoints_7a89c91f[] = { 0x16e27226, 0 };
+static const unsigned int s_auiAnimatedJoints_7a89c91f[] = { 0x16e27226 /* "bone_root" */, 0 };
 
 // GLOBAL: SWBF2 0x007ae790
 static const unsigned int s_auiLowerBodyJoints_b70e2184[] = {
-    0x5e892db0, 0x1acfaf53, 0xcdce0a7a, 0x5a483007, 0x0488ff56, 0xc90f17cd, 0x3344aa92, 0xb3cf3c33,
-    0x7e48d4a8, 0x3785b725, 0xb70e2184, 0x7a89c91f, 0x93e93819, 0x16e27226, 0xe6e47876,
+    0x5e892db0 /* "bone_l_upperarm2" */, 0x1acfaf53 /* "bone_l_forarm4" */, 0xcdce0a7a /* "bone_l_finger2" */, 0x5a483007 /* "bone_l_upperarm3" */, 0x0488ff56 /* "bone_l_forarm3" */, 0xc90f17cd /* "bone_l_finger3" */, 0x3344aa92 /* "bone_r_upperarm2" */, 0xb3cf3c33 /* "bone_r_forarm2" */,
+    0x7e48d4a8 /* "bone_r_finger2" */, 0x3785b725 /* "bone_r_upperarm3" */, 0xb70e2184 /* "bone_r_forarm3" */, 0x7a89c91f /* "bone_r_finger3" */, 0x93e93819 /* "bone_abdomen" */, 0x16e27226 /* "bone_root" */, 0xe6e47876 /* "bone_pelvis" */,
 };
 // GLOBAL: SWBF2 0x007ae7d0
 static const unsigned int s_auiLowerBodyJoints[] = {
-    0x16e27226, 0xe6e47876, 0xc496176d, 0x87019234, 0x1af77461,
-    0x2a8eade7, 0xf6eff696, 0xb2f01cd3, 0x2f06fa86, 0x5a5be874,
+    0x16e27226 /* "bone_root" */, 0xe6e47876 /* "bone_pelvis" */, 0xc496176d /* "bone_l_thigh" */, 0x87019234 /* "bone_l_calf" */, 0x1af77461 /* "bone_l_foot" */,
+    0x2a8eade7 /* "bone_l_toe" */, 0xf6eff696 /* "bone_r_thigh" */, 0xb2f01cd3 /* "bone_r_calf" */, 0x2f06fa86 /* "bone_r_foot" */, 0x5a5be874 /* "bone_r_toe" */,
 };
 
 // FUNCTION: SWBF2 0x006436f0
@@ -414,10 +414,10 @@ void SoldierAnimatorClass::SetupJointTransformAnimationFlag(ZephyrSkeletonShared
         pSkel->SetJointTransformAnimationFlag(idx, false);
     }
 
-    idx = pSkel->GetJointIdxByCrc(0x7a89c91f);
+    idx = pSkel->GetJointIdxByCrc(0x7a89c91f /* "bone_r_finger3" */);
     if (idx < 0)
     {
-        idx = pSkel->GetJointIdxByCrc(0x93e93819);
+        idx = pSkel->GetJointIdxByCrc(0x93e93819 /* "bone_abdomen" */);
         if (idx < 0)
         {
             for (int t = 0; s_auiAnimatedJoints[t]; ++t)
@@ -450,7 +450,7 @@ void SoldierAnimatorClass::SetupBodyMasks(const ZephyrSkeletonShared* pSkel, Pbl
                                           PblBitVector<32>& lowerBodyMask)
 {
     const PblHashTable<unsigned int, 64>& kJoints = pSkel->m_kHashCRC2Joint;
-    int iForearmJoint = (int)kJoints.Find(0xb70e2184) - 1;
+    int iForearmJoint = (int)kJoints.Find(0xb70e2184 /* "bone_r_forarm3" */) - 1;
     upperBodyMask.SetAll();
     lowerBodyMask.ClearAll();
     upperBodyMask.m_auiData[0] &= ~1u;
@@ -677,7 +677,7 @@ static void SetupVelocity(SoldierAnimation* pAnim, ZephyrPoseDyn<32>& tempPose)
     if (SoldierAnimatorClass::Instance())
     {
         uiRoot = (unsigned short)((int)SoldierAnimatorClass::Instance()->GetDefaultSkeleton()->m_kHashCRC2Joint.Find(
-                                      0x4446e9b8) -
+                                      0x4446e9b8 /* "DummyRoot" */) -
                                   1);
     }
 
@@ -2399,16 +2399,16 @@ void SoldierAnimatorClass::_PostLoad()
     }
 
     mJetPackMatrix = *_GetBoneMatrix(
-        0xe5b51072, mMap[SoldierAnimationBank::HUMAN_RIFLE].mActionAnimation[SoldierAnimType::JET][SoldierAnimType::UPPER],
+        0xe5b51072 /* "bone_ribcage" */, mMap[SoldierAnimationBank::HUMAN_RIFLE].mActionAnimation[SoldierAnimType::JET][SoldierAnimType::UPPER],
         tempZephyrSkeleton, tempZephyrPoseDyn, tempZephyrPoseStatic);
 
     {
-        const unsigned int uiBoneHead = 0x8afdf5e4;
-        const unsigned int uiBoneTorso = 0xe5b51072;
-        const unsigned int uiBoneAbdomen = 0x8c1c9bba;
-        const unsigned int uiBoneASpine = 0x93e93819;
-        const unsigned int uiBoneAcklay = 0x7a89c91f;
-        const unsigned int uiBoneRoot = 0x16e27226;
+        const unsigned int uiBoneHead = 0x8afdf5e4 /* "bone_head" */;
+        const unsigned int uiBoneTorso = 0xe5b51072 /* "bone_ribcage" */;
+        const unsigned int uiBoneAbdomen = 0x8c1c9bba /* "bone_b_spine" */;
+        const unsigned int uiBoneASpine = 0x93e93819 /* "bone_abdomen" */;
+        const unsigned int uiBoneAcklay = 0x7a89c91f /* "bone_r_finger3" */;
+        const unsigned int uiBoneRoot = 0x16e27226 /* "bone_root" */;
         const int NUM_SAMPLES = 4;
 
         // GLOBAL: SWBF2 0x01fac234

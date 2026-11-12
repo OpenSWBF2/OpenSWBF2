@@ -25,11 +25,11 @@ bool SourceVariation::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 {
     switch (uiPropertyID)
     {
-    case 0x35119EB8u:
+    case 0x35119EB8u: /* "PitchDev" */
         chunk._pFile->Read8();
         mPitchDev = chunk._pFile->ReadFloat();
         return true;
-    case 0xF60B6465u:
+    case 0xF60B6465u: /* "GainDev" */
         chunk._pFile->Read8();
         mGainDev = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         return true;

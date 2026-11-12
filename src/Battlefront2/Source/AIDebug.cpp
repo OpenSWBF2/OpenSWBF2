@@ -1,5 +1,10 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 
+#include "Character.h"
+#include "CollisionManager.h"
+#include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/Common/PblMatrix.h"
+#include "PebbleFL/Common/PblRandom.h"
 #include "GameLoop.h"
 #include "NetGame.h"
 #include "PlayerProfile.h"
@@ -145,20 +150,43 @@ bool __cdecl IsCoverHintFilteringEnabled()
 namespace AIDebug
 {
 
+// FUNCTION: SWBF2 0x00438670
+bool AllowUpdateFreeCamSpeeds()
+{
+    return true;
+}
+
 // FUNCTION: SWBF2 0x00438680
 bool OnlyOneAI()
 {
     return false;
 }
 
+// FUNCTION: SWBF2 0x00438690
+bool PauseAfterPathFind()
+{
+    return false;
 }
 
-static const PblVector3 CYL_CENTER(-74.0f, 12.0f, 20.0f);
+// FUNCTION: SWBF2 0x004386a0
+bool SkipCameraForLODs()
+{
+    return false;
+}
+
+}
+
+// GLOBAL: SWBF2 0x007eb760
+// CYL_CENTER
+static PblVector3 CYL_CENTER(-74.0f, 12.0f, 20.0f);
 
 namespace AIDebug
 {
 namespace TestSpawn
 {
+
+// GLOBAL: SWBF2 0x01e2fd6c
+Character* aic[4];
 
 // SYNTHETIC: SWBF2 0x004021a0
 // AIDebug::TestSpawn::`dynamic initializer for 'mCamera''
@@ -176,5 +204,44 @@ RedCamera mCamera;
 // camDir
 PblVector3 camDir = CYL_CENTER;
 
+// FUNCTION: SWBF2 0x00438750
+PblMatrix GetTestSpawnMatrix(Character* pCharacter)
+{
+    if (!pCharacter->IsPlayer() &&
+        AIDebug::TestSpawn::aic[0] != pCharacter &&
+        AIDebug::TestSpawn::aic[1] != pCharacter &&
+        AIDebug::TestSpawn::aic[2] != pCharacter &&
+        AIDebug::TestSpawn::aic[3] != pCharacter)
+    {
+        PblMatrix mSpawn(gMatrixIdentity);
+        mSpawn.SetTranslation(PblVector3((float)Character::GetIndex(pCharacter) * 3.0f, 100.0f, 0.0f));
+        return mSpawn;
+    }
+
+    const float kHalfHeight = 25.0f;
+
+    const float fAngle = PblRandom::_Global.GetFloat() * 6.2831855f;
+    float fCos, fSin;
+    PblMath::SinCos(&fSin, &fCos, fAngle);
+    const float fRadius = PblRandom::_Global.GetFloat() * 32.0f;
+    const PblVector3 vStart = fRadius * PblVector3(fSin, 0.0f, fCos) + CYL_CENTER + PblVector3(0.0f, kHalfHeight, 0.0f);
+    const PblVector3 vDown = -PblVector3(0.0f, 1.0f, 0.0f);
+    CollisionObject* pHitObject = 0;
+    const float fHit = CollisionManager::RayHit(vStart, vDown, kHalfHeight * 2.0f,
+                                                 pHitObject, 0, 0, 0, 0, false);
+    const PblVector3 vPosition = vStart - PblVector3(0.0f, fHit * kHalfHeight * 2.0f, 0.0f);
+
+    return PblMatrix(PblVector3(-fCos, 0.0f, fSin),
+                     PblVector3(0.0f, 1.0f, 0.0f),
+                     PblVector3(-fSin, 0.0f, -fCos),
+                     vPosition);
+}
+
+}
+
+// FUNCTION: SWBF2 0x00438a10
+PblMatrix GetTestSpawnMatrix(Character* pCharacter)
+{
+    return AIDebug::TestSpawn::GetTestSpawnMatrix(pCharacter);
 }
 }

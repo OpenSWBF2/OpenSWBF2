@@ -98,6 +98,12 @@ inline void* RedShadingState::operator new(size_t uiSize)
     return sMemoryPool.Allocate(uiSize);
 }
 
+// FUNCTION: SWBF2 0x006fe950
+inline void RedShadingState::operator delete(void* pBlock)
+{
+    sMemoryPool.Free(pBlock);
+}
+
 inline RedShadingState::RedShadingState(unsigned int uiRenderTypeHash)
     : m_uiRenderTypeHash(uiRenderTypeHash), m_uiNumValues(0)
 {

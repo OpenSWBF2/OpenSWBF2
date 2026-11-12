@@ -18,6 +18,29 @@ struct ClothVertex
     TexCoord uv;
 };
 
+// FUNCTION: SWBF2 0x0040fe10
+void ClothData::PlatformBindInit(const EntityClothClass* pClass)
+{
+    ClothData* pData = (ClothData*)this;
+    if (pData->m_pShader)
+    {
+        pData->m_pShader->Release();
+    }
+
+    unsigned int uiMode = 1;
+    if (pClass->m_uiHardEdge)
+    {
+        uiMode = 3;
+    }
+    else if (pClass->m_uiTransparent)
+    {
+        uiMode = 5;
+    }
+
+    pData->m_pShader = pcRedShader::Create(kuiNormalShader, 0x222, &pData->m_uiTextureNameHash, 1, uiMode,
+                                           RedColor::WHITE, RedColor::BLACK, 32.0f);
+}
+
 // FUNCTION: SWBF2 0x0040feb0
 void ClothData::PlatformCleanup()
 {
@@ -37,11 +60,11 @@ void EntityCloth::PlatformRender(unsigned char ucViewport, RedColor color, unsig
         RedRenderer::SetLightingState(*pLightingState);
     }
 
-    const unsigned int uiNumVertices = mData->m_uiNumParticles * 2;
+    const unsigned int uiNumParticles = mData->m_uiNumParticles;
     const unsigned int uiNumIndices = mData->m_uiNumTriangles * 3 * 2;
     pcRedPrimitive* pPrimitive =
         pcRedPrimitive::Create(D3DPT_TRIANGLELIST, 0x222, sizeof(ClothVertex),
-                               (unsigned short)uiNumVertices,
+                               (unsigned short)(uiNumParticles * 2),
                                (unsigned short)uiNumIndices, false);
 
     ClothVertex* pVertices = (ClothVertex*)pPrimitive->BeginVertexData();

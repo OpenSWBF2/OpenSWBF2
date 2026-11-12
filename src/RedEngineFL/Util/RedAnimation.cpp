@@ -49,13 +49,13 @@ void RedAnimation::_ReadEvents(PblMemChunk& chunk)
     }
 
     _pEventBank = new ZephyrEventBank;
-    _pEventBank->Init(static_cast<short>(iNumAnims));
+    _pEventBank->Init((short)iNumAnims);
     char name[100];
     for (int i = 0; i < iNumAnims; ++i)
     {
         chunk.ReadString(name, sizeof(name));
         unsigned int uiAnimHash = PblHash(name);
-        short iNumEvents = static_cast<short>(chunk.Read32());
+        short iNumEvents = (short)chunk.Read32();
         const ZephyrAnim* pAnim = _pZephyrAnimBank->Find(uiAnimHash);
         int iNumFrames = pAnim->GetNumFrames();
         ZephyrEventList* pEvents = _pEventBank->New(uiAnimHash);
@@ -64,8 +64,8 @@ void RedAnimation::_ReadEvents(PblMemChunk& chunk)
         {
             int iFrame = chunk.Read32();
             chunk.ReadString(name, sizeof(name));
-            pEvents->AddEvent(static_cast<float>(iFrame) /
-                                  static_cast<float>(iNumFrames), PblHash(name));
+            pEvents->AddEvent((float)iFrame /
+                                  (float)iNumFrames, PblHash(name));
         }
     }
 }
@@ -99,7 +99,7 @@ void RedAnimation::ReadZaa(PblMemChunk& kChunk)
         PblMemChunk kChild = kChunk.ReadNextChild();
         switch (kChild.GetId())
         {
-        case 0x454D414E:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
         {
             char szName[48];
             kChild.ReadString(szName, 48);
@@ -113,10 +113,10 @@ void RedAnimation::ReadZaa(PblMemChunk& kChunk)
             }
             break;
         }
-        case 0x544E5645:
+        case CHUNK_ID('E', 'V', 'N', 'T'):
             pAnim->_ReadEvents(kChild);
             break;
-        case 0x5F4E4942:
+        case CHUNK_ID('B', 'I', 'N', '_'):
             pAnim->_ReadZaa(kChild);
             break;
         }
@@ -132,7 +132,7 @@ void RedAnimation::ReadZaf(PblMemChunk& kChunk)
         PblMemChunk kChild = kChunk.ReadNextChild();
         switch (kChild.GetId())
         {
-        case 0x454D414E:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
         {
             char szName[48];
             kChild.ReadString(szName, 48);
@@ -146,7 +146,7 @@ void RedAnimation::ReadZaf(PblMemChunk& kChunk)
             }
             break;
         }
-        case 0x5F4E4942:
+        case CHUNK_ID('B', 'I', 'N', '_'):
             pAnim->_ReadZaf(kChild);
             break;
         }

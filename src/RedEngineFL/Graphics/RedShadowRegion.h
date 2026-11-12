@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include "PebbleFL/Common/PblList.h"
 #include "RedEngineFL/Util/RedRegion.h"
-#include "RedAmbientLight.h"
+#include "RedLight.h"
 
 // VTABLE: SWBF2 0x00772d4c
 class RedShadowRegionFactory : public RedRegionFactory

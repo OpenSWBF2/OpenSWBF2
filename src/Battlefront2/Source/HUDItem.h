@@ -23,6 +23,8 @@ namespace HUD
 class File : public PblFile
 {
 public:
+    // SYNTHETIC: SWBF2 0x00565d20
+    // HUD::File::~File
 
     void WriteTabs(unsigned int uTabs);
 

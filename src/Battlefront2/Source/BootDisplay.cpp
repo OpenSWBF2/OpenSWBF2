@@ -45,8 +45,6 @@
 #include "StatIconDisplay.h"
 #include "Tracker.h"
 #include "VehicleSpawn.h"
-#include "Battlefront2/Platform/Pc/pcGrassPatch.h"
-#include "Battlefront2/Platform/Pc/pcLeafPatch.h"
 #include "RedEngineFL/Application/pc/pcRedShadowProxy.h"
 #include "RedEngineFL/Application/RedTerrain.h"
 #include "RedEngineFL/Graphics/PC/pcRedShader.h"
@@ -234,12 +232,12 @@ const unsigned short* BootDisplay::GetBootReasonString(int iReason)
     const unsigned short* pcReason = NULL;
     switch (iReason)
     {
-    case 0: pcReason = RedLocalizeDB::Find(0x649f6f47u, false); break;
-    case 1: pcReason = RedLocalizeDB::Find(0x79f094d6u, false); break;
-    case 2: pcReason = RedLocalizeDB::Find(0x2e3928adu, false); break;
-    case 3: pcReason = RedLocalizeDB::Find(0xf10330b9u, false); break;
-    case 4: pcReason = RedLocalizeDB::Find(0xd1cbb520u, false); break;
-    case 5: pcReason = RedLocalizeDB::Find(0x145b8b50u, false); break;
+    case 0: pcReason = RedLocalizeDB::Find(0x649f6f47u /* "ifs.mp.vote.teamkill" */, false); break;
+    case 1: pcReason = RedLocalizeDB::Find(0x79f094d6u /* "ifs.mp.vote.lag" */, false); break;
+    case 2: pcReason = RedLocalizeDB::Find(0x2e3928adu /* "ifs.mp.vote.cheat" */, false); break;
+    case 3: pcReason = RedLocalizeDB::Find(0xf10330b9u /* "ifs.mp.vote.haras" */, false); break;
+    case 4: pcReason = RedLocalizeDB::Find(0xd1cbb520u /* "ifs.mp.vote.inactivity" */, false); break;
+    case 5: pcReason = RedLocalizeDB::Find(0x145b8b50u /* "ifs.mp.vote.voice" */, false); break;
     }
     return pcReason;
 }
@@ -322,7 +320,7 @@ bool BootDisplay::Update(float fDeltaTime)
 
     unsigned short text[256];
     unsigned short name[64];
-    const unsigned short* pFormat = RedLocalizeDB::Find(0x719fdb6fu, false);
+    const unsigned short* pFormat = RedLocalizeDB::Find(0x719fdb6fu /* "game.infomsg.bootplayer" */, false);
     PblUnicode::ustrncnv(name, (const unsigned char*)NetGame::GetPlayerName(iBootPlayer), 64);
     int iSeconds = (int)fTimeLeft;
     PblUnicode::usnprintf(text, 256, pFormat, name, NetGame::GetBootVotes(), iSeconds);
@@ -332,12 +330,12 @@ bool BootDisplay::Update(float fDeltaTime)
     iNeeded -= NetGame::GetBootVotes();
 
     const unsigned short* pReason = GetBootReasonString(NetGame::GetBootReason());
-    const unsigned short* pReasonFormat = RedLocalizeDB::Find(0xd9a2b95au, false);
+    const unsigned short* pReasonFormat = RedLocalizeDB::Find(0xd9a2b95au /* "ifs.mp.vote.bootmsg1" */, false);
     PblUnicode::usnprintf(text, 256, pReasonFormat, name, pReason);
     pText0->SetText(text, true);
     pText0->Enable(true);
 
-    const unsigned short* pTimeFormat = RedLocalizeDB::Find(0xd8a2b7c7u, false);
+    const unsigned short* pTimeFormat = RedLocalizeDB::Find(0xd8a2b7c7u /* "ifs.mp.vote.bootmsg2" */, false);
     PblUnicode::usnprintf(text, 256, pTimeFormat, iSeconds, iNeeded);
     pText1->SetText(text, true);
     pText1->Enable(true);
@@ -357,7 +355,7 @@ bool BootDisplay::Update(float fDeltaTime)
         return true;
     }
 
-    PblUnicode::usnprintf(text, 256, RedLocalizeDB::Find(0xd7a2b634u, false));
+    PblUnicode::usnprintf(text, 256, RedLocalizeDB::Find(0xd7a2b634u /* "ifs.mp.vote.bootmsg3" */, false));
     pText2->SetText(text, true);
     pText2->Enable(true);
 

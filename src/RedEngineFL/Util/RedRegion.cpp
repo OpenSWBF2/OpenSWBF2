@@ -46,16 +46,16 @@ RedRegion::RedRegion(RedRegionDesc& desc)
 {
     switch (desc.mTypeId)
     {
-    case 0xAFD98518u:
+    case 0xAFD98518u: /* "Sphere" */
         desc.mType = type_sphere;
         break;
-    case 0x70C67E32u:
+    case 0x70C67E32u: /* "box" */
         desc.mType = type_box;
         break;
-    case 0xAD1EBFEFu:
+    case 0xAD1EBFEFu: /* "Cylinder" */
         desc.mType = type_cylinder;
         break;
-    case 0xCCCB0055u:
+    case 0xCCCB0055u: /* "Plane" */
         desc.mType = type_plane;
         break;
     }

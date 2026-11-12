@@ -18,6 +18,18 @@ public:
 
         static FreeList& GetFreeList() { return smFreeList; }
 
+        static void* operator new(unsigned int uiSize)
+        {
+            return GetFreeList().Alloc();
+        }
+
+        Node(void* pObject) : mObject(pObject) {}
+
+        Node(PblListSingle& rList, void* pObject) : mObject(pObject)
+        {
+            rList.Add(&mNode);
+        }
+
         static void operator delete(void* p)
         {
             GetFreeList().Free(p);
@@ -58,23 +70,12 @@ public:
     // FUNCTION: SWBF2 0x0052c740
     void Add(void* pObject)
     {
-        Node* const pNode = (Node*)Node::smFreeList.Alloc();
-        if (pNode)
-        {
-            pNode->mNode.mNext = 0;
-            pNode->mObject = pObject;
-            AddLast(&pNode->mNode);
-        }
+        new Node(*this, pObject);
     }
 
     void AddBefore(Node* pBefore, void* pObject)
     {
-        Node* pNode = (Node*)Node::smFreeList.Alloc();
-        if (pNode)
-        {
-            pNode->mNode.mNext = 0;
-            pNode->mObject = pObject;
-        }
+        Node* pNode = new Node(pObject);
         PblListSingle::Node* pPrev = &pBefore->mNode;
         while (pPrev->mNext != &pBefore->mNode)
         {
@@ -115,7 +116,7 @@ public:
 
     Node* GetFirst() const
     {
-        return static_cast<Node*>(PblListSingle::GetFirst()->GetObjectA(this, offsetof(Node, mNode)));
+        return (Node*)PblListSingle::GetFirst()->GetObjectA(this, offsetof(Node, mNode));
     }
     Node* FindByIndex(unsigned int uiIndex) const
     {
@@ -124,7 +125,7 @@ public:
         {
             ++itor;
         }
-        return static_cast<Node*>(itor.GetNode()->mNode.GetObjectA(this, offsetof(Node, mNode)));
+        return (Node*)itor.GetNode()->mNode.GetObjectA(this, offsetof(Node, mNode));
     }
     unsigned int GetCount() const;
 };

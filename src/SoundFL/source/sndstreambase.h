@@ -28,7 +28,7 @@ public:
     {
     public:
         ~InfoItor() {}
-        Info* GetInfo() { return static_cast<Info*>(GetObjectA(mList)); }
+        Info* GetInfo() { return (Info*)GetObjectA(mList); }
         InfoItor& operator++()
         {
             ObjectList::Itor::operator++();
@@ -69,12 +69,12 @@ public:
     // FUNCTION: SWBF2 0x00538770
     void Stop()
     {
-        SourceBus::Stop(static_cast<SourceTransport*>(this));
+        SourceBus::Stop((SourceTransport*)this);
         SourceTransport::Stop();
     }
 
     // FUNCTION: SWBF2 0x0059b440
-    void SetGain(float fGain) { SourceBus::SetGain(static_cast<Source2D3D*>(this), fGain); }
+    void SetGain(float fGain) { SourceBus::SetGain((Source2D3D*)this, fGain); }
     Segment* FindSegment(unsigned int uiSegmentID) const;
     void SeekSegment(const Segment* pSegment);
 
@@ -195,7 +195,7 @@ public:
 inline StreamBase::Info* StreamBase::FindInfoByIndex(unsigned int uiIndex) const
 {
     return !mInfoList.IsEmpty()
-        ? static_cast<Info*>(mInfoList.FindByIndex(uiIndex)->GetObjectA()) : 0;
+        ? (Info*)mInfoList.FindByIndex(uiIndex)->GetObjectA() : 0;
 }
 
 // FUNCTION: SWBF2 0x0059b4e0

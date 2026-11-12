@@ -36,7 +36,7 @@ I3DL2ReverbPreset* __cdecl I3DL2ReverbPreset::Find(unsigned int uiHashID)
     for (PblListSingle::Node* pNode = smList.mHead.mNext; pNode != &smList.mHead;
          pNode = pNode->mNext)
     {
-        I3DL2ReverbPreset* const pPreset = static_cast<I3DL2ReverbPreset*>(pNode->GetObjectA(&smList, offsetof(I3DL2ReverbPreset, mNode)));
+        I3DL2ReverbPreset* const pPreset = (I3DL2ReverbPreset*)pNode->GetObjectA(&smList, offsetof(I3DL2ReverbPreset, mNode));
         if (uiHashID == pPreset->mHashID)
         {
             return pPreset;
@@ -52,7 +52,7 @@ void I3DL2ReverbPreset::Read(PblFileChunk& chunk)
     {
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uiID = child._pFile->Read32();
-        if (uiID != 0x8D39BDE6u)
+        if (uiID != 0x8D39BDE6u /* "name" */)
         {
             I3DL2Reverb::Read(child, uiID);
         }

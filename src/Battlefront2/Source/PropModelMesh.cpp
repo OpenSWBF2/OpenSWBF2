@@ -28,28 +28,15 @@
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
-namespace GameLoop
-{
-    // GLOBAL: SWBF2 0x01e56054
-    extern float sDeltaTime;
-}
+#include "GameLoop.h"
+
+
+    
+
 
 namespace FLRenderer
 {
 float GetNearSceneFadeEnd();
-}
-
-extern bool flushClusterObjs_;
-
-namespace PropGenerator
-{
-    void FlushClusterObjects();
-}
-
-// FUNCTION: SWBF2 0x0062b100
-void PropGenerator::FlushClusterObjects()
-{
-    flushClusterObjs_ = true;
 }
 
 namespace PropGenerator
@@ -443,7 +430,7 @@ void PropObjectMesh::Render(const RedCamera* pCamera, float fDist, unsigned int 
     }
     else
     {
-        mElapsedTime += GameLoop::sDeltaTime;
+        mElapsedTime += GameLoop::GetDeltaTime();
     }
 }
 
@@ -540,7 +527,7 @@ void PropModelMesh::Read(PblFileChunk& chunk)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x41544144)
+        if (child._iId != CHUNK_ID('D', 'A', 'T', 'A'))
         {
             continue;
         }
@@ -550,7 +537,7 @@ void PropModelMesh::Read(PblFileChunk& chunk)
 
         switch (uiHash)
         {
-        case 0x6a6fb399:
+        case 0x6a6fb399: /* "LeafPatch" */
         {
             mHash = child._pFile->Read32();
             const float fDist = (iVersion > 1) ? child._pFile->ReadFloat() : 1000.0f;
@@ -563,7 +550,7 @@ void PropModelMesh::Read(PblFileChunk& chunk)
             break;
         }
 
-        case 0x156b70a1:
+        case 0x156b70a1: /* "GrassPatch" */
         {
             mHash = child._pFile->Read32();
             const float fDist = (iVersion > 1) ? child._pFile->ReadFloat() : 1000.0f;
@@ -576,7 +563,7 @@ void PropModelMesh::Read(PblFileChunk& chunk)
             break;
         }
 
-        case 0xaaea5743:
+        case 0xaaea5743: /* "File" */
             uiFileHash = child._pFile->Read32();
             if (mHash)
             {
@@ -596,7 +583,7 @@ void PropModelMesh::Read(PblFileChunk& chunk)
             }
             break;
 
-        case 0x0e0d9594:
+        case 0x0e0d9594: /* "Sound" */
             mSound.SetID(child._pFile->Read32(), false, false);
             if (iVersion == 3)
             {
@@ -610,24 +597,24 @@ void PropModelMesh::Read(PblFileChunk& chunk)
             }
             break;
 
-        case 0xc28f0c96:
+        case 0xc28f0c96: /* "CollisionSound" */
             mSoundCollision.SetID(child._pFile->Read32(), false, false);
             break;
 
-        case 0x08be1de3:
+        case 0x08be1de3: /* "FadeDist" */
             mGeometryMinDist = child._pFile->ReadFloat();
             break;
 
-        case 0x13fc0734:
+        case 0x13fc0734: /* "AIVisibilityFactor" */
             mAIVisFactorCrouch = child._pFile->ReadFloat();
             mAIVisFactorStand = child._pFile->ReadFloat();
             break;
 
-        case 0x26edc40c:
+        case 0x26edc40c: /* "UseCollision" */
             bUseCollision = true;
             break;
 
-        case 0x827eb1c9:
+        case 0x827eb1c9: /* "Lighting" */
         {
             char acLighting[256] = { 0 };
             child.ReadString(acLighting, 256);
@@ -646,11 +633,11 @@ void PropModelMesh::Read(PblFileChunk& chunk)
             break;
         }
 
-        case 0x82971c71:
+        case 0x82971c71: /* "Scale" */
             mScale = child._pFile->ReadFloat();
             break;
 
-        case 0xbbce475d:
+        case 0xbbce475d: /* "ColorVariation" */
             mColorVariation = child._pFile->ReadFloat();
             break;
 
@@ -694,14 +681,14 @@ PropObject* PropModelMesh::CreateObject(float x, float z, float rotation)
     {
         if (mType == PMM_GRASS)
         {
-            mRenderObj.mGrassClass = static_cast<GrassPatchClass*>(EntityClass::Find(mHash));
+            mRenderObj.mGrassClass = (GrassPatchClass*)EntityClass::Find(mHash);
             mRenderObj.mGrassClass->Init();
             mMaxDist = mRenderObj.mGrassClass->mBoundingRadius * mScale + mGeometryMaxDist * 1.45f;
             mYOffset = 0.0f;
         }
         else if (mType == PMM_LEAF)
         {
-            mRenderObj.mLeafClass = static_cast<LeafPatchClass*>(EntityClass::Find(mHash));
+            mRenderObj.mLeafClass = (LeafPatchClass*)EntityClass::Find(mHash);
             mRenderObj.mLeafClass->Init();
             mMaxDist = mRenderObj.mLeafClass->mBoundingRadius * mScale + mGeometryMaxDist * 1.45f;
             mYOffset = 0.0f;
@@ -722,113 +709,64 @@ PropObject* PropModelMesh::CreateObject(float x, float z, float rotation)
 // FUNCTION: SWBF2 0x0062d330
 void PropModelMesh::SetupMatrix(PblMatrix& matrix, float rotation)
 {
-    const PblVector3 vOrigin = matrix.GetTranslation();
-    const float x = vOrigin.x;
-    const float z = vOrigin.z;
     PblVector3 vNormal(0.0f, 1.0f, 0.0f);
+    PblVector3 vOrigin = matrix.GetTranslation();
     float y;
 
     if (mType == PMM_MESH)
     {
-        PropGenerator::GetTerrainYAndNormal(x, z, y, vNormal);
+        PropGenerator::GetTerrainYAndNormal(vOrigin.x, vOrigin.z, y, vNormal);
+        vOrigin.SetY(y);
     }
     else
     {
-        float y0 = 0.0f;
-        float y1 = 0.0f;
-        float y2 = 0.0f;
-        const PblVector3 v0(x, 0.0f, z + 4.0f);
-        PropGenerator::GetTerrainY(v0.x, v0.z, y0);
-        const PblVector3 v1(x - 3.0f, 0.0f, z - 3.0f);
-        PropGenerator::GetTerrainY(v1.x, v1.z, y1);
-        const PblVector3 v2(x + 3.0f, 0.0f, z - 3.0f);
-        PropGenerator::GetTerrainY(v2.x, v2.z, y2);
+        float leftHeight = 0.0f;
+        float rightHeight = 0.0f;
+        float topHeight = 0.0f;
 
-        y = (y1 + y0 + y2) / 3.0f;
+        PropGenerator::GetTerrainY(vOrigin.x, vOrigin.z + 4.0f, topHeight);
+        PropGenerator::GetTerrainY(vOrigin.x - 3.0f, vOrigin.z - 3.0f, leftHeight);
+        PropGenerator::GetTerrainY(vOrigin.x + 3.0f, vOrigin.z - 3.0f, rightHeight);
 
-        const float ax = x - x;
-        const float ay = y0 - (y2 + y1) * 0.5f;
-        const float az = v0.z - v1.z;
-        const float bx = v2.x - v1.x;
-        const float by = y2 - y1;
-        const float bz = v1.z - v1.z;
-        const PblVector3 vCross(bz * ay - by * az, az * bx - bz * ax, by * ax - ay * bx);
-        PblVector3 vUnit;
-        D3DXVec3Normalize((D3DXVECTOR3*)&vUnit, (const D3DXVECTOR3*)&vCross);
-        vNormal = vUnit;
+        vOrigin.y = (leftHeight + topHeight + rightHeight) / 3.0f;
+        const PblVector3 up = PblVector3(vOrigin.x, topHeight, vOrigin.z + 4.0f) -
+                              PblVector3(vOrigin.x, (rightHeight + leftHeight) * 0.5f, vOrigin.z - 3.0f);
+        const PblVector3 right = PblVector3(vOrigin.x + 3.0f, rightHeight, vOrigin.z - 3.0f) -
+                                 PblVector3(vOrigin.x - 3.0f, leftHeight, vOrigin.z - 3.0f);
+        vNormal = Normalize(CrossProduct(up, right));
     }
 
-    matrix.SetTranslation(PblVector3(x, y, z));
+    matrix.SetTranslation(vOrigin);
 
     const float fStiffness = mStiffness;
     if (fStiffness > 0.0f)
     {
-        const float fFlex = 1.0f - fStiffness;
-        vNormal = PblVector3(fFlex * vNormal.x + fStiffness * 0.0f, vNormal.y * fFlex + fStiffness,
-                             vNormal.z * fFlex + fStiffness * 0.0f);
+        vNormal = vNormal * (1.0f - fStiffness) + PblVector3(0.0f, 1.0f, 0.0f) * fStiffness;
     }
 
     const float fScale = mScale;
     if (mType == PMM_MESH)
     {
-        const PblVector3 vPos(x - mYOffset * vNormal.x, y - vNormal.y * mYOffset,
-                              z - vNormal.z * mYOffset);
+        const PblVector3 vPos = vOrigin - vNormal * mYOffset;
         PblVector3 vDir;
         vDir.x = PblMath::Sin(rotation);
         vDir.y = 0.0f;
         vDir.z = -PblMath::Cos(rotation);
 
-        PblMatrix scale;
-        scale.m[0][0] = fScale;
-        scale.m[0][1] = 0.0f;
-        scale.m[0][2] = 0.0f;
-        scale.m[0][3] = 0.0f;
-        scale.m[1][0] = 0.0f;
-        scale.m[1][1] = fScale;
-        scale.m[1][2] = 0.0f;
-        scale.m[1][3] = 0.0f;
-        scale.m[2][0] = 0.0f;
-        scale.m[2][1] = 0.0f;
-        scale.m[2][2] = fScale;
-        scale.m[2][3] = 0.0f;
-        scale.m[3][0] = 0.0f;
-        scale.m[3][1] = 0.0f;
-        scale.m[3][2] = 0.0f;
-        scale.m[3][3] = 1.0f;
-
-        const PblMatrix frame = NormalMatrix(vDir, vNormal, vPos);
-        PblMatrix result;
-        result = scale * frame;
-        matrix = result;
-        return;
+        const PblMatrix scale(PblVector4(fScale, 0.0f, 0.0f, 0.0f),
+                              PblVector4(0.0f, fScale, 0.0f, 0.0f),
+                              PblVector4(0.0f, 0.0f, fScale, 0.0f),
+                              PblVector4(0.0f, 0.0f, 0.0f, 1.0f));
+        matrix = scale * NormalMatrix(vDir, vNormal, vPos);
     }
-
-    matrix = gMatrixIdentity;
-    matrix[1] = vNormal;
-    matrix.m[1][3] = 0.0f;
-
-    PblVector3 vOut;
-    const float bx = -matrix.m[2][0];
-    const float by = -matrix.m[2][1];
-    const float bz = -matrix.m[2][2];
-    PblVector3 vIn(matrix.m[1][2] * by - matrix.m[1][1] * bz,
-                   matrix.m[1][0] * bz - matrix.m[1][2] * bx,
-                   matrix.m[1][1] * bx - matrix.m[1][0] * by);
-    D3DXVec3Normalize((D3DXVECTOR3*)&vOut, (const D3DXVECTOR3*)&vIn);
-    matrix[0] = vOut;
-    matrix.m[0][3] = 0.0f;
-
-    vIn = PblVector3(matrix.m[0][1] * matrix.m[1][2] - matrix.m[0][2] * matrix.m[1][1],
-                     matrix.m[0][2] * matrix.m[1][0] - matrix.m[0][0] * matrix.m[1][2],
-                     matrix.m[0][0] * matrix.m[1][1] - matrix.m[0][1] * matrix.m[1][0]);
-    D3DXVec3Normalize((D3DXVECTOR3*)&vOut, (const D3DXVECTOR3*)&vIn);
-    matrix[2] = vOut;
-    matrix.m[2][3] = 0.0f;
-
-    matrix.m[3][0] = x - mYOffset * vNormal.x;
-    matrix.m[3][1] = y - vNormal.y * mYOffset;
-    matrix.m[3][2] = z - mYOffset * vNormal.z;
-    matrix.m[3][3] = 1.0f;
+    else
+    {
+        matrix = gMatrixIdentity;
+        matrix.SetYAxis(vNormal);
+        matrix.SetXAxis(Normalize(CrossProduct(-matrix.GetZAxis(), matrix.GetYAxis())));
+        matrix.SetZAxis(Normalize(CrossProduct(matrix.GetXAxis(), matrix.GetYAxis())));
+        matrix.SetTranslation(vOrigin - vNormal * mYOffset);
+    }
 }
 
 // FUNCTION: SWBF2 0x0062d900

@@ -39,7 +39,7 @@ Sphere::Sphere(const BasePoly3D& rPoly)
 Sphere::Sphere(const ExtrudedPoly3D& rPoly)
 {
     center_ = Vector3<float>(0, 0, 0);
-    for (int i = 0; i < rPoly.points_._numElements; ++i)
+    for (int i = 0; i < rPoly.points_.GetSize(); ++i)
     {
         const Vector2<float>& rPt = rPoly.points_[i];
         Vector3<float> top = Convert_(Vector3<float>(rPt.x, rPt.y, rPoly.max_),
@@ -48,9 +48,9 @@ Sphere::Sphere(const ExtrudedPoly3D& rPoly)
                                       rPoly.xaxis_, rPoly.yaxis_, rPoly.zaxis_);
         center_ += top + bot;
     }
-    center_ *= 0.5f / (float)rPoly.points_._numElements;
+    center_ *= 0.5f / (float)rPoly.points_.GetSize();
 
-    for (int i = 0; i < rPoly.points_._numElements; ++i)
+    for (int i = 0; i < rPoly.points_.GetSize(); ++i)
     {
         const Vector2<float>& rPt = rPoly.points_[i];
         Vector3<float> top = Convert_(Vector3<float>(rPt.x, rPt.y, rPoly.max_),
@@ -79,6 +79,14 @@ Plane::Plane(const BasePoly3D& rPoly)
         dir_ = normalize(cross(rPoly.points_[0] - rPoly.points_[1], rPoly.points_[2] - rPoly.points_[1]));
         dist_ = -dot(rPoly.points_[0], dir_);
     }
+}
+
+// FUNCTION: SWBF2 0x00722e20
+float Box::Volume()
+{
+    Vector3<float> size = max_ - min_;
+    float fArea = Max_(size.x, 0.0f) * Max_(size.y, 0.0f);
+    return fArea * Max_(size.z, 0.0f);
 }
 
 // FUNCTION: SWBF2 0x00722cf0

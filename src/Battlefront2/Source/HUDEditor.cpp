@@ -141,104 +141,6 @@ void HUD::Editor::Enable(bool bEnable)
     }
 }
 
-inline const RedModel* RedModel::GetFirst()
-{
-    return PblHashTable<RedModel, 1024>::Itor(_HashTable);
-}
-
-// FUNCTION: SWBF2 0x00544950
-const RedModel* RedModel::GetLast()
-{
-    const RedModel* pLast = 0;
-    for (PblHashTable<RedModel, 1024>::Itor it(_HashTable); (RedModel*)it; ++it)
-    {
-        pLast = it;
-    }
-    return pLast;
-}
-
-// FUNCTION: SWBF2 0x005449c0
-const RedModel* RedModel::GetNext(const RedModel* const pModel)
-{
-    bool bFound = false;
-    PblHashTable<RedModel, 1024>::Itor it(_HashTable);
-    while ((RedModel*)it && !bFound)
-    {
-        bFound = (pModel == it);
-        ++it;
-    }
-    const RedModel* pNext = it;
-    if (!pNext)
-    {
-        pNext = PblHashTable<RedModel, 1024>::Itor(_HashTable);
-    }
-    return pNext;
-}
-
-// FUNCTION: SWBF2 0x00544a60
-const RedModel* RedModel::GetPrev(const RedModel* const pModel)
-{
-    const RedModel* pPrev = pModel;
-    for (PblHashTable<RedModel, 1024>::Itor it(_HashTable); (RedModel*)it; ++it)
-    {
-        if (pModel == it)
-        {
-            break;
-        }
-        pPrev = it;
-    }
-    return pPrev;
-}
-
-inline const RedTexture* RedTexture::GetFirst()
-{
-    return PblHashTable<RedTexture, 4096>::Itor(s_textureHashTable);
-}
-
-// FUNCTION: SWBF2 0x00544ae0
-const RedTexture* RedTexture::GetLast()
-{
-    const RedTexture* pLast = 0;
-    for (PblHashTable<RedTexture, 4096>::Itor it(s_textureHashTable); (RedTexture*)it; ++it)
-    {
-        pLast = it;
-    }
-    return pLast;
-}
-
-// FUNCTION: SWBF2 0x00544b50
-const RedTexture* RedTexture::GetNext(const RedTexture* const pTexture)
-{
-    bool bFound = false;
-    PblHashTable<RedTexture, 4096>::Itor it(s_textureHashTable);
-    while ((RedTexture*)it && !bFound)
-    {
-        bFound = (pTexture == it);
-        ++it;
-    }
-    const RedTexture* pNext = it;
-    if (!pNext)
-    {
-        pNext = PblHashTable<RedTexture, 4096>::Itor(s_textureHashTable);
-    }
-    return pNext;
-}
-
-// FUNCTION: SWBF2 0x00544bf0
-const RedTexture* RedTexture::GetPrev(const RedTexture* const pTexture)
-{
-    const RedTexture* pPrev = pTexture;
-    for (PblHashTable<RedTexture, 4096>::Itor it(s_textureHashTable); (RedTexture*)it; ++it)
-    {
-        if (pTexture == it)
-        {
-            break;
-        }
-        pPrev = it;
-    }
-    return pPrev;
-}
-
 // FUNCTION: SWBF2 0x00545020
 void HUD::Editor::Update(RawControllerInputs* const pInputs, float fDelta)
 {
@@ -675,8 +577,24 @@ void HUD::Editor::Update(RawControllerInputs* const pInputs, float fDelta)
             }
             if (GetControlValue(pInputs, control_LRight, true))
             {
-                mValue.modelValue = (RedModel*)(mValue.modelValue ? RedModel::GetNext(mValue.modelValue)
-                                                                  : RedModel::GetFirst());
+                if (mValue.modelValue)
+                {
+                    mValue.modelValue = (RedModel*)RedModel::GetNext(mValue.modelValue);
+                }
+                else
+                {
+                    const unsigned int* pTable = (const unsigned int*)&RedModel::_HashTable + 1;
+                    unsigned int uiPos = 0;
+                    do
+                    {
+                        if (pTable[uiPos])
+                        {
+                            break;
+                        }
+                        ++uiPos;
+                    } while (uiPos < 1024);
+                    mValue.modelValue = (RedModel*)pTable[1024 + uiPos];
+                }
                 bChanged = mValue.modelValue != 0;
             }
             break;
@@ -691,9 +609,24 @@ void HUD::Editor::Update(RawControllerInputs* const pInputs, float fDelta)
             }
             if (GetControlValue(pInputs, control_LRight, true))
             {
-                mValue.textureValue =
-                    (RedTexture*)(mValue.textureValue ? RedTexture::GetNext(mValue.textureValue)
-                                                      : RedTexture::GetFirst());
+                if (mValue.textureValue)
+                {
+                    mValue.textureValue = (RedTexture*)RedTexture::GetNext(mValue.textureValue);
+                }
+                else
+                {
+                    const unsigned int* pTable = (const unsigned int*)&RedTexture::s_textureHashTable + 1;
+                    unsigned int uiPos = 0;
+                    do
+                    {
+                        if (pTable[uiPos])
+                        {
+                            break;
+                        }
+                        ++uiPos;
+                    } while (uiPos < 4096);
+                    mValue.textureValue = (RedTexture*)pTable[4096 + uiPos];
+                }
                 bChanged = mValue.textureValue != 0;
             }
             break;

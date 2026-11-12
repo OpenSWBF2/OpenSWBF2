@@ -14,6 +14,8 @@ const TYPE& Max_(const TYPE& a, const TYPE& b)
 // TEMPLATE: SWBF2 0x0053c010
 // util::Min_<int>
 
+// TEMPLATE: SWBF2 0x0045caf0
+// util::Min_<float>
 template <class TYPE>
 const TYPE& Min_(const TYPE& a, const TYPE& b)
 {

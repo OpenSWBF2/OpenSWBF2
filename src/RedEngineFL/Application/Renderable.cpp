@@ -11,12 +11,12 @@
 // ??_EPrecipitationEffect@@WCE@AEPAXI@Z
 
 // FUNCTION: SWBF2 0x006c3c60
-Renderable::Renderable(int iPhase) : _ePhase(iPhase)
+Renderable::Renderable(RENDERABLE_PHASE ePhase) : _ePhase(ePhase)
 {
 }
 
 // FUNCTION: SWBF2 0x006c3ca0
-Renderable::Renderable() : _ePhase(3)
+Renderable::Renderable() : _ePhase(RENDERABLE_POSTWORLD)
 {
 }
 

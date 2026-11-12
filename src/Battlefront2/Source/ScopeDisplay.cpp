@@ -12,14 +12,6 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 
-class Weapon : public Thread
-{
-public:
-    bool ZoomFirstPerson() const;
-
-    char mWeaponState[0x64 - sizeof(Thread)];
-    WeaponClass* mClass;
-};
  
 
 namespace FLRenderer
@@ -218,7 +210,7 @@ bool ScopeDisplay::Update(float fDeltaTime)
     }
 
     bool bChaseMode = CameraManager::sInstance->IsChaseMode(mJoystickIndex);
-    Damageable* pDamageable = static_cast<Damageable*>(pControllable->GetGameObject());
+    Damageable* pDamageable = (Damageable*)pControllable->GetGameObject();
     bool bAiming = pControllable->mTargetInfo.mIsAiming & pDamageable->mIsAlive & bChaseMode;
 
     Weapon* pWeapon = pControllable->GetWeaponPtr(pControllable->GetWeaponIndex(0));
@@ -274,7 +266,7 @@ bool ScopeDisplay::Update(float fDeltaTime)
 
         unsigned int uTexture = RedTexture::Find(pWeapon->mClass->mScopeTexture)
                                     ? pWeapon->mClass->mScopeTexture
-                                    : 0xF6BCFA8E;
+                                    : 0xF6BCFA8E /* "weapon_scope" */;
         if (mScopeTexture != uTexture)
         {
             mScopeTexture = uTexture;

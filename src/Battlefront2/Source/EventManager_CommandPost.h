@@ -47,10 +47,6 @@ private:
     int mIndex;
 };
 
-inline GameObject* PostObject(CommandPost& post)
-{
-    return post.mObject.GetObjectA();
-}
 
 template <class PARAM>
 class PostMatchesTeam
@@ -63,11 +59,11 @@ public:
 
     bool operator()(CommandPost& post, PARAM&) const
     {
-        if (!PostObject(post))
+        if (!post.mObject)
         {
             return false;
         }
-        return PostObject(post)->GetTeam() == mTeam;
+        return post.mObject->GetTeam() == mTeam;
     }
 
     bool operator==(const PostMatchesTeam& other) const

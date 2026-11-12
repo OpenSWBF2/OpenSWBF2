@@ -51,15 +51,13 @@ extern PblMatrix gMatrixIdentity;
 
 extern bool netFrameLock;
 
-extern bool netIsLocalTurn;
-extern bool netIsLateTurn;
 extern bool gCentreSpeakerEnhancement;
 
 typedef const PblVector3& (__fastcall *ObjectVelocityFn)(GameObject* pThis, void*);
 typedef Controllable* (__fastcall *ObjectControllableFn)(GameObject* pThis, void*);
 static CollisionObject* GetObjectCollision(GameObject* pObject)
 {
-    return static_cast<CollisionObject*>(pObject);
+    return (CollisionObject*)pObject;
 }
 
 // SYNTHETIC: SWBF2 0x00402370
@@ -279,20 +277,6 @@ void CameraManager::SetChaseCameraRandomShot(int iCam)
     mChaseCamera[iCam]->mMatrix.SetTranslation(mShotPosition[uiShot]);
 }
 
-// FUNCTION: SWBF2 0x0044e330
-void CameraManager::SetChaseCameraRotation(const PblQuaternion& qRot, int iCam)
-{
-    ChaseCamera* pCamera = mChaseCamera[iCam];
-    D3DXQUATERNION qUnit;
-    PblMatrix mRot;
-    D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRot), D3DXQuaternionNormalize(&qUnit, reinterpret_cast<const D3DXQUATERNION*>(&qRot)));
-    mRot.m[3][0] = pCamera->mMatrix.m[3][0];
-    mRot.m[3][1] = pCamera->mMatrix.m[3][1];
-    mRot.m[3][2] = pCamera->mMatrix.m[3][2];
-    mRot.m[3][3] = 1.0f;
-    pCamera->mMatrix = mRot;
-}
-
 // FUNCTION: SWBF2 0x0044ef30
 void CameraManager::SetChaseCameraShot(int iCam, int iShot)
 {
@@ -323,8 +307,21 @@ void CameraManager::QuickSetupCameras()
 // FUNCTION: SWBF2 0x0044efd0
 bool CameraManager::Update(float fDeltaTime)
 {
-    if (netIsLateTurn)
+    if (NetGame::IsLateTurn())
     {
+        return true;
+    }
+
+    if (!mCurGameCamera)
+    {
+        if (NetGame::IsEnabled() && NetGame::IsLocalTurn())
+        {
+            for (mUpdatedCameraId = 0; mUpdatedCameraId < m_iNumCam; mUpdatedCameraId++)
+            {
+                cameraInterpolator[mUpdatedCameraId].SetNext(0, mRedCamera[mUpdatedCameraId]);
+            }
+        }
+        mUpdatedCameraId = 0;
         return true;
     }
 
@@ -357,7 +354,7 @@ bool CameraManager::Update(float fDeltaTime)
                 if (pObject)
                 {
                     mListener[mUpdatedCameraId]->SetVelocity(&pObject->GetVelocity());
-                    pTargetPos = &GetObjectCollision(pObject)->GetMatrix().GetTranslation();
+                    pTargetPos = &static_cast<CollisionObject*>(pObject)->GetMatrix().GetTranslation();
 
                     Controllable* pCtrl = pObject->GetControllable();
                     if (pCtrl)
@@ -427,7 +424,7 @@ bool CameraManager::Update(float fDeltaTime)
         }
     }
 
-    if (!netFrameLock && NetGame::IsEnabled() && netIsLocalTurn)
+    if (!netFrameLock && NetGame::IsEnabled() && NetGame::IsLocalTurn())
     {
         for (mUpdatedCameraId = 0; mUpdatedCameraId < m_iNumCam; mUpdatedCameraId++)
         {

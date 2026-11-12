@@ -55,7 +55,19 @@ public:
  
 
 inline HUD::TransformNumberVector3::Factory::Factory()
-    : HUD::Item::Factory(0x2ef8f006u)
+    : HUD::Item::Factory(0x2ef8f006u /* "TransformNumberVector3" */)
 {
     mName = "TransformNumberVector3";
+}
+
+// FUNCTION: SWBF2 0x00564ba0
+inline HUD::Item* HUD::TransformNumberVector3::Factory::CreateItem(const char* const pName, ItemCallback pCallback,
+                                                                   void* const pUserData)
+{
+    HUD::Item* pItem = new TransformNumberVector3(pName, pCallback, pUserData);
+    if (pItem)
+    {
+        return pItem->SetFactory(this);
+    }
+    return 0;
 }

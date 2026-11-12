@@ -61,6 +61,11 @@ bool TestWpnConstraintsPos(Controllable* pMe, const PblVector3& vAim, const PblV
 
 namespace
 {
+    inline unsigned int GameObjectHandleId(const GameObject* pObject)
+    {
+        return pObject->GetHandleId();
+    }
+
     inline AILowLevel& LowLevelOf(Controller* pCtrl)
     {
         return UnitControllerPtr(pCtrl)->mLowLevel;

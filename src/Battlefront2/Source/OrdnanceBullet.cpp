@@ -45,15 +45,6 @@ namespace
         return pObject->GetTeam();
     }
 
-    inline EntityClass* GetEntityClass(GameObject* pObject)
-    {
-        return pObject->GetEntityClass();
-    }
-
-    inline Controllable* GetControllable(GameObject* pObject)
-    {
-        return pObject->GetControllable();
-    }
 }
 
 // SYNTHETIC: SWBF2 0x00405a60
@@ -83,10 +74,10 @@ OrdnanceBulletClass::OrdnanceBulletClass(unsigned int uHash)
     mImpactEffectSoft = 0;
     mImpactEffectRigid = 0;
     mImpactEffectStatic = 0;
-    mImpactEffectTerrain = 0x72968E25u;
-    mImpactEffectWater = 0x4955BD1Bu;
-    mImpactEffectShieldSmall = 0xB3503FC5u;
-    mImpactEffectShieldLarge = 0xD4391A69u;
+    mImpactEffectTerrain = 0x72968E25u /* "dirtspray" */;
+    mImpactEffectWater = 0x4955BD1Bu /* "watersplash_ord" */;
+    mImpactEffectShieldSmall = 0xB3503FC5u /* "com_sfx_shieldimpact_sm" */;
+    mImpactEffectShieldLarge = 0xD4391A69u /* "com_sfx_shieldimpact_xl" */;
     mImpactDecalTerrain = 0;
     mImpactDecalStatic = 0;
     m_uiLightOdfNameHash = 0;
@@ -130,7 +121,7 @@ void OrdnanceBulletClass::SetProperty(unsigned int uProperty, const char* pszVal
 {
     switch (uProperty)
     {
-    case 0x746CE73E:
+    case 0x746CE73E: /* "LightColor" */
     {
         int r, g, b, a;
         int iCount = sscanf(pszValue, "%d %d %d %d", &r, &g, &b, &a);
@@ -155,7 +146,7 @@ void OrdnanceBulletClass::SetProperty(unsigned int uProperty, const char* pszVal
         m_colorLight = color;
         break;
     }
-    case 0x96E0CCB1:
+    case 0x96E0CCB1: /* "EndLightColor" */
     {
         int r, g, b, a;
         int iCount = sscanf(pszValue, "%d %d %d %d", &r, &g, &b, &a);
@@ -180,21 +171,21 @@ void OrdnanceBulletClass::SetProperty(unsigned int uProperty, const char* pszVal
         m_endColorLight = color;
         break;
     }
-    case 0x32741C32:
+    case 0x32741C32: /* "Velocity" */
         sscanf(pszValue, "%f", &mVelocity);
         break;
-    case 0x2776564D:
+    case 0x2776564D: /* "LightRadius" */
         sscanf(pszValue, "%f", &m_fRadiusLight);
         break;
-    case 0x087EA2F0:
+    case 0x087EA2F0: /* "ImpactEffectStatic" */
         mImpactEffectStatic = PblHash(pszValue);
         break;
-    case 0x2BBD32B1:
+    case 0x2BBD32B1: /* "ImpactDecalTerrain" */
         mImpactDecalTerrain = PblHash(pszValue);
         break;
-    case 0x3F30370C:
+    case 0x3F30370C: /* "OrdnanceEffect" */
         break;
-    case 0x47C86B4A:
+    case 0x47C86B4A: /* "GeometryName" */
         if (*pszValue)
         {
             mModel = RedModel::Find(PblHash(pszValue));
@@ -205,35 +196,35 @@ void OrdnanceBulletClass::SetProperty(unsigned int uProperty, const char* pszVal
             mModel = 0;
         }
         break;
-    case 0x5A554273:
+    case 0x5A554273: /* "ImpactEffectTerrain" */
         mImpactEffectTerrain = PblHash(pszValue);
         break;
-    case 0x7A140FC6:
+    case 0x7A140FC6: /* "ImpactDecalStatic" */
         mImpactDecalStatic = PblHash(pszValue);
         break;
-    case 0x8FC79EBE:
+    case 0x8FC79EBE: /* "ImpactEffectShieldSmall" */
         mImpactEffectShieldSmall = PblHash(pszValue);
         break;
-    case 0xA3091269:
+    case 0xA3091269: /* "ImpactEffectRigid" */
         mImpactEffectRigid = PblHash(pszValue);
         break;
-    case 0xA58ACBD0:
+    case 0xA58ACBD0: /* "FadeLightColor" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
         mFadeColorLight = iValue != 0;
         break;
     }
-    case 0xD6220FE6:
+    case 0xD6220FE6: /* "ImpactEffectSoft" */
         mImpactEffectSoft = PblHash(pszValue);
         break;
-    case 0xE369687E:
+    case 0xE369687E: /* "LightOdf" */
         m_uiLightOdfNameHash = PblHash(pszValue);
         break;
-    case 0xECAAA59D:
+    case 0xECAAA59D: /* "ImpactEffectWater" */
         mImpactEffectWater = PblHash(pszValue);
         break;
-    case 0xF73EC52A:
+    case 0xF73EC52A: /* "ImpactEffectShieldLarge" */
         mImpactEffectShieldSmall = PblHash(pszValue);
         break;
     default:
@@ -291,17 +282,17 @@ void OrdnanceBullet::CreateRicochet(const PblVector3& vPos, const PblVector3& vN
                                     GameObject* pObject) const
 {
     OrdnanceDesc desc;
-    desc.mStrength = 1.0f;
     desc.mPosition = vPos;
+    desc.mDirection = vNormal;
+    desc.mStrength = 1.0f;
     desc.mOwner = pObject;
     desc.mDamageOwner.mGameObject = pObject;
-    desc.mDirection = vNormal;
     if (pObject)
     {
-        Controllable* pControllable = GetControllable(pObject);
+        Controllable* pControllable = pObject->GetControllable();
         desc.mDamageOwner.mCharacter = pControllable->mCharacter;
         desc.mDamageOwner.mTeam = pObject->GetTeam();
-        desc.mDamageOwner.mClass = GetEntityClass(pObject);
+        desc.mDamageOwner.mClass = pObject->GetEntityClass();
         desc.mDamageOwner.mGameObject = pObject;
         desc.mDamageOwner.mDamageMultiplier = pControllable->GetOffenseMultiplier();
     }
@@ -319,13 +310,16 @@ void OrdnanceBullet::CreateRicochet(const PblVector3& vPos, const PblVector3& vN
 
     if (NetGame::IsEnabled())
     {
-        if (!NetGame::IsClient())
+        if (NetGame::IsClient())
+        {
+            if (!netIsLocalTurn)
+            {
+                return;
+            }
+        }
+        else
         {
             NetGame::CreateEvent_CreateOrdnance(mClass, desc);
-        }
-        else if (!netIsLocalTurn)
-        {
-            return;
         }
     }
     mClass->Build(desc);
@@ -389,23 +383,19 @@ OrdnanceBullet::OrdnanceBullet(OrdnanceBulletClass* pClass, const OrdnanceDesc& 
             }
             PblMatrix matrix = gMatrixIdentity;
             matrix.SetTranslation(mPosition);
-            if (m_pLight->_fBeamLength > 0.0f)
+            if (m_pLight->IsCone())
             {
-                matrix[1] = desc.mDirection;
-                matrix.m[1][3] = 0.0f;
+                matrix.SetYAxis(desc.mDirection);
                 PblVector3 vFront = (-gVectorUnitY) + desc.mDirection * desc.mDirection.y;
-                float fLength2 = vFront.x * vFront.x + vFront.y * vFront.y + vFront.z * vFront.z;
+                float fLength2 = SquaredLength(vFront);
                 if (fLength2 <= 0.0001f)
                 {
                     vFront = gVectorUnitZ - desc.mDirection * desc.mDirection.z;
-                    fLength2 = vFront.x * vFront.x + vFront.y * vFront.y + vFront.z * vFront.z;
+                    fLength2 = SquaredLength(vFront);
                 }
-                const float fInv = 1.0f / (float)sqrt((double)fLength2);
-                vFront = vFront * fInv;
-                matrix[0] = CrossProduct(desc.mDirection, vFront);
-                matrix.m[0][3] = 0.0f;
-                matrix[2] = vFront;
-                matrix.m[2][3] = 0.0f;
+                vFront *= 1.0f / (float)sqrt((double)fLength2);
+                matrix.SetXAxis(CrossProduct(desc.mDirection, vFront));
+                matrix.SetZAxis(vFront);
             }
             m_pLight->SetMatrix(matrix);
             m_pLight->TurnOn();
@@ -443,7 +433,7 @@ bool OrdnanceBullet::Update(float fDeltaTime)
     if (mFinalCollisionOnNextUpdate)
     {
         if (mFinalCollision &&
-            !(mFinalCollisionHandle.mObject && !mFinalCollisionHandle.IsLive()))
+            !mFinalCollisionHandle.IsDeadHandle())
         {
             Collide(mFinalCollision, mPosition, mFinalCollisionNormal, 0);
         }
@@ -453,9 +443,8 @@ bool OrdnanceBullet::Update(float fDeltaTime)
     if (((OrdnanceBulletClass*)mClass)->mStraightBullet && mCheckStaticCollision)
     {
         const float fSpeed = Length(mVelocity);
-        const float fInv = 1.0f / fSpeed;
-        const PblVector3 vDir(mVelocity.x * fInv, mVelocity.y * fInv, mVelocity.z * fInv);
-        const GameObject* pOwner = static_cast<GameObject*>(mOwner);
+        const PblVector3 vDir = mVelocity / fSpeed;
+        const GameObject* pOwner = (GameObject*)mOwner;
         CollisionObject* pHitObject;
         const float fHit = CollisionManager::RayHit(mPosition, vDir, mLifeTime * fSpeed, pHitObject,
                                                     &mFinalCollisionNormal, pOwner ? &pOwner : 0,
@@ -470,7 +459,7 @@ bool OrdnanceBullet::Update(float fDeltaTime)
     }
 
     mOldPosition = mPosition;
-    const float fStep = mLifeTime > fDeltaTime ? fDeltaTime : mLifeTime;
+    const float fStep = Min(fDeltaTime, mLifeTime);
     mPosition += mVelocity * fStep;
     mOffscreenTime += fDeltaTime;
     if (!Ordnance::Update(fDeltaTime))
@@ -508,14 +497,12 @@ bool OrdnanceBullet::Update(float fDeltaTime)
     // sWorldBox
     static const PblBox sWorldBox(-5000.0f, -5000.0f, -5000.0f, 5000.0f, 5000.0f, 5000.0f);
     const PblVector3& vRenderPos = GetRenderPos();
-    if (!(vRenderPos.x >= sWorldBox._vMin.x && vRenderPos.x <= sWorldBox._vMax.x &&
-          vRenderPos.y >= sWorldBox._vMin.y && vRenderPos.y <= sWorldBox._vMax.y &&
-          vRenderPos.z >= sWorldBox._vMin.z && vRenderPos.z <= sWorldBox._vMax.z))
+    if (!sWorldBox.ContainsPoint(vRenderPos))
     {
         return false;
     }
 
-    if (!netFrameLock && NetGame::IsEnabled() && NetGame::IsClient() &&
+    if (!netFrameLock && NetGame::IsEnabled() && (netEnabledNext && netClientActive) &&
         netInterpolator.GetIndex(mInterpIndex, 0, PblHandled::GetHandleId()))
     {
         netInterpolator.SetNext(mInterpIndex, &mPosition);

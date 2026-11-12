@@ -45,9 +45,29 @@ GameObject* GetAlivePtr(PblHandle<GameObject> const& hObj, bool bIncludeBuilding
 namespace
 {
 
+inline unsigned int GetHandleId(const GameObject* pObj)
+{
+    return pObj->GetHandleId();
+}
+
+inline GameObject* ResolveHandle(PblHandle<GameObject>& handle)
+{
+    GameObject* pObj = handle.mObject;
+    if (pObj)
+    {
+        if (GetHandleId(pObj) == handle.mSavedHandleId)
+        {
+            return pObj;
+        }
+        handle.mObject = 0;
+        handle.mSavedHandleId = 0;
+    }
+    return 0;
+}
+
 inline const CollisionObject* GetCollisionObject(const GameObject* pObj)
 {
-    return static_cast<const CollisionObject*>(pObj);
+    return (const CollisionObject*)pObj;
 }
 
 

@@ -46,15 +46,15 @@ StreamPacket* StreamVAD::GetPacket(unsigned int uiOutput)
 
         if (pPacket != 0)
         {
-            unsigned int uiBytes = pPacket->mBufferUsed;
+            unsigned int uiBytes = pPacket->GetUsed();
             bool bVoice = false;
 
-            if (DSP::SignalPower16((const short*)pPacket->mBuffer,
-                                   pPacket->mBufferUsed >> 1) > 30000)
+            if (DSP::SignalPower16((const short*)pPacket->GetBuffer(),
+                                   pPacket->GetUsed() >> 1) > 30000)
             {
-                const unsigned int uiNumSamples = pPacket->mBufferUsed >> 1;
+                const unsigned int uiNumSamples = pPacket->GetUsed() >> 1;
                 const unsigned int uiFrequency = DSP::TurningPointsFrequency16(
-                    (const short*)pPacket->mBuffer, uiNumSamples,
+                    (const short*)pPacket->GetBuffer(), uiNumSamples,
                     mSampleRate);
                 if ((uiFrequency > 120 && uiFrequency < 7000) ||
                     uiFrequency - 10001 <= 1998)
@@ -71,11 +71,11 @@ StreamPacket* StreamVAD::GetPacket(unsigned int uiOutput)
             if (mActive)
             {
                 mPacketQueue.Add(pPacket);
-                mPlaybackPosition = pPacket->mPos;
+                mPlaybackPosition = pPacket->GetPosition();
 
                 if (!bVoice)
                 {
-                    short* const pSamples = (short*)pPacket->mBuffer;
+                    short* const pSamples = (short*)pPacket->GetBuffer();
                     if (uiBytes > mReleaseTimeBytesRemaining)
                     {
                         uiBytes = mReleaseTimeBytesRemaining;
@@ -92,7 +92,7 @@ StreamPacket* StreamVAD::GetPacket(unsigned int uiOutput)
 
                     if (mReleaseTimeBytesRemaining == 0)
                     {
-                        pPacket->mFlags |= 2;
+                        pPacket->SetDiscontinuity(true);
                         mActive = false;
                     }
                 }

@@ -12,7 +12,7 @@ namespace
     inline const PblMatrix& GetCollisionMatrix(GameObject* pObject)
     {
         typedef const PblMatrix& (__thiscall * Fn)(void*);
-        return static_cast<CollisionObject*>(pObject)->GetMatrix();
+        return ((CollisionObject*)pObject)->GetMatrix();
     }
 
     inline const PblVector3& GetVelocity(GameObject* pObject)
@@ -78,10 +78,10 @@ void WeaponTowCableClass::SetProperty(unsigned int uProperty, const char* pszVal
 {
     switch (uProperty)
     {
-    case 0x5EDE4703:
+    case 0x5EDE4703: /* "DetatchSound" */
         mDetatch.SetID(pszValue, false, false);
         return;
-    case 0x96A1687E:
+    case 0x96A1687E: /* "WindSound" */
         mWhir.SetID(pszValue, false, false);
         return;
     default:
@@ -151,7 +151,7 @@ void WeaponTowCable::SetOrdnance(Ordnance* pOrdnance)
     }
 
     GameObject* pObject = mOwner->GetGameObject();
-    const WeaponTowCableClass* pClass = static_cast<const WeaponTowCableClass*>(mClass);
+    const WeaponTowCableClass* pClass = (const WeaponTowCableClass*)mClass;
     mSoundControl.Stop(true);
     mSoundProps = mCableOut ? pClass->mDetatch : pClass->mWhir;
     mSoundControl.Play(&mSoundProps, &(GetCollisionMatrix(pObject)).GetTranslation(), &GetVelocity(pObject), true);
@@ -186,7 +186,7 @@ Ordnance* WeaponTowCable::CreateOrdnance(OrdnanceDesc& desc)
     Ordnance* pOrdnance = WeaponCannon::CreateOrdnance(desc);
     if (pOrdnance)
     {
-        static_cast<OrdnanceTowCable*>(pOrdnance)->SetFakeCable(NetGame::IsEnabled() && NetGame::IsClient());
+        ((OrdnanceTowCable*)pOrdnance)->SetFakeCable(NetGame::IsEnabled() && NetGame::IsClient());
     }
     return pOrdnance;
 }

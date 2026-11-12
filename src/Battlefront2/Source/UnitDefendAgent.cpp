@@ -72,7 +72,7 @@ void UnitDefendAgent::EnterState()
         {
             mCombatCmd = UnitCombatInfo(UnitCombatInfo::ENGAGE);
         }
-        mCombatHelper.Init(static_cast<const UnitCombatInfo&>(mCombatCmd));
+        mCombatHelper.Init((const UnitCombatInfo&)mCombatCmd);
         break;
     }
 }

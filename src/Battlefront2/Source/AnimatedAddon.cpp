@@ -34,13 +34,13 @@ void AnimatedAddon::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x94272331:
+    case 0x94272331: /* "GeometryAddon" */
         mModel = const_cast<GameModel*>(GameModel::Find(PblHash(pszValue)));
         break;
-    case 0xA423E008:
+    case 0xA423E008: /* "AddonAttachJoint" */
         mAttachJoint = PblTEMPHash(pszValue);
         break;
-    case 0xDDDCDE45:
+    case 0xDDDCDE45: /* "AnimationAddon" */
         mAnimation = RedAnimation::Find(PblHash(pszValue));
         break;
     }
@@ -78,12 +78,12 @@ void AnimatedAddon::Render(TentacleSimulator* pTentacles, const PblVector3& vVel
     RedPose pose;
     mModel->GetRedModel(0)->SetupPose(pose);
 
-    const PblMatrix* pRoot = pPose->Find(0xE5B51072);
+    const PblMatrix* pRoot = pPose->Find(0xE5B51072 /* "bone_ribcage" */);
     if (pRoot)
     {
         PblMatrix mRelative = *pRoot * pJoint->GetInverseFast();
         PblMatrix mRoot = mRelative;
-        pose.Store(0xE5B51072, &mRoot);
+        pose.Store(0xE5B51072 /* "bone_ribcage" */, &mRoot);
     }
 
     PblMatrix aTentacleMatrices[20];

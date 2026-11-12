@@ -17,7 +17,7 @@ void FlashyTextElement::PlatformConstructor()
 void FlashyTextElement::Init()
 {
     m_pInterfaceBitmapShader = (pcInterfaceShader*)pcRedShader::Create(
-        0x84ea5130, 0x202, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
+        0x84ea5130 /* "interface" */, 0x202, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
 
     m_pInterfaceBitmapShader->m_mode = pcInterfaceShader::INTERFACE_MODE_BITMAP;
 }

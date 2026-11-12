@@ -13,6 +13,7 @@ class TeamAssist
     friend class TeamAssistManager;
 
 public:
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
 
     static void* operator new(size_t size)
     {

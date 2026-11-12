@@ -3,16 +3,22 @@
 #include "NetPacket.h"
 #include "NetComm.h"
 #include "NetGame.h"
-#include "pcCrash.h"
-#include "RedEngineFL/Util/RedWarning.h"
-#include "RedEngineFL/Util/RedLog.h"
+#include "NetDrag.h"
 
-class NetDrag
+class NetBigPacket : public NetPacket
 {
 public:
-    static void Send(NetPacket* pPacket, int iDest);
-    static void FreePackets();
+    char mData2[1008];
 };
+ 
+
+class NetSmallPacket : public NetPacket
+{
+public:
+    char mData2[112];
+};
+ 
+
 
 extern NetPktGroup bandwidthQueue[3];
 extern NetPktGroup lossQueue;

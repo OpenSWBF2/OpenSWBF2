@@ -25,44 +25,6 @@ void RemoveInterfaceElement(RedScreenGroupElement* pElement);
 void __cdecl PblTraceP(const char* Format, ...);
 
 
-// SYNTHETIC: SWBF2 0x00408f10
-// `dynamic initializer for 'RedDebug::_PrintfColor''
-
-// GLOBAL: SWBF2 0x009ae64c
-// RedDebug::_PrintfColor
-RedColor RedDebug::_PrintfColor = RedColor::WHITE;
-
-// SYNTHETIC: SWBF2 0x00408f40
-// `dynamic initializer for 'RedDebug::_ScreenGroup''
-// SYNTHETIC: SWBF2 0x00769b30
-// `dynamic atexit destructor for 'RedDebug::_ScreenGroup''
-
-// GLOBAL: SWBF2 0x009af450
-// RedDebug::_ScreenGroup
-RedScreenGroupElement RedDebug::_ScreenGroup("_DebugGroup");
-
-struct RedDebug::Radius
-{
-    Radius();
-
-    PblVector3 _vPos;
-    RedColor _color;
-    float _fRadius;
-    float _fHeight;
-};
- 
-
-struct RedDebug::SolidOBB
-{
-    SolidOBB();
-
-    PblBox _vBox;
-    PblMatrix _mBox;
-    RedColor _color;
-};
- 
- 
-
 // FUNCTION: SWBF2 0x006f0780
 RedDebug::Radius::Radius()
 {
@@ -73,28 +35,21 @@ RedDebug::SolidOBB::SolidOBB()
 {
 }
 
-// SYNTHETIC: SWBF2 0x00408f80
-// `dynamic initializer for 'RedDebug::_aMarkers3D''
-// SYNTHETIC: SWBF2 0x00769b40
-// `dynamic atexit destructor for 'RedDebug::_aMarkers3D''
+// SYNTHETIC: SWBF2 0x00409080
+// `dynamic initializer for 'RedDebug::_kStaticRenderable''
+// SYNTHETIC: SWBF2 0x00769bc0
+// `dynamic atexit destructor for 'RedDebug::_kStaticRenderable''
 
-// GLOBAL: SWBF2 0x009c7c10
-// RedDebug::_aMarkers3D
-RedTetrahedronShape RedDebug::_aMarkers3D[16];
+// GLOBAL: SWBF2 0x009ae630
+// RedDebug::_kStaticRenderable
+RedDebug::RedDebugRenderable RedDebug::_kStaticRenderable;
 
-// SYNTHETIC: SWBF2 0x00408fb0
-// `dynamic initializer for 'RedDebug::_aOBB''
+// SYNTHETIC: SWBF2 0x00408f60
+// `dynamic initializer for 'RedDebug::_a3DLineVectors''
 
-// GLOBAL: SWBF2 0x009ae650
-// RedDebug::_aOBB
-RedDebug::SolidOBB RedDebug::_aOBB[32];
-
-// SYNTHETIC: SWBF2 0x00408fd0
-// `dynamic initializer for 'RedDebug::_aRadii''
-
-// GLOBAL: SWBF2 0x009b57d0
-// RedDebug::_aRadii
-RedDebug::Radius RedDebug::_aRadii[32];
+// GLOBAL: SWBF2 0x009b5ad0
+// RedDebug::_a3DLineVectors
+PblVector3 RedDebug::_a3DLineVectors[6000];
 
 // SYNTHETIC: SWBF2 0x00408ff0
 // `dynamic initializer for 'RedDebug::_aSpheres''
@@ -105,14 +60,37 @@ RedDebug::Radius RedDebug::_aRadii[32];
 // RedDebug::_aSpheres
 RedSphereShape RedDebug::_aSpheres[16];
 
-// SYNTHETIC: SWBF2 0x00409020
-// `dynamic initializer for 'RedDebug::_aText3D''
-// SYNTHETIC: SWBF2 0x00769b80
-// `dynamic atexit destructor for 'RedDebug::_aText3D''
+// SYNTHETIC: SWBF2 0x00408f80
+// `dynamic initializer for 'RedDebug::_aMarkers3D''
+// SYNTHETIC: SWBF2 0x00769b40
+// `dynamic atexit destructor for 'RedDebug::_aMarkers3D''
 
-// GLOBAL: SWBF2 0x009b23d0
-// RedDebug::_aText3D
-RedDebug::Text3D RedDebug::_aText3D[64];
+// GLOBAL: SWBF2 0x009c7c10
+// RedDebug::_aMarkers3D
+RedTetrahedronShape RedDebug::_aMarkers3D[16];
+
+// SYNTHETIC: SWBF2 0x00408fd0
+// `dynamic initializer for 'RedDebug::_aRadii''
+
+// GLOBAL: SWBF2 0x009b57d0
+// RedDebug::_aRadii
+RedDebug::Radius RedDebug::_aRadii[32];
+
+// SYNTHETIC: SWBF2 0x00408fb0
+// `dynamic initializer for 'RedDebug::_aOBB''
+
+// GLOBAL: SWBF2 0x009ae650
+// RedDebug::_aOBB
+RedDebug::SolidOBB RedDebug::_aOBB[32];
+
+// SYNTHETIC: SWBF2 0x00408f40
+// `dynamic initializer for 'RedDebug::_ScreenGroup''
+// SYNTHETIC: SWBF2 0x00769b30
+// `dynamic atexit destructor for 'RedDebug::_ScreenGroup''
+
+// GLOBAL: SWBF2 0x009af450
+// RedDebug::_ScreenGroup
+RedScreenGroupElement RedDebug::_ScreenGroup("_DebugGroup");
 
 // SYNTHETIC: SWBF2 0x00409050
 // `dynamic initializer for 'RedDebug::_aTextLines''
@@ -123,14 +101,21 @@ RedDebug::Text3D RedDebug::_aText3D[64];
 // RedDebug::_aTextLines
 RedTextElement RedDebug::_aTextLines[30];
 
-// SYNTHETIC: SWBF2 0x00409080
-// `dynamic initializer for 'RedDebug::_kStaticRenderable''
-// SYNTHETIC: SWBF2 0x00769bc0
-// `dynamic atexit destructor for 'RedDebug::_kStaticRenderable''
+// SYNTHETIC: SWBF2 0x00409020
+// `dynamic initializer for 'RedDebug::_aText3D''
+// SYNTHETIC: SWBF2 0x00769b80
+// `dynamic atexit destructor for 'RedDebug::_aText3D''
 
-// GLOBAL: SWBF2 0x009ae630
-// RedDebug::_kStaticRenderable
-RedDebug::RedDebugRenderable RedDebug::_kStaticRenderable;
+// GLOBAL: SWBF2 0x009b23d0
+// RedDebug::_aText3D
+RedDebug::Text3D RedDebug::_aText3D[64];
+
+// SYNTHETIC: SWBF2 0x00408f10
+// `dynamic initializer for 'RedDebug::_PrintfColor''
+
+// GLOBAL: SWBF2 0x009ae64c
+// RedDebug::_PrintfColor
+RedColor RedDebug::_PrintfColor = RedColor::WHITE;
 
 // GLOBAL: SWBF2 0x009ace98
 char RedDebug::_aLineBuffer[256];
@@ -164,16 +149,9 @@ unsigned int RedDebug::_nOBB;
 // GLOBAL: SWBF2 0x009af4f0
 RedColor RedDebug::_aColor[3000];
 
-// SYNTHETIC: SWBF2 0x00408f60
-// `dynamic initializer for 'RedDebug::_a3DLineVectors''
-
-// GLOBAL: SWBF2 0x009b5ad0
-// RedDebug::_a3DLineVectors
-PblVector3 RedDebug::_a3DLineVectors[6000];
-
 // FUNCTION: SWBF2 0x006f0790
 RedDebug::RedDebugRenderable::RedDebugRenderable()
-    : Renderable(7)
+    : Renderable(RENDERABLE_PREFIRSTPERSON)
 {
 }
 
@@ -185,7 +163,7 @@ RedDebug::Text3D::Text3D()
 
 // FUNCTION: SWBF2 0x006f07b0
 RedShape::RedShape()
-    : Renderable(6), _Matrix(gMatrixIdentity), _pMatrix(&_Matrix),
+    : Renderable(RENDERABLE_POSTTRANSPARENT), _Matrix(gMatrixIdentity), _pMatrix(&_Matrix),
       _vMin(-1.0f, -1.0f, -1.0f), _vMax(1.0f, 1.0f, 1.0f)
 {
     SetColor(RedColor::WHITE);
@@ -290,11 +268,8 @@ void RedDebug::DrawOBB(const PblBox& box, const PblMatrix& matrix, RedColor colo
     PblVector3 aCorners[8];
     for (int i = 0; i < 8; i++)
     {
-        PblVector3 vCorner((i & 4) ? box._vMax.x : box._vMin.x,
-                           (i & 2) ? box._vMax.y : box._vMin.y,
-                           (i & 1) ? box._vMax.z : box._vMin.z);
-        PblVector3 vOut;
-        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vOut), reinterpret_cast<const D3DXVECTOR3*>(&vCorner), reinterpret_cast<const D3DXMATRIX*>(&matrix));
+        PblVector3 vCorner = box.GetBoxCorner(i);
+        PblVector3 vOut = matrix.ApplyTransform(vCorner);
         aCorners[i] = vOut;
     }
 
@@ -508,21 +483,22 @@ void RedDebug::_DrawSolidOBB(const SolidOBB& obb)
 }
 
 // FUNCTION: SWBF2 0x006f2710
-void RedDebug::RedDebugRenderable::Render(int)
+void RedDebug::RedDebugRenderable::Render(unsigned int) const
 {
     if (_n3DLines >= 2)
     {
-        PblBox box;
-        box._vMin = _a3DLineVectors[0];
-        box._vMax = _a3DLineVectors[0];
+        PblBox bounds;
+        bounds._vMin = _a3DLineVectors[0];
+        bounds._vMax = _a3DLineVectors[0];
         for (unsigned int i = 1; i < _n3DLines; i++)
         {
-            box.AddPoint(_a3DLineVectors[i]);
+            bounds.AddPoint(_a3DLineVectors[i]);
         }
 
         unsigned int uiNumLines = _n3DLines / 2;
         const PblVector3 vOne(1.0f, 1.0f, 1.0f);
-        const PblBox bounds(box._vMin - vOne, box._vMax + vOne);
+        bounds._vMax = bounds._vMax + vOne;
+        bounds._vMin = bounds._vMin - vOne;
 
         pcRedPrimitive* pPrimitive =
             pcRedPrimitive::Create(D3DPT_LINELIST, 0x1082, 12, uiNumLines * 2, 0, false);
@@ -585,12 +561,12 @@ void RedDebug::RedDebugRenderable::Render(int)
 }
 
 // FUNCTION: SWBF2 0x006f2bb0
-void RedSphereShape::Render(int)
+void RedSphereShape::Render(unsigned int) const
 {
 }
 
 // FUNCTION: SWBF2 0x006f2bc0
-void RedTetrahedronShape::Render(int)
+void RedTetrahedronShape::Render(unsigned int) const
 {
 }
 

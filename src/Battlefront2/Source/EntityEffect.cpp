@@ -36,7 +36,7 @@ EntityEffectClass::~EntityEffectClass()
 // FUNCTION: SWBF2 0x004a9a70
 void EntityEffectClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty != 0x6E6E8D54)
+    if (uProperty != 0x6E6E8D54 /* "Effect" */)
     {
         EntityClass::SetProperty(uProperty, pszValue);
         return;

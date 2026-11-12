@@ -20,7 +20,7 @@ struct Poly3D
 struct BasePoly2D
 {
     BasePoly2D(const Poly2D& rPoly)
-        : points_(rPoly.points_._elements), numPoints_(rPoly.points_._numElements) {}
+        : points_(const_cast<Vector2<float>*>(&rPoly.points_[0])), numPoints_(rPoly.points_.GetSize()) {}
 
     BasePoly2D(Vector2<float>* pPoints, int iNumPoints)
         : points_(pPoints), numPoints_(iNumPoints) {}

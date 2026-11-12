@@ -358,9 +358,10 @@ void RedKeyboard::Update(float fDeltaTime)
             const unsigned char ucAscii = pcGetAsciiValue(i);
             RedInputEventHandler::PostKeyboardEvent(KEYCHAR, this, sRedKeyMap[i],
                                                     ucAscii, usFlags);
+            const float fDelay = s_keyRepeatDelay;
             pc_curRepeatCode = (char)i;
             pc_keyRepeatElapsedTime = 0.0f;
-            pc_nextKeyRepeatPress = s_keyRepeatDelay;
+            pc_nextKeyRepeatPress = fDelay;
         }
         else if ((aucOldKeys[i] & 0x80) && !(pc_DownKeys[i] & 0x80))
         {
