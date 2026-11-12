@@ -108,17 +108,6 @@ namespace
         return pWpn->mState;
     }
 
-    inline const GameObject* HandleObject(const PblHandle<GameObject>& handle)
-    {
-        PblHandle<GameObject>& h = const_cast<PblHandle<GameObject>&>(handle);
-        if (h.mObject && h.mObject->GetHandleId() != h.mSavedHandleId)
-        {
-            h.mObject = 0;
-            h.mSavedHandleId = 0;
-        }
-        return h.mObject;
-    }
-
     inline const PblVector3& GetPosition(const GameObject* pObj)
     {
         return ((const CollisionObject*)pObj)->GetPosition();

@@ -23,7 +23,7 @@
 #include "Battlefront2/Source/PathManager.h"
 #include "Battlefront2/Source/StickInfo.h"
 #include "Battlefront2/Source/UnitController.h"
-#include "Battlefront2/Source/WeaponMeleeInstance.h"
+#include "Battlefront2/Source/WeaponMelee.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 
 #include "testutil.h"
@@ -122,17 +122,17 @@ public:
     {
         Navigator* pNav = this;
         const Obstacle** apIgnore = 0;
-        if (mRtti == NavigatorGraphFollower::rttiHashNavigatorGraphFollower)
+        if (mRtti == NavigatorGraphFollower::GetRtti())
         {
             static_cast<NavigatorGraphFollower*>(pNav)->mIgnoreCnt = iCnt;
             apIgnore = static_cast<NavigatorGraphFollower*>(pNav)->mIgnore;
         }
-        else if (mRtti == NavigatorPathFollower::rttiHashNavigatorPathFollower)
+        else if (mRtti == NavigatorPathFollower::GetRtti())
         {
             static_cast<NavigatorPathFollower*>(pNav)->mIgnoreCnt = iCnt;
             apIgnore = static_cast<NavigatorPathFollower*>(pNav)->mIgnore;
         }
-        else if (mRtti == NavigatorSlide::rttiHashNavigatorSlide)
+        else if (mRtti == NavigatorSlide::GetRtti())
         {
             static_cast<NavigatorSlide*>(pNav)->mIgnoreCnt = iCnt;
             apIgnore = static_cast<NavigatorSlide*>(pNav)->mIgnore;
@@ -219,7 +219,7 @@ struct BarrierWorld
         const PblVector3 vAt(0.0f, 0.0f, 0.0f);
         void* pBlock = PathRequest::sMemoryPool.Allocate(sizeof(PathRequest));
         REQUIRE(pBlock);
-        return ::new (pBlock) PathRequest(0, vAt, vAt, 1.0f, 0, 0, 0, apIgnore, 1);
+        return ::new (pBlock) PathRequest(0, vAt, vAt, 1.0f, (ConnectivityGraph::ProhibitFlag)0, 0, 0, apIgnore, 1);
     }
 
     PathRequest* AddRequest(const Obstacle* pBarrier)
@@ -577,7 +577,7 @@ TEST_CASE("replacing a barrier keeps the owner's barrier in every ignore list an
     sIgnore[0] = pBarrier;
     sIgnoreCnt = 1;
     PathRequest* pRequest = kWorld.AddRequest(pBarrier);
-    FakeAiController kCtrl(NavigatorGraphFollower::rttiHashNavigatorGraphFollower);
+    FakeAiController kCtrl(NavigatorGraphFollower::GetRtti());
     kWorld.AddController(true, kCtrl, true);
     const Obstacle** apNav = kCtrl.mNav.Ignore(1, pBarrier, 0);
     const Obstacle** apFollow = kCtrl.mNav.FollowerIgnore(1, pBarrier, 0);
@@ -620,11 +620,11 @@ TEST_CASE("deleting a barrier clears the search and every path request and AI na
     PathRequest* pQueuedOther = kWorld.AddRequest(pOther);
     PathRequest* pCurrent = kWorld.SetCurrentRequest(pBarrier);
 
-    FakeAiController kGraph(NavigatorGraphFollower::rttiHashNavigatorGraphFollower);
-    FakeAiController kPath(NavigatorPathFollower::rttiHashNavigatorPathFollower);
-    FakeAiController kSlide(NavigatorSlide::rttiHashNavigatorSlide);
-    FakeAiController kPlain(Navigator::rttiHashNavigator);
-    FakeAiController kNoNav(Navigator::rttiHashNavigator);
+    FakeAiController kGraph(NavigatorGraphFollower::GetRtti());
+    FakeAiController kPath(NavigatorPathFollower::GetRtti());
+    FakeAiController kSlide(NavigatorSlide::GetRtti());
+    FakeAiController kPlain(Navigator::GetRtti());
+    FakeAiController kNoNav(Navigator::GetRtti());
     kWorld.AddController(true, kGraph, true);
     kWorld.AddController(false, kPath, true);
     kWorld.AddController(true, kSlide, true);
@@ -662,8 +662,8 @@ TEST_CASE("deleting a barrier clears the search and every path request and AI na
 TEST_CASE("controller reset drops the host and client lists of the ended mission" * doctest::test_suite("regression"))
 {
     BarrierWorld kWorld;
-    FakeAiController kHost(NavigatorPathFollower::rttiHashNavigatorPathFollower);
-    FakeAiController kClient(NavigatorSlide::rttiHashNavigatorSlide);
+    FakeAiController kHost(NavigatorPathFollower::GetRtti());
+    FakeAiController kClient(NavigatorSlide::GetRtti());
     kWorld.AddController(true, kHost, true);
     kWorld.AddController(false, kClient, true);
     alignas(16) char acBarrier[sizeof(Obstacle)];

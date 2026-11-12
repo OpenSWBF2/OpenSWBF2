@@ -11,6 +11,8 @@
 
 #include "PebbleFL/Common/PblFile.h"
 
+extern HWND hGlobalWnd;
+
 // GLOBAL: SWBF2 0x007e15cc
 static char* kapcSEVERITYSHORT[6] = { "*", "?", "#", "$", "%", "!" };
 // GLOBAL: SWBF2 0x007e15e4

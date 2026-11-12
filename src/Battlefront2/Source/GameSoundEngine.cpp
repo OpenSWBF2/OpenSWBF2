@@ -53,8 +53,6 @@ namespace FrameUpdate
 {
 extern float fOneOverTicksPerSecond;
 }
-
-extern float g_fFixedRate;
 extern int g_InGameMoviePlayerState;
 namespace Lua_Callbacks
 {

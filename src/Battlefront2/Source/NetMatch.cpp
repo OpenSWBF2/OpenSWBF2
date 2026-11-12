@@ -99,7 +99,7 @@ extern unsigned __int64 netFindSessionId;
 extern char netLocalIPText[18];
 extern NetAddr myAddr;
 
-void* GetGalaxyMatchmaking();
+galaxy::api::IMatchmaking* GetGalaxyMatchmaking();
 void ProcessGalaxyData();
 void StartRegisterLanGame();
 void UpdateRegisterLanGame();
@@ -415,8 +415,8 @@ void NetMatch::StartLogin(int iViewport, bool bArg2, char const* pcArg3, char co
         return;
     }
 
-    void* pUser = GetGalaxyUser();
-    if (((galaxy::api::IUser*)pUser)->SignedIn() || netLoginPending)
+    galaxy::api::IUser* pUser = GetGalaxyUser();
+    if (pUser->SignedIn() || netLoginPending)
     {
         return;
     }
@@ -431,7 +431,7 @@ void NetMatch::StartLogin(int iViewport, bool bArg2, char const* pcArg3, char co
         if (pcPersonaName && iTicketSize > 0)
         {
             pUser = GetGalaxyUser();
-            ((galaxy::api::IUser*)pUser)->SignInWithSteam(acTicket, iTicketSize, pcPersonaName);
+            pUser->SignInWithSteam(acTicket, iTicketSize, pcPersonaName);
             if (!gf::checkError())
             {
                 return;

@@ -232,7 +232,7 @@ void SunSkyRenderable::Render(unsigned int value) const
 }
 
 // FUNCTION: SWBF2 0x0042d250
-inline RedColor ReadColor(const PblConfig::Data& data)
+RedColor ReadColor(const PblConfig::Data& data)
 {
     RedColor color;
     color.r = data.GetUint8Arg(0);

@@ -77,21 +77,6 @@ inline Damageable* GameObjectDamageable(GameObject* pObject)
 {
     return (Damageable*)pObject;
 }
-inline unsigned int GameObjectHandleId(GameObject* pObject)
-{
-    return pObject->GetHandleId();
-}
-
-inline GameObject* HandleObject(PblHandle<GameObject>& handle)
-{
-    if (handle.mObject && GameObjectHandleId(handle.mObject) != handle.mSavedHandleId)
-    {
-        handle.mObject = 0;
-        handle.mSavedHandleId = 0;
-    }
-    return handle.mObject;
-}
-
 inline Controllable* AsControllable(EntityRemoteTerminal* pTerminal)
 {
     return (Controllable*)pTerminal;

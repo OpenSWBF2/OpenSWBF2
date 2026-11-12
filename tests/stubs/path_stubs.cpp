@@ -82,7 +82,7 @@ bool AIUtil::IsUberMode() { return false; }
 const Obstacle* AIUtil::GetGameObjectBarrier(const GameObject*) { return 0; }
 PblVector3 AIUtil::GetSafeNormalXZ(const PblVector3& rVec) { return rVec; }
 float AIUtil::GetCollisionRadius(const GameObject*) { return 0.0f; }
-int AIUtil::GetAIType(const GameObject*) { return 0; }
+ConnectivityGraph::ProhibitFlag AIUtil::GetAIType(const GameObject*) { return (ConnectivityGraph::ProhibitFlag)0; }
 
 bool CollisionUtil::CollideSphereAABB(const PblVector3&, float, const PblVector3&, const PblVector3&) { return false; }
 bool CollisionUtil::CollideSphereRay(const PblVector3&, float, const PblVector3&, const PblVector3&, float) { return false; }
@@ -132,6 +132,8 @@ void Thread::DeactivateThread() {}
 
 void EntityCloth::PlatformRender(unsigned char, RedColor, unsigned int, const RedLightingState*, const PblSphere&) {}
 void ClothData::PlatformCleanup() {}
+void ClothData::PlatformBindInit(const EntityClothClass*) {}
+namespace AIDebug { bool PauseAfterPathFind() { return false; } }
 float NetGame::GetTurnRatio() { return 1.0f; }
 
 RedColor RedColor::WHITE;
@@ -155,15 +157,6 @@ RedColorValue RedColorValue::WHITE;
 RedLight::~RedLight() {}
 void RedLight::Activate() {}
 void RedLight::Deactivate() {}
-const PblMatrix& RedLight::GetProjectionMatrix() const
-{
-    static PblMatrix sMatrix;
-    return sMatrix;
-}
-void RedAmbientLight::DebugDraw() const {}
-bool RedAmbientLight::IsVisible(const RedCamera*) const { return false; }
-bool RedAmbientLight::SphereIntersect(const PblVector3&, float) const { return false; }
-bool RedAmbientLight::AABBIntersect(const PblVector3&, const PblVector3&) const { return false; }
 bool AIUtil::IsHintAvailable(const GameObject*, const BaseHint*) { return false; }
 AIUtil::EntityType AIUtil::GetEntityType(const Entity*) { return (AIUtil::EntityType)0; }
 float AIUtil::GetRandomFloat(float fMin, float) { return fMin; }

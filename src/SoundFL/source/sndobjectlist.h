@@ -18,7 +18,7 @@ public:
 
         static FreeList& GetFreeList() { return smFreeList; }
 
-        static void* operator new(unsigned int uiSize)
+        static void* operator new(size_t uiSize)
         {
             return GetFreeList().Alloc();
         }

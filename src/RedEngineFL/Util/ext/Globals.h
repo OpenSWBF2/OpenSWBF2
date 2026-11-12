@@ -23,7 +23,7 @@ public:
         return *val;
     }
 
-    static void* operator new(unsigned int uiSize, IAllocator& rAlloc)
+    static void* operator new(size_t uiSize, IAllocator& rAlloc)
     {
         Buffer buf(0, uiSize);
         rAlloc.Allocate(buf);

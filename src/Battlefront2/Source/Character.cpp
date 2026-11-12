@@ -169,19 +169,6 @@ PblMatrix GetTestSpawnMatrix(Character* pCharacter);
 namespace
 {
 
-GameObject* GetPostObject(CommandPost* pPost)
-{
-    PblHandle<GameObject>& handle = pPost->mObject;
-    if (handle.mObject &&
-        handle.mObject->GetHandleId() !=
-            handle.mSavedHandleId)
-    {
-        handle.mObject = 0;
-        handle.mSavedHandleId = 0;
-    }
-    return handle.mObject;
-}
-
 inline Damageable* GetDamageable(GameObject* pObject)
 {
     return (Damageable*)pObject;

@@ -243,6 +243,24 @@ void* Lua_Red_realloc(void* pBlock, unsigned int uiOldSize, unsigned int uiNewSi
     return pNew;
 }
 
+int Lua_Red_Panic(lua_State* L)
+{
+    char acBuf[200];
+    acBuf[0] = 0;
+    if (lua_gettop(L) >= 1 && lua_type(L, -1) == LUA_TSTRING)
+    {
+        strncpy(acBuf, lua_tostring(L, -1), 199);
+        acBuf[199] = 0;
+    }
+    else
+    {
+        strcpy(acBuf, "no message");
+    }
+    LOG(LogLua, Fatal, "Lua panic: %s", acBuf);
+    pcCrash::Exit(4);
+    return 0;
+}
+
 // FUNCTION: SWBF2 0x005a16e0
 void LuaMemory::Reset()
 {

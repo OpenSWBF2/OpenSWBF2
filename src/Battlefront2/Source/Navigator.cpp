@@ -146,17 +146,17 @@ const Obstacle* Navigator::GetMyBarrier() const
 
 void Navigator::ForgetBarrier(const Obstacle* pBarrier)
 {
-    if (IsRtti(NavigatorGraphFollower::rttiHashNavigatorGraphFollower))
+    if (IsRtti(NavigatorGraphFollower::GetRtti()))
     {
         NavigatorGraphFollower* pNav = static_cast<NavigatorGraphFollower*>(this);
         ForgetIgnored(pNav->mIgnore, pNav->mIgnoreCnt, pBarrier);
     }
-    else if (IsRtti(NavigatorPathFollower::rttiHashNavigatorPathFollower))
+    else if (IsRtti(NavigatorPathFollower::GetRtti()))
     {
         NavigatorPathFollower* pNav = static_cast<NavigatorPathFollower*>(this);
         ForgetIgnored(pNav->mIgnore, pNav->mIgnoreCnt, pBarrier);
     }
-    else if (IsRtti(NavigatorSlide::rttiHashNavigatorSlide))
+    else if (IsRtti(NavigatorSlide::GetRtti()))
     {
         NavigatorSlide* pNav = static_cast<NavigatorSlide*>(this);
         ForgetIgnored(pNav->mIgnore, pNav->mIgnoreCnt, pBarrier);

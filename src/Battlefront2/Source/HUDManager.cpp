@@ -381,6 +381,13 @@ bool HUD::Manager::Write()
     return true;
 }
 
+static unsigned int sLoadNumViews;
+
+void HUD::Manager::RefreshViewport()
+{
+    HUD::Element::SetupViewportDimensions(sLoadNumViews, false);
+}
+
 // FUNCTION: SWBF2 0x00565950
 void HUD::Manager::Load(PblFileChunk& chunk)
 {

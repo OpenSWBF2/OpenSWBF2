@@ -46,9 +46,6 @@ public:
     static unsigned int HandleIdOffset();
 
 private:
-    template <class> friend class PblHandle;
-
-private:
     unsigned int mHandleId;
 };
 
@@ -159,15 +156,21 @@ public:
 
     bool IsDeadHandle() const
     {
-        return mObject && mObject->GetHandleId() != mSavedHandleId;
+        return mObject && !PblHandleRegistry::IsLive(mObject, mSavedHandleId);
     }
 
-private:
+    bool IsLive() const { return mObject && PblHandleRegistry::IsLive(mObject, mSavedHandleId); }
+
+    bool SameAs(const PblHandle& other) const
+    {
+        return mObject == other.mObject && mSavedHandleId == other.mSavedHandleId;
+    }
+
     TYPE* GetObjectA() const
     {
         if (mObject)
         {
-            if (mObject->GetHandleId() == mSavedHandleId)
+            if (PblHandleRegistry::IsLive(mObject, mSavedHandleId))
             {
                 return mObject;
             }

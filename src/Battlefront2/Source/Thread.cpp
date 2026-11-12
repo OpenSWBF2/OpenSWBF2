@@ -260,6 +260,7 @@ void Thread::Reset()
     sClientFrameThreadList.Clear();
     sClientLocalTurnThreadList.Clear();
     sClientTurnThreadList.Clear();
+    sExecutingThread = sHostFrameThreadList.mThreads.End();
     sThreadActivationKey = 0;
 }
 

@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "LoadUtil.h"
+#include "DataFileName.h"
 #include "SkyManager.h"
 
 #include "BoundaryManager.h"

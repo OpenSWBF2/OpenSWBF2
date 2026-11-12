@@ -457,7 +457,64 @@ struct TargetMode
     unsigned long ulMSQuality;
 };
 
+static DisplayRequestTag sAppliedPC = { false, 0, 0, 0, false, false, (D3DMULTISAMPLE_TYPE)0, 0,
+                                        false, 0, 0, false, false };
+
+static bool sArmMenuConfirm;
+static DisplayLogic::ConfirmPhase sConfirmPhase = DisplayLogic::kConfirmNone;
+static DWORD sConfirmStart;
+static unsigned int sConfirmSkewMs;
+static DisplayRequestTag sConfirmRevert = { false, 0, 0, 0, false, false, (D3DMULTISAMPLE_TYPE)0,
+                                            0, false, 0, 0, false, false };
+static bool sConfirmHaveTarget;
+static unsigned int sConfirmResult;
+static bool sConfirmCliCleared;
+static bool sConfirmCliPrev;
+static unsigned int sConfirmPrevFps;
+static bool sConfirmPrevNoWait;
+static DisplayCfg::DisplaySettings sMarkDisplay;
+static DisplayCfg::DisplaySettings sDeferBase;
+static bool sSaveDeferred;
+static unsigned int sKeepSaveResult;
+static bool sMarkCliWindowed;
+static bool sMarked;
+
+static void StageRequestTag(const PlayerProfile::tPCOpt& rOpt)
+{
+    DisplayRequestTag kTag;
+    kTag.bValid = true;
+    kTag.uiOwner = PlayerProfile::GetCurProfileIndex();
+    kTag.resX = rOpt.mResolutionX;
+    kTag.resY = rOpt.mResolutionY;
+    kTag.windowed = rOpt.mWindowed;
+    kTag.vsync = rOpt.mVSync;
+    kTag.ms = rOpt.mMultiSample;
+    kTag.msq = rOpt.mMultiSampleQuality;
+    kTag.bBorderless = DisplayCfg::gDisplay.bBorderless;
+    kTag.uiRefresh = DisplayCfg::gDisplay.uiRefresh;
+    kTag.uiVsync = DisplayCfg::gDisplay.uiVsync;
+    kTag.bVsyncSet = (DisplayCfg::gDisplay.uiSet & DisplayCfg::kVsync) != 0;
+    kTag.bConfirm = sArmMenuConfirm;
+    RedRenderer::pcStageRequestTag(kTag);
+}
+
+static bool ProfileSizeUsable(unsigned int uiW, unsigned int uiH)
+{
+    if (uiW == 0 && uiH == 0)
+    {
+        return true;
+    }
+    unsigned int uiMaxW = 0;
+    unsigned int uiMaxH = 0;
+    RedRenderer::pcGetMaxTextureSize(uiMaxW, uiMaxH);
+    return DisplayLogic::SizeInBounds(uiW, uiH) &&
+           DisplayLogic::SizeFitsCaps(uiW, uiH, uiMaxW, uiMaxH);
+}
+
+static void ComputeTargetMode(const PlayerProfile::tPCOpt& rOpt, bool bQuiet, TargetMode& rOut)
+{
     const bool bIsShell = (GameState::GetState() == 0x11E1FC01 /* "shell" */);
+    RedRenderer::pcSetShellActive(bIsShell);
 
     unsigned int uiWidth = 0;
     unsigned int uiHeight = 0;

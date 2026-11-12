@@ -173,16 +173,16 @@ TEST_CASE("net packet in bounds cycle is clean" * doctest::test_suite("regressio
     NetPacket* pPacket = NetPacket::Alloc(false);
     REQUIRE(pPacket);
     char* p = (char*)pPacket;
-    for (unsigned int i = 0; i < sizeof(NetBigPacket); ++i)
+    for (unsigned int i = 0; i < NetTestBigPacketBytes(); ++i)
     {
         p[i] = (char)i;
     }
-    for (unsigned int i = 0; i < sizeof(NetBigPacket); ++i)
+    for (unsigned int i = 0; i < NetTestBigPacketBytes(); ++i)
     {
         CHECK(p[i] == (char)i);
     }
 #if defined(__SANITIZE_ADDRESS__)
-    CHECK(__asan_address_is_poisoned(p + sizeof(NetBigPacket)));
+    CHECK(__asan_address_is_poisoned(p + NetTestBigPacketBytes()));
 #endif
     pPacket->Free();
 #if defined(__SANITIZE_ADDRESS__)

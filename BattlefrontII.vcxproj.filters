@@ -7,6 +7,9 @@
     <Filter Include="src\Battlefront2">
       <UniqueIdentifier>{13481A05-D0CF-5CF7-97AE-B6DC44A982F7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\GameSpyFL">
+      <UniqueIdentifier>{580CF33F-3635-47FB-B352-E9A66C271739}</UniqueIdentifier>
+    </Filter>
     <Filter Include="src\Battlefront2\Platform">
       <UniqueIdentifier>{74CD6B47-CC35-5C1B-90A3-F18C942C829F}</UniqueIdentifier>
     </Filter>
@@ -633,6 +636,9 @@
     <ClCompile Include="src\Battlefront2\Source\FLJoystick.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\FL_TTY.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\FirstPerson.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -760,6 +766,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\HUDBorderedBox.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\HUDDirections.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\HUDEditor.cpp">
@@ -1015,9 +1024,6 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\NetAdmin.cpp">
-      <Filter>src\Battlefront2\Source</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Battlefront2\Source\NetAdminMd5.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\NetComm.cpp">
@@ -1344,6 +1350,9 @@
     <ClCompile Include="src\Battlefront2\Source\TeamAssist.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\TeamDisplay.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\TeamManager.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -1572,6 +1581,15 @@
     <ClCompile Include="src\Battlefront2\Source\pcNetSocket.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\unzip.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GameSpyFL\md5c.c">
+      <Filter>src\GameSpyFL</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GameSpyFL\nonport.c">
+      <Filter>src\GameSpyFL</Filter>
+    </ClCompile>
     <ClCompile Include="src\LuaFL\src\lapi.cpp">
       <Filter>src\LuaFL\src</Filter>
     </ClCompile>
@@ -1650,6 +1668,9 @@
     <ClCompile Include="src\LuaFL\src\lzio.cpp">
       <Filter>src\LuaFL\src</Filter>
     </ClCompile>
+    <ClCompile Include="src\PebbleFL\Common\PblBuildType.cpp">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClCompile>
     <ClCompile Include="src\PebbleFL\Common\PblCatmullRom.cpp">
       <Filter>src\PebbleFL\Common</Filter>
     </ClCompile>
@@ -1683,6 +1704,12 @@
     <ClCompile Include="src\PebbleFL\Common\PblMath.cpp">
       <Filter>src\PebbleFL\Common</Filter>
     </ClCompile>
+    <ClCompile Include="src\PebbleFL\Common\PblPerformance.cpp">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PebbleFL\Common\PblPrintfWrapper.cpp">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClCompile>
     <ClCompile Include="src\PebbleFL\Common\PblProfile.cpp">
       <Filter>src\PebbleFL\Common</Filter>
     </ClCompile>
@@ -1713,9 +1740,6 @@
     <ClCompile Include="src\PebbleFL\Common\PblVector.cpp">
       <Filter>src\PebbleFL\Common</Filter>
     </ClCompile>
-    <ClCompile Include="src\PebbleFL\Common\pblRef.cpp">
-      <Filter>src\PebbleFL\Common</Filter>
-    </ClCompile>
     <ClCompile Include="src\PebbleFL\pc\pcPblMatrix.cpp">
       <Filter>src\PebbleFL\pc</Filter>
     </ClCompile>
@@ -1741,6 +1765,9 @@
       <Filter>src\RedEngineFL\Application\pc</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Application\pc\pcRedDropShadow.cpp">
+      <Filter>src\RedEngineFL\Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Application\pc\pcRedFootprint.cpp">
       <Filter>src\RedEngineFL\Application\pc</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Application\pc\pcRedParticle.cpp">
@@ -1861,9 +1888,6 @@
       <Filter>src\RedEngineFL\Application\pc</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedDeviceEnumerator.cpp">
-      <Filter>src\RedEngineFL\Graphics\PC</Filter>
-    </ClCompile>
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedFootprint.cpp">
       <Filter>src\RedEngineFL\Graphics\PC</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedIndexBuffer.cpp">
@@ -2010,9 +2034,6 @@
     <ClCompile Include="src\RedEngineFL\Memory\RedMemoryReport.cpp">
       <Filter>src\RedEngineFL\Memory</Filter>
     </ClCompile>
-    <ClCompile Include="src\RedEngineFL\Memory\coreLeafTypes.cpp">
-      <Filter>src\RedEngineFL\Memory</Filter>
-    </ClCompile>
     <ClCompile Include="src\RedEngineFL\Portals\Portal.cpp">
       <Filter>src\RedEngineFL\Portals</Filter>
     </ClCompile>
@@ -2044,6 +2065,9 @@
       <Filter>src\RedEngineFL\Util</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Util\RedScreenShot.cpp">
+      <Filter>src\RedEngineFL\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="src\RedEngineFL\Util\RedStack.cpp">
       <Filter>src\RedEngineFL\Util</Filter>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Util\RedLog.cpp">
@@ -2370,9 +2394,6 @@
     <ClCompile Include="src\Steam\gfSteamAuth.cpp">
       <Filter>src\Steam</Filter>
     </ClCompile>
-    <ClCompile Include="src\Zephyr\Source\PblPrintfWrapper.cpp">
-      <Filter>src\Zephyr\Source</Filter>
-    </ClCompile>
     <ClCompile Include="src\Zephyr\Source\ZephyrAnim.cpp">
       <Filter>src\Zephyr\Source</Filter>
     </ClCompile>
@@ -2412,9 +2433,6 @@
     <ClCompile Include="src\Zephyr\Source\ZephyrSkinShared.cpp">
       <Filter>src\Zephyr\Source</Filter>
     </ClCompile>
-    <ClCompile Include="src\ZlibFL\adler32.c">
-      <Filter>src\ZlibFL</Filter>
-    </ClCompile>
     <ClCompile Include="src\ZlibFL\compress.c">
       <Filter>src\ZlibFL</Filter>
     </ClCompile>
@@ -2447,22 +2465,10 @@
     <ClInclude Include="src\Battlefront2\Source\pcCrash.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
-    <ClInclude Include="src\Battlefront2\Platform\Pc\pcDustEffect.h">
-      <Filter>src\Battlefront2\Platform\Pc</Filter>
-    </ClInclude>
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcDynamicSprite.h">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcFLJoystick.h">
-      <Filter>src\Battlefront2\Platform\Pc</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Battlefront2\Platform\Pc\pcGrassPatch.h">
-      <Filter>src\Battlefront2\Platform\Pc</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Battlefront2\Platform\Pc\pcLeafPatch.h">
-      <Filter>src\Battlefront2\Platform\Pc</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Battlefront2\Platform\Pc\pcLetterboxEffect.h">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcLightBeam.h">
@@ -2478,9 +2484,6 @@
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSunFlare.h">
-      <Filter>src\Battlefront2\Platform\Pc</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Battlefront2\Platform\Pc\pcVideoEffect.h">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\AIDifficulty.h">
@@ -2601,6 +2604,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\CollisionObject.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\CollisionObjectType.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\CollisionPrimitive.h">
@@ -2846,6 +2852,9 @@
     <ClInclude Include="src\Battlefront2\Source\EventManager_Flag.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\EventManager_LuaCallback.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\EventManager_LuaUser.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -2882,6 +2891,9 @@
     <ClInclude Include="src\Battlefront2\Source\FLList.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\FL_TTY.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\Factory.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -2903,6 +2915,12 @@
     <ClInclude Include="src\Battlefront2\Source\FoleyFX.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\FoleyFXCollidee.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\FoleyFXCollider.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\FoleyFXOrdnance.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -2918,7 +2936,13 @@
     <ClInclude Include="src\Battlefront2\Source\FollowGoal.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\FrameUpdate.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\FreeCamera.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\FriendBuddyList.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\Fsm.h">
@@ -3113,6 +3137,9 @@
     <ClInclude Include="src\Battlefront2\Source\LensFlare.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\LetterboxEffect.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\LightBeam.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3254,10 +3281,10 @@
     <ClInclude Include="src\Battlefront2\Source\NetAdminIdText.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
-    <ClInclude Include="src\Battlefront2\Source\NetAdminMd5.h">
+    <ClInclude Include="src\Battlefront2\Source\NetComm.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
-    <ClInclude Include="src\Battlefront2\Source\NetComm.h">
+    <ClInclude Include="src\Battlefront2\Source\NetDrag.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\NetGame.h">
@@ -3449,6 +3476,9 @@
     <ClInclude Include="src\Battlefront2\Source\PlayerStats.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\PopupText.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\PortalReader.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3473,6 +3503,9 @@
     <ClInclude Include="src\Battlefront2\Source\PropGenerator.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\PropLayer.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\PropModel.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3486,6 +3519,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\Reserve.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\ReserveManager.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\Restrictor.h">
@@ -3528,6 +3564,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\SkyDome.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\SkyManager.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\SkyObject.h">
@@ -3582,6 +3621,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\StatIconDisplay.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\StatsManager.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\StatusDisplay.h">
@@ -3731,6 +3773,9 @@
     <ClInclude Include="src\Battlefront2\Source\VehicleSpawn.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\VideoEffect.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\VisionManager.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3770,9 +3815,6 @@
     <ClInclude Include="src\Battlefront2\Source\WeaponCannon.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
-    <ClInclude Include="src\Battlefront2\Source\WeaponCannonInstance.h">
-      <Filter>src\Battlefront2\Source</Filter>
-    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\WeaponCatapult.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3806,9 +3848,6 @@
     <ClInclude Include="src\Battlefront2\Source\WeaponMelee.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
-    <ClInclude Include="src\Battlefront2\Source\WeaponMeleeInstance.h">
-      <Filter>src\Battlefront2\Source</Filter>
-    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\WeaponMeleeThrow.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3835,6 +3874,12 @@
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\pcNetSocket.h">
       <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\GameSpyFL\md5.h">
+      <Filter>src\GameSpyFL</Filter>
+    </ClInclude>
+    <ClInclude Include="src\GameSpyFL\nonport.h">
+      <Filter>src\GameSpyFL</Filter>
     </ClInclude>
     <ClInclude Include="src\LuaFL\include\lauxlib.h">
       <Filter>src\LuaFL\include</Filter>
@@ -3911,6 +3956,9 @@
     <ClInclude Include="src\PebbleFL\Common\PblBitVector.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
+    <ClInclude Include="src\PebbleFL\Common\PblBuildType.h">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblCatmullRom.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
@@ -3971,6 +4019,9 @@
     <ClInclude Include="src\PebbleFL\Common\PblMatrix.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
+    <ClInclude Include="src\PebbleFL\Common\PblPerformance.h">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblPlane.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
@@ -3992,6 +4043,9 @@
     <ClInclude Include="src\PebbleFL\Common\PblRegion.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
+    <ClInclude Include="src\PebbleFL\Common\PblRtti.h">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblTime.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
@@ -4010,11 +4064,14 @@
     <ClInclude Include="src\PebbleFL\pc\pcPblMath.h">
       <Filter>src\PebbleFL\pc</Filter>
     </ClInclude>
-    <ClInclude Include="src\PebbleFL\pc\pcPblMatrix.h">
+    <ClInclude Include="src\PebbleFL\pc\pcPblMatrix.inl">
       <Filter>src\PebbleFL\pc</Filter>
     </ClInclude>
-    <ClInclude Include="src\PebbleFL\pc\pcPblVector.h">
+    <ClInclude Include="src\PebbleFL\pc\pcPblVector.inl">
       <Filter>src\PebbleFL\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Application\RedDropShadow.h">
+      <Filter>src\RedEngineFL\Application</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Application\RedPath.h">
       <Filter>src\RedEngineFL\Application</Filter>
@@ -4037,9 +4094,6 @@
     <ClInclude Include="src\RedEngineFL\Application\pc\pcRedDebug.h">
       <Filter>src\RedEngineFL\Application\pc</Filter>
     </ClInclude>
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcRedDropShadow.h">
-      <Filter>src\RedEngineFL\Application\pc</Filter>
-    </ClInclude>
     <ClInclude Include="src\RedEngineFL\Application\pc\pcRedParticle.h">
       <Filter>src\RedEngineFL\Application\pc</Filter>
     </ClInclude>
@@ -4047,9 +4101,6 @@
       <Filter>src\RedEngineFL\Application\pc</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Application\pc\pcRedShape.h">
-      <Filter>src\RedEngineFL\Application\pc</Filter>
-    </ClInclude>
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcRedTerrain.h">
       <Filter>src\RedEngineFL\Application\pc</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Application\pc\pcRenderHelpers.h">
@@ -4301,6 +4352,9 @@
     <ClInclude Include="src\RedEngineFL\Memory\engineAlloc.h">
       <Filter>src\RedEngineFL\Memory</Filter>
     </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Portals\BaseDisplayable.h">
+      <Filter>src\RedEngineFL\Portals</Filter>
+    </ClInclude>
     <ClInclude Include="src\RedEngineFL\Portals\Portal.h">
       <Filter>src\RedEngineFL\Portals</Filter>
     </ClInclude>
@@ -4335,6 +4389,9 @@
       <Filter>src\RedEngineFL\Util</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Util\RedLog.h">
+      <Filter>src\RedEngineFL\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\Util\RedMissionLog.h">
       <Filter>src\RedEngineFL\Util</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\Util\RedWarning.h">
@@ -4377,6 +4434,9 @@
       <Filter>src\RedEngineFL\Util\ext</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\geometry\Primitives.h">
+      <Filter>src\RedEngineFL\geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="src\RedEngineFL\geometry\TransformOps.h">
       <Filter>src\RedEngineFL\geometry</Filter>
     </ClInclude>
     <ClInclude Include="src\RedEngineFL\geometry\basics.h">
@@ -4728,6 +4788,9 @@
       <Filter>src\Zephyr\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Zephyr\Source\ZephyrFile.h">
+      <Filter>src\Zephyr\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Zephyr\Source\ZephyrJoint.h">
       <Filter>src\Zephyr\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Zephyr\Source\ZephyrPoseDyn.h">

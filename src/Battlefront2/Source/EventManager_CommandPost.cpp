@@ -1,5 +1,4 @@
 #include "EventManager_CommandPost.h"
-#include "LuaHandleArg.h"
 #include "LuaHelper.h"
 #include "LuaFL/include/lauxlib.h"
 #include "EventManager_LuaUser.h"

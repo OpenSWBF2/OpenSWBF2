@@ -2798,7 +2798,7 @@ int ScriptCB_GetKeyBoardCmds(lua_State* L)
         if (!usKeys[0])
         {
 
-            RedLocalizeDB::GetLocalizedString(usKey, sizeof(usKey), 0x6054a42du /* "ifs.controls.General.None" */);
+            RedLocalizeDB::GetLocalizedString(usKey, sizeof(usKey) / sizeof(usKey[0]), 0x6054a42du /* "ifs.controls.General.None" */);
             PblUnicode::ustrlcat(usKeys, usKey, 256);
         }
 
@@ -3074,7 +3074,12 @@ int ScriptCB_IFModel_SetModel(lua_State* L)
         Red3DModelElementLite* pModel = (Red3DModelElementLite*)pElement;
         if (lua_type(LuaHelper::mState, iArg) == LUA_TLIGHTUSERDATA)
         {
-            pModel->SetModel((const RedModel*)lua_topointer(LuaHelper::mState, iArg));
+            const RedModel* pRedModel = (const RedModel*)LuaHandleArg::Get(LuaHelper::mState, iArg);
+            if (!RedModel::_HashTable.HasValue(pRedModel))
+            {
+                pRedModel = 0;
+            }
+            pModel->SetModel(pRedModel);
         }
         else if (lua_isstring(LuaHelper::mState, iArg))
         {
@@ -3428,12 +3433,14 @@ int ScriptCB_IFModel_AttachModel(lua_State* L)
     {
         return 0;
     }
-    Red3DModelElement* pAttached = (Red3DModelElement*)(
-        const_cast<void*>(lua_topointer(LuaHelper::mState, iArg)));
-    Red3DModelElement* pModel = (Red3DModelElement*)pElement;
-    pModel->m_AttachedObj = pAttached;
-    pModel->m_uiHardpointHash = PblTEMPHash(luaL_checkstring(LuaHelper::mState, iArg + 1));
-    pAttached->m_bAmAttached = true;
+    RedInterfaceElement* pAttachedElement = Util_GetLuaElement(iArg);
+    if (pAttachedElement && pAttachedElement->IsModel())
+    {
+        Red3DModelElement* pAttached = (Red3DModelElement*)pAttachedElement;
+        Red3DModelElement* pModel = (Red3DModelElement*)pElement;
+        const unsigned int uiHash = PblTEMPHash(luaL_checkstring(LuaHelper::mState, iArg + 1));
+        pModel->AttachModel(pAttached, uiHash);
+    }
     return 0;
 }
 

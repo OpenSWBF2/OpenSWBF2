@@ -130,6 +130,9 @@ public:
             ActivateThread(0, PER_FRAME);
         }
     }
+    void DetachFromTarget();
+    template <class EFFECT>
+    friend void DetachEffectFromTarget(EFFECT& rEffect);
 protected:
     virtual bool Update(float fDeltaTime);
     virtual void UpdatedWorldMatrix();

@@ -96,6 +96,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\PebbleFL\pc\pcPblMatrix.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcBirdEffect.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcBlurEffect.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcCloth.cpp" />
@@ -271,6 +272,7 @@
     <ClCompile Include="src\Battlefront2\Source\FLGuiManager.cpp" />
     <ClCompile Include="src\Battlefront2\Source\FLInputManager.cpp" />
     <ClCompile Include="src\Battlefront2\Source\FLJoystick.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\FL_TTY.cpp" />
     <ClCompile Include="src\Battlefront2\Source\FirstPerson.cpp" />
     <ClCompile Include="src\Battlefront2\Source\FishEffect.cpp" />
     <ClCompile Include="src\Battlefront2\Source\FlagItem.cpp" />
@@ -314,6 +316,7 @@
     <ClCompile Include="src\Battlefront2\Source\GrassPatch.cpp" />
     <ClCompile Include="src\Battlefront2\Source\HDREffect.cpp" />
     <ClCompile Include="src\Battlefront2\Source\HUDBorderedBox.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\HUDDirections.cpp" />
     <ClCompile Include="src\Battlefront2\Source\HUDEditor.cpp" />
     <ClCompile Include="src\Battlefront2\Source\HUDElement.cpp" />
     <ClCompile Include="src\Battlefront2\Source\HUDElementBar.cpp" />
@@ -401,7 +404,6 @@
     <ClCompile Include="src\Battlefront2\Source\NavigatorPathFollower.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NavigatorSlide.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetAdmin.cpp" />
-    <ClCompile Include="src\Battlefront2\Source\NetAdminMd5.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetComm.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetDrag.cpp" />
     <ClCompile Include="src\Battlefront2\Source\NetGame.cpp">
@@ -514,6 +516,7 @@
     <ClCompile Include="src\Battlefront2\Source\TargetManager.cpp" />
     <ClCompile Include="src\Battlefront2\Source\Team.cpp" />
     <ClCompile Include="src\Battlefront2\Source\TeamAssist.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\TeamDisplay.cpp" />
     <ClCompile Include="src\Battlefront2\Source\TeamManager.cpp" />
     <ClCompile Include="src\Battlefront2\Source\TentacleSimulator.cpp" />
     <ClCompile Include="src\Battlefront2\Source\Thread.cpp" />
@@ -592,6 +595,11 @@
     <ClCompile Include="src\Battlefront2\Source\pcCrash.cpp" />
     <ClCompile Include="src\Battlefront2\Source\pcMain.cpp" />
     <ClCompile Include="src\Battlefront2\Source\pcNetSocket.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\unzip.cpp" />
+    <ClCompile Include="src\GameSpyFL\md5c.c" />
+    <ClCompile Include="src\GameSpyFL\nonport.c">
+      <PreprocessorDefinitions>_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="src\LuaFL\src\lapi.cpp">
       <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -670,6 +678,7 @@
     <ClCompile Include="src\LuaFL\src\lzio.cpp">
       <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <ClCompile Include="src\PebbleFL\Common\PblBuildType.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblCatmullRom.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblChunk.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblConfig.cpp" />
@@ -681,6 +690,8 @@
     <ClCompile Include="src\PebbleFL\Common\PblHermite.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblJournal.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblMath.cpp" />
+    <ClCompile Include="src\PebbleFL\Common\PblPerformance.cpp" />
+    <ClCompile Include="src\PebbleFL\Common\PblPrintfWrapper.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblProfile.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblQuaternion.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblRandom.cpp" />
@@ -691,18 +702,18 @@
     <ClCompile Include="src\PebbleFL\Common\PblUnicode.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblValues.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblVector.cpp" />
-    <ClCompile Include="src\PebbleFL\Common\pblRef.cpp" />
-    <ClCompile Include="src\PebbleFL\pc\pcPblMatrix.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\RedPath.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\RedTerrain.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\RedWater.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\Renderable.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\crtLibrary.cpp" />
+    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedShader.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcFLRender.cpp">
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Application\pc\pcRedDebug.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcRedDropShadow.cpp" />
+    <ClCompile Include="src\RedEngineFL\Application\pc\pcRedFootprint.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcRedParticle.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcRedShadowProxy.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcRedTerrain.cpp" />
@@ -743,7 +754,6 @@
     <ClCompile Include="src\RedEngineFL\Application\pc\pcWindow.cpp" />
     <ClCompile Include="src\RedEngineFL\Application\pc\pcMessageDrain.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedDeviceEnumerator.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedFootprint.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedIndexBuffer.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedPixelShader.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedPrimitive.cpp" />
@@ -751,7 +761,6 @@
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedSegment.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedShader.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedStencilShadow.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedTexture.cpp" />
     <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexBuffer.cpp" />
@@ -811,7 +820,6 @@
     </ClCompile>
     <ClCompile Include="src\RedEngineFL\Memory\RedMemoryPool.cpp" />
     <ClCompile Include="src\RedEngineFL\Memory\RedMemoryReport.cpp" />
-    <ClCompile Include="src\RedEngineFL\Memory\coreLeafTypes.cpp" />
     <ClCompile Include="src\RedEngineFL\Portals\Portal.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\RedAnimation.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\RedCommandConsole.cpp" />
@@ -823,6 +831,7 @@
     <ClCompile Include="src\RedEngineFL\Util\RedSceneManager.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\RedSceneObject.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\RedScreenShot.cpp" />
+    <ClCompile Include="src\RedEngineFL\Util\RedStack.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\RedLog.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\RedWarning.cpp" />
     <ClCompile Include="src\RedEngineFL\Util\ext\Allocator.cpp" />
@@ -937,7 +946,6 @@
     <ClCompile Include="src\SoundFL\source\win\sndvoice.cpp" />
     <ClCompile Include="src\Steam\gfGalaxy.cpp" />
     <ClCompile Include="src\Steam\gfSteamAuth.cpp" />
-    <ClCompile Include="src\Zephyr\Source\PblPrintfWrapper.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrAnim.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrAnimBank.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrAnimBankReader.cpp" />
@@ -951,7 +959,6 @@
     <ClCompile Include="src\Zephyr\Source\ZephyrSkeletonShared.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrSkinReader.cpp" />
     <ClCompile Include="src\Zephyr\Source\ZephyrSkinShared.cpp" />
-    <ClCompile Include="src\ZlibFL\adler32.c" />
     <ClCompile Include="src\ZlibFL\compress.c" />
     <ClCompile Include="src\ZlibFL\crc32.c" />
     <ClCompile Include="src\ZlibFL\deflate.c" />
@@ -967,18 +974,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Battlefront2\Source\pcCrash.h" />
-    <ClInclude Include="src\Battlefront2\Platform\Pc\pcDustEffect.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcDynamicSprite.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcFLJoystick.h" />
-    <ClInclude Include="src\Battlefront2\Platform\Pc\pcGrassPatch.h" />
-    <ClInclude Include="src\Battlefront2\Platform\Pc\pcLeafPatch.h" />
-    <ClInclude Include="src\Battlefront2\Platform\Pc\pcLetterboxEffect.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcLightBeam.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSaveDevice.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSaveFile.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSpawnDisplay.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSunFlare.h" />
-    <ClInclude Include="src\Battlefront2\Platform\Pc\pcVideoEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\AIDifficulty.h" />
     <ClInclude Include="src\Battlefront2\Source\AIDifficultyLevel.h" />
     <ClInclude Include="src\Battlefront2\Source\AIGoal.h" />
@@ -1019,6 +1021,7 @@
     <ClInclude Include="src\Battlefront2\Source\CollisionMesh.h" />
     <ClInclude Include="src\Battlefront2\Source\CollisionModel.h" />
     <ClInclude Include="src\Battlefront2\Source\CollisionObject.h" />
+    <ClInclude Include="src\Battlefront2\Source\CollisionObjectType.h" />
     <ClInclude Include="src\Battlefront2\Source\CollisionPrimitive.h" />
     <ClInclude Include="src\Battlefront2\Source\CollisionUtil.h" />
     <ClInclude Include="src\Battlefront2\Source\ColorControl.h" />
@@ -1100,6 +1103,7 @@
     <ClInclude Include="src\Battlefront2\Source\EventManager_Character.h" />
     <ClInclude Include="src\Battlefront2\Source\EventManager_CommandPost.h" />
     <ClInclude Include="src\Battlefront2\Source\EventManager_Flag.h" />
+    <ClInclude Include="src\Battlefront2\Source\EventManager_LuaCallback.h" />
     <ClInclude Include="src\Battlefront2\Source\EventManager_LuaUser.h" />
     <ClInclude Include="src\Battlefront2\Source\EventManager_Object.h" />
     <ClInclude Include="src\Battlefront2\Source\EventManager_Region.h" />
@@ -1112,6 +1116,7 @@
     <ClInclude Include="src\Battlefront2\Source\FLInputManager.h" />
     <ClInclude Include="src\Battlefront2\Source\FLJoystick.h" />
     <ClInclude Include="src\Battlefront2\Source\FLList.h" />
+    <ClInclude Include="src\Battlefront2\Source\FL_TTY.h" />
     <ClInclude Include="src\Battlefront2\Source\Factory.h" />
     <ClInclude Include="src\Battlefront2\Source\FirstPerson.h" />
     <ClInclude Include="src\Battlefront2\Source\FishEffect.h" />
@@ -1119,12 +1124,16 @@
     <ClInclude Include="src\Battlefront2\Source\FlashyTextElement.h" />
     <ClInclude Include="src\Battlefront2\Source\FlyRegion.h" />
     <ClInclude Include="src\Battlefront2\Source\FoleyFX.h" />
+    <ClInclude Include="src\Battlefront2\Source\FoleyFXCollidee.h" />
+    <ClInclude Include="src\Battlefront2\Source\FoleyFXCollider.h" />
     <ClInclude Include="src\Battlefront2\Source\FoleyFXOrdnance.h" />
     <ClInclude Include="src\Battlefront2\Source\FoleyFXRegion.h" />
     <ClInclude Include="src\Battlefront2\Source\FoleyFXSoldier.h" />
     <ClInclude Include="src\Battlefront2\Source\FoleyFXWalker.h" />
     <ClInclude Include="src\Battlefront2\Source\FollowGoal.h" />
+    <ClInclude Include="src\Battlefront2\Source\FrameUpdate.h" />
     <ClInclude Include="src\Battlefront2\Source\FreeCamera.h" />
+    <ClInclude Include="src\Battlefront2\Source\FriendBuddyList.h" />
     <ClInclude Include="src\Battlefront2\Source\Fsm.h" />
     <ClInclude Include="src\Battlefront2\Source\GameCamera.h" />
     <ClInclude Include="src\Battlefront2\Source\GameLoop.h" />
@@ -1189,6 +1198,7 @@
     <ClInclude Include="src\Battlefront2\Source\LeafEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\LeafPatch.h" />
     <ClInclude Include="src\Battlefront2\Source\LensFlare.h" />
+    <ClInclude Include="src\Battlefront2\Source\LetterboxEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\LightBeam.h" />
     <ClInclude Include="src\Battlefront2\Source\LightFlash.h" />
     <ClInclude Include="src\Battlefront2\Source\LightningBoltEffect.h" />
@@ -1236,8 +1246,8 @@
     <ClInclude Include="src\Battlefront2\Source\NavigatorSlide.h" />
     <ClInclude Include="src\Battlefront2\Source\NetAdmin.h" />
     <ClInclude Include="src\Battlefront2\Source\NetAdminIdText.h" />
-    <ClInclude Include="src\Battlefront2\Source\NetAdminMd5.h" />
     <ClInclude Include="src\Battlefront2\Source\NetComm.h" />
+    <ClInclude Include="src\Battlefront2\Source\NetDrag.h" />
     <ClInclude Include="src\Battlefront2\Source\NetGame.h" />
     <ClInclude Include="src\Battlefront2\Source\NetMatch.h" />
     <ClInclude Include="src\Battlefront2\Source\NetPacket.h" />
@@ -1301,6 +1311,7 @@
     <ClInclude Include="src\Battlefront2\Source\PlayerController.h" />
     <ClInclude Include="src\Battlefront2\Source\PlayerProfile.h" />
     <ClInclude Include="src\Battlefront2\Source\PlayerStats.h" />
+    <ClInclude Include="src\Battlefront2\Source\PopupText.h" />
     <ClInclude Include="src\Battlefront2\Source\PortalReader.h" />
     <ClInclude Include="src\Battlefront2\Source\PowerupItem.h" />
     <ClInclude Include="src\Battlefront2\Source\PowerupStation.h" />
@@ -1309,11 +1320,13 @@
     <ClInclude Include="src\Battlefront2\Source\ProfileNameFormat.h" />
     <ClInclude Include="src\Battlefront2\Source\PropCluster.h" />
     <ClInclude Include="src\Battlefront2\Source\PropGenerator.h" />
+    <ClInclude Include="src\Battlefront2\Source\PropLayer.h" />
     <ClInclude Include="src\Battlefront2\Source\PropModel.h" />
     <ClInclude Include="src\Battlefront2\Source\PropModelMesh.h" />
     <ClInclude Include="src\Battlefront2\Source\QOSDisplay.h" />
     <ClInclude Include="src\Battlefront2\Source\RepairHelper.h" />
     <ClInclude Include="src\Battlefront2\Source\Reserve.h" />
+    <ClInclude Include="src\Battlefront2\Source\ReserveManager.h" />
     <ClInclude Include="src\Battlefront2\Source\Restrictor.h" />
     <ClInclude Include="src\Battlefront2\Source\ReticuleDisplay.h" />
     <ClInclude Include="src\Battlefront2\Source\RotatingModel.h" />
@@ -1328,6 +1341,7 @@
     <ClInclude Include="src\Battlefront2\Source\ShieldEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\SideNames.h" />
     <ClInclude Include="src\Battlefront2\Source\SkyDome.h" />
+    <ClInclude Include="src\Battlefront2\Source\SkyManager.h" />
     <ClInclude Include="src\Battlefront2\Source\SkyObject.h" />
     <ClInclude Include="src\Battlefront2\Source\SkyStars.h" />
     <ClInclude Include="src\Battlefront2\Source\SnipeHelper.h" />
@@ -1346,6 +1360,7 @@
     <ClInclude Include="src\Battlefront2\Source\SquadCommands.h" />
     <ClInclude Include="src\Battlefront2\Source\SquadronFormation.h" />
     <ClInclude Include="src\Battlefront2\Source\StatIconDisplay.h" />
+    <ClInclude Include="src\Battlefront2\Source\StatsManager.h" />
     <ClInclude Include="src\Battlefront2\Source\StatusDisplay.h" />
     <ClInclude Include="src\Battlefront2\Source\StickInfo.h" />
     <ClInclude Include="src\Battlefront2\Source\StringDB.h" />
@@ -1395,6 +1410,7 @@
     <ClInclude Include="src\Battlefront2\Source\VehicleManager.h" />
     <ClInclude Include="src\Battlefront2\Source\VehicleMusic.h" />
     <ClInclude Include="src\Battlefront2\Source\VehicleSpawn.h" />
+    <ClInclude Include="src\Battlefront2\Source\VideoEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\VisionManager.h" />
     <ClInclude Include="src\Battlefront2\Source\VoiceChatNode.h" />
     <ClInclude Include="src\Battlefront2\Source\VoiceChatTransport.h" />
@@ -1408,7 +1424,6 @@
     <ClInclude Include="src\Battlefront2\Source\WeaponAreaEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponBinoculars.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponCannon.h" />
-    <ClInclude Include="src\Battlefront2\Source\WeaponCannonInstance.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponCatapult.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponDestruct.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponDetonator.h" />
@@ -1420,7 +1435,6 @@
     <ClInclude Include="src\Battlefront2\Source\WeaponLaser.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponLauncher.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponMelee.h" />
-    <ClInclude Include="src\Battlefront2\Source\WeaponMeleeInstance.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponMeleeThrow.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponRemote.h" />
     <ClInclude Include="src\Battlefront2\Source\WeaponRepair.h" />
@@ -1430,6 +1444,8 @@
     <ClInclude Include="src\Battlefront2\Source\WobblePhase.h" />
     <ClInclude Include="src\Battlefront2\Source\WorldShadowMapEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\pcNetSocket.h" />
+    <ClInclude Include="src\GameSpyFL\md5.h" />
+    <ClInclude Include="src\GameSpyFL\nonport.h" />
     <ClInclude Include="src\LuaFL\include\lauxlib.h" />
     <ClInclude Include="src\LuaFL\include\lua.h" />
     <ClInclude Include="src\LuaFL\include\lualib.h" />
@@ -1455,6 +1471,7 @@
     <ClInclude Include="src\LuaFL\src\lzio.h" />
     <ClInclude Include="src\PebbleFL\Common\PblAngle.h" />
     <ClInclude Include="src\PebbleFL\Common\PblBitVector.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblBuildType.h" />
     <ClInclude Include="src\PebbleFL\Common\PblCatmullRom.h" />
     <ClInclude Include="src\PebbleFL\Common\PblChunk.h" />
     <ClInclude Include="src\PebbleFL\Common\PblConfig.h" />
@@ -1475,6 +1492,7 @@
     <ClInclude Include="src\PebbleFL\Common\PblListSingleSorted.h" />
     <ClInclude Include="src\PebbleFL\Common\PblMath.h" />
     <ClInclude Include="src\PebbleFL\Common\PblMatrix.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblPerformance.h" />
     <ClInclude Include="src\PebbleFL\Common\PblPlane.h" />
     <ClInclude Include="src\PebbleFL\Common\PblSerial.h" />
     <ClInclude Include="src\PebbleFL\Common\PblPtrSet.h" />
@@ -1482,14 +1500,16 @@
     <ClInclude Include="src\PebbleFL\Common\PblRandom.h" />
     <ClInclude Include="src\PebbleFL\Common\PblRef.h" />
     <ClInclude Include="src\PebbleFL\Common\PblRegion.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblRtti.h" />
     <ClInclude Include="src\PebbleFL\Common\PblTime.h" />
     <ClInclude Include="src\PebbleFL\Common\PblTimeBase.h" />
     <ClInclude Include="src\PebbleFL\Common\PblUnicode.h" />
     <ClInclude Include="src\PebbleFL\Common\PblValues.h" />
     <ClInclude Include="src\PebbleFL\Common\PblVector.h" />
     <ClInclude Include="src\PebbleFL\pc\pcPblMath.h" />
-    <ClInclude Include="src\PebbleFL\pc\pcPblMatrix.h" />
-    <ClInclude Include="src\PebbleFL\pc\pcPblVector.h" />
+    <ClInclude Include="src\PebbleFL\pc\pcPblMatrix.inl" />
+    <ClInclude Include="src\PebbleFL\pc\pcPblVector.inl" />
+    <ClInclude Include="src\RedEngineFL\Application\RedDropShadow.h" />
     <ClInclude Include="src\RedEngineFL\Application\RedPath.h" />
     <ClInclude Include="src\RedEngineFL\Application\RedTerrain.h" />
     <ClInclude Include="src\RedEngineFL\Application\RedWater.h" />
@@ -1497,11 +1517,9 @@
     <ClInclude Include="src\RedEngineFL\Application\pc\crtNames.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcFLRender.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcRedDebug.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcRedDropShadow.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcRedParticle.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcRedShadowProxy.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcRedShape.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcRedTerrain.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcRenderHelpers.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcRenderStateHelpers.h" />
     <ClInclude Include="src\RedEngineFL\Application\pc\pcShadowQuadRenderable.h" />
@@ -1585,6 +1603,7 @@
     <ClInclude Include="src\RedEngineFL\Memory\RedMemoryReport.h" />
     <ClInclude Include="src\RedEngineFL\Memory\RedScriptLimits.h" />
     <ClInclude Include="src\RedEngineFL\Memory\engineAlloc.h" />
+    <ClInclude Include="src\RedEngineFL\Portals\BaseDisplayable.h" />
     <ClInclude Include="src\RedEngineFL\Portals\Portal.h" />
     <ClInclude Include="src\RedEngineFL\Util\RedAnimation.h" />
     <ClInclude Include="src\RedEngineFL\Util\RedCommandConsole.h" />
@@ -1597,6 +1616,7 @@
     <ClInclude Include="src\RedEngineFL\Util\RedScreenShot.h" />
     <ClInclude Include="src\RedEngineFL\Util\RedStack.h" />
     <ClInclude Include="src\RedEngineFL\Util\RedLog.h" />
+    <ClInclude Include="src\RedEngineFL\Util\RedMissionLog.h" />
     <ClInclude Include="src\RedEngineFL\Util\RedWarning.h" />
     <ClInclude Include="src\RedEngineFL\Util\ext\Allocator.h" />
     <ClInclude Include="src\RedEngineFL\Util\ext\BaseString.h" />
@@ -1611,6 +1631,7 @@
     <ClInclude Include="src\RedEngineFL\Util\ext\heap.h" />
     <ClInclude Include="src\RedEngineFL\Util\ext\types.h" />
     <ClInclude Include="src\RedEngineFL\geometry\Primitives.h" />
+    <ClInclude Include="src\RedEngineFL\geometry\TransformOps.h" />
     <ClInclude Include="src\RedEngineFL\geometry\basics.h" />
     <ClInclude Include="src\RedEngineFL\geometry\polygons.h" />
     <ClInclude Include="src\RedEngineFL\geometry\vector.h" />
@@ -1728,6 +1749,7 @@
     <ClInclude Include="src\Zephyr\Source\ZephyrCommon.h" />
     <ClInclude Include="src\Zephyr\Source\ZephyrEvent.h" />
     <ClInclude Include="src\Zephyr\Source\ZephyrFile.h" />
+    <ClInclude Include="src\Zephyr\Source\ZephyrJoint.h" />
     <ClInclude Include="src\Zephyr\Source\ZephyrPoseDyn.h" />
     <ClInclude Include="src\Zephyr\Source\ZephyrPoseStatic.h" />
     <ClInclude Include="src\Zephyr\Source\ZephyrSkeleton.h" />

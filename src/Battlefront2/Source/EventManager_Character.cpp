@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 #include "EventManager_Character.h"
-#include "LuaHandleArg.h"
 #include "Character.h"
 #include "Controllable.h"
 #include "Entity.h"

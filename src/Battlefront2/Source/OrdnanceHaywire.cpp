@@ -36,8 +36,7 @@ bool OrdnanceHaywire::Update(float fDeltaTime)
         auto* pStick = mStickInfo;
         if (pStick)
         {
-            GameObject* pObject = pStick->mCollHandle.mObject;
-            if (pObject->GetHandleId() == pStick->mCollHandle.mSavedHandleId)
+            if (GameObject* pObject = pStick->mCollHandle.GetObjectA())
             {
                 pObject->mDisableTime = ((OrdnanceHaywireClass*)mClass)->mDisableTime;
             }

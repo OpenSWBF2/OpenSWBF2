@@ -890,6 +890,9 @@ struct RenderOptionsT
 };
  
 
+#include "pcDisplayLogic.h"
+
+extern unsigned int gAdapter;
 
 #include "StateManager_DX.h"
 

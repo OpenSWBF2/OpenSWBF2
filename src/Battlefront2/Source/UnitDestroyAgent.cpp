@@ -41,22 +41,6 @@ namespace
         return (const Damageable*)pObject;
     }
 
-    inline const GameObject* ResolveHandle(PblHandle<const GameObject>& handle)
-    {
-        const GameObject* pObject = handle.mObject;
-        if (pObject)
-        {
-            if (pObject->GetHandleId() ==
-                handle.mSavedHandleId)
-            {
-                return pObject;
-            }
-            handle.mObject = 0;
-            handle.mSavedHandleId = 0;
-        }
-        return 0;
-    }
-
     inline const WeaponClass* GetWeaponClass(const Weapon* pWeapon)
     {
         return pWeapon->GetClass();

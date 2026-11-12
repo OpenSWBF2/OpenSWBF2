@@ -135,9 +135,9 @@ TEST_CASE("profile name sites use the template seam" * doctest::test_suite("regr
 {
     std::string sLoadSave;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\LuaCallbacks_LoadSave.cpp", sLoadSave));
-    CHECK(sLoadSave.find("FormatProfileName(ausName, 64, RedLocalizeDB::Find(0x3802F15B, false), 1);") != std::string::npos);
+    CHECK(sLoadSave.find("FormatProfileName(ausName, 64, pusTemplate, 1);") != std::string::npos);
     CHECK(sLoadSave.find("FormatProfileName(Lua_Callbacks::sTempReturnString16, 256, pusBase, (int)uiTry);") != std::string::npos);
-    CHECK(sLoadSave.find("usnprintf(ausName, 64, RedLocalizeDB::Find(0x3802F15B") == std::string::npos);
+    CHECK(sLoadSave.find("usnprintf(ausName, 64, pusTemplate") == std::string::npos);
     CHECK(sLoadSave.find("usnprintf(Lua_Callbacks::sTempReturnString16") == std::string::npos);
 
     std::string sSaveGame;

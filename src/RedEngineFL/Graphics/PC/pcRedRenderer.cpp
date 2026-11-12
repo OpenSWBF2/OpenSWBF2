@@ -600,7 +600,7 @@ static void FakePresentWait()
     {
         if (g_fFixedRate > 0.0f)
         {
-            Sleep(static_cast<int>(1000.0f / g_fFixedRate));
+            Sleep((int)(1000.0f / g_fFixedRate));
         }
         else
         {
@@ -1556,14 +1556,22 @@ STDMETHODIMP FakeD3DDevice::Present(CONST RECT*, CONST RECT*, HWND,
     ResetScript& s = GetResetScript();
     if (s.bPresentFailPending)
     {
-        if (g_fFixedRate > 0.0f)
-        {
-            Sleep((int)(1000.0f / g_fFixedRate));
-        }
-        else
-        {
-            Sleep(16);
-        }
+        s.bPresentFailPending = false;
+        s.bPresentFailed = true;
+        return D3DERR_INVALIDCALL;
+    }
+    if (s.bTargetsPending)
+    {
+        s.bTargetsPending = false;
+        LogApplyTargets(s);
+    }
+    if (gGammaPending)
+    {
+        gGammaPending = false;
+        LOG(LogRender, Inform,
+            "OPENSWBF2 GAMMA FAKE target=%ux%u alive=%u bb=%ux%u draws=%u ramp_nonid=%u", gGammaW,
+            gGammaH, gGammaAlive, RedRenderer::m_d3dpp.BackBufferWidth,
+            RedRenderer::m_d3dpp.BackBufferHeight, gGammaDraws, gGammaRampNonId);
     }
     return 0;
 }
@@ -2772,13 +2780,17 @@ static unsigned int CollectAdapterModes(unsigned int uiAdapter, unsigned int uiM
                                         unsigned int uiMinHeight,
                                         DisplayLogic::DisplayModeRec* pRaw)
 {
-    unsigned int uiCount = 0;
-
     PblList<D3DAdapterInfo>& adaptors = pcRedDeviceEnumerator::GetDeviceList();
 
+    unsigned int uiFilled = 0;
     for (PblList<D3DAdapterInfo>::Itor adaptorIt = adaptors.Begin();
          adaptorIt != adaptors.End(); ++adaptorIt)
     {
+        if (adaptorIt->AdapterOrdinal != (int)uiAdapter)
+        {
+            continue;
+        }
+
         for (PblList<D3DDisplayMode>::Itor displayModeIt = adaptorIt->DisplayModeList.Begin();
              displayModeIt != adaptorIt->DisplayModeList.End(); ++displayModeIt)
         {
@@ -3609,8 +3621,6 @@ void TransparentHeap<ITEM, KEY>::InitNodePool(unsigned int uiMaxSize)
 
     m_aNodePool[m_iMaxSize - 1].pNext = 0;
 }
-
-extern HWND hGlobalWnd;
 
 extern bool g_bNoRender;
 extern bool sWaitForFrameQuery;

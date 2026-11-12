@@ -41,14 +41,6 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 
-namespace
-{
-    inline unsigned int GameObjectHandleId(const GameObject* pObject)
-    {
-        return pObject->GetHandleId();
-    }
-}
-
 
 
 inline float Weapon::GetHeat() const

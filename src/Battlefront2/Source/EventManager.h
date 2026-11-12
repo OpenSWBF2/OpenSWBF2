@@ -101,6 +101,8 @@ public:
 
     const char* GetName() { return mName; }
 
+    bool Contains(const Callback* pCallback) const { return mRoot.Contains(pCallback); }
+
     template <class PREDICATE>
     Filter<PREDICATE>* GetFilter(PREDICATE& predicate, Callback* pParent = 0)
     {

@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-#include "Battlefront2/Source/NetAdminMd5.h"
+#include "GameSpyFL/md5.h"
 
 namespace
 {

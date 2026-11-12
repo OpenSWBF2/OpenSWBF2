@@ -482,8 +482,23 @@ void PathFinder::CreateGameObjectBarrier(Obstacle*& rpObstacle, GameObject* pObj
     mat.m[3][0] += offset.x;
     mat.m[3][1] += offset.y;
     mat.m[3][2] += offset.z;
-    rpObstacle = new Obstacle(mat, size,
-                              (ConnectivityGraph::ProhibitFlag)~ConnectivityGraph::CGT_FLAG_FLYER, uName);
+    PlaceBarrier(rpObstacle, mat, size, uName);
+}
+
+void PathFinder::PlaceBarrier(Obstacle*& rpObstacle, const PblMatrix& rMatrix, const PblVector4& rSize,
+                              unsigned int uName)
+{
+    if (rpObstacle)
+    {
+        sObstacles->Remove(rpObstacle);
+        ::new (static_cast<void*>(rpObstacle))
+            Obstacle(rMatrix, rSize, (ConnectivityGraph::ProhibitFlag)~ConnectivityGraph::CGT_FLAG_FLYER, uName);
+    }
+    else
+    {
+        rpObstacle = new Obstacle(rMatrix, rSize,
+                                  (ConnectivityGraph::ProhibitFlag)~ConnectivityGraph::CGT_FLAG_FLYER, uName);
+    }
     sObstacles->Add(rpObstacle, rpObstacle->GetBoundingCircleCenter(),
                     rpObstacle->GetBoundingCircleRadius() * 2.0f);
 }

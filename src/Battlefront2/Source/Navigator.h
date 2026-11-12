@@ -34,7 +34,7 @@ public:
     // Navigator::GetDerivedRttiName
     PBL_DECLARE_ROOT_RTTI(Navigator)
 
-    static void* operator new(unsigned int uiSize);
+    static void* operator new(size_t uiSize);
     // SYNTHETIC: SWBF2 0x0043ab10
     // Navigator::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }

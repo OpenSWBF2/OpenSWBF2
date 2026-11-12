@@ -51,6 +51,34 @@ static const unsigned int kuiFilterShader = PblHash("FilterCopy");
 // kuiClearShader
 static const unsigned int kuiClearShader = PblHash("Clear");
 
+static void __cdecl ShadowQuadReset(ResetFlagsT eFlags)
+{
+    pcShadowQuadRenderable* pQuad = pcShadowQuadRenderable::Instance();
+    RedTexture* pSky = RedRenderer::pcGetBuffer(PC_BUFFER_SKY);
+    if (!pQuad || !pSky)
+    {
+        return;
+    }
+    if (eFlags & RESETFLAGS_FREE_RESOURCES)
+    {
+        delete pQuad->m_pShadowTex;
+        pQuad->m_pShadowTex = 0;
+    }
+    if (eFlags & RESETFLAGS_CREATE_RESOURCES)
+    {
+        const D3DPRESENT_PARAMETERS& pp = RedRenderer::pcGetPresentParameters();
+        if (!pQuad->m_pShadowTex &&
+            !DisplayLogic::ShadowQuadSharesSky(pp.BackBufferWidth, pp.BackBufferHeight,
+                                               (unsigned int)pp.MultiSampleType,
+                                               RedVideoConfig::VidMode_IsDriverMultisampling(),
+                                               pSky->m_uiWidth, pSky->m_uiHeight))
+        {
+            pQuad->m_pShadowTex = new RedTexture(pSky->m_uiWidth, pSky->m_uiHeight, pSky->m_format,
+                                                 1, D3DUSAGE_RENDERTARGET, D3DPOOL_DEFAULT, 0);
+        }
+    }
+}
+
 // FUNCTION: SWBF2 0x006fbdf0
 pcShadowQuadRenderable::pcShadowQuadRenderable()
     : Renderable(RENDERABLE_POSTSHADOW)

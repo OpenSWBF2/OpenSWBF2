@@ -20,7 +20,6 @@
 #include "NetSetup.h"
 #include "NetAdmin.h"
 #include "NetAdminIdText.h"
-#include "NetAdminMd5.h"
 #include "NetWire.h"
 #include "SpawnManager.h"
 #include "Team.h"

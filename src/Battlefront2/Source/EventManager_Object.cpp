@@ -1,5 +1,4 @@
 #include "EventManager_Object.h"
-#include "LuaHandleArg.h"
 #include "Character.h"
 #include "LuaHelper.h"
 #include "LuaFL/include/lauxlib.h"

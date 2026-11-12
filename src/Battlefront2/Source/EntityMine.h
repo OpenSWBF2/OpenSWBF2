@@ -161,4 +161,3 @@ inline bool EntityMine::KeepsParentLink(const CollisionObject* pChild)
     return !pStick || pStick->IsStuckTo(pChild->mParent);
 }
 
-

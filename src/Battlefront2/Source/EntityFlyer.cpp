@@ -1373,7 +1373,7 @@ extern PblVector3 gVectorZero;
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
 
-inline void* EntityFlyer::operator new(unsigned int uSize)
+inline void* EntityFlyer::operator new(size_t uSize)
 {
     return sMemoryPool.Allocate(uSize);
 }

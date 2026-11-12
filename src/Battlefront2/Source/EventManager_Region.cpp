@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 #include "EventManager_Region.h"
-#include "LuaHandleArg.h"
 #include "ActiveRegion.h"
 #include "Controllable.h"
 #include "Entity.h"

@@ -11,6 +11,11 @@
 #include <time.h>
 
 #include "GameState.h"
+#include "pcCrash.h"
+#include "RedEngineFL/Application/pc/pcFrameLimiter.h"
+#include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
+#include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
+#include "CommandLine.h"
 #include "FL_TTY.h"
 #include "GameLoop.h"
 #include "BonusManager.h"
@@ -992,6 +997,14 @@ void GameState::PreStateInit(bool bMission)
     CameraManager::Create(GameLoop::GetNumCameras());
 
     FLEffect::InitAll(true);
+    if (ColorControl::s_pInstance)
+    {
+        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_CONTRAST,
+                                            RedRenderer::pcGetRenderOptions().mGammaContrast);
+        ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_BRIGHTNESS,
+                                            RedRenderer::pcGetRenderOptions().mGammaBrightness);
+        ColorControl::s_pInstance->Update(0.0f);
+    }
     NetGame::LeaveClient();
     CommandPostManager::Create();
 

@@ -69,7 +69,7 @@ void* FreeList::Alloc()
          itor.GetNode() != mBlockList.GetTerminator(); ++itor)
     {
         Block* const pBlock = (Block*)itor.GetNode()->GetObjectA(&mBlockList, offsetof(Block, mNode));
-        void* const pEntry = pBlock->AllocEntry(mEntrySize, mEntriesPerBlock);
+        void* const pEntry = UnpoisonEntry(pBlock->AllocEntry(mEntrySize, mEntriesPerBlock), mEntrySize);
         if (pEntry)
         {
             return pEntry;

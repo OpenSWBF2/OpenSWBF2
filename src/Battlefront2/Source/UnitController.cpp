@@ -115,21 +115,6 @@ namespace
     return ((const CollisionObject*)pObject)->GetPosition();
     }
 
-    GameObject* Resolve(PblHandle<GameObject>& h)
-    {
-        GameObject* pObject = h.mObject;
-        if (pObject)
-        {
-        if (pObject->GetHandleId() == h.mSavedHandleId)
-        {
-                return pObject;
-        }
-            h.mObject = 0;
-            h.mSavedHandleId = 0;
-        }
-        return 0;
-    }
-
 
 }
 

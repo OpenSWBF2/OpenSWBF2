@@ -1,6 +1,7 @@
 #pragma once
 #include "NetGame.h"
 
+#include "PebbleFL/Common/PblIndex.h"
 #include "PebbleFL/Common/PblTimeBase.h"
 
 class RedScreenGroupElement;
@@ -47,6 +48,10 @@ static int Init();
 static int PostLoad();
 
 static int Cleanup();
+
+#ifdef OPENSWBF2_TEST
+static bool TakeRepeatPending();
+#endif
 
 static bool _bFirstPersonEnabled;
 
@@ -95,7 +100,13 @@ static void SetJoystickYFlip(int iFlip);
 static bool sGameOver;
 
 static bool mShowTeamPoints[2];
-static inline void SetShowTeamPoints(int iTeam, bool bShow) { mShowTeamPoints[iTeam - 1] = bShow; }
+static inline void SetShowTeamPoints(int iTeam, bool bShow)
+{
+    if (PblInBounds(mShowTeamPoints, iTeam - 1))
+    {
+        mShowTeamPoints[iTeam - 1] = bShow;
+    }
+}
 
 
 

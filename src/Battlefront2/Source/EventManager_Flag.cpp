@@ -1,5 +1,4 @@
 #include "EventManager_Flag.h"
-#include "LuaHandleArg.h"
 #include "LuaHelper.h"
 #include "Controllable.h"
 #include "Entity.h"

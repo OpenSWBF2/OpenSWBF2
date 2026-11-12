@@ -541,8 +541,12 @@ int ScriptCB_TeamStatsSetTitles(lua_State* L)
     if (GetSideIcon(pTeam1->GetSide()) && GetSideIcon(pTeam2->GetSide()))
     {
         Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0xb0fcda7cu /* "ifs_teamstats.LeftModel" */);
+        const bool bSlot = PblInBounds(pTeam1->mColor, (int)fSlot);
         pIcon->SetModel(GetSideIcon(pTeam1->GetSide()));
-        pIcon->SetColor(pTeam1->GetColor((int)fSlot));
+        if (bSlot)
+        {
+            pIcon->SetColor(pTeam1->GetColor((int)fSlot));
+        }
         pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x14bdc17du /* "ifs_teamstats.RightModel" */);
         pIcon->SetModel(GetSideIcon(pTeam2->GetSide()));
         if (bSlot)
@@ -561,7 +565,11 @@ int ScriptCB_PersonalStatsSetTitles(lua_State* L)
     if (Team::sTeams[1] && Team::sTeams[2] &&
         GetSideIcon(Team::sTeams[1]->GetSide()) && GetSideIcon(Team::sTeams[2]->GetSide()))
     {
-        Team* pTeam = Team::sTeams[iTeam];
+        Team* pTeam = Team::Lookup(iTeam);
+        if (!pTeam)
+        {
+            return 0;
+        }
         Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x262d6743u /* "ifs_personalstats.IconModel" */);
         pIcon->SetModel(GetSideIcon(pTeam->GetSide()));
         if (PblInBounds(pTeam->mColor, iSlot))
@@ -903,6 +911,11 @@ int ScriptCB_GetMedalStats(lua_State*)
     {
         return 0;
     }
+    Team* pTeam = Team::Lookup((int)fTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
     DoPeriodicLuaGC(true);
     if (NetGame::IsEnabled() && netEnabledNext && netClientActive && !PlayerStats::mGotMPStats)
     {
@@ -924,7 +937,6 @@ int ScriptCB_GetMedalStats(lua_State*)
     LuaHelper::SetGlobal("stats_listbox_contents");
     DoPeriodicLuaGC(false);
     lua_newtable(LuaHelper::mState);
-    Team* pTeam = Team::sTeams[(int)fTeam];
     Character* pCharacter = 0;
     for (int i = 0; i < pTeam->mMemberCount; ++i)
     {
@@ -934,8 +946,8 @@ int ScriptCB_GetMedalStats(lua_State*)
             break;
         }
     }
-    MedalsMgr* pMedals = pCharacter->mMedalsMgr;
-    for (int i = 0; i < 9; ++i)
+    MedalsMgr* pMedals = pCharacter ? pCharacter->mMedalsMgr : 0;
+    for (int i = 0; pMedals && i < 9; ++i)
     {
         lua_newtable(LuaHelper::mState);
         LuaHelper::TableWriteVal("medaltype", (int)pMedals->GetMedalsThisGame(i));

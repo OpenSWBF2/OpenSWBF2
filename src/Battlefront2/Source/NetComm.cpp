@@ -325,7 +325,7 @@ bool NetComm::IsLAN()
 // FUNCTION: SWBF2 0x005b26e0
 int NetComm::GetLocalIndex(int iLocal)
 {
-    return netLocalIndex[iLocal];
+    return PblInBounds(netLocalIndex, iLocal) ? netLocalIndex[iLocal] : -1;
 }
 
 // FUNCTION: SWBF2 0x005b26f0
@@ -416,6 +416,19 @@ unsigned __int64* __fastcall NetCommP::GetAddr(int iDest)
         return &netDests[iDest].mAddress.mGalaxyId.value;
     }
     return &joinSlots[iDest - 69].addr.mGalaxyId.value;
+}
+
+const NetSocketPeerRecord* NetCommP::GetPeer(int iDest)
+{
+    if ((unsigned int)iDest < MAX_DESTS)
+    {
+        return &netDests[iDest].mAddress;
+    }
+    if (iDest >= 69 && iDest < 69 + 64)
+    {
+        return &joinSlots[iDest - 69].addr;
+    }
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x005d5de0
@@ -1229,8 +1242,8 @@ int NetComm::GetPing(int iDest)
     {
         return dest.ping;
     }
-    void* pNetworking = GetGalaxyNetworkingForNetComm();
-    int iPing = ((galaxy::api::INetworking*)pNetworking)->GetPingWith(dest.mAddress.mGalaxyId);
+    galaxy::api::INetworking* pNetworking = GetGalaxyNetworkingForNetComm();
+    int iPing = pNetworking->GetPingWith(dest.mAddress.mGalaxyId);
     return iPing < 0 ? dest.ping : iPing;
 }
 

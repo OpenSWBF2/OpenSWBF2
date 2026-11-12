@@ -1382,6 +1382,259 @@ re-baseline of the milestone.
 - Judgement: accepted. Removing address order changes order by design. Any later digest change
   needs its own cause and a reason why it is not a bug.
 
+## Phase 42: Gametoast 0c1bbd3e against e9a7cc62
+
+Phase 42 merged Gametoast/swbf2decomp `0c1bbd3e` (28 commits past `472a77d1`) and re-applied our
+changes on top of it. The reference is e9a7cc62, the Phase 41 result (P41), built Release v143 in the
+staged main tree (`artifacts/p42-base`, exe `BattlefrontII-p41.exe`). Every difference in SIM DIGEST,
+final score, CLOTH, mem-peaks, pool-sizes, lua-bins, Perturb, Debug digests, Factory order, digest
+traces, layout pins, initializer tables, the network Write/Read order and the corpora between P41
+and the branch is listed here with its cause, the Gametoast commit in 472a77d1..0c1bbd3e and the
+retail evidence (Phase 42 D-09). Every row that moved was re-pinned once in 42-10, with the user's
+approval on 2026-11-12.
+
+Method: the Release, Test and Debug smoke sets on the branch (Release `-Smoke All` with the table
+comparison against `tests/baseline/v143`, Test `-Smoke All` with lua-bins, Test `-Smoke Perturb`,
+Debug `-Smoke Twice`), `-factorylog -digesttrace 1600` runs of the six digest missions on the branch
+(`artifacts/p42-branch`, compared with `artifacts/p42-base`), the initializer tables from the map,
+the layout pins and corpus replays in T1, and `wire-order.ps1` with compiler-resolved widths on both
+sides. A move is localised with a whole-game digest trace on both exes, then a per-turn trace of the
+callers of the global random stream, and confirmed by reverting only the upstream change on the
+branch. Retail evidence is from `dumpbin /disasm:nobytes` of the retail Steam `BattlefrontII.exe`.
+
+| Mission | Turn-1500 digest on P41 and the branch | First split turn | Cause |
+|---------|----------------------------------------|------------------|-------|
+| geo1c_con | equal to its `tests/smoke/digest-expected.txt` row | none (1600 of 1600 turns equal) | none |
+| nab2g_c | equal to its `tests/smoke/digest-expected.txt` row | none (1600 of 1600 turns equal) | none |
+| hot1g_con | equal to its `tests/smoke/digest-expected.txt` row | none (1600 of 1600 turns equal) | none |
+| spa3c_ass | equal to its `tests/smoke/digest-expected.txt` row | 3250 of 21874 (whole game) | C-FLYER-REACT |
+| dag1c_ctf | equal to its `tests/smoke/digest-expected.txt` row | none (1600 of 1600 turns equal) | none |
+| kas2c_uber | equal to its `tests/smoke/digest-expected.txt` row | none (1600 of 1600 turns equal) | none |
+
+Of the 109 `-Smoke All` missions only spa3c_ass moved. Its turn-1500 digest is unchanged, so no
+`tests/smoke/digest-expected.txt` row moves; its final score and its 19 exit pool peaks in
+`mem-peaks.txt` move. The six factory logs and the 1600-turn digest traces are byte-identical, so no
+`factory-*.txt` or `digest-trace-*.txt` changes. CLOTH, pool-sizes and the other 108 digest and score
+rows are equal. Test `-Smoke All` (lua-bins, 5123 keys, and the off-thread
+check), Test `-Smoke Perturb` (`serial equal runs=56/56`, rows equal to `perturb.txt`), Debug
+`-Smoke Twice` (Debug digests), the layout pins and the corpus replays are unchanged.
+
+### C-FLYER-REACT
+
+- No digest row moved. spa3c_ass keeps its turn-1500 `digest-expected.txt` row; its
+  `smoke-all-digests.txt` final score and 19 `mem-peaks.txt` exit pool rows move (below).
+- Function: `EntityFlyer::Update` (`// FUNCTION: SWBF2 0x004ac460`,
+  `src/Battlefront2/Source/EntityFlyer.cpp`), the block that makes a fired-at AI flyer call
+  `EntityFlyer::TargetReact` (`// FUNCTION: SWBF2 0x004b1b90`), which draws
+  `PblRandom::GetGlobalInt() % 100`.
+- Gametoast change: aded7a4a ("More proper type casting") rewrote the target test. The old
+  condition called `pFlyer->GetFollowingPath()` (`// FUNCTION: SWBF2 0x00477870`), which is
+  `mFollowingPath && mState == FLYING && IsAlive() && mAIEng.ai.mFreeFlyTime <= 0.0f && !mInRoll &&
+  !mInFlip`. The new condition spells out `mFollowingPath && mState == FLYING && IsAlive() &&
+  !mInRoll && !mInFlip`, without the free-fly term, and the reaction test is
+  `0.0001f >= mReactionTime` instead of `!(mReactionTime > 0.0001f)` (different only for NaN).
+- Evidence: a whole-game `-digesttrace` of spa3c_ass on both exes is equal for 3249 turns. At turn
+  3250 only the global random seed differs (`rand=1874424079/...` on P41, `3248828441/...` on the
+  branch, state hash and sim seed equal). A probe that records the caller of every global draw
+  (same patch on both trees, traces unchanged by it) gives 104 draws in turn 3250 on P41 and 105 on
+  the branch; the extra one is `EntityFlyer::Update`, at the return from the `TargetReact` call.
+  Reverting only this condition to `pFlyer->GetFollowingPath()` on the branch gives P41's trace on
+  all 21874 turns, P41's final score and P41's pool peaks.
+- Retail evidence: retail `EntityFlyer::Update` tests, at `0x004AD5B7..0x004AD648`,
+  `mPlayerId < 0`, the pilot type, `mPilot`, `mClass->mbFlyerVsFlyer`, `mFollowingPath`
+  (`test dl,8` on `[ecx+5B4h]`), `mState == 2`, the alive bit, `mInRoll`/`mInFlip` (`test dl,3`),
+  `mbQueuePoint`, `mbGoMinSpeed` and `mProcedurallyAnimated`, then calls `004B1B90` at `0x004AD6A1`.
+  There is no free-fly test, and the reaction test is `comiss 0.0001f,[edi+1A70h]` with `jb` over
+  the call, which skips it for NaN as `0.0001f >= mReactionTime` does. Gametoast's new form is the
+  retail one; P41's call to the full `GetFollowingPath()` was a decompilation inaccuracy.
+- Effect: a flyer that is in free flight when an AI fires at it now runs `TargetReact`, which draws
+  one global random number and can start a turn, evade or trick. On spa3c_ass that first happens at
+  turn 3250, and the game ends at 716 s instead of 737 s.
+- Moves: spa3c_ass in `smoke-all-digests.txt` (final score `737s ... 32u@10P -1r 188p ... 32u@15
+  -1r 155p` becomes `716s ... 32u@11P -1r 181p ... 32u@14 -1r 156p`; the turn-1500 digest is
+  unchanged) and the 19 spa3c_ass `exit pool` rows of `mem-peaks.txt` (Aimer, AmmoCounter, EnergyBar,
+  EntityFlyer, EntityLight, FLEffectObject::OffsetMatrix, Obstacle, Ordnance, ParticleEmitter,
+  ParticleEmitterInfoData, ParticleEmitterObject, PathNode, PathRequest, PowerupItem, RayRequest,
+  RedOmniLight, TreeGridStack, VehicleSpawn::VehicleTracker, Weapon).
+- Status: re-pinned with user approval 2026-11-12.
+
+### C-INIT-ORDER-42
+
+- No digest row moved.
+- Functions: the `.CRT$XCA..XCZ` initializer table and the dynamic initializers in the map
+  (`capture-vs2013.ps1 -Map`, `artifacts/p42-branch/map` against `artifacts/p42-base/map`).
+- Gametoast changes:
+  - 0c1bbd3e ("Reorder: Render constructors") added `#pragma init_seg(lib)` to `PblMath.cpp`,
+    `pcFLRender.cpp`, `pcRedAutoSettings.cpp`, `pcRedShader.cpp` and 23 of the 26 `Shaders\*.cpp`, and
+    removed it from `pcPblMatrix.cpp` (`_IdentityMatrix` became a per-TU static in
+    `pcPblMatrix.inl`; e7791bfa and 3f03ca22 moved it there).
+  - 1310337d ("RTTI Inheritance") and 65b0b893 made the `rttiHash*` statics private through the
+    `PBL_DECLARE_*_RTTI` macros, 0c1bbd3e made the shaders' `s_Factory`, `s_shaderDef` and
+    `s_uiRenderTypeHash` private, and 331568b7 and 0c1bbd3e made the GameLoop UI statics class
+    members.
+  - c7d933b7 moved `PlayerPrefs::mAllUserPrefs` to PlayerPreferences.cpp, `gVoiceChatTeamColors` to
+    TeamDisplay.cpp and `sNegativeXRotation80` to HUDDirections.cpp; 6edcc0e7 moved
+    `netAutoAssignTeamsOriginalSetting` to NetGame.cpp.
+- Finding: the tables keep their sizes (898 initializers, 8 discarded, 903 dynamic initializers on
+  both builds). 118 entries differ only in spelling (32 RTTI hashes and 78 shader statics now
+  `private`, 8 GameLoop statics demangled as class members), 5 moved to another object (the moves above and the
+  `_IdentityMatrix` copies now in NetGame.obj and NetSetup.obj instead of EntityTrap.obj and
+  pcRefractionShader.obj), and none was added or removed. The order changed: PblMath, pcFLRender,
+  pcRedShader, pcRedAutoSettings and 23 shader TUs now run first, after the CRT entries (the
+  Refraction, Shield and Water shaders stay in the user section, after pcRedShader), and
+  `gMatrixIdentity` moved from position 2 to position 746. `pcRedShader.cpp` still runs before every
+  shader TU (C-SHADER-INIT). The only earlier initializer found that reads `gMatrixIdentity` is
+  `trackDesc` (`NetGame.cpp`, position 515), which nothing reads (42-UPSTREAM-BUGS row 21).
+- Review fix 42-09 WR-02 (bb00d88b) interacts with 0c1bbd3e's removal of `init_seg(lib)` from
+  `pcPblMatrix.cpp`: retail runs `gMatrixIdentity`'s initializer at index 466, in the user section
+  after RedEngineFL and before every Battlefront2 initializer, so the pragma's removal is retail and
+  only our single-project link order was wrong. `BattlefrontII.vcxproj` now lists `pcPblMatrix.cpp`
+  before the first Battlefront2 TU (guard row INITORDER-01). On 277bc98c (`capture-vs2013.ps1 -Map`,
+  `artifacts/p42-10/map`) `gMatrixIdentity` is at position 125, the first user-section entry after
+  the last lib-section shader initializer, and `trackDesc` is at 516, after it; in
+  `initializers-di.txt` the `gMatrixIdentity` row moves to the first line. The other 897 rows keep
+  0c1bbd3e's order, the sizes stay 898/8/903, and the factory logs, the 1600-turn digest traces and
+  every table row other than C-FLYER-REACT are equal to e9a7cc62.
+- Effect: none on the sim. Factory logs, digest traces and every digest except C-FLYER-REACT are
+  equal. The memory report prints the pools in registration order, so the `MEMREPORT` lines of a run
+  come out in a different order; sorted they are equal, and `mem-peaks.txt` is keyed, so no row
+  moves for it.
+- Moves: `artifacts/p42-base/map/initializers*.txt` against `artifacts/p42-10/map/initializers*.txt`.
+  The pinned `tests/baseline/v143/initializers*.txt` were the Phase 20 capture (dce2810) and already
+  differed from P41; no gate compares them. 42-10 re-captured them from the 277bc98c map.
+- Status: re-pinned with user approval 2026-11-12.
+
+### C-RTTI-42
+
+- No digest row moved.
+- Functions: the 31 classes of 42-D13-ITEMS.tsv `rtti-layout`, through `PBL_DECLARE_ROOT_RTTI` and
+  `PBL_DECLARE_DERIVED_RTTI` (`src/PebbleFL/Common/PblRtti.h`).
+- Gametoast change: 1310337d ("RTTI Inheritance") and 65b0b893 replaced the hand-written
+  `IsRtti`/`GetDerivedRtti`/`GetDerivedRttiName` declarations by the macros.
+- Finding: the derived macro only overrides the three virtuals, so it adds no slot. Of the eight
+  root classes, AIGoal, Controller, Entity, Ordnance, OrdnanceClass and Weapon declare their
+  virtuals in the same order as at P41. Navigator now declares the RTTI virtuals before
+  `~Navigator`, but `~Navigator` overrides `Fsm::~Fsm`, so it has no new slot. WeaponClass now
+  declares `Build` after the RTTI virtuals, but `Build` overrides `Factory::Build`, so the new slots
+  are still `IsRtti`, `GetDerivedRtti`, `GetDerivedRttiName` in that order.
+- Effect: none. The layout pins (328 `static_assert`s and `game object handle id stays at offset
+  0x204`) pass, factory logs and traces are equal.
+- Judgement: no move.
+
+### C-FLOAT-42
+
+- No digest row moved.
+- Functions (42-D13-ITEMS.tsv `sim-digest`): `operator+(const PblVector3&, const PblVector3&)`
+  (`0x0040ca30`) and `operator*(float, const PblVector3&)` (5196d9b2), `DirectionMatrix`
+  (`0x0043cd40`, 3f03ca22), the four slip sites and the spin update of `EntityFlyer::Update`
+  (`0x004ac460`) and `Chunk::Update` (`0x00455c90`) (5e0adcc0), `WeaponDetonator::NetAttachItem`
+  (`0x006827d0`, 81d6a7b4) and `UnitFollowAgent::EnterState` (`0x006680d0`, 9fdad8a7).
+- Finding: each new form computes the same IEEE operations on the same operands:
+  - `D3DXVec3Add` and `D3DXVec3Scale` are the same per-component add and multiply; a two-operand
+    float multiply is commutative.
+  - `operator/(const PblVector3&, float)` is `lhs * (1.0f / rhs)` (`pcPblVector.inl`), so
+    `v / (a * b)` is `v * (1.0f / (a * b))`, the old expression, and `v * 20.0f / 5.0f` is
+    `(v * 20.0f) * (1.0f / 5.0f)`; `1.0f / 5.0f` rounds to `0x3E4CCCCD`, the bits of `0.2f`. Retail
+    `UnitFollowAgent::EnterState` multiplies by the constant `0x3E4CCCCD` at `0x0066821A..0x00668228`.
+  - The flyer spin is `((v * 0.015625f) * (1.0f - mFlightRatio)) * fDeltaTime` added to `mOmega`,
+    per component, as before; addition of two terms is commutative.
+  - `Chunk::Update` and `NetAttachItem` keep the same multiplies and sums through named temporaries.
+- Effect: none. The flyer, chunk and AI follow paths run on hot1g_con, spa3c_ass and kas2c_uber; all
+  traced turns are equal, and the only whole-game move (spa3c_ass) is C-FLYER-REACT.
+- Judgement: no move.
+
+### C-SLIDE-42
+
+- No digest row moved.
+- Function: `EntitySoldier::Render` (`// FUNCTION: SWBF2 0x004e23d0`), the foot-slide effects.
+- Gametoast change: 5e0adcc0 removed `bSlide = false;` before the left foot and computes the speed as
+  `SquaredLength((1.0f / fDeltaTime) * (...))`.
+- Retail evidence: retail clears the flag once (`mov byte ptr [esp+0Fh],0` at `0x004E3E68`) before
+  the right foot and sets it for the left foot only inside the grounded test (`setae` at
+  `0x004E410B`), so a left foot that fails the test keeps the right foot's value; the speed is
+  `divss` of 1 by the delta then `mulss` per component (`0x004E40BB..0x004E40F4`). Gametoast's new
+  form is the retail one.
+- Effect: render path only (foot-slide effect start and stop). A branch build with `bSlide = false;`
+  restored gives the branch's spa3c_ass trace, not P41's, so it is not the cause of C-FLYER-REACT.
+- Judgement: no move.
+
+### C-SPECTATOR-42
+
+- No digest row moved.
+- Function: `NetGame::ClientUpdateSpectator` (`// FUNCTION: SWBF2 0x005c3d30`).
+- Gametoast change: 52c5e8b2 ("Minor Net body updates") calls `Character::GetPtr(player)`
+  (`0x00437510`) instead of `Character::FindPlayer(player)` (`0x00429470`).
+- Retail evidence: retail calls `00437510` at `0x005C3D7E`, then `004293E0` (`GetPlayerId`) and
+  `004533B0` (`AddPlayer`) when the id differs. Gametoast's form is the retail one. With
+  `FindPlayer` the re-seat could never run.
+- Effect: network client only; no single-player, host or dedicated digest runs it, and none moved.
+- Judgement: no move in any pinned row (retail behaviour on a client).
+
+### C-SHELL-INITALL-42
+
+- No digest row moved.
+- Function: `GameState::PreStateInit` (`// FUNCTION: SWBF2 0x0053af10`), the call of
+  `FLEffect::InitAll` (`// FUNCTION: SWBF2 0x00526b20`).
+- Gametoast change: 9fdad8a7 ("Reorder: Entity and weapon") calls `FLEffect::InitAll(true)` in
+  every state; P41 passed `bMission`, so the shell did not activate the enabled effects.
+- Retail evidence: retail `FLEffect::InitAll` stores the constant 1 in `s_bInitRender`
+  (`mov byte ptr ds:[01E51E26h],1` at `0x00526BAA`) and activates every enabled effect with no test
+  of an argument (`0x00526BDE..0x00526BE9`), and `PreStateInit` calls it at `0x0053B4BF` in both
+  states. Gametoast's form is the retail one.
+- Measurement: the `-shellfirst` geo1c_con case run with a P41 Test exe (built from e9a7cc62 in the
+  NOSTAGE worktree `artifacts/wt-p42`) and with the branch Test exe (`artifacts/p42-08/shell-p41`,
+  `shell-head`): the shell-exit heap reports (Runtime `peak=9567744 used=4311232 allocs=40313`, Lua,
+  Application), the mission's turn-1500 and exit reports, every pool report, `HANDLESCAN` and the
+  digest are equal line for line once sorted (only the pool print order differs, C-INIT-ORDER-42).
+  No pinned table has a shell row; lua-bins (Test `-Smoke All`) is equal.
+- Effect: none measured in headless runs.
+- Judgement: no move.
+
+### C-WIRE-ORDER-42
+
+- No digest row moved.
+- Functions: the 12 `DIFF` lines of `wire-order.ps1` against e9a7cc62 with compiler-resolved widths
+  on both sides (`FILES 24`, `COMPARED 1557 base=1584 root=1558`, no `MISSING` and no `ADDED` line;
+  `artifacts/p42/wire-order.txt`). Each is classified in the phase's `tools/wire-classes.tsv`.
+- Gametoast changes: 6edcc0e7 (`NetGame::IsSkipped`, 0x005b7d70: the deleted `ReadNetIsLocalTurn`
+  helper only matched the Read prefix), 52c5e8b2 (`MarkWriteAlign` 0x005bd440, `ReadDestMask`
+  0x005d24f0, `WriteWaiting` 0x005d23a0, `WriteUploadAck` 0x005c4ff0, `WriteCommandPost` 0x005c2680,
+  `AloNextGameInfo::Write` 0x005c70d0, `WritePingData` 0x005d2bb0), e92f57b2 (`ReadBootRequest`
+  0x005d1240) and e672dc82 (`NetTrigger::Write` 0x005f60b0, `EntityDroideka::ReadObject` 0x005ede90,
+  `EntityDroideka::ReadLateState` 0x005f4ba0).
+- Finding: named locals, inverted branches and split flag writes; on every runtime path the same
+  fields are written and read in the same order with the same widths.
+- Effect: none. The corpus replays (recvgroup, recvpacket, chat-client, chat-server, upload, rcon,
+  load, turnrate, netwire) pass.
+- Judgement: no wire change.
+
+### Phase 42 D-13 items (42-D13-ITEMS.tsv)
+
+| Test | Cause |
+|------|-------|
+| sim-digest `operator+`, `operator*(float, PblVector3)` (5196d9b2) | C-FLOAT-42 |
+| sim-digest `DirectionMatrix` (3f03ca22) | C-FLOAT-42 |
+| net-client `NetGame::ClientUpdateSpectator` (52c5e8b2) | C-SPECTATOR-42 |
+| sim-digest `EntityFlyer::Update` slip and spin, `Chunk::Update` (5e0adcc0) | C-FLOAT-42 |
+| sim-digest `EntitySoldier::Render` `bSlide` (5e0adcc0) | C-SLIDE-42 |
+| sim-digest `WeaponDetonator::NetAttachItem` (81d6a7b4) | C-FLOAT-42 |
+| render `BirdParticleManager::SetPotentialScatterPoint` (81d6a7b4) | no move (effects only; pointer to reference, same callee) |
+| render `LightsaberTrailEffect::RenderLightsaberTrail` (9ffe45cb) | no move (same vertex slots, render only) |
+| sim-digest `UnitFollowAgent::EnterState` `/ 5.0f` (9fdad8a7) | C-FLOAT-42 |
+| rtti-layout (1310337d/65b0b893) | C-RTTI-42 |
+| shell-initall `GameState::PreStateInit` (9fdad8a7) | C-SHELL-INITALL-42 |
+
+### Re-check of earlier causes
+
+- C-SHADER-INIT, Phase 42 re-check: unchanged in effect. 0c1bbd3e put `#pragma init_seg(lib)` on
+  every shader TU and on `pcRedShader.cpp` itself, so the order inside the lib section follows the
+  project item order; `BattlefrontII.vcxproj` lists `pcRedShader.cpp` before `pcFLRender.cpp` and
+  every `Shaders\` TU (42-02), and the map shows `s_ShaderFactoryByRenderType` ahead of every shader
+  registration. The 42-07 Release Standard smoke (`artifacts/tests/20261112-020053`) and this
+  plan's `-Smoke All` reach the first frame on every case with no startup access violation.
+- Factory: Phase 42 re-check: all six factory logs are byte-identical between e9a7cc62 and the
+  branch.
+
 ## Policy
 
 The v143 files in `tests/corpus/` and this directory are the reference from now on. The digest

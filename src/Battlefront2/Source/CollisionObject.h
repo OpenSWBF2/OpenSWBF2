@@ -5,6 +5,10 @@
 #include "PebbleFL/Common/PblVector.h"
 
 #include "PebbleFL/Common/PblList.h"
+#include "PebbleFL/Common/PblSerial.h"
+#ifdef OPENSWBF2_TEST
+#include "RedEngineFL/Util/RedLog.h"
+#endif
 #include "CollisionObjectType.h"
 #include "FoleyFXCollidee.h"
 #include "FoleyFXCollider.h"
@@ -119,7 +123,7 @@ public:
     unsigned int mLastCollidedWithNonTerrain : 1;
     unsigned int mCollisionSerial : 30;
     PblVector3 mLastPosition;
-    CollisionObject* mLastCollidedObjs[kNumLastCollided];
+    unsigned int mLastCollidedObjs[kNumLastCollided];
 
     static bool sCollidingWithMesh;
     static bool sCollideTrisWithAllPrimitives;
@@ -140,7 +144,7 @@ public:
     void NoteLastCollided(const CollisionObject* pReceiver)
     {
         const unsigned int uKey = LastCollidedKey(pReceiver);
-        for (int k = 0; k < 3; ++k)
+        for (int k = 0; k < kNumLastCollided; ++k)
         {
             if (mLastCollidedObjs[k] == uKey)
             {
@@ -154,7 +158,7 @@ public:
 
     void PrioritizeLastCollided(CollisionObject** apList, int iLength) const
     {
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < kNumLastCollided; ++i)
         {
             if (i >= iLength)
             {

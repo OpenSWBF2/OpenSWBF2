@@ -29,8 +29,7 @@ bool EntitySquadronClass::SetProperty(unsigned int uProperty, const char* pszVal
         mMember = PblHash(pszValue);
         return true;
     case 0xe5108b93: /* "SquadronFormation" */
-        mFormations[mNumFormations] = PblHash(pszValue);
-        mNumFormations++;
+        AppendFormation(mFormations, mNumFormations, pszValue);
         return true;
     default:
         return ODFPropertySet::SetProperty(sPropertySet, sizeof(sPropertySet) / sizeof(sPropertySet[0]),

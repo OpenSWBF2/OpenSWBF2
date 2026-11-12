@@ -52,6 +52,7 @@ TEST_CASE("hash table end converts to null" * doctest::test_suite("regression"))
     memset(&kHolder, 0, sizeof(kHolder));
     kHolder.mSentinel = 0xDEADBEEF;
     CHECK((int*)kHolder.mTable.End() == (int*)0);
+    CHECK(kHolder.mTable.End().operator->() == (int*)0);
 
     int iValue = 9;
     REQUIRE(HashStoreNew(kHolder.mTable, PblHash("one"), &iValue));
@@ -540,7 +541,9 @@ TEST_CASE("asan fix helpers stay wired into the game (source pin: callers need t
                       "}\n") != std::string::npos);
 
     std::string sHeader = ReadRepoTextLf("src\\Battlefront2\\Source\\FLEffect.h");
-    CHECK(sHeader.find("    virtual void StopAndFinish();\n"
+    CHECK(sHeader.find("            ActivateThread(0, PER_FRAME);\n"
+                       "        }\n"
+                       "    }\n"
                        "    void DetachFromTarget();\n"
                        "    template <class EFFECT>\n"
                        "    friend void DetachEffectFromTarget(EFFECT& rEffect);\n") != std::string::npos);
@@ -607,7 +610,7 @@ TEST_CASE("asan fix helpers stay wired into the game (source pin: callers need t
                         "}\n") != std::string::npos);
 
     std::string sSquadron = ReadRepoTextLf("src\\Battlefront2\\Source\\EntitySquadron.cpp");
-    CHECK(sSquadron.find("    case 0xe5108b93:\n"
+    CHECK(sSquadron.find("    case 0xe5108b93: /* \"SquadronFormation\" */\n"
                          "        AppendFormation(mFormations, mNumFormations, pszValue);\n"
                          "        return true;\n") != std::string::npos);
     CHECK(sSquadron.find("    const EntityFormation** ppFormations = "

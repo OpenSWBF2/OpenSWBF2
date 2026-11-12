@@ -72,18 +72,6 @@ namespace
         return pObject->GetEntityClass();
     }
 
-    const GameObject* GetHandleObject(const PblHandle<const GameObject>& handle)
-    {
-        PblHandle<const GameObject>& h = const_cast<PblHandle<const GameObject>&>(handle);
-        if (h.mObject &&
-            h.mObject->GetHandleId() != h.mSavedHandleId)
-        {
-            h.mObject = 0;
-            h.mSavedHandleId = 0;
-        }
-        return h.mObject;
-    }
-
 }
 
 // FUNCTION: SWBF2 0x00680050

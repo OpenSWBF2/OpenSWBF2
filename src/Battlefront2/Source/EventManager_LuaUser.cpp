@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 #include "EventManager_LuaUser.h"
-#include "LuaHandleArg.h"
 #include "EventManager_Character.h"
 #include "NetGame.h"
 

@@ -327,3 +327,13 @@ unsigned int PblHandled::SetNextHandleId(unsigned int uId)
     sNextHandleId = uId;
     return uOld;
 }
+
+unsigned int PblHandled::GetNextHandleId()
+{
+    return sNextHandleId;
+}
+
+unsigned int PblHandled::HandleIdOffset()
+{
+    return offsetof(PblHandled, mHandleId);
+}

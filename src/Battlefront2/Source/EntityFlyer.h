@@ -337,7 +337,7 @@ public:
     virtual unsigned int GetDerivedRtti() const;
     virtual const char* GetDerivedRttiName() const;
 
-    static void* operator new(unsigned int uSize);
+    static void* operator new(size_t uSize);
     static void operator delete(void* pBlock);
 
     virtual void Init();

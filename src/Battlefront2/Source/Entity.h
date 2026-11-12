@@ -88,6 +88,7 @@ public:
     PBL_DECLARE_DERIVED_RTTI(EntityEx, Entity)
 
     EntityEx(unsigned int uId, EntityClass* pEntityClass);
+    EntityEx(const EntityEx&) = delete;
     virtual ~EntityEx();
     // FUNCTION: SWBF2 0x00443ef0
     virtual EntityClass* GetEntityClass() { return mEntityClass; }

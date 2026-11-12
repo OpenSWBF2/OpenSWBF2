@@ -91,8 +91,8 @@ public:
             }
         }
 
-        operator TYPE*() const { return (TYPE*)_table->_uiTable[SLOTS + _pos]; }
-        TYPE* operator->() const { return (TYPE*)_table->_uiTable[SLOTS + _pos]; }
+        operator TYPE*() const { return _pos < SLOTS ? (TYPE*)_table->_uiTable[SLOTS + _pos] : 0; }
+        TYPE* operator->() const { return _pos < SLOTS ? (TYPE*)_table->_uiTable[SLOTS + _pos] : 0; }
         TYPE& operator*() const { return *(TYPE*)_table->_uiTable[SLOTS + _pos]; }
         bool operator==(const Itor& rOther) const { return _pos == rOther._pos; }
         bool operator!=(const Itor& rOther) const { return _pos != rOther._pos; }

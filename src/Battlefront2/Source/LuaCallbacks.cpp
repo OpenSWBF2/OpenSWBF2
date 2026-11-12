@@ -1729,6 +1729,10 @@ int ScriptCB_MetagameSetSide(lua_State*)
 {
     const char* pcSide = LuaHelper::GetString(2);
     const int iIndex = LuaHelper::GetInt(1);
+    if (!PblInBounds(GameLoop::mMetagameSide, iIndex))
+    {
+        return 0;
+    }
     GameLoop::SetMetagameSide(iIndex, Team::TranslateTeamName(pcSide));
     return 0;
 }

@@ -408,8 +408,253 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
+        if (_stricmp(apcArgv[i] + 1, "log") == 0)
+        {
+            if (i + 1 < iArgc)
+            {
+                const char* pcPath = apcArgv[++i];
+                if (strlen(pcPath) >= MAX_PATH)
+                {
+                    LOG(LogCore, Warning, "-log path too long, ignored");
+                }
+                else
+                {
+                    RedWarning::SetLogFileName(pcPath);
+                    pcCrash::SetLogPath(pcPath);
+                    pcEnableLogging = true;
+                }
+            }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "seed") == 0)
+        {
+            if (i + 1 < iArgc)
+            {
+                gSeed = strtoul(apcArgv[++i], 0, 10);
+                gSeedSet = true;
+            }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "exitongameover") == 0)
+        {
+            gExitOnGameOver = true;
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "novictory") == 0)
+        {
+            gNoVictory = true;
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "digesttrace") == 0)
+        {
+            const char* pcValue = i + 1 < iArgc ? apcArgv[i + 1] : 0;
+            char* pcEnd = 0;
+            unsigned long ulValue = pcValue ? strtoul(pcValue, &pcEnd, 10) : 0;
+            if (!pcValue || pcValue[0] == '-' || pcEnd == pcValue || *pcEnd)
+            {
+                LOG(LogCore, Warning, "-digesttrace needs a number, ignored");
+            }
+            else
+            {
+                ++i;
+                gDigestTrace = ulValue > 100000ul ? 100000 : (int)ulValue;
+            }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "factorylog") == 0)
+        {
+            gFactoryLog = true;
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "nofocuspause") == 0)
+        {
+            gNoFocusPause = true;
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "allowuploads") == 0)
+        {
+            gAllowUploads = true;
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "logcmds") == 0)
+        {
+            if (i + 1 < iArgc)
+            {
+                RedLog::ParseCmds(apcArgv[++i]);
+            }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "hangtimeout") == 0)
+        {
+            if (i + 1 < iArgc)
+            {
+                pcCrash::SetHangTimeout(atoi(apcArgv[++i]));
+            }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "hogaddrspace") == 0)
+        {
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "simorder") == 0 || _stricmp(apcArgv[i] + 1, "allocator") == 0)
+        {
+            LOG(LogCore, Warning, "-%s was removed, ignored", apcArgv[i] + 1);
+            if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
+            {
+                ++i;
+            }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "mipurge") == 0)
+        {
+            if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
+            {
+                ++i;
+            }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "heapcap") == 0)
+        {
+            if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
+            {
+                ++i;
+            }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "perturbheap") == 0)
+        {
+            if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
+            {
+                ++i;
+                while (i + 1 < iArgc &&
+                       (_stricmp(apcArgv[i + 1], "pad") == 0 ||
+                        _stricmp(apcArgv[i + 1], "fill") == 0 || _stricmp(apcArgv[i + 1], "pool") == 0))
+                {
+                    ++i;
+                }
+            }
+            NoteTestOnlyArg(0);
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "repeatmission") == 0)
+        {
+            if (i + 1 < iArgc && CommandLineRepeatCount(apcArgv[i + 1], (int)strlen(apcArgv[i + 1])) >= 0)
+            {
+                ++i;
+            }
+            NoteTestOnlyArg(1);
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "shellfirst") == 0)
+        {
+            NoteTestOnlyArg(2);
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "exitonmovieclose") == 0)
+        {
+            NoteTestOnlyArg(3);
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "crashtest") == 0)
+        {
+            if (i + 1 < iArgc)
+            {
+                pcCrash::SetCrashTest(apcArgv[++i]);
+            }
+            continue;
+        }
+
         switch (PblHash(apcArgv[i] + 1))
         {
+        case DisplayCfg::kHashBorderless:
+            DisplayCfg::SetFlag(DisplayCfg::gCliDisplay, DisplayCfg::kBorderless);
+            break;
+        case DisplayCfg::kHashAdapter:
+            if (i + 1 < iArgc)
+            {
+                DisplayCfg::SetFromText(DisplayCfg::gCliDisplay, DisplayCfg::kAdapter, apcArgv[++i], "command line");
+            }
+            else
+            {
+                LOG(LogCore, Warning, "-adapter needs a value, ignored");
+            }
+            break;
+        case DisplayCfg::kHashRefresh:
+            if (i + 1 < iArgc)
+            {
+                DisplayCfg::SetFromText(DisplayCfg::gCliDisplay, DisplayCfg::kRefresh, apcArgv[++i], "command line");
+            }
+            else
+            {
+                LOG(LogCore, Warning, "-refresh needs a value, ignored");
+            }
+            break;
+        case DisplayCfg::kHashVsync:
+            if (i + 1 < iArgc)
+            {
+                DisplayCfg::SetFromText(DisplayCfg::gCliDisplay, DisplayCfg::kVsync, apcArgv[++i], "command line");
+            }
+            else
+            {
+                LOG(LogCore, Warning, "-vsync needs a value, ignored");
+            }
+            break;
+        case DisplayCfg::kHashFps:
+            if (i + 1 < iArgc)
+            {
+                DisplayCfg::SetFromText(DisplayCfg::gCliDisplay, DisplayCfg::kFps, apcArgv[++i], "command line");
+            }
+            else
+            {
+                LOG(LogCore, Warning, "-fps needs a value, ignored");
+            }
+            break;
+        case DisplayCfg::kHashNoWaitQuery:
+            DisplayCfg::SetFlag(DisplayCfg::gCliDisplay, DisplayCfg::kNoWaitQuery);
+            break;
+        case DisplayCfg::kHashNoDpi:
+            DisplayCfg::SetFlag(DisplayCfg::gCliDisplay, DisplayCfg::kNoDpi);
+            break;
+        case DisplayCfg::kHashSwCursor:
+            DisplayCfg::SetFlag(DisplayCfg::gCliDisplay, DisplayCfg::kSoftwareCursor);
+            break;
+        case DisplayCfg::kHashDisplayIni:
+            if (i + 1 < iArgc)
+            {
+                const char* pcIni = apcArgv[++i];
+                if (strlen(pcIni) >= sizeof(DisplayCfg::gCliDisplay.acDisplayIni))
+                {
+                    LOG(LogCore, Warning, "-displayini path too long, ignored");
+                }
+                else
+                {
+                    strcpy(DisplayCfg::gCliDisplay.acDisplayIni, pcIni);
+                    DisplayCfg::gCliDisplay.uiSet |= DisplayCfg::kDisplayIni;
+                }
+            }
+            else
+            {
+                LOG(LogCore, Warning, "-displayini needs a value, ignored");
+            }
+            break;
         case 0x02049853: /* "jitter" */
             dragEnabled = true;
             dragJitter = atoi(apcArgv[++i]);

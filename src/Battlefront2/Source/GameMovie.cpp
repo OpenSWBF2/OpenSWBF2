@@ -448,6 +448,7 @@ void StartInGameMoviePlay(const char* pcFile, const char* pcName)
     strcpy(ingame_movie_idname, pcName);
     unsigned __int64 perfCount = PblTime::GetTickCount();
     g_InGameMovieStartTime = perfCount;
+    g_InGameMovieStartSystemTime = GameState::GetSystemTimeBase()->GetTime();
 }
 
 // FUNCTION: SWBF2 0x00534ca0

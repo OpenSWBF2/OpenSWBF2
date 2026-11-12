@@ -61,6 +61,20 @@ public:
         pNode->_pPrev->_pNext = pNode->_pNext;
     }
 
+    void Move(Node* pNode, TYPE* pObject, KEY iOrder)
+    {
+        if (pNode->_pList != this)
+        {
+            return;
+        }
+        if (pNode->_iOrder == iOrder)
+        {
+            return;
+        }
+        Remove(pNode);
+        Add(pNode, pObject, iOrder);
+    }
+
     Node _head;
     int _iCount;
 };
@@ -76,7 +90,7 @@ inline void PblOrderedList<TYPE, KEY>::Add(Node* pNode, TYPE* pObject, KEY iOrde
     {
         pAt = pAt->_pNext;
     }
-    while (iOrder == pAt->_iOrder && pNode > pAt)
+    while (pAt != &_head && iOrder == pAt->_iOrder)
     {
         pAt = pAt->_pNext;
     }

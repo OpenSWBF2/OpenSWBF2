@@ -7,6 +7,8 @@
 #include <string.h>
 
 #include "GameLoop.h"
+#include "pcCrash.h"
+#include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "SkyManager.h"
 #include "BootDisplay.h"
 #include "RedEngineFL/Application/RedTerrain.h"
@@ -36,6 +38,7 @@
 #include "GameState.h"
 #include "HeroMessageDisplay.h"
 #include "HUDEventQueue.h"
+#include "HUDElement.h"
 #include "HUDManager.h"
 #include "LockOnManager.h"
 #include "MissionPlayList.h"
@@ -114,6 +117,10 @@
 #include <windows.h>
 #include "PauseMenu.h"
 #include "PlayerStats.h"
+#include "RedEngineFL/Util/RedWarning.h"
+#include "RedEngineFL/Util/RedLog.h"
+#include "SimDigest.h"
+#include "RedEngineFL/Memory/RedMemoryReport.h"
 #include "ParticleEmitter.h"
 #include "ParticleEmitterInfo.h"
 #include "ParticleEmitterObject.h"
@@ -622,6 +629,45 @@ void GameLoop::Resume()
 
 
 
+static unsigned int sDisplayGeneration;
+
+static void SyncDisplayLayout()
+{
+    unsigned int uiGeneration = RedRenderer::pcGetDisplayGeneration();
+    if (uiGeneration == sDisplayGeneration)
+    {
+        return;
+    }
+    sDisplayGeneration = uiGeneration;
+    float fCamera = 0.0f;
+    if (CameraManager::sInstance)
+    {
+        CameraManager::sInstance->RefreshAspect();
+        RedCamera* pCamera = CameraManager::sInstance->GetNumCameras() > 0
+                                 ? CameraManager::sInstance->GetCamera(0)
+                                 : 0;
+        if (pCamera && pCamera->_fUnzoomedTanHalfFOVWidth != 0.0f)
+        {
+            fCamera = pCamera->_fUnzoomedTanHalfFOVHeight / pCamera->_fUnzoomedTanHalfFOVWidth;
+        }
+    }
+    FLRenderer::RefreshViewScreens();
+    HUD::Manager::RefreshViewport();
+    unsigned int uiViewW = 0;
+    unsigned int uiViewH = 0;
+    if (FLRenderer::mViewCount > 0 && FLRenderer::m_pViewInterfaceScreen[0])
+    {
+        uiViewW = FLRenderer::m_pViewInterfaceScreen[0]->m_uiWidthInPixels;
+        uiViewH = FLRenderer::m_pViewInterfaceScreen[0]->m_uiHeightInPixels;
+    }
+    LOG(LogRender, Inform,
+        "OPENSWBF2 DISPLAY relayout generation=%u screen=%ux%u view=%ux%u hud=%dx%d aspect=%.4f "
+        "camera=%.4f",
+        uiGeneration, RedInterfaceScreen::GetScreenWidth(), RedInterfaceScreen::GetScreenHeight(),
+        uiViewW, uiViewH, (int)HUD::Element::GetViewportWidth(),
+        (int)HUD::Element::GetViewportHeight(), RedRenderer::GetScreenAspectRatio(), fCamera);
+}
+
 static bool sbRunningLogged;
 static unsigned int suDigestTurns;
 static bool sbDigestLogged;
@@ -630,7 +676,7 @@ static bool sbExitPosted;
 static void PostRunComplete()
 {
     sbExitPosted = true;
-    LOG(LogSim, Inform, "OPENSWBF2 RUN COMPLETE %s", mMissionScript);
+    LOG(LogSim, Inform, "OPENSWBF2 RUN COMPLETE %s", GameLoop::mMissionScript);
     if (hGlobalWnd)
     {
         PostMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
@@ -646,7 +692,7 @@ static int siRepeatsDone;
 static bool sbRepeatStopped;
 static bool sbRepeatPending;
 
-bool TakeRepeatPending()
+bool GameLoop::TakeRepeatPending()
 {
     const bool bPending = sbRepeatPending;
     sbRepeatPending = false;

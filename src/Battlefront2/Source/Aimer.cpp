@@ -574,13 +574,7 @@ bool Aimer::Update(float fDeltaTime)
 
     if (mWeapon)
     {
-        PblHandle<const GameObject>& hTarget = mWeapon->mTarget;
-        if (hTarget.mObject
-            && hTarget.mObject->GetHandleId() != hTarget.mSavedHandleId)
-        {
-            hTarget.mObject = 0;
-            hTarget.mSavedHandleId = 0;
-        }
+        mWeapon->mTarget.GetObjectA();
     }
 
     const PblVector3 vFireOffset = mFirePos - mRootPos;

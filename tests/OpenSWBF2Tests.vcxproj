@@ -102,7 +102,6 @@
     <ClCompile Include="..\src\PebbleFL\Common\PblUnicode.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblValues.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblVector.cpp" />
-    <ClCompile Include="..\src\PebbleFL\Common\pblRef.cpp" />
     <ClCompile Include="..\src\PebbleFL\pc\pcPblMatrix.cpp" />
     <ClCompile Include="..\src\RedEngineFL\geometry\IntersectionOps.cpp" />
     <ClCompile Include="..\src\RedEngineFL\geometry\PolyPolyTest2D.cpp" />
@@ -113,10 +112,12 @@
     <ClCompile Include="..\src\RedEngineFL\Application\pc\pcFrameLimiter.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Application\pc\pcMessageDrain.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedLog.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\Util\RedMissionLog.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\Util\RedStack.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedWarning.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedConsole.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\NetPacket.cpp" />
-    <ClCompile Include="..\src\Battlefront2\Source\NetAdminMd5.cpp" />
+    <ClCompile Include="..\src\GameSpyFL\md5c.c" />
     <ClCompile Include="..\src\Battlefront2\Source\VoiceChatUtil.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\NetComm.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\Tracker.cpp" />

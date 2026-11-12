@@ -1,6 +1,5 @@
 #include "AmmoCounter.h"
 #include "FrameUpdate.h"
-#define _CRT_SECURE_NO_WARNINGS
 
 #include "GameVoiceChat.h"
 #include "GameVoiceChatNode.h"
@@ -364,7 +363,7 @@ class NetNdObjMap
 public:
     NetNdObjMap();
     void Clear();
-    void Add(NetNdObj* object, unsigned int hash);
+    bool Add(NetNdObj* object, unsigned int hash);
 
     NetNdObj* FindId(unsigned int uniqId)
     {
@@ -9054,6 +9053,10 @@ void HandleEvent_ChangeTeam(ReliableNetEvent& event)
 {
     CommandPost* post = event.u.changeteam.mCommandPost;
     Team* team = event.u.changeteam.mTeam;
+    if (!post || !team)
+    {
+        return;
+    }
     if (!post->GetGameObject())
     {
         return;
@@ -11852,7 +11855,7 @@ int NetGame::GetPreGameTime()
 // FUNCTION: SWBF2 0x005c4270
 void NetGame::RemoveFromSpawnQueue(int player)
 {
-    if (player < 0 || player >= netCurMaxPlayers || !IsPlaying(player, false))
+    if (player < 0 || player >= netCurMaxPlayers || player >= 64 || !IsPlaying(player, false))
     {
         return;
     }
@@ -11873,7 +11876,7 @@ void NetGame::RemoveFromSpawnQueue(int player)
 // FUNCTION: SWBF2 0x005c4360
 void NetGame::AddToSpawnQueue(int player)
 {
-    if (player < 0 || player >= netCurMaxPlayers || !IsPlaying(player, false))
+    if (player < 0 || player >= netCurMaxPlayers || player >= 64 || !IsPlaying(player, false))
     {
         return;
     }
@@ -12248,8 +12251,7 @@ void EnableFrameLock()
     WakeMeNextFrame();
 }
 
-// FUNCTION: SWBF2 0x005b45f0
-void NetNdObjMap::Add(NetNdObj* object, unsigned int hash)
+static bool CheckNdRoom(unsigned int uiCount)
 {
     const bool bNdObjectLimitOk = LocalLimits::CanAddNdObject(uiCount);
     return ensure(bNdObjectLimitOk);
@@ -14972,15 +14974,12 @@ void WriteUpload(NetPktGroup& group)
             }
             else
             {
-                group.Write(false);
-                group.WriteBits(clientUploadSeqNo, 32);
                 int chunkSize = 1012;
                 if (chunkSize > clientUploadSizeLeft)
                 {
                     chunkSize = clientUploadSizeLeft;
                 }
-                group.WriteBits(chunkSize, 10);
-                group.WriteBytes(clientUploadPkt->mData, chunkSize);
+                NetWire::WriteUploadChunk(group, clientUploadSeqNo, clientUploadPkt->mData, chunkSize);
                 ++clientUploadTryCount;
                 sent = true;
             }

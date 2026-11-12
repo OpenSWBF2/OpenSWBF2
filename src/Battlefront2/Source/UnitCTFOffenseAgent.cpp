@@ -111,22 +111,6 @@ const char* UnitCTFOffenseAgent::NFINAL_GetStateString(int) const
 namespace
 {
 
-    const GameObject* GetFlag(PblHandle<const GameObject>& handle)
-    {
-        const GameObject* pObject = handle.mObject;
-        if (pObject)
-        {
-            if (pObject->GetHandleId() ==
-                handle.mSavedHandleId)
-            {
-                return pObject;
-            }
-            handle.mObject = 0;
-            handle.mSavedHandleId = 0;
-        }
-        return 0;
-    }
-
     inline const CollisionObject* GetCollisionObject(const GameObject* pObject)
     {
         return (const CollisionObject*)pObject;

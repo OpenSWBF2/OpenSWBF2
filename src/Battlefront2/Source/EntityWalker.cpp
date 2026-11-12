@@ -1076,46 +1076,75 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
         break;
 
     case 0x153289ae: /* "LegPairCount" */
-        sscanf(pszValue, "%d", &mLegPairCount);
+    {
+        int iCount = 0;
+        sscanf(pszValue, "%d", &iCount);
+        iCount = ClampLegPairCount(iCount);
+        if (mLegPairInfo == sOwnLegPairInfo)
+        {
+            delete[] mLegPairInfo;
+        }
+        mLegPairCount = iCount;
         mLegPairInfo = new WalkerLegPairInfo[mLegPairCount];
         sOwnLegPairInfo = mLegPairInfo;
         sCurPair = -1;
         break;
+    }
     case 0x2aea4add: /* "WalkerLegPair" */
         ++sCurPair;
         break;
     case 0xd382edb2: /* "FootBoneLeft" */
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
             pPair->mFootIndices[0] = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
         }
         break;
+    }
     case 0xa2f4825f: /* "FootBoneRight" */
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
             pPair->mFootIndices[1] = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
         }
         break;
+    }
     case 0x21322adb: /* "TerrainLeft" */
     {
-        mLegPairInfo[sCurPair].mFootCollisionBody[0] = mCollisionModel.GetMaskId(PblHash(pszValue));
-        if (mLegPairInfo[sCurPair].mFootCollisionBody[0] >= 0)
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (!pPair)
         {
-            mFootPrimitives[mNumFeet++] = mLegPairInfo[sCurPair].mFootCollisionBody[0];
+            break;
+        }
+        WalkerLegPairInfo& rPair = *pPair;
+        rPair.mFootCollisionBody[0] = mCollisionModel.GetMaskId(PblHash(pszValue));
+        if (rPair.mFootCollisionBody[0] >= 0 && mNumFeet < 6)
+        {
+            mFootPrimitives[mNumFeet++] = rPair.mFootCollisionBody[0];
         }
         break;
     }
     case 0xb62deb24: /* "TerrainRight" */
     {
-        mLegPairInfo[sCurPair].mFootCollisionBody[1] = mCollisionModel.GetMaskId(PblHash(pszValue));
-        if (mLegPairInfo[sCurPair].mFootCollisionBody[1] >= 0)
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (!pPair)
         {
-            mFootPrimitives[mNumFeet++] = mLegPairInfo[sCurPair].mFootCollisionBody[1];
+            break;
+        }
+        WalkerLegPairInfo& rPair = *pPair;
+        rPair.mFootCollisionBody[1] = mCollisionModel.GetMaskId(PblHash(pszValue));
+        if (rPair.mFootCollisionBody[1] >= 0 && mNumFeet < 6)
+        {
+            mFootPrimitives[mNumFeet++] = rPair.mFootCollisionBody[1];
         }
         break;
     }
     case 0x03fd0638: /* "LegBoneLeft" */
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
             int iJoint = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
             if (iJoint >= 0)
@@ -1125,8 +1154,11 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
             }
         }
         break;
+    }
     case 0xc42be48d: /* "LegBoneRight" */
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
             int iJoint = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
             if (iJoint >= 0)
@@ -1136,8 +1168,11 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
             }
         }
         break;
+    }
     case 0x580f4d75: /* "LegBoneTopLeft" */
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
             int iJoint = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
             if (iJoint >= 0)
@@ -1146,8 +1181,11 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
             }
         }
         break;
+    }
     case 0x9eb9fc8e: /* "LegBoneTopRight" */
-        if (m_pZephyrSkeletonShared)
+    {
+        WalkerLegPairInfo* pPair = CurLegPair(mLegPairInfo, mLegPairCount);
+        if (pPair && m_pZephyrSkeletonShared)
         {
             int iJoint = m_pZephyrSkeletonShared->GetJointIdxByCrc(PblTEMPHash(pszValue));
             if (iJoint >= 0)
@@ -1156,6 +1194,7 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
             }
         }
         break;
+    }
     case 0x391bbcda: /* "LegRayHitLength" */
         sscanf(pszValue, "%f", &mLegRayHitLength);
         break;
