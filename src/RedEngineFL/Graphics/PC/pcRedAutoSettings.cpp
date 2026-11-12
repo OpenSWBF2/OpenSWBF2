@@ -9,6 +9,7 @@
 #include "pcRedAutoSettings.h"
 #include "pcRedDeviceEnumerator.h"
 #include "pcRedRenderer.h"
+#include "PebbleFL/Common/PblCrtHeap.h"
 #include "PebbleFL/Common/PblFile.h"
 #include "PebbleFL/Common/PblMath.h"
 
@@ -1490,7 +1491,7 @@ void _LoadVendorDeviceOverrides()
                 for (char* pcMode = strtok(szToken, ","); pcMode;
                      pcMode = strtok(0, ","))
                 {
-                    _NonMaskableStr[_NonMaskableCount] = _strdup(pcMode);
+                    _NonMaskableStr[_NonMaskableCount] = PblCrtStrdup(pcMode);
                     ++_NonMaskableCount;
 
                     if (_NonMaskableCount == 8)

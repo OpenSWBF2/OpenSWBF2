@@ -396,10 +396,10 @@ function Test-SmokeExpect($case, $res) {
         }
     }
     if ($x.ContainsKey('CommitFlat')) {
-        $why = Test-CommitFlat $res.LogText ([long]$x.CommitFlat)
+        $why = Test-CommitFlat $res.LogText ([long]$x.CommitFlat) ([int]$x.CommitCycles) ([int]$x.CommitSettled)
         if ($why) {
             Write-Host "    commit-flat: $why"
-            foreach ($m in [regex]::Matches([string]$res.LogText, 'OPENSWBF2 COMMIT state=\w+ bytes=\d+')) { Write-Host "    $($m.Value)" }
+            foreach ($m in [regex]::Matches([string]$res.LogText, 'OPENSWBF2 COMMIT(PARTS)? state=\w+ [^\r\n]*')) { Write-Host "    $($m.Value)" }
             return $false
         }
     }
@@ -519,15 +519,17 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         $waitIni = Join-Path $PSScriptRoot 'smoke\display-waitquery.ini'
         $cases += New-Object PSObject -Property @{ Name = 'pacing-waitquery-ini'; Args = "$standard $htail -displayini `"$waitIni`""; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=1 timer=none') + $hrx) }; Twice = 0; Timeout = 0 }
         $cases += New-Object PSObject -Property @{ Name = 'digest-dag1c_ctf'; Args = "dag1c_ctf $htail"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=') + $hrx) }; Twice = 0; Timeout = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'novictory-con'; Args = "$standard $htail -novictory -digesttrace 9300"; Expect = @{ Class = 'TimeOut'; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 NOVICTORY\r?$', 'OPENSWBF2 DIGEST TRACE turn=9300 ') + $hrx) }; Twice = 0; Timeout = 38 }
         $cases += New-Object PSObject -Property @{ Name = 'digest-kas2c_uber'; Args = "kas2c_uber $htail"; Expect = $pass; Twice = 0; Timeout = 0 }
         if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') {
             $scanRx = @('OPENSWBF2 HANDLESCAN state=shell live=0 dead=0', 'OPENSWBF2 HANDLESCAN state=mission live=0 dead=0', '(?s)\A(?!.*OPENSWBF2 HANDLESCAN (live |dead |state=\w+ (?!live=0 dead=0\b)))')
             $cases += New-Object PSObject -Property @{ Name = 'shell-first'; Args = "$standard $htail -shellfirst"; Expect = @{ Class = 'Pass'; SameDigests = 1; LogRx = (@('OPENSWBF2 SHELLFIRST to_mission mission=' + $standard) + $scanRx + $hrx) }; Twice = 0; Timeout = 0 }
-            $cases += New-Object PSObject -Property @{ Name = 'commit-flat'; Args = "$standard $htail -repeatmission 2"; Expect = @{ Class = 'Pass'; SameDigests = 3; CommitFlat = 1048576; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $hrx) }; Twice = 0; Timeout = 450 }
+            $cases += New-Object PSObject -Property @{ Name = 'commit-flat'; Args = "$standard $htail -repeatmission 16"; Expect = @{ Class = 'Pass'; SameDigests = 17; CommitFlat = 0; CommitCycles = 16; CommitSettled = 8; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $hrx) }; Twice = 0; Timeout = 220 }
             if ($script:SmokeDigestConfiguration -eq 'Test') {
                 $mvTail = (($htail -replace '(^| )-norender(?= )', '') -replace '(^| )-nosound(?= )', '') -replace '^\s+', ''
                 $cases += New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = "nab2g_c $mvTail -win -exitonmovieclose"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', 'OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0') + $hrx) }; Twice = 0; Timeout = 120 }
             }
+            $cases += New-Object PSObject -Property @{ Name = 'repeat-water'; Args = "nab2g_c $htail -repeatmission"; Expect = @{ Class = 'TimeOut'; SameDigests = 2; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 REPEAT to_shell mission=nab2g_c\r?$', '(?m)OPENSWBF2 REPEAT to_mission mission=nab2g_c\r?$') + $hrx) }; Twice = 0; Timeout = 23 }
             $cases += New-Object PSObject -Property @{ Name = 'repeat-digest'; Args = "$standard $htail -repeatmission"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $scanRx + $hrx) }; Twice = 0; Timeout = 300 }
         }
     }
@@ -576,6 +578,14 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
                 Name = "crash-$kind"
                 Args = "$standard $tail -crashtest $kind"
                 Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = ('FATAL: out of memory allocating ' + $(if ($kind -eq 'arenaoom') { 'application heap' } else { 'debug heap' }) + ' \(\d+ bytes\) load \d+% phys \d+ MB virt \d+ MB') }
+                Twice = 0; Timeout = 0
+            }
+        }
+        if ($script:SmokeDigestConfiguration -eq 'Test') {
+            $cases += New-Object PSObject -Property @{
+                Name = 'crash-buildheapfail'
+                Args = "$standard $tail -crashtest buildheapfail"
+                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = 'FATAL: out of memory allocating Lua heap \(16777216 bytes\) load \d+% phys \d+ MB virt \d+ MB' }
                 Twice = 0; Timeout = 0
             }
         }
@@ -810,7 +820,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         }
     }
     if ($which -eq 'Perturb') {
-        $all = @('geo1c_con', 'nab2g_c', 'hot1g_con', 'spa3c_ass', 'dag1c_ctf', 'kas2c_uber')
+        $all = @('geo1c_con', 'nab2g_c', 'hot1g_con', 'spa3c_ass', 'dag1c_ctf', 'kas2c_uber', 'tan1g_con')
         $pm = $all
         if ($env:OPENSWBF2_PERTURB_MISSIONS) {
             $pm = @($env:OPENSWBF2_PERTURB_MISSIONS -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
@@ -841,7 +851,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
                 $name = "perturb-$m-$($r.Mode)"
                 if ($r.Seed -gt 0) { $name = "$name-$($r.Seed)" }
                 $x = @{ Class = $class; LogRx = $rx; Perturb = @{ Mission = $m; Mode = $r.Mode; Seed = $r.Seed } }
-                $cases += New-Object PSObject -Property @{ Name = $name; Args = "$m $tail -digesttrace 1600$($r.Extra)"; Expect = $x; Twice = 0; Timeout = $to }
+                $cases += New-Object PSObject -Property @{ Name = $name; Args = "$m $tail -digesttrace 100000$($r.Extra)"; Expect = $x; Twice = 0; Timeout = $to }
             }
         }
     }
@@ -861,14 +871,33 @@ function Test-SameDigests($lines, [int]$count) {
     return $true
 }
 
-function Test-CommitFlat([string]$logText, [long]$bound) {
+function Test-CommitFlat([string]$logText, [long]$bound, [int]$cycles, [int]$settled) {
+    if ($cycles -lt 1 -or $settled -lt 1) { return 'CommitCycles and CommitSettled are required' }
+    if ($settled -ge $cycles) { return 'CommitSettled must be below CommitCycles' }
     $rows = @([regex]::Matches($logText, 'OPENSWBF2 COMMIT state=(\w+) bytes=(\d+)') | ForEach-Object { ,@($_.Groups[1].Value, [long]$_.Groups[2].Value) })
+    $parts = @([regex]::Matches($logText, 'OPENSWBF2 COMMITPARTS state=(\w+) private=(\d+) gamecrt=(\d+) heaps=(\d+) threads=(\d+) threadcount=\d+ arena=(\d+)') | ForEach-Object { ,@($_.Groups[1].Value, [long]$_.Groups[3].Value, [long]$_.Groups[4].Value, [long]$_.Groups[6].Value, [long]$_.Groups[5].Value, [long]$_.Groups[2].Value) })
     $states = @($rows | ForEach-Object { $_[0] }) -join ','
-    if ($rows.Count -ne 5 -or $states -cne 'mission,shell,mission,shell,mission') { return "expected states mission,shell,mission,shell,mission, got '$states'" }
-    $dm = $rows[4][1] - $rows[2][1]
-    $ds = $rows[3][1] - $rows[1][1]
-    if ($dm -gt $bound) { return "m3 - m2 = $dm is above $bound" }
-    if ($ds -gt $bound) { return "s2 - s1 = $ds is above $bound" }
+    $want = @(0..(2 * $cycles - 1) | ForEach-Object { if ($_ % 2) { 'shell' } else { 'mission' } }) -join ','
+    if ($states -cne $want) { return "expected $(2 * $cycles) states starting with mission and alternating, got '$states'" }
+    $partStates = @($parts | ForEach-Object { $_[0] }) -join ','
+    if ($partStates -cne $want) { return "expected a COMMITPARTS row after each COMMIT row, got '$partStates'" }
+    foreach ($s in 'mission', 'shell') {
+        $arena = @()
+        $rest = @()
+        for ($k = 0; $k -lt $rows.Count; $k++) {
+            if ($rows[$k][0] -cne $s) { continue }
+            $arena += $parts[$k][3]
+            $rest += ($parts[$k][5] - $parts[$k][2] - $parts[$k][3] - $parts[$k][4] + $parts[$k][1])
+        }
+        foreach ($c in @(@('arena', $arena), @('rest', $rest))) {
+            $v = $c[1]
+            $peak = ($v[0..($settled - 1)] | Measure-Object -Maximum).Maximum
+            for ($i = $settled; $i -lt $v.Count; $i++) {
+                $d = $v[$i] - $peak
+                if ($d -gt $bound) { return "$s $($i + 1) $($c[0]) = $($v[$i]) is $d above the $s $($c[0]) peak $peak of cycles 1-$settled, bound $bound" }
+            }
+        }
+    }
     return $null
 }
 
@@ -961,7 +990,7 @@ function Get-DigestTraceSegments($runLog) {
     $map = @{}
     [void]$segs.Add($map)
     foreach ($line in [IO.File]::ReadAllLines($runLog)) {
-        if ($line -cmatch 'OPENSWBF2 DIGEST TRACE turn=(\d+) (.*)') { $map[[int]$Matches[1]] = $Matches[2] }
+        if ($line -cmatch 'OPENSWBF2 DIGEST TRACE turn=(\d+) (state=0x[0-9A-F]{8} rand=\d+/\d+)$') { $map[[int]$Matches[1]] = $Matches[2] }
         elseif ($line -cmatch 'OPENSWBF2 REPEAT to_mission') {
             $map = @{}
             [void]$segs.Add($map)
@@ -990,17 +1019,43 @@ function Get-PerturbGroupVerdict([int]$red, [int]$lines, [int]$want) {
     return ($red -eq 0 -and $lines -eq $want)
 }
 
-function Get-PerturbVerdict($baseLog, $runLog, $runClass, $okClass, $maxTurn = 1500, $repeat = $false) {
-    $base = Get-DigestTrace $baseLog
+function Get-DigestTraceEnd($map) {
+    if ($null -eq $map -or $map.Count -eq 0) { return 0 }
+    return [int]($map.Keys | Measure-Object -Maximum).Maximum
+}
+
+function Get-PerturbBase($baseLog) {
+    $segs = @(Get-DigestTraceSegments $baseLog)
+    $trace = $null
+    if ($segs.Count -eq 1) { $trace = $segs[0] }
+    return @{ Segments = $segs.Count; Trace = $trace; End = (Get-DigestTraceEnd $trace); Digests = @(Get-SimDigestLines $baseLog) }
+}
+
+function Test-PerturbBaseFull($base, $simTurn = 1500) {
+    return ($base.Segments -eq 1 -and $base.End -ge $simTurn -and (Compare-DigestTraceFull $base.Trace $base.Trace $base.End) -eq 0)
+}
+
+function Get-PerturbVerdict($base, $runLog, $runClass, $okClass, $repeat = $false, $simTurn = 1500) {
     $segs = @(Get-DigestTraceSegments $runLog)
-    $baseEnd = 0
-    if ($base.Count -gt 0) { $baseEnd = ($base.Keys | Measure-Object -Maximum).Maximum }
-    $limits = @($baseEnd)
-    if ($repeat) { $limits = @($maxTurn, $baseEnd) }
+    $want = 1
+    if ($repeat) { $want = 2 }
     $t = -1
-    if ($baseEnd -gt 0 -and $segs.Count -eq $limits.Count) {
-        for ($i = 0; $i -lt $limits.Count; $i++) {
-            $t = Compare-DigestTraceFull $base $segs[$i] $limits[$i]
+    if ($base.End -gt 0 -and $segs.Count -eq $want) {
+        for ($i = 0; $i -lt $want; $i++) {
+            $segEnd = Get-DigestTraceEnd $segs[$i]
+            $tail = $false
+            if ($i -lt $want - 1) { $limit = $segEnd }
+            elseif ($okClass -eq 'TimeOut') { $limit = [Math]::Min($base.End, $segEnd) - 1 }
+            else {
+                $limit = $base.End
+                $tail = $segEnd -gt $base.End
+            }
+            if ($limit -lt $simTurn) {
+                $t = -1
+                break
+            }
+            $t = Compare-DigestTraceFull $base.Trace $segs[$i] $limit
+            if ($t -eq 0 -and $tail) { $t = $base.End + 1 }
             if ($t -ne 0) { break }
         }
     }
@@ -1011,13 +1066,62 @@ function Get-PerturbVerdict($baseLog, $runLog, $runClass, $okClass, $maxTurn = 1
     }
     if ($t -gt 0) { return @{ Result = 'split'; Turn = $t; Class = [string]$runClass } }
     if ($t -lt 0) { return @{ Result = 'crash'; Turn = 0; Class = 'incomplete' } }
-    $da = @(Get-SimDigestLines $baseLog)
+    $da = @($base.Digests)
     $db = @(Get-SimDigestLines $runLog)
     $dWant = $db.Count -ge 1
     if ($repeat) { $dWant = $db.Count -eq 2 }
     if ($da.Count -lt 1 -or -not $dWant) { return @{ Result = 'crash'; Turn = 0; Class = 'incomplete' } }
-    foreach ($d in $db) { if ($d -cne $da[-1]) { return @{ Result = 'split'; Turn = $maxTurn; Class = [string]$runClass } } }
+    foreach ($d in $db) { if ($d -cne $da[-1]) { return @{ Result = 'split'; Turn = $simTurn; Class = [string]$runClass } } }
     return @{ Result = 'equal'; Turn = 0; Class = [string]$runClass }
+}
+
+function Get-PerturbResults($perturbRuns, $simTurn = 1500) {
+    $msgs = New-Object System.Collections.ArrayList
+    $verdicts = New-Object System.Collections.ArrayList
+    $rows = @()
+    $red = 0
+    $lines = 0
+    $want = 0
+    $missions = @($perturbRuns | ForEach-Object { $_.Case.Expect.Perturb.Mission } | Select-Object -Unique)
+    foreach ($pm in $missions) {
+        $mine = @($perturbRuns | Where-Object { $_.Case.Expect.Perturb.Mission -eq $pm })
+        $others = @($mine | Where-Object { $_.Case.Expect.Perturb.Mode -ne 'base' })
+        $want += $others.Count
+        $base = @($mine | Where-Object { $_.Case.Expect.Perturb.Mode -eq 'base' })
+        $parsed = $null
+        if ($base.Count -eq 1) { $parsed = Get-PerturbBase $base[0].Log }
+        if ($base.Count -ne 1 -or -not $base[0].Proven -or $base[0].Class -ne $base[0].Case.Expect.Class -or -not (Test-PerturbBaseFull $parsed $simTurn)) {
+            $bc = 'missing'
+            if ($base.Count -eq 1) { $bc = $base[0].Class }
+            [void]$msgs.Add(@{ Line = "[FAIL] smoke:perturb base $pm class=$bc"; Tok = 'FAIL' })
+            continue
+        }
+        [void]$msgs.Add(@{ Line = "[INFO] perturb:$pm base last turn=$($parsed.End)"; Tok = 'INFO' })
+        $rows += "$pm`tbase`t0`tbase"
+        foreach ($r in $others) {
+            $p = $r.Case.Expect.Perturb
+            if (-not $r.Proven) {
+                $rows += "$pm`t$($p.Mode)`t$($p.Seed)`tunproven"
+                continue
+            }
+            $v = Get-PerturbVerdict $parsed $r.Log $r.Class $r.Case.Expect.Class ($p.Mode -eq 'repeat') $simTurn
+            $txt = $v.Result
+            if ($v.Result -eq 'split') { $txt = "split turn=$($v.Turn)" }
+            elseif ($v.Result -eq 'crash') {
+                $txt = "crash class=$($v.Class)"
+                if ($v.Turn -gt 0) { [void]$msgs.Add(@{ Line = "    perturb:$pm mode=$($p.Mode) seed=$($p.Seed) split turn=$($v.Turn) before the crash"; Tok = '' }) }
+            }
+            if ($v.Result -ne 'equal') { $red++ }
+            $lines++
+            [void]$verdicts.Add(@{ Mission = $pm; Mode = $p.Mode; Seed = $p.Seed; Result = $v.Result; Turn = $v.Turn; Text = $txt })
+            [void]$msgs.Add(@{ Line = "[INFO] perturb:$pm mode=$($p.Mode) seed=$($p.Seed) $txt"; Tok = 'INFO' })
+            $rows += "$pm`t$($p.Mode)`t$($p.Seed)`t$txt"
+        }
+    }
+    $ok = Get-PerturbGroupVerdict $red $lines $want
+    if ($ok) { [void]$msgs.Add(@{ Line = "[PASS] smoke:perturb serial equal runs=$lines/$want"; Tok = 'PASS' }) }
+    else { [void]$msgs.Add(@{ Line = "[FAIL] smoke:perturb serial red runs=$red/$want - $lines of $want result lines, none may be missing and every run must equal its base"; Tok = 'FAIL' }) }
+    return @{ Ok = $ok; Rows = $rows; Messages = $msgs.ToArray(); Verdicts = $verdicts.ToArray(); Red = $red; Lines = $lines; Want = $want }
 }
 
 function Get-FinalScoreKey($caseDir) {
@@ -1491,6 +1595,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
             '\bPblPtr(?:OrderKey|After)\b',
             '\b(?:this|m?_?p{1,2}[A-Z]\w*)\s*[<>]=?\s*(?:this|m?_?p{1,2}[A-Z]\w*)\b') },
         @{ Name = 'mi-api-ban'; Path = '\\src\\(?!.*\\RedMemoryMi\.cpp$)'; Rx = @('\bmi_\w+\s*\(') },
+        @{ Name = 'crt-heap-ban'; Path = '\\src\\(?!PebbleFL\\Common\\PblCrtHeap\.cpp$)'; Rx = @('(?<![\w.>:~])(?:malloc|calloc|realloc|free|_strdup|strdup|_wcsdup|wcsdup|_msize|_expand|_recalloc|_aligned_malloc|_aligned_offset_malloc|_aligned_realloc|_aligned_free)\s*\(') },
         @{ Name = 'snd-alloc-size-t'; Path = '\\src\\(?:SoundFL\\|Battlefront2\\Source\\GameSoundEngine\.(?:cpp|h)$)'; Rx = @(
             '\b(?:SndAlloc|SndTempAlloc)\s*\(\s*unsigned\b',
             '\(\s*__cdecl\s*\*\s*\w*Alloc\w*\s*\)\s*\(\s*unsigned\b') },
@@ -1640,18 +1745,23 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     return @($rows | Where-Object { & $want $_.Name })
 }
 
-function Get-ImageBase($exe, $workDir, $argLine) {
-    $p = Start-Process -FilePath $exe -ArgumentList $argLine -WorkingDirectory $workDir -PassThru -WindowStyle Hidden
+function Get-PeAslr([string]$exe) {
+    $fs = [IO.File]::OpenRead($exe)
     try {
-        $base = $null
-        for ($i = 0; $i -lt 50 -and -not $base; $i++) {
-            Start-Sleep -Milliseconds 200
-            try { $base = $p.MainModule.BaseAddress.ToInt64() } catch {}
-        }
-        return $base
+        $b = New-Object byte[] ([int][Math]::Min(4096, $fs.Length))
+        $got = $fs.Read($b, 0, $b.Length)
     }
-    finally {
-        try { if (-not $p.HasExited) { & taskkill /PID $p.Id /T /F 2>&1 | Out-Null } } catch {}
-        $p.WaitForExit()
-    }
+    finally { $fs.Dispose() }
+    if ($got -lt 0x40 -or $b[0] -ne 0x4D -or $b[1] -ne 0x5A) { return 'no MZ header' }
+    $e = [BitConverter]::ToInt32($b, 0x3C)
+    $opt = $e + 24
+    if ($e -lt 0x40 -or $opt + 144 -gt $got) { return ('PE header at 0x{0:X} is outside the first {1} bytes' -f $e, $got) }
+    if ([BitConverter]::ToUInt32($b, $e) -ne 0x00004550) { return 'no PE signature' }
+    $magic = [BitConverter]::ToUInt16($b, $opt)
+    if ($magic -ne 0x10B) { return ('optional header magic 0x{0:X} is not PE32' -f $magic) }
+    if (([BitConverter]::ToUInt16($b, $e + 22) -band 0x0001) -ne 0) { return 'IMAGE_FILE_RELOCS_STRIPPED is set' }
+    if (([BitConverter]::ToUInt16($b, $opt + 70) -band 0x0040) -eq 0) { return 'IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE is clear' }
+    if ([BitConverter]::ToUInt32($b, $opt + 92) -lt 6) { return 'no base relocation data directory' }
+    if ([BitConverter]::ToUInt32($b, $opt + 136) -eq 0 -or [BitConverter]::ToUInt32($b, $opt + 140) -eq 0) { return 'base relocation directory is empty' }
+    return $null
 }

@@ -448,6 +448,7 @@ bool OrdnanceSticky::Collide(CollisionObject* pObject, const PblVector3& vPos,
         mStickInfo = new StickInfo;
         mStickInfo->mCollHandle = pObject->GetGameObject();
         mStickInfo->mCollObject = pObject;
+        mStickInfo->mCollKey = CollisionObject::LastCollidedKey(pObject);
         if (pModel)
         {
             PblMatrix mBody = pModel->GetWorldMatrix(iBodyId, pObject->GetMatrix(), pObject->GetPose());

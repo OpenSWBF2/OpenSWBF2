@@ -173,7 +173,7 @@ static void traversetable (GCState *st, Table *h) {
     }
     else if (ttype(gkey(n)) > LUA_TNIL &&
              ttype(gkey(n)) <= NUM_TAGS)
-      setdeadkey(gkey(n));
+      condmarkobject(st, gkey(n), !weakkey);
   }
 }
 
@@ -302,7 +302,7 @@ static void cleartablekeys (GCObject *l) {
     lua_assert(h->marked & KEYWEAK);
     while (i--) {
       Node *n = gnode(h, i);
-      if (!ttisdeadkey(gkey(n)) && !valismarked(gkey(n)))
+      if (!valismarked(gkey(n)))
         removekey(n);
     }
     l = h->gclist;

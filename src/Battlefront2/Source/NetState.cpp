@@ -2529,6 +2529,7 @@ void EntityMine::ReadObject(NetPktGroup& group, NetObjState*)
             {
                 mStickInfo = new StickInfo;
                 mStickInfo->mCollObject = pObject->GetCollisionObject();
+                mStickInfo->mCollKey = CollisionObject::LastCollidedKey(mStickInfo->mCollObject);
                 mStickInfo->mCollHandle = pObject;
                 mStickInfo->mLocalPosition = position;
                 mStickInfo->mLocalRotation = rotation;

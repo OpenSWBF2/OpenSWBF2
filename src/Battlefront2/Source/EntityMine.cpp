@@ -442,7 +442,7 @@ bool EntityMine::CollisionCallback(const CollisionResult* pResult, CollisionObje
 {
     if (mStationary)
     {
-        if (mStickInfo && mStickInfo->mCollObject == pOther)
+        if (mStickInfo && mStickInfo->IsStuckTo(pOther))
         {
             return true;
         }
@@ -516,6 +516,7 @@ bool EntityMine::CollisionCallback(const CollisionResult* pResult, CollisionObje
         mStickInfo = new StickInfo;
         mStickInfo->mCollHandle = pOther->GetGameObject();
         mStickInfo->mCollObject = pOther;
+        mStickInfo->mCollKey = CollisionObject::LastCollidedKey(pOther);
         if (pModel)
         {
             PblMatrix mBody = pModel->GetWorldMatrix(pResult->mReceiverId, pOther->GetMatrix(), pOther->GetPose());

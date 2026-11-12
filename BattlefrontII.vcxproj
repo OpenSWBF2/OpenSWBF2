@@ -673,6 +673,7 @@
     <ClCompile Include="src\PebbleFL\Common\PblCatmullRom.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblChunk.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblConfig.cpp" />
+    <ClCompile Include="src\PebbleFL\Common\PblCrtHeap.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblFourier.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblHandle.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblHashTable.cpp" />
@@ -1457,6 +1458,7 @@
     <ClInclude Include="src\PebbleFL\Common\PblCatmullRom.h" />
     <ClInclude Include="src\PebbleFL\Common\PblChunk.h" />
     <ClInclude Include="src\PebbleFL\Common\PblConfig.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblCrtHeap.h" />
     <ClInclude Include="src\PebbleFL\Common\PblFile.h" />
     <ClInclude Include="src\PebbleFL\Common\PblFourier.h" />
     <ClInclude Include="src\PebbleFL\Common\PblHandle.h" />

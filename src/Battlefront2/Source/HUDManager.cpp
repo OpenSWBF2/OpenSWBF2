@@ -275,6 +275,12 @@ void HUD::Manager::Open()
             HUD::gEditHeap = RedCreateHeap(HUD::gEditHeapMem,
                                            (char*)HUD::gEditHeapMem + 0xFFFFF,
                                            0x10, "HUDEditHeap");
+            if (HUD::gEditHeap < 0)
+            {
+                RedFreeToHeap(__RedDebugHeap, HUD::gEditHeapMem, 0);
+                HUD::gEditHeapMem = 0;
+                HUD::gEditHeap = -1;
+            }
         }
     }
 

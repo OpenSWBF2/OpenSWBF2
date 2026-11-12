@@ -15,6 +15,9 @@
 #include "PathFinder.h"
 #include "PathFollower.h"
 #include "PathManager.h"
+#include "NavigatorGraphFollower.h"
+#include "NavigatorPathFollower.h"
+#include "NavigatorSlide.h"
 #include "PowerupItem.h"
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMatrix.h"
@@ -139,6 +142,29 @@ int Navigator::GetMyProhibit() const
 const Obstacle* Navigator::GetMyBarrier() const
 {
     return AIUtil::GetGameObjectBarrier(GetGameObject());
+}
+
+void Navigator::ForgetBarrier(const Obstacle* pBarrier)
+{
+    if (IsRtti(NavigatorGraphFollower::rttiHashNavigatorGraphFollower))
+    {
+        NavigatorGraphFollower* pNav = static_cast<NavigatorGraphFollower*>(this);
+        ForgetIgnored(pNav->mIgnore, pNav->mIgnoreCnt, pBarrier);
+    }
+    else if (IsRtti(NavigatorPathFollower::rttiHashNavigatorPathFollower))
+    {
+        NavigatorPathFollower* pNav = static_cast<NavigatorPathFollower*>(this);
+        ForgetIgnored(pNav->mIgnore, pNav->mIgnoreCnt, pBarrier);
+    }
+    else if (IsRtti(NavigatorSlide::rttiHashNavigatorSlide))
+    {
+        NavigatorSlide* pNav = static_cast<NavigatorSlide*>(this);
+        ForgetIgnored(pNav->mIgnore, pNav->mIgnoreCnt, pBarrier);
+    }
+    if (mPathFollower)
+    {
+        ForgetIgnored(mPathFollower->mIgnore, mPathFollower->mIgnoreCnt, pBarrier);
+    }
 }
 
 // FUNCTION: SWBF2 0x005ab540

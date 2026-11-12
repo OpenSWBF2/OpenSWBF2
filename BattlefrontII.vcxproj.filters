@@ -1659,6 +1659,9 @@
     <ClCompile Include="src\PebbleFL\Common\PblConfig.cpp">
       <Filter>src\PebbleFL\Common</Filter>
     </ClCompile>
+    <ClCompile Include="src\PebbleFL\Common\PblCrtHeap.cpp">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClCompile>
     <ClCompile Include="src\PebbleFL\Common\PblFourier.cpp">
       <Filter>src\PebbleFL\Common</Filter>
     </ClCompile>
@@ -3915,6 +3918,9 @@
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblConfig.h">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PebbleFL\Common\PblCrtHeap.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblFile.h">

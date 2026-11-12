@@ -248,6 +248,43 @@ foreach ($sc in $hardScenarios) {
     if ($why) { $failed++; Write-Host "FAILED ${n}: $($sc[0]): $why" }
     else { Write-Host "OK $n $($sc[0])" }
 }
+$n++
+$peSrc = @((Join-Path $PSScriptRoot "..\bin\Win32\$Configuration\BattlefrontII.exe"), (Join-Path $PSScriptRoot "..\bin\Tests\$Configuration\OpenSWBF2Tests.exe") | Where-Object { Test-Path -LiteralPath $_ })
+if ($peSrc.Count -eq 0) { $failed++; Write-Host "FAILED ${n}: pe aslr fixtures: no built $Configuration exe to copy a header from" }
+else {
+    $fs = [IO.File]::OpenRead($peSrc[0])
+    try {
+        $peHdr = New-Object byte[] 4096
+        $peLen = $fs.Read($peHdr, 0, $peHdr.Length)
+    }
+    finally { $fs.Dispose() }
+    $peE = [BitConverter]::ToInt32($peHdr, 0x3C)
+    $peOpt = $peE + 24
+    $peCases = @(
+        @('clean header', @(), $null),
+        @('dynamic base cleared', @(, @(($peOpt + 70), 0xBF, 0)), 'DYNAMIC_BASE is clear'),
+        @('relocation directory zeroed', @(@(($peOpt + 136), 0, 0), @(($peOpt + 137), 0, 0), @(($peOpt + 138), 0, 0), @(($peOpt + 139), 0, 0), @(($peOpt + 140), 0, 0), @(($peOpt + 141), 0, 0), @(($peOpt + 142), 0, 0), @(($peOpt + 143), 0, 0)), 'base relocation directory is empty'),
+        @('relocs stripped set', @(, @(($peE + 22), 0xFF, 0x01)), 'IMAGE_FILE_RELOCS_STRIPPED is set'),
+        @('PE32+ magic', @(@($peOpt, 0, 0x0B), @(($peOpt + 1), 0, 0x02)), 'magic 0x20B is not PE32')
+    )
+    $why = $null
+    $i = 0
+    $peTmp = Join-Path $env:TEMP ("openswbf2-pe-" + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $peTmp | Out-Null
+    foreach ($pc in $peCases) {
+        $h = [byte[]]$peHdr.Clone()
+        foreach ($m in $pc[1]) { $h[$m[0]] = [byte](($h[$m[0]] -band $m[1]) -bor $m[2]) }
+        $f = Join-Path $peTmp ("pe-aslr-$i.bin")
+        $i++
+        [IO.File]::WriteAllBytes($f, [byte[]]$h[0..($peLen - 1)])
+        $got = Get-PeAslr $f
+        if ($null -eq $pc[2]) { if ($null -ne $got) { $why = "$($pc[0]) gave '$got'" } }
+        elseif ($null -eq $got -or -not $got.Contains($pc[2])) { $why = "$($pc[0]) gave '$got', expected '$($pc[2])'" }
+    }
+    Remove-Item -Recurse -Force $peTmp -ErrorAction SilentlyContinue
+    if ($why) { $failed++; Write-Host "FAILED ${n}: pe aslr fixtures: $why" }
+    else { Write-Host "OK $n pe aslr fixtures flag dynamic base, relocations, relocs stripped and PE32 magic from $(Split-Path $peSrc[0] -Leaf)" }
+}
 function New-FlagBag($total, $an, $il, $io, $extra) {
     $p = @{ Total = $total; GsMinus = 0; Sdl = $total; AlignedNewOff = $an; InlineOff = $il; InlineOn = $io; ThrowingNew = 0; Gl = 0; FpFast = 0; FpContract = 0 }
     if ($extra) { foreach ($k in $extra.Keys) { $p[$k] = $extra[$k] } }
@@ -519,6 +556,23 @@ finally {
     Remove-Item -Recurse -Force $addrDir -ErrorAction SilentlyContinue
 }
 $n++
+$crtBanDir = Join-Path $env:TEMP ("openswbf2-crtban-" + [guid]::NewGuid().ToString('N'))
+try {
+    foreach ($d in 'src\Foo', 'src\mimalloc\src', 'src\PebbleFL\Common') { New-Item -ItemType Directory -Path (Join-Path $crtBanDir $d) | Out-Null }
+    Set-Content -Encoding ASCII -Path (Join-Path $crtBanDir 'src\Foo\a.cpp') -Value @('void* p = malloc(1);', 'void* q = calloc (1, 2);', 'p = realloc(p, 4);', 'free(p);', 'char* s = _strdup("x");', 'size_t z = _msize(q);', 'pBackend->free(p);', 'mFree(p);', 'RedFreeToHeap(0, p, 0);', 'PblCrtFree(p);', 'int free_count = 0;', 'std::free(p);')
+    Set-Content -Encoding ASCII -Path (Join-Path $crtBanDir 'src\mimalloc\src\x.c') -Value @('void* p = malloc(1);')
+    Set-Content -Encoding ASCII -Path (Join-Path $crtBanDir 'src\PebbleFL\Common\PblCrtHeap.cpp') -Value @('void* p = malloc(1);', 'free(p);')
+    $bad = @(Get-SourceChecks $crtBanDir -Only 'crt-heap-ban')
+    Remove-Item -LiteralPath (Join-Path $crtBanDir 'src\Foo\a.cpp')
+    $good = @(Get-SourceChecks $crtBanDir -Only 'crt-heap-ban')
+    if ($bad.Count -ne 1 -or $bad[0].Ok -or $bad[0].Detail -ne 'src\Foo\a.cpp:1, src\Foo\a.cpp:2, src\Foo\a.cpp:3, src\Foo\a.cpp:4, src\Foo\a.cpp:5, src\Foo\a.cpp:6') { $failed++; Write-Host "FAILED ${n}: crt-heap-ban flags CRT heap calls outside src\mimalloc and PblCrtHeap.cpp: $($bad.Detail)" }
+    elseif ($good.Count -ne 1 -or -not $good[0].Ok) { $failed++; Write-Host "FAILED ${n}: crt-heap-ban flags CRT heap calls outside src\mimalloc and PblCrtHeap.cpp: allowed files flagged $($good.Detail)" }
+    else { Write-Host "OK $n crt-heap-ban flags CRT heap calls outside src\mimalloc and PblCrtHeap.cpp" }
+}
+finally {
+    Remove-Item -Recurse -Force $crtBanDir -ErrorAction SilentlyContinue
+}
+$n++
 $miApiDir = Join-Path $env:TEMP ("openswbf2-miapi-" + [guid]::NewGuid().ToString('N'))
 try {
     foreach ($d in 'src\Foo', 'src\mimalloc\src', 'src\RedEngineFL\Memory') { New-Item -ItemType Directory -Path (Join-Path $miApiDir $d) | Out-Null }
@@ -545,6 +599,10 @@ if ($okGood.Count -ne 1 -or -not $okGood[0].Ok -or $okBad[0].Ok -or $okBad[0].De
 else { Write-Host "OK $n import-modules allows only listed DLLs" }
 $n++
 $allCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con', 'quux1c_con Pass', 'foo2c_con Pass 240', 'foo7c_ctf Fatal', 'foo5c_ass TimeOut', 'dag1c_ctf Pass', 'spa3c_ass Pass') $false $null)
+$testAllCfg = $script:SmokeDigestConfiguration
+$script:SmokeDigestConfiguration = 'Test'
+$testAllCases = @(Get-SmokeCases 'All' @('bar1c_con') $false $null)
+$script:SmokeDigestConfiguration = $testAllCfg
 $byName = @{}
 foreach ($c in $allCases) { $byName[$c.Name] = $c }
 $rejected = 0
@@ -568,7 +626,8 @@ elseif ('FATAL: exception 0xC0000005 at 0x658FA553 (d3dx9_43.dll+0x1BA553) build
 elseif ($byName['bar1c_con'].Expect.Class -ne 'Pass' -or $byName['quux1c_con'].Expect.Class -ne 'Pass') { $why = 'missing or Pass class must be Pass' }
 elseif ($byName['foo2c_con'].Expect.Class -ne 'Pass' -or $byName['foo2c_con'].Timeout -ne 240 -or $byName['bar1c_con'].Timeout -ne 0 -or $byName['quux1c_con'].Timeout -ne 0) { $why = 'third token must set the case timeout' }
 elseif ($rejected -ne 5) { $why = 'unknown classes, GsFailure, non-integer timeouts and Pass flag or assault lines without a digest row must be rejected' }
-elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 42 -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
+elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 42 -or $byName.ContainsKey('crash-buildheapfail') -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
+elseif (@($testAllCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 43 -or @($testAllCases | Where-Object { $_.Name -eq 'crash-buildheapfail' }).Count -ne 1) { $why = 'Test crash cases changed' }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
 else { Write-Host "OK $n all-missions parsing" }
 $n++
@@ -698,21 +757,56 @@ try {
     [IO.File]::WriteAllText($repLog, "$digLine`r`n")
     $n++
     $cfLine = { param($s, $v) "[t=1.000] [f=1] LogMemory Inform GameState.cpp:1: OPENSWBF2 COMMIT state=$s bytes=$v`r`n" }
-    $cfPass = (& $cfLine mission 100000000) + (& $cfLine shell 60000000) + (& $cfLine mission 101000000) + (& $cfLine shell 60500000) + (& $cfLine mission 102048576)
-    $cfHigh = (& $cfLine mission 100000000) + (& $cfLine shell 60000000) + (& $cfLine mission 101000000) + (& $cfLine shell 60500000) + (& $cfLine mission 102048577)
-    $cfFour = (& $cfLine mission 100000000) + (& $cfLine shell 60000000) + (& $cfLine mission 101000000) + (& $cfLine shell 60500000)
-    $cfP = Test-CommitFlat $cfPass 1048576
-    $cfH = Test-CommitFlat $cfHigh 1048576
-    $cfF = Test-CommitFlat $cfFour 1048576
+    $cfCrt = { param($s, $b, $c, $a, $th, $pv) "[t=1.000] [f=1] LogMemory Inform GameMemory.cpp:1: OPENSWBF2 COMMITPARTS state=$s private=$pv gamecrt=$b heaps=$c threads=$th threadcount=9 arena=$a crtbusy=0 crtcommitted=0 crtlarge=0`r`n" }
+    $cfLog = { param($m, $mb, $mc, $ma, $order, $noParts, $mt)
+        if (-not $mt) { $mt = @(0, 0, 0, 0) }
+        $t = ''
+        for ($k = 0; $k -lt 4; $k++) {
+            $t += & $cfLine mission $m[$k]
+            if (-not $noParts) { $t += & $cfCrt mission $mb[$k] $mc[$k] $ma[$k] $mt[$k] $m[$k] }
+            $sState = $(if ($order -and $k -eq 1) { 'mission' } else { 'shell' })
+            $t += & $cfLine $sState 60000000
+            if (-not $noParts) { $t += & $cfCrt $sState 3000000 2000000 1000000 0 60000000 }
+        }
+        $t
+    }
+    $cfB = @(3000000, 3000000, 3000000, 3000000)
+    $cfC = @(2000000, 2000000, 2000000, 2000000)
+    $cfA = @(1000000, 1000000, 1000000, 1000000)
+    $cfFlat = @(100000000, 100000000, 100000000, 100000000)
+    $cfP = Test-CommitFlat (& $cfLog @(100000000, 100003000, 100001000, 100004000) $cfB $cfC $cfA $false $false) 1000 4 2
+    $cfH = Test-CommitFlat (& $cfLog @(100000000, 100003000, 100001000, 100004001) $cfB $cfC $cfA $false $false) 1000 4 2
+    $cfR = Test-CommitFlat (& $cfLog @(100000000, 100000000, 100000000, 100500000) $cfB @(2000000, 2000000, 2000000, 2500000) $cfA $false $false) 1000 4 2
+    $cfL = Test-CommitFlat (& $cfLog $cfFlat @(3000000, 3000000, 3000000, 3002000) $cfC $cfA $false $false) 1000 4 2
+    $cfN = Test-CommitFlat (& $cfLog @(100000000, 100000000, 100000000, 100262144) $cfB $cfC @(1000000, 1000000, 1000000, 1262144) $false $false) 1000 4 2
+    $cfX = Test-CommitFlat (& $cfLog @(100262144, 100200000, 100000000, 100462144) $cfB $cfC @(1262144, 1000000, 1000000, 1262144) $false $false) 1000 4 2
+    $cfM = Test-CommitFlat (& $cfLog $cfFlat $cfB $cfC $cfA $false $true) 1000 4 2
+    $cfF = Test-CommitFlat (& $cfLog $cfFlat $cfB $cfC $cfA $true $false) 1000 4 2
+    $cfZ = Test-CommitFlat (& $cfLog $cfFlat $cfB $cfC $cfA $false $false) 1000 0 0
+    $cfS = Test-CommitFlat (& $cfLog $cfFlat $cfB $cfC $cfA $false $false) 1000 4 4
+    $cfT = Test-CommitFlat (& $cfLog @(100000000, 100000000, 100000000, 100184320) $cfB $cfC $cfA $false $false @(400000, 400000, 400000, 584320)) 0 4 2
+    $cfG = Test-CommitFlat (& $cfLog $cfFlat @(3000000, 3000000, 3000000, 3000001) $cfC $cfA $false $false) 0 4 2
     $cfCfg = $script:SmokeDigestConfiguration
     $script:SmokeDigestConfiguration = 'Test'
     $cfCase = @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.Name -eq 'commit-flat' })
+    $rwCase = @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.Name -eq 'repeat-water' })
+    $script:SmokeDigestConfiguration = 'Asan'
+    $rwCase += @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.Name -eq 'repeat-water' })
+    $script:SmokeDigestConfiguration = 'Release'
+    $rwRel = @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.Name -eq 'repeat-water' })
     $script:SmokeDigestConfiguration = $cfCfg
     $cfWhy = $null
-    if ($cfP -or -not $cfH -or -not $cfF) { $cfWhy = "pass='$cfP' high='$cfH' four='$cfF'" }
-    elseif ($cfCase.Count -ne 1 -or $cfCase[0].Expect.CommitFlat -ne 1048576 -or $cfCase[0].Expect.SameDigests -ne 3 -or $cfCase[0].Args -notmatch ' -repeatmission 2$') { $cfWhy = 'commit-flat case missing or wrong' }
+    if ($cfP -or -not $cfH -or $cfR -or -not $cfL -or $cfN -notmatch ' arena = ' -or $cfX -or $cfM -notmatch 'COMMITPARTS' -or -not $cfF -or $cfZ -cne 'CommitCycles and CommitSettled are required' -or $cfS -cne 'CommitSettled must be below CommitCycles' -or $cfT -or $cfG -notmatch 'rest = ') { $cfWhy = "pass='$cfP' high='$cfH' retention='$cfR' leak='$cfL' newpage='$cfN' cross='$cfX' noparts='$cfM' order='$cfF' zero='$cfZ' settled='$cfS' threads='$cfT' gamecrt='$cfG'" }
+    elseif ($cfCase.Count -ne 1 -or $cfCase[0].Expect.CommitFlat -ne 0 -or $cfCase[0].Expect.CommitCycles -ne 16 -or $cfCase[0].Expect.CommitSettled -ne 8 -or $cfCase[0].Expect.SameDigests -ne 17 -or $cfCase[0].Args -notmatch ' -repeatmission 16$' -or $cfCase[0].Timeout -ne 220) { $cfWhy = 'commit-flat case missing or wrong' }
     if ($cfWhy) { $failed++; Write-Host "FAILED ${n}: commit flat: $cfWhy" }
-    else { Write-Host "OK $n commit flat bounds m3-m2 and s2-s1 and needs five states" }
+    else { Write-Host "OK $n commit flat fails a new arena or rest high after the settled cycles, counts game CRT bytes in place of heap and thread commit and needs alternating states" }
+    $n++
+    if ($rwCase.Count -ne 2 -or $rwRel.Count -ne 0 -or @($rwCase | Where-Object { $_.Timeout -ne 23 -or $_.Expect.Class -ne 'TimeOut' -or $_.Expect.SameDigests -ne 2 }).Count -ne 0) { $failed++; Write-Host "FAILED ${n}: repeat-water must run in Test and Asan only, TimeOut 23 with two equal digests" }
+    else { Write-Host "OK $n repeat-water runs in Test and Asan with its measured timeout" }
+    $n++
+    $bareCr = @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1' -Recurse -File | Where-Object { [IO.File]::ReadAllText($_.FullName) -match "`r(?!`n)" } | ForEach-Object { $_.Name })
+    if ($bareCr.Count -gt 0) { $failed++; Write-Host "FAILED ${n}: bare carriage return in $($bareCr -join ', ')" }
+    else { Write-Host "OK $n no test script holds a bare carriage return" }
     $n++
     $memA = "[t=1.000] [f=1] LogMemory Inform x.cpp:1: OPENSWBF2 MEMREPORT source=exit`r`n[t=1.000] [f=1] LogMemory Inform x.cpp:1: OPENSWBF2 MEMREPORT heap=Runtime cap=9 peak=5 used=4 allocs=3 failed=0`r`n"
     $memB = "[t=2.000] [f=2] LogMemory Inform x.cpp:1: OPENSWBF2 MEMREPORT source=turn1500`r`n[t=2.000] [f=2] LogMemory Inform x.cpp:1: OPENSWBF2 MEMREPORT heap=Lua cap=9 peak=8 used=7 allocs=6 failed=0`r`n[t=2.000] [f=2] LogMemory Inform x.cpp:1: OPENSWBF2 MEMREPORT heap=Runtime cap=9 peak=14 used=13 allocs=12 failed=0`r`n"
@@ -745,10 +839,11 @@ try {
     $trBd = Join-Path $digTmp 'trace-b-digest.log'
     [IO.File]::WriteAllLines($trAd, [string[]]($linesA + $pvDigest))
     [IO.File]::WriteAllLines($trBd, [string[]]($linesB + $pvDigest))
-    $pvEq = Get-PerturbVerdict $trAd $trAd 'Pass' 'Pass' 9
-    $pvSp = Get-PerturbVerdict $trAd $trBd 'Pass' 'Pass' 9
-    $pvIn = Get-PerturbVerdict $trAd $trE 'Pass' 'Pass' 9
-    $pvCr = Get-PerturbVerdict $trAd $trBd 'Crash' 'Pass' 9
+    $bAd = Get-PerturbBase $trAd
+    $pvEq = Get-PerturbVerdict $bAd $trAd 'Pass' 'Pass' $false 9
+    $pvSp = Get-PerturbVerdict $bAd $trBd 'Pass' 'Pass' $false 9
+    $pvIn = Get-PerturbVerdict $bAd $trE 'Pass' 'Pass' $false 9
+    $pvCr = Get-PerturbVerdict $bAd $trBd 'Crash' 'Pass' $false 9
     $trA2 = Join-Path $digTmp 'trace-a2.log'
     $trB2 = Join-Path $digTmp 'trace-b2.log'
     [IO.File]::WriteAllLines($trA2, [string[]](1..1520 | ForEach-Object { 'OPENSWBF2 DIGEST TRACE turn={0} state=0x{0:X8} rand=1/2' -f $_ }))
@@ -801,9 +896,10 @@ try {
     $repSegs = @(Get-DigestTraceSegments $repEq)
     if ($repSegs.Count -ne 2 -or $repSegs[1].Count -ne 20 -or -not $repSegs[1].ContainsKey(1) -or $repSegs[0].Count -ne 15) { $fullBad += "segments=$($repSegs.Count)" }
     if (@(Get-DigestTraceSegments (Join-Path $digTmp 'no-such.log')).Count -ne 0) { $fullBad += 'missing log has segments' }
-    $vEq = Get-PerturbVerdict $repBase $repEq 'Pass' 'Pass' 15 $true
-    $vSp = Get-PerturbVerdict $repBase $repSp 'Pass' 'Pass' 15 $true
-    $vOne = Get-PerturbVerdict $repBase $repOne 'Pass' 'Pass' 15 $true
+    $bRep = Get-PerturbBase $repBase
+    $vEq = Get-PerturbVerdict $bRep $repEq 'Pass' 'Pass' $true 15
+    $vSp = Get-PerturbVerdict $bRep $repSp 'Pass' 'Pass' $true 15
+    $vOne = Get-PerturbVerdict $bRep $repOne 'Pass' 'Pass' $true 15
     if ($vEq.Result -ne 'equal') { $fullBad += "repeat equal=$($vEq.Result)/$($vEq.Class)" }
     if ($vSp.Result -ne 'split' -or $vSp.Turn -ne 18) { $fullBad += "repeat split=$($vSp.Result)/$($vSp.Turn)" }
     if ($vOne.Result -ne 'crash' -or $vOne.Class -ne 'incomplete') { $fullBad += "repeat one=$($vOne.Result)/$($vOne.Class)" }
@@ -811,9 +907,10 @@ try {
     $serRand = Join-Path $digTmp 'serial-rand.log'
     [IO.File]::WriteAllLines($serBase, [string[]](@(1..20 | ForEach-Object { & $trLine $_ 1 }) + $simLine))
     [IO.File]::WriteAllLines($serRand, [string[]](@(1..20 | ForEach-Object { if ($_ -eq 7) { & $trLine $_ 3 } else { & $trLine $_ 1 } }) + $simLine))
-    $sSer = Get-PerturbVerdict $serBase $serRand 'Pass' 'Pass' 15
-    $sEq = Get-PerturbVerdict $serBase $serBase 'Pass' 'Pass' 15
-    $sNoDig = Get-PerturbVerdict $serBase $trA 'Pass' 'Pass' 9
+    $bSer = Get-PerturbBase $serBase
+    $sSer = Get-PerturbVerdict $bSer $serRand 'Pass' 'Pass' $false 15
+    $sEq = Get-PerturbVerdict $bSer $serBase 'Pass' 'Pass' $false 15
+    $sNoDig = Get-PerturbVerdict $bSer $trA 'Pass' 'Pass' $false 9
     if ($sSer.Result -ne 'split' -or $sSer.Turn -ne 7 -or $sEq.Result -ne 'equal') { $fullBad += "serial=$($sSer.Result)/$($sSer.Turn) same=$($sEq.Result)" }
     if ($sNoDig.Result -ne 'crash' -or $sNoDig.Class -ne 'incomplete') { $fullBad += "serial short=$($sNoDig.Result)/$($sNoDig.Class)" }
     $gv = @(
@@ -821,6 +918,38 @@ try {
     if (($gv -join ',') -cne 'True,False,False') { $fullBad += "group=$($gv -join ',')" }
     if ($fullBad.Count) { $failed++; Write-Host "FAILED ${n}: perturb full trace: $($fullBad -join '; ')" }
     else { Write-Host "OK $n perturb full trace compares rand and late turns and splits repeat segments" }
+    $n++
+    $wBad = @()
+    $simW = $simLine.Replace('turns=15', 'turns=1500')
+    $trRange = { param($from, $to, $odd) @($from..$to | ForEach-Object { if ($_ -eq $odd) { & $trLine $_ 3 } else { & $trLine $_ 1 } }) }
+    $wFile = { param($name, $lines) $f = Join-Path $digTmp $name; [IO.File]::WriteAllLines($f, [string[]]$lines); $f }
+    $wLong = & $wFile 'whole-long.log' ((& $trRange 1 22 0) + $simLine)
+    $vLong = Get-PerturbVerdict $bSer $wLong 'Pass' 'Pass' $false 15
+    if ($vLong.Result -ne 'split' -or $vLong.Turn -ne 21) { $wBad += "longer run=$($vLong.Result)/$($vLong.Turn)" }
+    $wCut = & $wFile 'whole-cut.log' ((& $trRange 1 20 0) + $simLine + '[t=1.000] [f=1] LogSim Inform SimDigest.cpp:164: OPENSWBF2 DIGEST TRACE turn=21 state=0x0000')
+    $wCutRand = & $wFile 'whole-cut-rand.log' ((& $trRange 1 20 0) + $simLine + '[t=1.000] [f=1] LogSim Inform SimDigest.cpp:164: OPENSWBF2 DIGEST TRACE turn=21 state=0x00000015 rand=1/')
+    $vCut = Get-PerturbVerdict $bSer $wCut 'Pass' 'Pass' $false 15
+    $vCutRand = Get-PerturbVerdict $bSer $wCutRand 'Pass' 'Pass' $false 15
+    if ($vCut.Result -ne 'equal' -or $vCutRand.Result -ne 'equal') { $wBad += "truncated last line=$($vCut.Result)/$($vCutRand.Result)" }
+    $bTo = Get-PerturbBase (& $wFile 'whole-to-base.log' ((& $trRange 1 1700 0) + $simW))
+    $vToEq = Get-PerturbVerdict $bTo (& $wFile 'whole-to-short.log' ((& $trRange 1 1550 1550) + $simW)) 'TimeOut' 'TimeOut' $false
+    $vToLong = Get-PerturbVerdict $bTo (& $wFile 'whole-to-long.log' ((& $trRange 1 1800 0) + $simW)) 'TimeOut' 'TimeOut' $false
+    $vToSp = Get-PerturbVerdict $bTo (& $wFile 'whole-to-split.log' ((& $trRange 1 1800 1620) + $simW)) 'TimeOut' 'TimeOut' $false
+    $vToIn = Get-PerturbVerdict $bTo (& $wFile 'whole-to-incomplete.log' ((& $trRange 1 1400 0) + $simW)) 'TimeOut' 'TimeOut' $false
+    if ($vToEq.Result -ne 'equal' -or $vToLong.Result -ne 'equal') { $wBad += "timeout prefix=$($vToEq.Result)/$($vToLong.Result)" }
+    if ($vToSp.Result -ne 'split' -or $vToSp.Turn -ne 1620) { $wBad += "timeout split=$($vToSp.Result)/$($vToSp.Turn)" }
+    if ($vToIn.Result -ne 'crash' -or $vToIn.Class -ne 'incomplete') { $wBad += "timeout below 1500=$($vToIn.Result)/$($vToIn.Class)" }
+    $wSeg1 = (& $trRange 1 1500 0) + $simW + $toMission
+    $vRepEq = Get-PerturbVerdict $bTo (& $wFile 'whole-rep-eq.log' ($wSeg1 + (& $trRange 1 1700 0) + $simW)) 'Pass' 'Pass' $true
+    $vRepLate = Get-PerturbVerdict $bTo (& $wFile 'whole-rep-late.log' ($wSeg1 + (& $trRange 1 1700 1650) + $simW)) 'Pass' 'Pass' $true
+    $vRepShort = Get-PerturbVerdict $bTo (& $wFile 'whole-rep-short.log' ((& $trRange 1 1499 0) + $simW + $toMission + (& $trRange 1 1700 0) + $simW)) 'Pass' 'Pass' $true
+    if ($vRepEq.Result -ne 'equal') { $wBad += "repeat whole=$($vRepEq.Result)/$($vRepEq.Class)" }
+    if ($vRepLate.Result -ne 'split' -or $vRepLate.Turn -ne 1650) { $wBad += "repeat late split=$($vRepLate.Result)/$($vRepLate.Turn)" }
+    if ($vRepShort.Result -ne 'crash' -or $vRepShort.Class -ne 'incomplete') { $wBad += "repeat segment one below 1500=$($vRepShort.Result)/$($vRepShort.Class)" }
+    $bShort = Get-PerturbBase (& $wFile 'whole-base-short.log' ((& $trRange 1 1499 0) + $simW))
+    if ((Test-PerturbBaseFull $bTo) -ne $true -or (Test-PerturbBaseFull $bShort) -ne $false -or (Test-PerturbBaseFull (Get-PerturbBase $repEq) 15) -ne $false) { $wBad += 'base full check' }
+    if ($wBad.Count) { $failed++; Write-Host "FAILED ${n}: perturb whole mission: $($wBad -join '; ')" }
+    else { Write-Host "OK $n perturb whole mission splits a longer run, ignores a cut last line, compares a TimeOut prefix and repeat segment two past 1600" }
     $n++
     $savedPm = $env:OPENSWBF2_PERTURB_MISSIONS
     $env:OPENSWBF2_PERTURB_MISSIONS = 'geo1c_con'
@@ -852,7 +981,7 @@ try {
     $allP = @(Get-SmokeCases 'Perturb' @() $false $null)
     $env:OPENSWBF2_PERTURB_MISSIONS = $savedPm
     $nabRep = @($allP | Where-Object { $_.Name -eq 'perturb-nab2g_c-repeat' })
-    if ($allP.Count -ne 54 -or @($allP | Where-Object { $_.Expect.Perturb.Mode -eq 'repeat' }).Count -ne 6) { $prBad += "perturb cases=$($allP.Count), need 54 with 6 repeat" }
+    if ($allP.Count -ne 63 -or @($allP | Where-Object { $_.Expect.Perturb.Mode -eq 'repeat' }).Count -ne 7) { $prBad += "perturb cases=$($allP.Count), need 63 with 7 repeat" }
     if ($nabRep.Count -ne 1 -or $nabRep[0].Timeout -ne 180 -or $nabRep[0].Expect.Class -ne 'TimeOut') { $prBad += 'nab2g_c repeat not TimeOut 180' }
     if ($prBad.Count) { $failed++; Write-Host "FAILED ${n}: perturb proof: $($prBad -join '; ')" }
     else { Write-Host "OK $n perturb runs must prove their mode, seed, hog and repeat" }
@@ -1238,7 +1367,7 @@ try {
         elseif ($h1 -ne $h2) { $why = 'key order or CRLF changed the hash' }
         elseif ($h1 -eq $h3) { $why = 'Tests order did not change the hash' }
         elseif ($h1 -eq $h4) { $why = 'an extra key did not change the hash' }
-        elseif ((Get-GuardRowKind @{ Asan = $true }) -ne 'Asan' -or (Get-GuardRowKind @{ Kind = 'Smoke' }) -ne 'Smoke' -or (Get-GuardRowKind @{ Id = 'x' }) -ne 'T1') { $why = 'row kind' }
+        elseif ((Get-GuardRowKind @{ Asan = $true }) -ne 'Asan' -or (Get-GuardRowKind @{ Kind = 'Smoke' }) -ne 'Smoke' -or (Get-GuardRowKind @{ Kind = 'Perturb' }) -ne 'Perturb' -or (Get-GuardRowKind @{ Id = 'x' }) -ne 'T1') { $why = 'row kind' }
     }
     catch { $why = "threw: $_" }
     Write-SelResult 'row hash folds CRLF, ignores key order and covers Tests order and every key' $why
@@ -1272,6 +1401,7 @@ try {
         @{ Id = 'S-HARD'; Kind = 'Hardening'; Check = 'c'; File = 'src\G\Game.cpp'; Anchor = 'a'; Replacement = 'b' },
         @{ Id = 'S-HARD2'; Kind = 'Hardening'; Check = 'c'; File = 'src\G\Other.cpp'; Anchor = 'a'; Replacement = 'b' },
         @{ Id = 'S-SMOKE'; Kind = 'Smoke'; Case = 'crash-x'; File = 'src\G\Game.h'; Anchor = 'a'; Replacement = 'b' },
+        @{ Id = 'S-PERTURB'; Kind = 'Perturb'; Config = 'Test'; Missions = @('m1'); File = 'src\G\Game.h'; Anchor = 'a'; Replacement = 'b' },
         @{ Id = 'S-TLOG'; Kind = 'Tlog'; Project = 'game'; Check = 'f'; File = 'BattlefrontII.vcxproj'; Anchor = 'a'; Replacement = 'b' }
     )
     $selAll = @($selRows | ForEach-Object { $_.Id })
@@ -1293,8 +1423,8 @@ try {
     $p2 = @{}
     foreach ($k in $selProofs.Keys) { if ($k -ne 'S-HARD2') { $p2[$k] = $selProofs[$k] } }
     Test-SelCase 'one missing record selects only that row' @{ Proofs = $p2 } @('S-HARD2') 'no record'
-    Test-SelCase '.cpp touched selects its rows and the game read sets that contain it' @{ Hashes = (Copy-SelHashes 'src\G\Game.cpp' 'new') } @('S-HARD', 'S-SMOKE') 'deps changed'
-    Test-SelCase 'header touched selects every read set that contains it' @{ Hashes = (Copy-SelHashes 'src\G\Shared.h' 'new') } @('S-LIB', 'S-PIN', 'S-HDR', 'S-ASAN', 'S-CANARY', 'S-HARD', 'S-SMOKE') 'deps changed'
+    Test-SelCase '.cpp touched selects its rows and the game read sets that contain it' @{ Hashes = (Copy-SelHashes 'src\G\Game.cpp' 'new') } @('S-HARD', 'S-SMOKE', 'S-PERTURB') 'deps changed'
+    Test-SelCase 'header touched selects every read set that contains it' @{ Hashes = (Copy-SelHashes 'src\G\Shared.h' 'new') } @('S-LIB', 'S-PIN', 'S-HDR', 'S-ASAN', 'S-CANARY', 'S-HARD', 'S-SMOKE', 'S-PERTURB') 'deps changed'
     Test-SelCase 'test file touched selects only its cases rows' @{ Hashes = (Copy-SelHashes 'tests\unit\t_pin.cpp' 'new') } @('S-PIN') 'deps changed'
     Test-SelCase 'directory literal file touched selects its test rows' @{ Hashes = (Copy-SelHashes 'tests\corpus\c\1.txt' 'new') } @('S-PIN') 'deps changed'
     $r2 = @($selRows | ForEach-Object { $_.Clone() })
@@ -1304,12 +1434,13 @@ try {
     Test-SelCase 'smoke.ps1 touched selects every row' @{ Hashes = (Copy-SelHashes 'tests\smoke.ps1' 'new') } $selAll 'global trigger*'
     Test-SelCase 'stubs touched selects every row' @{ Hashes = (Copy-SelHashes 'tests\stubs\stub.cpp' 'new') } $selAll 'global trigger*'
     Test-SelCase 'toolset changed selects every row' @{ Toolset = '14.50.1' } $selAll 'toolset'
-    Test-SelCase 'no tlog selects every row that needs one' @{ TestsReads = $null; AsanReads = $null; GameReads = $null } @('S-LIB', 'S-PIN', 'S-HDR', 'S-ASAN', 'S-CANARY', 'S-HARD', 'S-HARD2', 'S-SMOKE') 'no tlog*'
-    Test-SelCase 'unmapped path selects the rows that read it' @{ Hashes = (Copy-SelHashes 'src\G\Game.h' $null) } @('S-HARD', 'S-SMOKE') 'unmapped *'
+    Test-SelCase 'no tlog selects every row that needs one' @{ TestsReads = $null; AsanReads = $null; GameReads = $null } @('S-LIB', 'S-PIN', 'S-HDR', 'S-ASAN', 'S-CANARY', 'S-HARD', 'S-HARD2', 'S-SMOKE', 'S-PERTURB') 'no tlog*'
+    Test-SelCase 'unmapped path selects the rows that read it' @{ Hashes = (Copy-SelHashes 'src\G\Game.h' $null) } @('S-HARD', 'S-SMOKE', 'S-PERTURB') 'unmapped *'
     Test-SelCase 'unmapped literal selects its test rows' @{ TestLiterals = @{ 'tests\unit\t_pin.cpp' = @('tests\corpus\c\', 'tests\missing\x.txt') } } @('S-PIN') 'unmapped literal*'
     Test-SelCase 'unknown test name selects its rows' @{ TestSources = @{ 'lib works' = 'tests\unit\t_lib.cpp'; 'pin text' = 'tests\unit\t_pin.cpp' } } @('S-HDR', 'S-CANARY') 'unknown test*'
-    Test-SelCase 'text-pin row left alone by an unrelated change' @{ Hashes = (Copy-SelHashes 'src\G\Other.cpp' 'new') } @('S-HARD2', 'S-SMOKE') 'deps changed'
-    Test-SelCase 'smoke row depends on every game TU it links with' @{ Hashes = (Copy-SelHashes 'src\X\pcWindow.cpp' 'new') } @('S-PIN', 'S-SMOKE') 'deps changed'
+    Test-SelCase 'text-pin row left alone by an unrelated change' @{ Hashes = (Copy-SelHashes 'src\G\Other.cpp' 'new') } @('S-HARD2', 'S-SMOKE', 'S-PERTURB') 'deps changed'
+    Test-SelCase 'smoke row depends on every game TU it links with' @{ Hashes = (Copy-SelHashes 'src\X\pcWindow.cpp' 'new') } @('S-PIN', 'S-SMOKE', 'S-PERTURB') 'deps changed'
+    Test-SelCase 'perturb row depends on the mission scripts like a smoke row' @{ Hashes = (Copy-SelHashes 'data\scripts\a.lua' 'new') } @('S-SMOKE', 'S-PERTURB') 'deps changed'
     $p = Join-Path $selRoot 'src\G\Lib.h'
     (Get-Item -LiteralPath $p).LastWriteTime = (Get-Date).AddHours(1)
     $stale = Read-ClReadTlog $testsTlog $selRoot
@@ -1323,80 +1454,83 @@ $cbTmp = Join-Path $env:TEMP ("openswbf2-cmptables-" + [guid]::NewGuid().ToStrin
 try {
     $cbBase = Join-Path $PSScriptRoot 'baseline\v143'
     $cbScript = Join-Path $PSScriptRoot 'baseline\compare-tables.ps1'
-    $cbSlack = @{}
-    foreach ($l in [IO.File]::ReadAllLines((Join-Path $cbBase 'cloth-slack.txt'))) {
-        if ($l -and -not $l.StartsWith('#') -and -not $l.StartsWith("mission`t")) { $f = $l -split "`t"; $cbSlack[$f[0]] = [long]$f[1] }
+    $cbFiles = @('cloth-headroom.txt', 'mem-peaks.txt', 'pool-sizes.txt', 'smoke-all-digests.txt')
+    $cbText = @{}
+    foreach ($fn in $cbFiles) { $cbText[$fn] = [IO.File]::ReadAllLines((Join-Path $cbBase $fn)) }
+    function Find-CbRow([string]$fn, [string]$pattern) {
+        $lines = $cbText[$fn]
+        for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -cmatch $pattern) { return $i } }
+        throw "no row matching $pattern in $fn"
     }
-    $cbGood = Join-Path $cbTmp 'good'
-    $cbBad = Join-Path $cbTmp 'bad'
-    $cbUsed = Join-Path $cbTmp 'used'
-    $cbDrop = Join-Path $cbTmp 'drop'
-    $cbNew = Join-Path $cbTmp 'new'
-    $cbEmpty = Join-Path $cbTmp 'empty'
-    foreach ($d in $cbGood, $cbBad, $cbUsed, $cbDrop, $cbNew, $cbEmpty) {
+    function Invoke-CbCase([string]$name, [string]$fn, [scriptblock]$edit) {
+        $d = Join-Path $cbTmp $name
         New-Item -ItemType Directory -Force -Path $d | Out-Null
-        Copy-Item -LiteralPath (Join-Path $cbBase 'smoke-all-digests.txt') -Destination $d
+        foreach ($f in $cbFiles) {
+            $lines = [System.Collections.Generic.List[string]]::new([string[]]$cbText[$f])
+            if ($f -ceq $fn) { & $edit $lines }
+            [IO.File]::WriteAllLines((Join-Path $d $f), $lines)
+        }
+        $out = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $d 2>&1 | Out-String }
+        return @{ Code = $LASTEXITCODE; Out = $out }
     }
-    $cbPeaks = [IO.File]::ReadAllLines((Join-Path $cbBase 'mem-peaks.txt'))
-    $cbPeakRow = -1
-    for ($i = 0; $i -lt $cbPeaks.Count; $i++) { if ($cbPeaks[$i] -match "^[^`t]+`texit`theap`tRuntime`t") { $cbPeakRow = $i; break } }
-    $cbPeakLow = @($cbPeaks)
-    $cbUsedLow = @($cbPeaks)
-    $cbPeakDrop = @($cbPeaks)
-    $f = $cbPeaks[$cbPeakRow] -split "`t"
-    $f[6] = [string]([long]$f[6] - 512)
-    $cbPeakLow[$cbPeakRow] = $f -join "`t"
-    $f = $cbPeaks[$cbPeakRow] -split "`t"
-    $f[6] = [string]([long]$f[6] - 513)
-    $cbPeakDrop[$cbPeakRow] = $f -join "`t"
-    $f = $cbPeaks[$cbPeakRow] -split "`t"
-    $f[7] = [string]([long]$f[7] - 512)
-    $cbUsedLow[$cbPeakRow] = $f -join "`t"
-    [IO.File]::WriteAllLines((Join-Path $cbGood 'mem-peaks.txt'), $cbPeakLow)
-    [IO.File]::WriteAllLines((Join-Path $cbBad 'mem-peaks.txt'), $cbPeaks)
-    [IO.File]::WriteAllLines((Join-Path $cbUsed 'mem-peaks.txt'), $cbUsedLow)
-    [IO.File]::WriteAllLines((Join-Path $cbDrop 'mem-peaks.txt'), $cbPeakDrop)
-    [IO.File]::WriteAllLines((Join-Path $cbNew 'mem-peaks.txt'), $cbPeaks)
-    [IO.File]::WriteAllLines((Join-Path $cbEmpty 'mem-peaks.txt'), $cbPeaks)
-    [IO.File]::AppendAllText((Join-Path $cbNew 'smoke-all-digests.txt'), "zzz9c_con`tnone`tnone`r`n")
-    $cbRows = @()
-    $cbHigh = @()
-    $cbChanged = $false
-    foreach ($l in [IO.File]::ReadAllLines((Join-Path $cbBase 'cloth-headroom.txt'))) {
-        if (-not $l -or $l.StartsWith('#') -or $l.StartsWith("mission`t")) { $cbRows += $l; $cbHigh += $l; continue }
-        $f = $l -split "`t"
-        if ($f[1] -ne '-') { $f[1] = [string]([long]$f[1] + $cbSlack[$f[0]]) }
-        $cbRows += ($f -join "`t")
-        if (-not $cbChanged) { $f[4] = [string]([long]$f[4] + 16); $cbChanged = $true }
-        $cbHigh += ($f -join "`t")
+    function Set-CbField($lines, [int]$row, [int]$col, [long]$delta) {
+        $f = $lines[$row] -split "`t"
+        $f[$col] = [string]([long]$f[$col] + $delta)
+        $lines[$row] = $f -join "`t"
     }
-    [IO.File]::WriteAllLines((Join-Path $cbGood 'cloth-headroom.txt'), $cbRows)
-    [IO.File]::WriteAllLines((Join-Path $cbBad 'cloth-headroom.txt'), $cbHigh)
-    [IO.File]::WriteAllLines((Join-Path $cbUsed 'cloth-headroom.txt'), $cbRows)
-    [IO.File]::WriteAllLines((Join-Path $cbDrop 'cloth-headroom.txt'), $cbRows)
-    [IO.File]::WriteAllLines((Join-Path $cbNew 'cloth-headroom.txt'), $cbRows)
-    [IO.File]::WriteAllLines((Join-Path $cbEmpty 'cloth-headroom.txt'), @($cbRows | Where-Object { -not $_ -or $_.StartsWith('#') -or $_.StartsWith("mission`t") }))
-    $cbOutGood = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbGood 2>&1 | Out-String)
-    $cbCodeGood = $LASTEXITCODE
-    $cbOutBad = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbBad 2>&1 | Out-String)
-    $cbCodeBad = $LASTEXITCODE
-    $cbOutUsed = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbUsed 2>&1 | Out-String)
-    $cbCodeUsed = $LASTEXITCODE
-    $cbOutDrop = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbDrop 2>&1 | Out-String)
-    $cbCodeDrop = $LASTEXITCODE
-    $cbOutNew = (& powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbNew 2>&1 | Out-String)
-    $cbCodeNew = $LASTEXITCODE
-    $cbOutEmpty = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbEmpty 2>&1 | Out-String }
-    $cbCodeEmpty = $LASTEXITCODE
+    $cbRuntime = Find-CbRow 'mem-peaks.txt' "^[^`t]+`texit`theap`tRuntime`t"
+    $cbLuaHeap = Find-CbRow 'mem-peaks.txt' "^[^`t]+`t[^`t]+`theap`tLua`t"
+    $cbLuaBin = Find-CbRow 'mem-peaks.txt' "^[^`t]+`t[^`t]+`tpool`tLua\d+`t"
+    $cbCloth = Find-CbRow 'cloth-headroom.txt' "^[^`t]+`t\d+`t"
+    $cbPool = Find-CbRow 'pool-sizes.txt' "^[^`t]+`tSetMemoryPoolSize`t[^`t]+`t\d+`t"
+    $cbCases = @(
+        @{ Name = 'equal'; File = 'mem-peaks.txt'; Edit = { param($l) }; Code = 0; Want = @('\[PASS\] tables:cloth', '\[PASS\] tables:mem-peaks', '\[PASS\] tables:pool-sizes', '\[PASS\] tables:digests') },
+        @{ Name = 'runtime'; File = 'mem-peaks.txt'; Edit = { param($l) Set-CbField $l $cbRuntime 7 -1 }; Code = 1; Want = @('\[FAIL\] tables:mem-peaks', '\[PASS\] tables:cloth') },
+        @{ Name = 'luaheap'; File = 'mem-peaks.txt'; Edit = { param($l) Set-CbField $l $cbLuaHeap 6 1 }; Code = 1; Want = @('\[FAIL\] tables:mem-peaks') },
+        @{ Name = 'luabin'; File = 'mem-peaks.txt'; Edit = { param($l) Set-CbField $l $cbLuaBin 6 -1 }; Code = 1; Want = @('\[FAIL\] tables:mem-peaks') },
+        @{ Name = 'clothfree'; File = 'cloth-headroom.txt'; Edit = { param($l) Set-CbField $l $cbCloth 1 1 }; Code = 1; Want = @('\[FAIL\] tables:cloth', '\[PASS\] tables:mem-peaks') },
+        @{ Name = 'pool'; File = 'pool-sizes.txt'; Edit = { param($l) Set-CbField $l $cbPool 4 1 }; Code = 1; Want = @('\[FAIL\] tables:pool-sizes', '\[PASS\] tables:mem-peaks') },
+        @{ Name = 'missing'; File = 'mem-peaks.txt'; Edit = { param($l) $l.RemoveAt($cbLuaBin) }; Code = 1; Want = @('\[FAIL\] tables:mem-peaks', 'missing from tables') },
+        @{ Name = 'extra'; File = 'mem-peaks.txt'; Edit = { param($l) $l.Add("zzz9c_con`texit`theap`tRuntime`t1`t-`t1`t1`t1`t0") }; Code = 1; Want = @('\[FAIL\] tables:mem-peaks', 'zzz9c_con\texit\theap\tRuntime not in baseline') },
+        @{ Name = 'pooldup'; File = 'pool-sizes.txt'; Edit = { param($l) $l.Insert($cbPool, $l[$cbPool]) }; Code = 1; Want = @('\[FAIL\] tables:pool-sizes') },
+        @{ Name = 'digestnew'; File = 'smoke-all-digests.txt'; Edit = { param($l) $l.Add("zzz9c_con`tnone`tnone") }; Code = 1; Want = @('\[FAIL\] tables:digests', 'zzz9c_con not in baseline') },
+        @{ Name = 'dedicated'; File = 'smoke-all-digests.txt'; Edit = { param($l) $i = Find-CbRow 'smoke-all-digests.txt' "^dedicated`t"; $l[$i] = "dedicated`tchanged`tnone" }; Code = 0; Want = @('\[PASS\] tables:digests') },
+        @{ Name = 'empty'; File = 'cloth-headroom.txt'; Edit = { param($l) for ($i = $l.Count - 1; $i -ge 0; $i--) { if ($l[$i] -and -not $l[$i].StartsWith('#') -and -not $l[$i].StartsWith("mission`t")) { $l.RemoveAt($i) } } }; Code = 1; Want = @('cloth-headroom\.txt in ', 'has no rows') }
+    )
     $cbWhy = $null
-    if ($cbCodeUsed -ne 1 -or $cbOutUsed -notmatch 'FAIL. tables:mem-peaks' -or $cbOutUsed -notmatch 'used gap 512 used bound 496') { $cbWhy = "used gap past the slack gave exit $cbCodeUsed" }
-    elseif ($cbCodeGood -ne 0 -or $cbOutGood -notmatch '\[PASS\] tables:cloth missions=109') { $cbWhy = "slack-raised tables gave exit $cbCodeGood" }
-    elseif ($cbCodeBad -ne 1 -or $cbOutBad -notmatch '\[FAIL\] tables:cloth' -or $cbOutBad -notmatch '\[PASS\] tables:mem-peaks') { $cbWhy = "changed high gave exit $cbCodeBad" }
-    elseif ($cbCodeDrop -ne 1 -or $cbOutDrop -notmatch 'FAIL. tables:mem-peaks' -or $cbOutDrop -notmatch 'peak gap 513 peak bound 512') { $cbWhy = "peak drop past the bound gave exit $cbCodeDrop" }
-    elseif ($cbCodeNew -ne 1 -or $cbOutNew -notmatch 'FAIL. tables:digests' -or $cbOutNew -notmatch 'zzz9c_con not in baseline') { $cbWhy = "digest case without a baseline row gave exit $cbCodeNew" }
-    elseif ($cbCodeEmpty -ne 1 -or $cbOutEmpty -notmatch 'cloth-headroom\.txt in ' -or $cbOutEmpty -notmatch 'has no rows') { $cbWhy = "empty table gave exit $cbCodeEmpty" }
+    foreach ($c in $cbCases) {
+        $r = Invoke-CbCase $c.Name $c.File $c.Edit
+        if ($r.Code -ne $c.Code) { $cbWhy = "$($c.Name) gave exit $($r.Code)"; break }
+        foreach ($w in $c.Want) { if ($r.Out -notmatch $w) { $cbWhy = "$($c.Name) output lacks '$w'"; break } }
+        if ($cbWhy) { break }
+    }
     if ($cbWhy) { $failed++; Write-Host "FAILED ${n}: compare-tables: $cbWhy" }
-    else { Write-Host "OK $n compare-tables passes slack-raised CLOTH free and a peak within its bound and fails a changed high, a used or peak gap past its bound, a new digest case and an empty table" }
+    else { Write-Host "OK $n compare-tables passes equal tables and a changed dedicated row and fails a 1-byte change in a Runtime heap, Lua heap, Lua bin, CLOTH free and pool-sizes row, a missing, extra or duplicated row, a new digest case and an empty table" }
+    $n++
+    $lbLines = [IO.File]::ReadAllLines((Join-Path $cbBase 'lua-bins.txt'))
+    $lbRow = -1
+    for ($i = 0; $i -lt $lbLines.Count; $i++) { if ($lbLines[$i] -cmatch "^[^`t]+`t[^`t]+`t\d+`t\d+`t\d+`t\d+`t\d+`t\d+$") { $lbRow = $i; break } }
+    $lbWhy = $null
+    if ($lbRow -lt 0) { $lbWhy = 'no lua-bins row with a spill count' }
+    else {
+        $lbSame = Join-Path $cbTmp 'luabins-same'
+        $lbSpill = Join-Path $cbTmp 'luabins-spill'
+        New-Item -ItemType Directory -Force -Path $lbSame, $lbSpill | Out-Null
+        [IO.File]::WriteAllLines((Join-Path $lbSame 'lua-bins.txt'), $lbLines)
+        $lbEdit = [string[]]$lbLines.Clone()
+        $f = $lbEdit[$lbRow] -split "`t"
+        $f[7] = [string]([long]$f[7] + 1)
+        $lbEdit[$lbRow] = $f -join "`t"
+        [IO.File]::WriteAllLines((Join-Path $lbSpill 'lua-bins.txt'), $lbEdit)
+        $lbOk = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $lbSame -LuaBins 2>&1 | Out-String }
+        $lbOkCode = $LASTEXITCODE
+        $lbBad = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $lbSpill -LuaBins 2>&1 | Out-String }
+        $lbBadCode = $LASTEXITCODE
+        if ($lbOkCode -ne 0 -or $lbOk -notmatch '\[PASS\] tables:lua-bins' -or $lbOk -match 'tables:mem-peaks') { $lbWhy = "equal table gave exit $lbOkCode" }
+        elseif ($lbBadCode -ne 1 -or $lbBad -notmatch '\[FAIL\] tables:lua-bins') { $lbWhy = "spill change gave exit $lbBadCode" }
+    }
+    if ($lbWhy) { $failed++; Write-Host "FAILED ${n}: compare-tables lua-bins: $lbWhy" }
+    else { Write-Host "OK $n compare-tables -LuaBins passes an equal lua-bins table and fails a 1-count spill change" }
     $n++
 }
 catch { $failed++; Write-Host "FAILED: compare-tables block threw: $_" }

@@ -380,7 +380,7 @@ function Select-GuardRows($In)
                 }
             }
         }
-        elseif ($kind -eq 'Hardening' -or $kind -eq 'Smoke')
+        elseif ($kind -eq 'Hardening' -or $kind -eq 'Smoke' -or $kind -eq 'Perturb')
         {
             $reads = $In.GameReads
             $tag = 'game'
@@ -395,7 +395,7 @@ function Select-GuardRows($In)
                 {
                     [void]$tus.Add($u)
                 }
-                if ($kind -eq 'Smoke')
+                if ($kind -eq 'Smoke' -or $kind -eq 'Perturb')
                 {
                     foreach ($u in $reads.Sets.Keys)
                     {
@@ -408,7 +408,7 @@ function Select-GuardRows($In)
                     $noTlog = $file
                 }
             }
-            if ($kind -eq 'Smoke')
+            if ($kind -eq 'Smoke' -or $kind -eq 'Perturb')
             {
                 foreach ($pre in 'data\scripts\', 'tests\smoke\')
                 {

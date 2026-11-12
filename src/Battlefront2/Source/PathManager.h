@@ -113,6 +113,7 @@ void Initialize();
 void Reset();
 
 void RemovePathRequest(UnitController* pCtrl);
+void ForgetBarrier(const Obstacle* pBarrier);
 void LowerRequestPriority(UnitController* pCtrl);
 bool RequestPath(UnitController* pUnit, const PblVector3& vStart, const PblVector3& vGoal,
                  float fRadius, int eProhibit, unsigned char uPriority,

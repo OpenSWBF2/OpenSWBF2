@@ -16,6 +16,7 @@
 #include "GameObject.h"
 #include "Team.h"
 #include "PathManager.h"
+#include "Navigator.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "AIDifficulty.h"
 #include "FlagItem.h"
@@ -66,6 +67,35 @@ PblList<PlayerController>* sClientPlayerCtrls;
 // GLOBAL: SWBF2 0x01f9c28c
 PblOrderedList<UnitController, float>* sClientAICtrls;
 
+static void ForgetBarrierIn(PblOrderedList<UnitController, float>* pList, const Obstacle* pBarrier)
+{
+    if (!pList)
+    {
+        return;
+    }
+    for (PblOrderedList<UnitController, float>::Itor it(*pList); UnitController* pCtrl = it; ++it)
+    {
+        Navigator* pNav = pCtrl->GetLowLevel().mNavigator;
+        if (pNav)
+        {
+            pNav->ForgetBarrier(pBarrier);
+        }
+    }
+}
+
+void ControllerManager::ForgetBarrier(const Obstacle* pBarrier)
+{
+    ForgetBarrierIn(sHostAICtrls, pBarrier);
+    if (sClientAICtrls != sHostAICtrls)
+    {
+        ForgetBarrierIn(sClientAICtrls, pBarrier);
+    }
+    if (ControllerManager::sAICtrls != sHostAICtrls && ControllerManager::sAICtrls != sClientAICtrls)
+    {
+        ForgetBarrierIn(ControllerManager::sAICtrls, pBarrier);
+    }
+}
+
 // FUNCTION: SWBF2 0x00485b30
 void ControllerManager::EnterClient()
 {
@@ -111,6 +141,10 @@ void ControllerManager::Reset()
 {
     sPlayerCtrls = 0;
     sAICtrls = 0;
+    sHostPlayerCtrls = 0;
+    sHostAICtrls = 0;
+    sClientPlayerCtrls = 0;
+    sClientAICtrls = 0;
 }
 
 // FUNCTION: SWBF2 0x00485d00

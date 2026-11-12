@@ -1,4 +1,5 @@
 #include "PblHandle.h"
+#include "PblCrtHeap.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -62,7 +63,7 @@ HandleSlot* HandleAllocSlots(unsigned int uSlots)
         return 0;
     }
 #endif
-    HandleSlot* pSlots = (HandleSlot*)malloc(uSlots * sizeof(HandleSlot));
+    HandleSlot* pSlots = (HandleSlot*)PblCrtAlloc(uSlots * sizeof(HandleSlot));
     if (pSlots)
     {
         memset(pSlots, 0, uSlots * sizeof(HandleSlot));
@@ -91,7 +92,7 @@ bool HandleGrow()
             pSlots[uSlot] = sSlots[i];
         }
     }
-    free(sSlots);
+    PblCrtFree(sSlots);
     sSlots = pSlots;
     sMask = uMask;
     return true;

@@ -58,12 +58,12 @@ Parallel workers run from fixed paths under `artifacts\smoke-workers\<Config>\`.
 
 | Group | What it runs |
 |-------|--------------|
-| `Standard` | geo1c_con, `heapcap`, the display-switch cases and the digest cases |
+| `Standard` | geo1c_con, `heapcap`, the display-switch cases, the digest cases and `novictory-con`; Test and Asan builds add `repeat-water` (`nab2g_c -repeatmission`, both turn-1500 digests equal) |
 | `Twice` | the same missions twice with a fixed seed; the results and digest traces must match |
 | `Dedicated` | dedicated-server cases |
 | `Crash` | deliberate faults through `-crashtest <kind>`, including `crash-capexhaust`, `pool-full` and `pool-full-strict`; each must leave the expected exit code, log line and dump |
-| `All` | every mission in `tests\smoke\missions-all.txt` (`<mission> [<class>] [<seconds>]`), plus Dedicated and Crash; a Release run then compares digests, non-Lua mem-peaks and CLOTH against the tables in `tests\baseline\v143` through `compare-tables.ps1` and fails on any moved row |
-| `Perturb` | Test or Asan only: six digest missions, each as a base run, under `-perturbheap` pad/fill/pool (seeds 1 and 2), `-hogaddrspace` and `-repeatmission`; every traced turn must equal its base line for line; writes `perturb.tsv` |
+| `All` | every mission in `tests\smoke\missions-all.txt` (`<mission> [<class>] [<seconds>]`), plus Dedicated and Crash; a Release run then compares digests, mem-peaks, pool-sizes and CLOTH exactly against the tables in `tests\baseline\v143` through `compare-tables.ps1` and fails on any moved row; a Test run compares the Lua pool bins, spill counts included, against `lua-bins.txt` |
+| `Perturb` | Test or Asan only: seven digest missions, each as a base run, under `-perturbheap` pad/fill/pool (seeds 1 and 2), `-hogaddrspace` and `-repeatmission`; each run is traced for the whole mission and every turn must equal its base line for line; writes `perturb.tsv` |
 
 A case fails on any Error, Bug or Fatal line in its `run.log` unless a regex in `tests\smoke\expected-errors.txt` covers it. In T1, declare an expected error with `ExpectLog("text")` or `ExpectEnsure("text")`.
 
@@ -75,17 +75,17 @@ At turn 1500 the game logs `OPENSWBF2 SIM DIGEST ...`, a hash of the simulation 
 
 `-digesttrace N` logs the hash for every turn up to N. `-factorylog` logs the Factory creation order.
 
-`-novictory` makes `MissionVictory` and `MissionDefeat` do nothing, so a mission runs until the watchdog, and logs `OPENSWBF2 NOVICTORY`. It has no effect in a network game and logs one Warning there. `All` runs every `_1flag`, `_ctf` and `_ass` mission without a digest row with `-novictory` and expects `TimeOut`; such a line marked `Pass` is rejected.
+`-novictory` makes `MissionVictory` and `MissionDefeat` do nothing, so a mission runs until the watchdog, and logs `OPENSWBF2 NOVICTORY`. It has no effect in a network game and logs one Warning there. `novictory-con` checks that geo1c_con is still running at turn 9300, past its CON end at 9014. `All` runs every `_1flag`, `_ctf` and `_ass` mission without a digest row with `-novictory` and expects `TimeOut`; such a line marked `Pass` is rejected.
 
-`-perturbheap <seed>[:pad,fill,pool]` (Test and Asan builds only) pads, 0xA5-fills or shuffles heap and pool blocks from a seeded generator; with no mode list all three are on.
+`-perturbheap <seed>[:pad,fill,pool]` (Test and Asan builds only) pads, 0xA5-fills or shuffles heap and pool blocks, and the order freed pool blocks are reused, from a seeded generator; with no mode list all three are on.
 
-`-repeatmission` (Test and Asan builds only, with `-exitongameover`) sends the first mission back to the shell after its turn-1500 digest and plays it again; the second run logs its own digest and exits. Without `-exitongameover` it logs a warning and is ignored. If the first run ends before turn 1500, it logs `OPENSWBF2 REPEAT skipped` and exits after that run. `-repeatmission N` with N from 1 to 8 replays the mission N times, so `commit-flat` (N = 2) plays it three times.
+`-repeatmission` (Test and Asan builds only, with `-exitongameover`) sends the first mission back to the shell after its turn-1500 digest and plays it again; the second run logs its own digest and exits. Without `-exitongameover` it logs a warning and is ignored. If the first run ends before turn 1500, it logs `OPENSWBF2 REPEAT skipped` and exits after that run. `-repeatmission N` with N from 1 to 16 replays the mission N times, so `commit-flat` (N = 16) plays it 17 times.
 
 `-shellfirst` (Test and Asan builds only) starts in the shell and enters the named mission on the first shell update, the path a player takes from the menu. The Test and Asan Standard group runs it as `shell-first` with its own digest row, and run.ps1 checks that its Runtime heap at turn 1500, and that of the repeated mission in `repeat-digest`, equal the `geo1c_con` case.
 
 At every state cleanup, Test and Asan builds scan static data and the heaps that outlive a mission for weak handles (`PblHandle`) that still point at an object in the mission heaps, alive or destroyed, and log `OPENSWBF2 HANDLESCAN state=<mission|shell> live=<n> dead=<n>`. Handle ids restart at every mission entry, so such a handle could match a new object; `repeat-digest` and `shell-first` require both counts to be 0.
 
-Every state cleanup logs `OPENSWBF2 COMMIT state=<mission|shell> bytes=<n>`, the process commit charge (`PagefileUsage`); `commit-flat` requires the third mission and the second shell to be within 1 MiB of the cycle before.
+When a state has ended and the next one builds its heaps, the game logs `OPENSWBF2 COMMIT state=<mission|shell> bytes=<n>` for the state that ended: the process commit charge (`PagefileUsage`) after the old heaps are destroyed and trimmed, so it counts only what outlives the state. Test builds follow it with `OPENSWBF2 COMMITPARTS state=<mission|shell> private=<n> gamecrt=<n> heaps=<n> threads=<n> threadcount=<n> arena=<n> crtbusy=<n> crtcommitted=<n> crtlarge=<n>`: the committed private bytes in the address space, the live bytes the game holds on the CRT heap (every game CRT heap call goes through `PblCrtHeap`, enforced by the `crt-heap-ban` hardening check), the committed bytes of every process heap, the committed stack and TEB pages of every thread, the thread count, the committed bytes of the mimalloc arena, and the CRT process heap figures for diagnosis. `commit-flat` splits each row into the arena and the rest (`private - heaps - arena - threads + gamecrt`): the Windows heaps keep freed pages committed, the OS starts thread-pool workers on its own timers, and the commit charge also holds page tables that follow the address layout, so only the game's own bytes are counted. It fails when either part of a mission or shell row in cycles 9 to 16 is above that part's highest value for the same kind in cycles 1 to 8.
 
 `-exitonmovieclose` (Test and Asan builds only, with `-exitongameover`) ends the run once the mission is running and a Bink movie has closed (`OPENSWBF2 MOVIE close`). The Test Standard group runs `campaign-movies`, `nab2g_c` with rendering and sound on and this switch, which must log `OPENSWBF2 MOVIE open`, `OPENSWBF2 MOVIE close` and, in the exit report, `OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0`.
 
@@ -171,5 +171,5 @@ By default it re-runs only the rows whose dependencies changed since their recor
 - `tests\x64-census.ps1 -Name census-N` counts x64 warnings and errors on scratch copies of the projects. The output goes to `tests\baseline\census`.
 - `tests\laa-compare.ps1` compares runs with and without `/LARGEADDRESSAWARE`.
 - `tests\baseline\capture-vs2013.ps1` captured the VS2013 reference before the move to v143.
-- `tests\baseline\compare-tables.ps1 -Tables <dir>` compares captured digests, non-Lua mem-peaks and CLOTH against `tests\baseline\v143`.
+- `tests\baseline\compare-tables.ps1 -Tables <dir>` compares captured digests, mem-peaks, pool-sizes and CLOTH exactly against `tests\baseline\v143`.
 - `tests\corpus\README.md` describes the float-parse and math corpora.

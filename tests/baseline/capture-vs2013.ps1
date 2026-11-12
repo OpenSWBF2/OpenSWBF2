@@ -655,7 +655,7 @@ function Step-Tables {
             if ($l -cnotmatch '^\S+\t(base|pad|fill|pool|hog|repeat)\t[0-2]\t(base|equal|split turn=\d+|crash class=\S+)$') { throw "bad perturb.tsv row: $l" }
         }
         $baseRows = @($data | Where-Object { ($_ -split "`t")[1] -eq 'base' })
-        if ($data.Count -ne 54 -or $baseRows.Count -ne 6) { throw "perturb.tsv has $($data.Count) rows and $($baseRows.Count) base rows, need 54 and 6" }
+        if ($data.Count -ne 63 -or $baseRows.Count -ne 7) { throw "perturb.tsv has $($data.Count) rows and $($baseRows.Count) base rows, need 63 and 7" }
         foreach ($l in $data) {
             $c = $l -split "`t"
             $name = "perturb-$($c[0])-$($c[1])"
@@ -744,7 +744,6 @@ function Get-Producer($rel) {
     if ($n -eq 'offthread.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1`' }
     if ($n -eq 'perturb.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -PerturbDir` from `run.ps1 -Configuration Test -Smoke Perturb`' }
     if ($n -eq 'lua-bins.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All`' }
-    if ($n -eq 'cloth-slack.txt') { return 'written by hand from the 37-01 Test probe (Runtime slack at the CLOTH point)' }
     if ($n -eq 'guard-revert.txt') { return '`capture-vs2013.ps1 -Tables` from `guard-revert.ps1`' }
     return 'unknown'
 }

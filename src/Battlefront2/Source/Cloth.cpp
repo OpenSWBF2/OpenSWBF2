@@ -654,12 +654,12 @@ void Deallocate_(void* p, unsigned int uiSize, util::IAllocator& rAlloc);
 // FUNCTION: SWBF2 0x0045a610
 EntityCloth::~EntityCloth()
 {
+    if (bank_)
+    {
+        bank_->Remove(this);
+    }
     if (IsEnabled())
     {
-        if (bank_)
-        {
-            bank_->Remove(this);
-        }
         ClearData();
     }
 }

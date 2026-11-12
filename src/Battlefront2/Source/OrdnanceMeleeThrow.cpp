@@ -529,15 +529,7 @@ void OrdnanceMeleeThrow::ApplyDamage(float fDeltaTime)
             continue;
         }
         const WeaponMelee::DamageData* pData = (const WeaponMelee::DamageData*)m_pDamageData;
-        int k;
-        for (k = 0; k < pData->iNumObjects; ++k)
-        {
-            if (pData->apObject[k] == pObject)
-            {
-                break;
-            }
-        }
-        if (k < pData->iNumObjects)
+        if (pData->HasHit(pObject))
         {
             apObjects[i] = apObjects[--iNumObjects];
             continue;
@@ -599,8 +591,7 @@ void OrdnanceMeleeThrow::ApplyDamage(float fDeltaTime)
                     WeaponMelee::DamageData* pData = (WeaponMelee::DamageData*)m_pDamageData;
                     if (pData->iNumObjects < WeaponMelee::DamageData::MAX_OBJECTS_PER_ATTACK)
                     {
-                        pData->apObject[pData->iNumObjects] = pObject;
-                        ++((WeaponMelee::DamageData*)m_pDamageData)->iNumObjects;
+                        pData->NoteHit(pObject);
                         const PblVector3 vHit = vEdgeDir * (t * fEdgeLength) + vStart;
 
                         if (!pObject->Deflect(0, vDir, vHit))

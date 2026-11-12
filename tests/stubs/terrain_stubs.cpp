@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <vector>
+
 #include "Battlefront2/Source/CollisionManager.h"
 #include "Battlefront2/Source/GameMemory.h"
 #include "Battlefront2/Source/TreeGrid.h"
@@ -32,7 +35,35 @@ void TreeGrid::CallbackOnSphere(const PblVector3& rCenter, float fRadius, TreeGr
     ++gTerrainStubSphereCalls;
 }
 
+std::vector<const TreeGridObject*> gTreeGridStubMembers;
+
+TreeGrid::TreeGrid(const PblVector3&, const PblVector3&, float)
+{
+}
+
 void TreeGrid::Add(TreeGridObject* pObj, const PblVector3& rPos, float fSize)
+{
+    gTreeGridStubMembers.push_back(pObj);
+}
+
+void TreeGrid::Remove(TreeGridObject* pObj)
+{
+    std::vector<const TreeGridObject*>::iterator it = std::find(gTreeGridStubMembers.begin(), gTreeGridStubMembers.end(), pObj);
+    if (it != gTreeGridStubMembers.end())
+    {
+        gTreeGridStubMembers.erase(it);
+    }
+}
+
+void TreeGrid::Update(TreeGridObject*, const PblVector3&, float)
+{
+}
+
+void TreeGrid::CallbackOnRect(const PblVector3&, const PblVector3&, TreeGridCallback, TreeGridCallbackData*)
+{
+}
+
+void TreeGrid::CallbackOnFatRay(const PblVector3&, const PblVector3&, float, TreeGridCallback, TreeGridCallbackData*)
 {
 }
 

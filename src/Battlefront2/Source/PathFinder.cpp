@@ -8,6 +8,7 @@
 #endif
 #include <float.h>
 #include <math.h>
+#include <new>
 #include <string.h>
 
 #include "PathFinder.h"
@@ -16,6 +17,8 @@
 #include "GameObject.h"
 #include "NetGame.h"
 #include "PathManager.h"
+#include "ControllerManager.h"
+#include "Navigator.h"
 #include "PebbleFL/Common/PblHeap.h"
 #include "PebbleFL/Common/PblMatrix.h"
 
@@ -451,10 +454,6 @@ void PathFinder::CreateGameObjectBarrier(Obstacle*& rpObstacle, GameObject* pObj
     {
         return;
     }
-    if (rpObstacle)
-    {
-        delete rpObstacle;
-    }
     if (fSizeX <= 0.0f)
     {
         fSizeX = pObject->m2dRadius;
@@ -475,7 +474,21 @@ void PathFinder::CreateGameObjectBarrier(Obstacle*& rpObstacle, GameObject* pObj
     mat.m[3][0] += offset.x;
     mat.m[3][1] += offset.y;
     mat.m[3][2] += offset.z;
-    rpObstacle = new Obstacle(mat, size, ~32, uName);
+    PlaceBarrier(rpObstacle, mat, size, uName);
+}
+
+void PathFinder::PlaceBarrier(Obstacle*& rpObstacle, const PblMatrix& rMatrix, const PblVector4& rSize,
+                              unsigned int uName)
+{
+    if (rpObstacle)
+    {
+        sObstacles->Remove(rpObstacle);
+        ::new (static_cast<void*>(rpObstacle)) Obstacle(rMatrix, rSize, ~32, uName);
+    }
+    else
+    {
+        rpObstacle = new Obstacle(rMatrix, rSize, ~32, uName);
+    }
     sObstacles->Add(rpObstacle, rpObstacle->GetBoundingCircleCenter(),
                     rpObstacle->GetBoundingCircleRadius() * 2.0f);
 }
@@ -489,6 +502,9 @@ void PathFinder::DeleteGameObjectBarrier(Obstacle*& rpObstacle)
     }
     if (rpObstacle)
     {
+        Navigator::ForgetIgnored(sIgnore, sIgnoreCnt, rpObstacle);
+        PathManager::ForgetBarrier(rpObstacle);
+        ControllerManager::ForgetBarrier(rpObstacle);
         sObstacles->Remove(rpObstacle);
         delete rpObstacle;
         rpObstacle = 0;

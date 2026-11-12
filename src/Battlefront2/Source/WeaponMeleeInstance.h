@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 
+#include "CollisionObject.h"
 #include "Combo.h"
 #include "GameSound.h"
 #include "LightsaberTrailEffect.h"
@@ -38,10 +39,28 @@ public:
     {
         enum { MAX_OBJECTS_PER_ATTACK = 8 };
 
+        bool HasHit(const CollisionObject* pObject) const
+        {
+            const unsigned int uKey = CollisionObject::LastCollidedKey(pObject);
+            for (int k = 0; k < iNumObjects; ++k)
+            {
+                if (auHitKey[k] == uKey)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        void NoteHit(const CollisionObject* pObject)
+        {
+            auHitKey[iNumObjects++] = CollisionObject::LastCollidedKey(pObject);
+        }
+
         float fTime;
         const void* pAttack;
         int iNumObjects;
-        GameObject* apObject[8];
+        unsigned int auHitKey[8];
         DamageData* pNext;
     };
 

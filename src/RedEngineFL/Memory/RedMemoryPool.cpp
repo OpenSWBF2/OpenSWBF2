@@ -5,6 +5,7 @@
 #include "RedMemory.h"
 #include "RedMemoryReport.h"
 #include "RedScriptLimits.h"
+#include "PebbleFL/Common/PblCrtHeap.h"
 #include "RedEngineFL/Util/RedLog.h"
 
 #ifdef OPENSWBF2_TEST
@@ -14,7 +15,7 @@ static PBL_ASAN_NO_SANITIZE void* PerturbShuffleChunk(void* pChunk, unsigned int
     {
         return pChunk;
     }
-    unsigned int* puOrder = (unsigned int*)malloc(uiCount * sizeof(unsigned int));
+    unsigned int* puOrder = (unsigned int*)PblCrtAlloc(uiCount * sizeof(unsigned int));
     if (puOrder == 0)
     {
         return pChunk;
@@ -28,7 +29,7 @@ static PBL_ASAN_NO_SANITIZE void* PerturbShuffleChunk(void* pChunk, unsigned int
         unsigned int uiDraw = 0;
         if (!RedPerturbDraw(kRedPerturbPool, &uiDraw))
         {
-            free(puOrder);
+            PblCrtFree(puOrder);
             return pChunk;
         }
         unsigned int j = uiDraw % (i + 1);
@@ -43,8 +44,30 @@ static PBL_ASAN_NO_SANITIZE void* PerturbShuffleChunk(void* pChunk, unsigned int
         *(char**)pcSlot = i + 1 < uiCount ? pcChunk + puOrder[i + 1] * uiSize : 0;
     }
     void* pHead = pcChunk + puOrder[0] * uiSize;
-    free(puOrder);
+    PblCrtFree(puOrder);
     return pHead;
+}
+
+static PBL_ASAN_NO_SANITIZE bool PerturbFreeInsert(void** ppFree, void* pBlock)
+{
+    unsigned int uiDraw = 0;
+    if ((RedPerturbModes() & kRedPerturbPool) == 0 || !RedPerturbDraw(kRedPerturbPool, &uiDraw))
+    {
+        return false;
+    }
+    unsigned int uDepth = uiDraw % 4;
+    if (uDepth == 0)
+    {
+        return false;
+    }
+    void** ppLink = ppFree;
+    for (unsigned int i = 0; i < uDepth && *ppLink != 0; ++i)
+    {
+        ppLink = (void**)*ppLink;
+    }
+    *(void**)pBlock = *ppLink;
+    *ppLink = pBlock;
+    return true;
 }
 #endif
 
@@ -176,7 +199,7 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
 
         if (mPool != 0)
         {
-            GrowthChunk* pRecord = (GrowthChunk*)malloc(sizeof(GrowthChunk));
+            GrowthChunk* pRecord = (GrowthChunk*)PblCrtAlloc(sizeof(GrowthChunk));
             if (pRecord == 0)
             {
                 RedFreeToHeap(__RedCurrHeap, mFree, 0);
@@ -413,6 +436,14 @@ PBL_ASAN_NO_SANITIZE void MemoryPool::Free(void* pBlock)
         return;
     }
 
+#ifdef OPENSWBF2_TEST
+    if (PerturbFreeInsert(&mFree, pBlock))
+    {
+        --mUsed;
+        PblAsanPoison(pBlock, mSize);
+        return;
+    }
+#endif
     *(void**)pBlock = mFree;
     --mUsed;
     mFree = pBlock;
@@ -429,7 +460,7 @@ void MemoryPool::Reset()
         {
             GrowthChunk* pNext = pNode->pNext;
             ForgetChunkRecord(pNode);
-            free(pNode);
+            PblCrtFree(pNode);
             pNode = pNext;
         }
     }
@@ -519,7 +550,7 @@ void MemoryPool::DestroyAll()
     {
         GrowthChunk* pRecord = sChunkRecords;
         sChunkRecords = pRecord->pAllNext;
-        free(pRecord);
+        PblCrtFree(pRecord);
     }
     sErrorOnExpansion = false;
     sErrorOnExpansionPostLoad = false;

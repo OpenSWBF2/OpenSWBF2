@@ -252,7 +252,7 @@ TEST_CASE("perturb heap pool absent keeps address order and frees to the front" 
     kPool.Destroy();
 }
 
-TEST_CASE("perturb heap pool shuffles the free list and frees to the front" * doctest::test_suite("regression"))
+TEST_CASE("perturb heap pool shuffles the free list and reuses every freed block" * doctest::test_suite("regression"))
 {
     PerturbGuard kGuard(kPerturbPoolSeed, kRedPerturbPool);
     MemoryPool kPool("t1perturb", 16);
@@ -271,15 +271,72 @@ TEST_CASE("perturb heap pool shuffles the free list and frees to the front" * do
     char* pcHigh = apc[0] < apc[1] ? apc[1] : apc[0];
     kPool.Free(pcLow);
     kPool.Free(pcHigh);
-    CHECK(kPool.Allocate(16) == pcHigh);
-    CHECK(kPool.mUsed == 7);
+    char* pcA = (char*)kPool.Allocate(16);
+    char* pcB = (char*)kPool.Allocate(16);
+    CHECK(((pcA == pcLow && pcB == pcHigh) || (pcA == pcHigh && pcB == pcLow)));
+    CHECK(kPool.mUsed == 8);
     CHECK(kPool.GetPeak() == 8);
     CHECK(kPool.GetGrown() == 0);
-    apc[0] = pcHigh;
-    apc[1] = 0;
+    apc[0] = pcA;
+    apc[1] = pcB;
     FreeEight(kPool, apc);
     CHECK(kPool.mUsed == 0);
     kPool.Destroy();
+}
+
+static void ReuseOrder(int aiOrder[8])
+{
+    MemoryPool kPool("t1perturbreuse", 16);
+    kPool.Create(8, 16, 0);
+    char* apc[8];
+    AllocEight(kPool, apc);
+    FreeEight(kPool, apc);
+    char* apcAgain[8];
+    AllocEight(kPool, apcAgain);
+    for (int i = 0; i < 8; ++i)
+    {
+        aiOrder[i] = -1;
+        for (int j = 0; j < 8; ++j)
+        {
+            if (apcAgain[i] == apc[j])
+            {
+                aiOrder[i] = j;
+            }
+        }
+    }
+    FreeEight(kPool, apcAgain);
+    kPool.Destroy();
+}
+
+TEST_CASE("perturb heap pool shuffles reuse order of freed blocks" * doctest::test_suite("regression"))
+{
+    int aiAbsent[8];
+    {
+        PerturbGuard kGuard(0, 0);
+        ReuseOrder(aiAbsent);
+    }
+    int aiFirst[8];
+    {
+        PerturbGuard kGuard(kPerturbPoolSeed, kRedPerturbPool);
+        ReuseOrder(aiFirst);
+    }
+    int aiSecond[8];
+    {
+        PerturbGuard kGuard(kPerturbPoolSeed, kRedPerturbPool);
+        ReuseOrder(aiSecond);
+    }
+    bool bLifo = true;
+    unsigned int uSeen = 0;
+    for (int i = 0; i < 8; ++i)
+    {
+        CHECK(aiAbsent[i] == 7 - i);
+        CHECK(aiSecond[i] == aiFirst[i]);
+        REQUIRE(aiFirst[i] >= 0);
+        uSeen |= 1u << aiFirst[i];
+        bLifo = bLifo && aiFirst[i] == 7 - i;
+    }
+    CHECK(uSeen == 0xFF);
+    CHECK_FALSE(bLifo);
 }
 
 TEST_CASE("perturb heap pool shuffles growth chunks" * doctest::test_suite("regression"))
@@ -329,9 +386,9 @@ TEST_CASE("perturb heap pool order repeats and ignores pools built off the main 
     char* apc[8];
     AllocEight(kThreadPool, apc);
     CHECK(Ascending(apc, 8));
+    PoolOrder(aiSecond);
     FreeEight(kThreadPool, apc);
     kThreadPool.Destroy();
-    PoolOrder(aiSecond);
     bool bIdentity = true;
     for (int i = 0; i < 8; ++i)
     {

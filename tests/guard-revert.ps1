@@ -77,6 +77,38 @@ function Run-Smoke([string]$wt, [string]$tag, $case) {
     return New-Object PSObject -Property @{ Ok = $ok; Class = $res.Class; Code = $res.Code; Dumps = @($res.Dumps).Count; LogText = $res.LogText }
 }
 
+function Run-Perturb([string]$wt, [string]$tag, [string[]]$missions) {
+    $saved = $env:OPENSWBF2_PERTURB_MISSIONS
+    $env:OPENSWBF2_PERTURB_MISSIONS = $missions -join ','
+    try { $cases = @(Add-MiOptionsExpect @(Add-SerialTieExpect @(Get-SmokeCases 'Perturb' @() $false $null)) -1) }
+    finally { $env:OPENSWBF2_PERTURB_MISSIONS = $saved }
+    $runDir = Get-SmokeWorkerRoot $root "guard-perturb-$script:GameConfiguration"
+    New-SmokeWorkerDir (Join-Path $root "bin\Win32\$script:GameConfiguration") $runDir
+    $runs = @()
+    try {
+        Copy-Item (Join-Path $wt "bin\Win32\$script:GameConfiguration\BattlefrontII.exe") $runDir -Force
+        foreach ($c in $cases) {
+            $caseDir = Join-Path $OutDir "run-$tag\$($c.Name)"
+            $to = 120
+            if ($c.Timeout -gt 0) { $to = $c.Timeout }
+            $res = Invoke-SmokeCase $c.Name (Join-Path $runDir 'BattlefrontII.exe') $runDir $c.Args.Replace('{CASEDIR}', $caseDir) $to $caseDir
+            $proven = @(Get-PerturbProofMissing $c $res.LogText).Count -eq 0
+            $runs += New-Object PSObject -Property @{ Case = $c; Class = $res.Class; Log = (Join-Path $caseDir 'run.log'); Proven = $proven }
+        }
+    }
+    finally { Remove-SmokeWorkerDir $runDir }
+    $pr = Get-PerturbResults $runs
+    $pr.Rows | Set-Content -Path (Join-Path $OutDir "perturb-$tag.tsv") -Encoding ASCII
+    foreach ($m in $pr.Messages) { Write-Host "    [$tag] $($m.Line.Trim())" }
+    $state = 'GREEN'
+    if (-not $pr.Ok) {
+        if (@($pr.Verdicts | Where-Object { $_.Result -eq 'split' }).Count -gt 0) { $state = 'RED' }
+        else { $state = 'RED-CRASH' }
+    }
+    $detail = @($pr.Verdicts | ForEach-Object { "$($_.Mission):$($_.Mode)-$($_.Seed)=$($_.Text -replace ' ', ':')" }) -join ' '
+    return New-Object PSObject -Property @{ State = $state; Detail = $detail; Rows = $pr.Rows }
+}
+
 function Run-Case([string]$exe, [string]$wt, [string]$name, [string]$asanDir) {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $exe
@@ -317,10 +349,16 @@ try {
     if (-not $script:TreeClean) { Write-Host 'PROOFS NOT RECORDED: tree not clean' }
     $selectedIds = @($rows | ForEach-Object { $_.Id })
     $smokeRows = @($rows | Where-Object { $_.Kind -eq 'Smoke' })
+    $perturbRows = @($rows | Where-Object { $_.Kind -eq 'Perturb' })
+    foreach ($r in $perturbRows) {
+        if ($r.Config -ne 'Test') { throw "Perturb row $($r.Id) needs Config = 'Test'" }
+        if (@($r.Missions).Count -eq 0) { throw "Perturb row $($r.Id) has no Missions" }
+        if (@($r.Missions) -contains 'nab2g_c') { throw "Perturb row $($r.Id) must not run nab2g_c" }
+    }
     $hardRows = @($rows | Where-Object { $_.Kind -eq 'Hardening' })
     $tlogRows = @($rows | Where-Object { $_.Kind -eq 'Tlog' })
     $asanRows = @($rows | Where-Object { $_.Kind -eq 'AsanCanary' -or $_.Asan })
-    $rows = @($rows | Where-Object { $_.Kind -ne 'Smoke' -and $_.Kind -ne 'Hardening' -and $_.Kind -ne 'Tlog' -and $_.Kind -ne 'AsanCanary' -and -not $_.Asan })
+    $rows = @($rows | Where-Object { $_.Kind -ne 'Smoke' -and $_.Kind -ne 'Perturb' -and $_.Kind -ne 'Hardening' -and $_.Kind -ne 'Tlog' -and $_.Kind -ne 'AsanCanary' -and -not $_.Asan })
     $gameData = Find-GameDataRoot
     $smokeCases = @{}
     foreach ($w in 'Crash', 'Standard') {
@@ -358,18 +396,21 @@ try {
             Copy-Item -LiteralPath (Join-Path $root $rel) -Destination $dst -Force
         }
 
-        if ($rows.Count -gt 0) {
-            $exe = Join-Path $wt "bin\Tests\$script:TestsConfiguration\OpenSWBF2Tests.exe"
-            $controlOk = Build-Tests $wt (Join-Path $OutDir 'build-control.log')
-            if (-not $controlOk) { throw "control build failed, see $(Join-Path $OutDir 'build-control.log')" }
+        $t1Configs = @($rows | ForEach-Object { if ($_.Config) { $_.Config } else { $script:TestsConfiguration } } | Select-Object -Unique)
+        foreach ($t1Config in $t1Configs) {
+            $cfgRows = @($rows | Where-Object { $(if ($_.Config) { $_.Config } else { $script:TestsConfiguration }) -eq $t1Config })
+            $exe = Join-Path $wt "bin\Tests\$t1Config\OpenSWBF2Tests.exe"
+            $controlLog = Join-Path $OutDir "build-control-$t1Config.log"
+            $controlOk = Build-Tests $wt $controlLog $t1Config
+            if (-not $controlOk) { throw "control build failed, see $controlLog" }
 
             $control = @{}
-            foreach ($name in ($rows | ForEach-Object { $_.Tests } | Select-Object -Unique)) {
+            foreach ($name in ($cfgRows | ForEach-Object { $_.Tests } | Select-Object -Unique)) {
                 $control[$name] = Run-Case $exe $wt $name
                 Set-Content -Path (Join-Path $OutDir (('control-' + ($name -replace '[^A-Za-z0-9_.-]', '_')) + '.txt')) -Value $control[$name].Text -Encoding ASCII
             }
 
-            foreach ($r in $rows) {
+            foreach ($r in $cfgRows) {
                 $path = Join-Path $wt $r.File
                 $orig = $null
                 $result = 'BUILD-FAIL'
@@ -379,7 +420,7 @@ try {
                 foreach ($name in $r.Tests) { if ($control[$name].State -ne 'GREEN') { $ctl = $control[$name].State } }
                 try {
                     $orig = Set-Anchor $path $r.Anchor $r.Replacement
-                    $ok = Build-Tests $wt (Join-Path $OutDir ("build-$($r.Id).log"))
+                    $ok = Build-Tests $wt (Join-Path $OutDir ("build-$($r.Id).log")) $t1Config
                     if ($ok) {
                         $states = @()
                         $codes = @()
@@ -661,6 +702,56 @@ try {
         finally {
             $script:GameConfiguration = $defaultGameConfiguration
             $script:SmokeDigestConfiguration = $defaultGameConfiguration
+        }
+
+        if ($perturbRows.Count -gt 0) {
+            try {
+                $script:GameConfiguration = 'Test'
+                $script:SmokeDigestConfiguration = 'Test'
+                $pre = Get-SmokePrecheck $gameData (Join-Path $root 'bin\Win32\Test')
+                if ($pre) { throw "Perturb rows need a prior Test game build and data: $pre" }
+                $ctlLog = Join-Path $OutDir 'build-perturb-control-Test.log'
+                if (-not (Build-Game $wt $ctlLog)) { throw "perturb control build failed, see $ctlLog" }
+                $perturbControl = @{}
+                foreach ($r in $perturbRows) {
+                    $key = @($r.Missions) -join ','
+                    if (-not $perturbControl.ContainsKey($key)) { $perturbControl[$key] = Run-Perturb $wt ('control-' + ($key -replace ',', '_')) @($r.Missions) }
+                }
+                foreach ($r in $perturbRows) {
+                    $key = @($r.Missions) -join ','
+                    $path = Join-Path $wt $r.File
+                    $orig = $null
+                    $result = 'BUILD-FAIL'
+                    $detail = ''
+                    $ctlRes = $perturbControl[$key]
+                    $ctl = $ctlRes.State
+                    try {
+                        $orig = Set-Anchor $path $r.Anchor $r.Replacement
+                        if (Build-Game $wt (Join-Path $OutDir "build-$($r.Id).log")) {
+                            $s = Run-Perturb $wt $r.Id @($r.Missions)
+                            $detail = $s.Detail
+                            if ($s.State -eq 'GREEN') { $result = 'STILL-GREEN' }
+                            else { $result = $s.State }
+                        }
+                    }
+                    catch {
+                        $result = 'ERROR'
+                        $detail = $_.Exception.Message
+                    }
+                    finally {
+                        if ($orig) { [IO.File]::WriteAllBytes($path, $orig) }
+                    }
+                    $table += New-Object PSObject -Property @{ Id = $r.Id; Tests = "perturb:$key"; Control = $ctl; Reverted = $result; Exit = ''; Detail = $detail }
+                    if ($result -ne 'RED' -or $ctl -ne 'GREEN') { $failed = $true }
+                    else { Add-GuardProof $r 'GREEN' 'RED' }
+                    Write-Host ('{0,-12} control={1,-8} reverted={2,-11} {3}' -f $r.Id, $ctl, $result, $detail)
+                    Write-Host "    control: $($ctlRes.Detail)"
+                }
+            }
+            finally {
+                $script:GameConfiguration = $defaultGameConfiguration
+                $script:SmokeDigestConfiguration = $defaultGameConfiguration
+            }
         }
     }
     finally {

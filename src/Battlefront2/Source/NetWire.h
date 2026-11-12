@@ -2,6 +2,8 @@
 
 #include "NetPacket.h"
 
+class GameObject;
+
 namespace NetWire
 {
 const unsigned int kChatMax = 276;
@@ -35,6 +37,7 @@ int ReadRconLine(const char* pcData, int iAvail, unsigned int uLength, unsigned 
 bool IsRconAuthorized(const char* pcData, int iAvail, char cKey0, char cKey1);
 int ClampPlayerCount(unsigned int uWire);
 bool IsValidTurnRate(int iDuration, int iTurns);
+int MatchHostWorldIndex(GameObject* const* apObjects, int iCount, int iIndex, const GameObject* pObject);
 
 void WriteString(NetPktGroup& group, const char* pcText, unsigned int uCapacity);
 void ReadString(NetPktGroup& group, char* pcText, unsigned int uCapacity);

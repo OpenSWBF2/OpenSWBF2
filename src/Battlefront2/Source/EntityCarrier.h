@@ -489,6 +489,18 @@ public:
     unsigned int GetDerivedRtti() const;
     const char* GetDerivedRttiName() const;
 
+    static void ClearCargoParents(CargoSlot* aSlots, int iCount, const CollisionObject* pCarrier)
+    {
+        for (int i = 0; i < iCount; ++i)
+        {
+            GameObject* pObject = aSlots[i].mObject;
+            if (pObject && pObject->mParent == pCarrier)
+            {
+                pObject->mParent = 0;
+            }
+        }
+    }
+
     bool AttachCargo(int, GameObject* pGameObject);
     bool DetachCargo(int iSlot);
     void UpdateLandedHeight();

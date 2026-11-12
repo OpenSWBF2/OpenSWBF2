@@ -49,6 +49,18 @@ public:
     void SetFailedPathSearch();
     void Update(float dt);
     void UpdateSkip();
+    void ForgetBarrier(const Obstacle* pBarrier);
+
+    static void ForgetIgnored(const Obstacle** apIgnore, int iCnt, const Obstacle* pBarrier)
+    {
+        for (int i = 0; i < iCnt; ++i)
+        {
+            if (apIgnore[i] == pBarrier)
+            {
+                apIgnore[i] = 0;
+            }
+        }
+    }
 
 protected:
     Navigator(AILowLevel* pOwner);

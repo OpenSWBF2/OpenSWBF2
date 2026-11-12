@@ -291,22 +291,13 @@ if ($hardenActive) {
                 $bad++
             }
         }
-        if ($reason) {
-            $tag = 'SKIP'
-            if ($gameDataRoot -and -not $NoBuild) {
-                $tag = 'FAIL'
-                $bad++
-            }
-            Add-SmokeResult "[$tag] hardening:aslr-base - $reason" $tag
-        }
-        else {
-            $aslrDir = Join-Path $outDir 'hardening\aslr'
-            New-Item -ItemType Directory -Force -Path $aslrDir | Out-Null
-            $aslrArgs = (Get-SmokeCases 'Standard' @() $false $null)[0].Args.Replace('{CASEDIR}', $aslrDir) + $extraArg
-            $base = Get-ImageBase $gameExe $exeDir $aslrArgs
-            if ($base -and $base -ne 0x400000) { Add-SmokeResult ('[PASS] hardening:aslr-base (0x{0:X8})' -f $base) 'PASS' }
+        $aslrExes = @(, @('aslr-pe', $gameExe))
+        if ($runUnit -and $exe -and (Test-Path -LiteralPath $exe)) { $aslrExes += , @('aslr-pe-tests', $exe) }
+        foreach ($ae in $aslrExes) {
+            $why = Get-PeAslr $ae[1]
+            if (-not $why) { Add-SmokeResult "[PASS] hardening:$($ae[0])" 'PASS' }
             else {
-                Add-SmokeResult ('[FAIL] hardening:aslr-base - base {0}' -f $(if ($base) { '0x{0:X8}' -f $base } else { 'unreadable' })) 'FAIL'
+                Add-SmokeResult "[FAIL] hardening:$($ae[0]) - $why" 'FAIL'
                 $bad++
             }
         }
@@ -432,56 +423,13 @@ if ($smokeActive) {
             }
         }
         if ($perturbRuns.Count -gt 0) {
-            $pRows = @()
-            $pRed = 0
-            $pLines = 0
-            $pWant = 0
-            $pMissions = @($perturbRuns | ForEach-Object { $_.Case.Expect.Perturb.Mission } | Select-Object -Unique)
-            foreach ($pm in $pMissions) {
-                $mine = @($perturbRuns | Where-Object { $_.Case.Expect.Perturb.Mission -eq $pm })
-                $others = @($mine | Where-Object { $_.Case.Expect.Perturb.Mode -ne 'base' })
-                $pWant += $others.Count
-                $base = @($mine | Where-Object { $_.Case.Expect.Perturb.Mode -eq 'base' })
-                $baseFull = $false
-                if ($base.Count -eq 1) {
-                    $bs = @(Get-DigestTraceSegments $base[0].Log)
-                    $baseFull = $bs.Count -eq 1 -and (Compare-DigestTraceFull $bs[0] $bs[0] 1600) -eq 0
-                }
-                if ($base.Count -ne 1 -or -not $base[0].Proven -or $base[0].Class -ne $base[0].Case.Expect.Class -or -not $baseFull) {
-                    $bc = 'missing'
-                    if ($base.Count -eq 1) { $bc = $base[0].Class }
-                    Add-SmokeResult "[FAIL] smoke:perturb base $pm class=$bc" 'FAIL'
-                    $bad++
-                    continue
-                }
-                $pRows += "$pm`tbase`t0`tbase"
-                foreach ($r in $others) {
-                    $p = $r.Case.Expect.Perturb
-                    if (-not $r.Proven) {
-                        $pRows += "$pm`t$($p.Mode)`t$($p.Seed)`tunproven"
-                        continue
-                    }
-                    $v = Get-PerturbVerdict $base[0].Log $r.Log $r.Class $r.Case.Expect.Class 1500 ($p.Mode -eq 'repeat')
-                    $txt = $v.Result
-                    if ($v.Result -eq 'split') { $txt = "split turn=$($v.Turn)" }
-                    elseif ($v.Result -eq 'crash') {
-                        $txt = "crash class=$($v.Class)"
-                        if ($v.Turn -gt 0) { Write-Host "    perturb:$pm mode=$($p.Mode) seed=$($p.Seed) split turn=$($v.Turn) before the crash" }
-                    }
-                    if ($v.Result -ne 'equal') { $pRed++ }
-                    $pLines++
-                    Add-SmokeResult "[INFO] perturb:$pm mode=$($p.Mode) seed=$($p.Seed) $txt" 'INFO'
-                    $pRows += "$pm`t$($p.Mode)`t$($p.Seed)`t$txt"
-                }
+            $pRes = Get-PerturbResults $perturbRuns
+            foreach ($pMsg in $pRes.Messages) {
+                if ($pMsg.Tok) { Add-SmokeResult $pMsg.Line $pMsg.Tok }
+                else { Write-Host $pMsg.Line }
+                if ($pMsg.Tok -eq 'FAIL') { $bad++ }
             }
-            $pRows | Set-Content -Path (Join-Path $outDir 'perturb.tsv') -Encoding ASCII
-            if (Get-PerturbGroupVerdict $pRed $pLines $pWant) {
-                Add-SmokeResult "[PASS] smoke:perturb serial equal runs=$pLines/$pWant" 'PASS'
-            }
-            else {
-                Add-SmokeResult "[FAIL] smoke:perturb serial red runs=$pRed/$pWant - $pLines of $pWant result lines, none may be missing and every run must equal its base" 'FAIL'
-                $bad++
-            }
+            $pRes.Rows | Set-Content -Path (Join-Path $outDir 'perturb.tsv') -Encoding ASCII
         }
         $traceLog1 = Join-Path $outDir 'smoke\trace-seed-1\run.log'
         $traceLog2 = Join-Path $outDir 'smoke\trace-seed-2\run.log'
@@ -558,6 +506,22 @@ else {
     }
     Write-Host $tablesLine
     Add-Content -Path (Join-Path $outDir 'results.txt') -Value $tablesLine -Encoding ASCII
+}
+if ($smokeActive -and $Smoke -eq 'All' -and $SmokeConfiguration -eq 'Test' -and -not $HogAddrSpace -and $MiPurge -lt 0 -and -not $Movies) {
+    $luaDir = Join-Path $outDir 'lua-bins'
+    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\capture-vs2013.ps1') -Configuration Test -Tables -LuaBinsDir $outDir -OutDir $luaDir
+    $luaCode = $LASTEXITCODE
+    if ($luaCode -eq 0) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Tables $luaDir -LuaBins
+        $luaCode = $LASTEXITCODE
+    }
+    $luaLine = '[PASS] tables:lua-bins'
+    if ($luaCode -ne 0) {
+        $luaLine = "[FAIL] tables:lua-bins exit $luaCode"
+        $bad++
+    }
+    Write-Host $luaLine
+    Add-Content -Path (Join-Path $outDir 'results.txt') -Value $luaLine -Encoding ASCII
 }
 
 if ($bad -gt 0) { exit 1 }

@@ -197,3 +197,37 @@ TEST_CASE("heap move end gives the same result" * doctest::test_suite("regressio
     RedMemory::failHeap = iSavedFailHeap;
     RedMemory::failSize = uSavedFailSize;
 }
+
+alignas(16) static char sacBackendFailCreate[0x4000];
+
+TEST_CASE("failed heap create returns -1 and leaves its slot free" * doctest::test_suite("regression"))
+{
+    int iFree = -1;
+    for (int i = 0; i < kRedHeapSlots; ++i)
+    {
+        if (!gRedHeapSlots[i].bLive)
+        {
+            iFree = i;
+            break;
+        }
+    }
+    REQUIRE(iFree >= 0);
+    static RedHeapSlot sakBefore[kRedHeapSlots];
+    memcpy(sakBefore, gRedHeapSlots, sizeof(sakBefore));
+    RedMiFailHeapCreate(true);
+    const int iFailed = RedCreateHeap(sacBackendFailCreate, sacBackendFailCreate + 0x2000, 0x10, "T1FailCreate");
+    RedMiFailHeapCreate(false);
+    CHECK(iFailed == -1);
+    CHECK(!gRedHeapSlots[iFree].bLive);
+    CHECK(gRedHeapSlots[iFree].name == sakBefore[iFree].name);
+    CHECK(memcmp(sakBefore, gRedHeapSlots, sizeof(sakBefore)) == 0);
+    BoundHeap kNext(sacBackendFailCreate + 0x2000, sacBackendFailCreate + 0x4000, 0x10, "T1AfterFail");
+    REQUIRE(kNext.miHeap >= 0);
+    CHECK(RedGetHeapSize(kNext.miHeap) != 0);
+    CHECK(kNext.miHeap != iFailed);
+    CHECK(gRedHeapSlots[kNext.miHeap].bLive);
+    if (iFailed >= 0 && iFailed != kNext.miHeap)
+    {
+        RedDestroyHeap(iFailed);
+    }
+}

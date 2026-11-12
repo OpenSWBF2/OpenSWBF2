@@ -6777,11 +6777,8 @@ GameObject* hostWorldObjects[64];
 // FUNCTION: SWBF2 0x005d30d0
 int NetGame::GetHostWorldUniqueId(int index, GameObject* object)
 {
-    if (index >= 0 && hostWorldObjects[index] == object)
-    {
-        return index;
-    }
-    return -1;
+    const int iCount = (int)(sizeof(hostWorldObjects) / sizeof(hostWorldObjects[0]));
+    return NetWire::MatchHostWorldIndex(hostWorldObjects, iCount, index, object);
 }
 
 // FUNCTION: SWBF2 0x005c0990

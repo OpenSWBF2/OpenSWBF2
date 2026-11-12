@@ -6,6 +6,7 @@
 #include "PathManager.h"
 
 #include "AILowLevel.h"
+#include "Navigator.h"
 #include "EventInfo.h"
 #include "PathFinder.h"
 #include "UnitController.h"
@@ -311,6 +312,23 @@ void RemovePathRequest(UnitController* pCtrl)
             PathRequest::sMemoryPool.Free(pReq);
             return;
         }
+    }
+}
+
+void ForgetBarrier(const Obstacle* pBarrier)
+{
+    if (sCurRequest)
+    {
+        Navigator::ForgetIgnored(sCurRequest->mObstacles, sCurRequest->mObstacleCount, pBarrier);
+    }
+    if (!sRequests)
+    {
+        return;
+    }
+    for (PblList<PathRequest>::Itor it(*sRequests); it; ++it)
+    {
+        PathRequest* pReq = it;
+        Navigator::ForgetIgnored(pReq->mObstacles, pReq->mObstacleCount, pBarrier);
     }
 }
 

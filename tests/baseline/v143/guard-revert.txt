@@ -48,6 +48,7 @@ DIAG-05      GREEN    RED         1          alloc failure handler logs and supp
 DBGOUT-01    GREEN    RED         1          debugger output mirrors the log 
 DBGOUT-03    GREEN    RED         1          debugger output mirrors the log 
 DBGOUT-02    GREEN    RED         1          debugger output mirrors the log 
+HEAP-CREATE-FAIL GREEN    RED         1          failed heap create returns -1 and leaves its slot free 
 SAFE01-CREATE GREEN    RED         3221225477 memory pool create refuses overflowing count crash 0xC0000005
 SAFE01-CHUNK GREEN    RED         3221225477 memory pool create survives failed heap block crash 0xC0000005
 SAFE01-EMPTY GREEN    RED         1          memory pool create survives failed heap block 
@@ -149,7 +150,7 @@ MI-NOTEOUT   GREEN    RED         1          mimalloc error hook sees the messag
 MI-COOKIE    GREEN    RED         1          mimalloc heap cookie covers the size and the charge words 
 PURGE-STALE  GREEN    RED         1          heap purge drops a handle whose block was freed on a released page 
 PURGE-STALEAUDIT GREEN    RED         1          heap purge drops a handle whose block was freed on a released page 
-PURGE-STALEBUILD GREEN    RED         1          the handle audits count stale keys in build heaps and every purge (source pin) 
+PURGE-STALEBUILD GREEN    RED         1          the handle audit counts stale keys in build heaps (source pin) 
 MI-ASANVISIT GREEN    RED         1          mimalloc heap destroy visits areas only under asan (source pin) 
 MI-MOVEEND   GREEN    RED         1          heap move end gives the same result 
 MI-OPTIONS   GREEN    RED         1          mimalloc options line lists the effective values 
@@ -460,7 +461,7 @@ LUAB-V1-EMPTY GREEN    RED         3221225477 lua verifier refuses empty code cr
 LUAB-V13-PARAMS GREEN    RED         1          lua verifier refuses parameters beyond the frame 
 LUAB-D17-PC  GREEN    RED         1          lua verifier names the bad instruction 
 LUAB-V3-CONCAT GREEN    RED         1          lua verifier refuses concat past the frame 
-LUAB-V4-TFORPREP GREEN    RED         1          lua verifier refuses wild tforprep jumps 
+LUAB-V4-TFORPREP GREEN    RED         3221225477 lua verifier refuses wild tforprep jumps crash 0xC0000005
 LUAB-V5-TFORLOOP GREEN    RED         1          lua vm keeps tforloop results inside the stack 
 LUAB-V6-NEWTABLE GREEN    RED         3221225477 lua verifier refuses huge table sizes crash 0xC0000005
 LUAB-R1-RUNTIME GREEN    RED         3221225477,3221225477 lua vm raises on self with a register key | lua vm raises on setlist into a non-table crash 0xC0000005,crash 0xC0000005
@@ -616,6 +617,41 @@ LASTCOL-SHIFT GREEN    RED         1          last collided record keeps three r
 LASTCOL-SWAP GREEN    RED         1          last collided key does not follow a dead receiver to a new object at its address 
 LASTCOL-SITE GREEN    RED         1          last collided sites all go through the key helpers (source pin) 
 LASTCOL-LIST GREEN    RED         1          last collided sites all go through the key helpers (source pin) 
+STALE-OBJMATCH GREEN    RED         1          object event filter does not match a new object at a dead object's address 
+STALE-OBJDEDUP GREEN    RED         1          object event filter dedupe compares identity not address 
+STALE-OBJLIVE GREEN    RED         1          object event filter from an unknown pointer matches nothing 
+STALE-MELEE  GREEN    RED         1          melee hit dedupe does not follow a dead victim to a new object at its address 
+STALE-MELEESITE GREEN    RED         1          melee hit sites go through the damage data helpers (source pin) 
+STALE-MELEETHROW GREEN    RED         1          melee hit sites go through the damage data helpers (source pin) 
+STALE-MINE   GREEN    RED         1          stuck mine does not ignore a new object at its dead target's address 
+STALE-MINESITE GREEN    RED         1          mine stick sites go through the stick helper and record the stick key (source pin) 
+STALE-MINEKEY GREEN    RED         1,1        stuck mine does not ignore a new object at its dead target's address | mine stuck to a deleted prop does not keep its link to a new object at the prop's address 
+STALE-MINEKEYSITE GREEN    RED         1          mine stick sites go through the stick helper and record the stick key (source pin) 
+STALE-MINEKEYNET GREEN    RED         1          mine stick sites go through the stick helper and record the stick key (source pin) 
+STALE-MINEPARENT GREEN    RED         1          mine keeps its parent link only while stuck to that live parent 
+STALE-MINECHILD GREEN    RED         1          mine keeps its parent link only while stuck to that live parent 
+STALE-MINEKEEP GREEN    RED         1          mine keeps its parent link only while stuck to that live parent 
+STALE-MINERTTI GREEN    RED         1          mine keeps its parent link only while stuck to that live parent 
+STALE-NAVFORGET GREEN    RED         1,1        barrier ignore helper clears only the slots that name the barrier | deleting a barrier clears the search and every path request and AI navigator 
+STALE-NAVDELETE GREEN    RED         1          deleting a barrier clears the search and every path request and AI navigator 
+STALE-NAVCTRLCALL GREEN    RED         1          deleting a barrier clears the search and every path request and AI navigator 
+STALE-NAVCREATE GREEN    RED         1          replacing a barrier keeps the owner's barrier in every ignore list and in the grid once 
+STALE-NAVSEARCH GREEN    RED         1          deleting a barrier clears the search and every path request and AI navigator 
+STALE-NAVREQ GREEN    RED         1          deleting a barrier clears the search and every path request and AI navigator 
+STALE-NAVCUR GREEN    RED         1          deleting a barrier clears the search and every path request and AI navigator 
+STALE-NAVCTRL GREEN    RED         1,1        deleting a barrier clears the search and every path request and AI navigator | controller reset drops the host and client lists of the ended mission 
+STALE-NAVCLIENT GREEN    RED         1          deleting a barrier clears the search and every path request and AI navigator 
+STALE-NAVFOLLOW GREEN    RED         1          deleting a barrier clears the search and every path request and AI navigator 
+STALE-NAVGRAPH GREEN    RED         1          deleting a barrier clears the search and every path request and AI navigator 
+STALE-NAVPATH GREEN    RED         1          deleting a barrier clears the search and every path request and AI navigator 
+STALE-NAVSLIDE GREEN    RED         1          deleting a barrier clears the search and every path request and AI navigator 
+STALE-CMRESETHOST GREEN    RED         1          controller reset drops the host and client lists of the ended mission 
+STALE-CMRESETCLIENT GREEN    RED         1          controller reset drops the host and client lists of the ended mission 
+STALE-CLOTHBANK GREEN    RED         1          a cloth that dies while cloth is disabled leaves its bank 
+STALE-VEHDAMAGE GREEN    RED         1          vehicle damage total does not follow a dead vehicle to a new object at its address 
+STALE-HOSTWORLD GREEN    RED         1          host world lookup rejects an index past the host world table 
+STALE-CARRIER GREEN    RED         1          deleting a carrier clears its cargo parent link so a new object at the dead carrier's address is not skipped 
+STALE-CARRIERSITE GREEN    RED         1          carrier destructor clears its cargo parents (source pin) 
 SERIAL-01    GREEN    RED         1          thread activation key is set through one counter reader and reset 
 SERIAL-02    GREEN    RED         1          ordered list breaks equal keys fifo under serial order 
 SERIAL-02B   GREEN    RED         1          ordered list sentinel key stops at the head under serial order 
@@ -630,10 +666,17 @@ SERIAL-04    GREEN    RED         1          wobble phase comes from the owner h
 LHASH-01     GREEN    RED         1          lua next order ignores allocation padding under serial order 
 LHASH-01B    GREEN    RED         1          lua next order ignores allocation padding under serial order 
 LHASH-01C    GREEN    RED         1          lua dead slot reuse does not move the resize under serial order 
-LHASH-01D    GREEN    RED         1          lua dead keys do not revive after a collection under serial order 
-LHASH-01E    GREEN    RED         1          lua clearing keys with a collection during traversal visits every key 
-LHASH-01F    GREEN    RED         3221225477 lua weak key tables skip dead keys under serial order crash 0xC0000005
+LHASH-01D    GREEN    RED         1          lua a cleared key's object lives until the table rehashes 
+LUA-KEEP-KEY GREEN    RED         1          lua clear and restore of the current key during traversal keeps its place 
+LUA-WEAK-KEY GREEN    RED         1          lua weak key tables still drop unreachable cleared keys 
+LHASH-01F    GREEN    RED         1          lua weak key tables still drop unreachable cleared keys 
 LUA-GSTATE-SIZE GREEN    RED         1          lua object sizes are pinned 
+PURGE-STALELOG GREEN    RED         1          heap purge drops a handle whose block was freed on a released page 
+CRT-HEAP-LARGE GREEN    RED         1          process heap usage counts large blocks apart from the segment figures 
+ARENA-RANGE  GREEN    RED         1          range committed counts only the committed pages inside the range 
+CRT-HEAP-COMMIT GREEN    RED         1          process heap usage counts large blocks apart from the segment figures 
+PERTURB-POOLREUSE GREEN    RED         1          perturb heap pool shuffles reuse order of freed blocks 
+STALE-NAVINPLACE GREEN    RED         1          replacing a barrier keeps the owner's barrier in every ignore list and in the grid once 
 SPIKE01-OFFTHREAD GREEN    RED         1          off-thread allocation is counted with tid heap and size 
 MPOOL05-COPY GREEN    RED         66         mimalloc realloc moves on a large shrink crash 0x00000042 asan report
 MPOOL05-FILL GREEN    RED         1          lua realloc keeps the fill test hook on the heap path 
@@ -719,7 +762,7 @@ ADDRORDER-05 GREEN    RED                    hardening:addr-order check=addr-ord
 FLAG-ALIGNNEW GREEN    RED                    tlog:flag-alignednew reverted: cl entries=771 /Zc:alignedNew-=0
 FLAG-INLINE  GREEN    RED                    tlog:flag-inline reverted: cl entries=771 /Zc:inline=771 /Zc:inline-=771
 FLAG-INLINE-B GREEN    RED                    tlog:flag-inline reverted: cl entries=771 /Zc:inline=0 /Zc:inline-=0
-FLAG-ALIGNNEW-T GREEN    RED                    tlog:flag-alignednew-tests reverted: tests cl entries=184 /Zc:alignedNew-=0
+FLAG-ALIGNNEW-T GREEN    RED                    tlog:flag-alignednew-tests reverted: tests cl entries=194 /Zc:alignedNew-=0
 FLAG-THROWNEW GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=771 /GL=0 /fp:fast=0 /fp:contract=0 /GS-=0
 FLAG-GL      GREEN    RED                    tlog:flag-banned build failed after 771 compiles; reverted: /Zc:throwingNew=0 /GL=771 /fp:fast=0 /fp:contract=0 /GS-=0
 FLAG-FPFAST  GREEN    RED                    tlog:flag-banned reverted: /Zc:throwingNew=0 /GL=0 /fp:fast=771 /fp:contract=0 /GS-=0
@@ -728,7 +771,9 @@ FLAG-GSMINUS GREEN    RED                    tlog:flag-banned reverted: /Zc:thro
 MIDEF-01     GREEN    RED                    tlog:mimalloc-defines reverted: game missing MI_NO_GETENV=1
 MIDEF-02     GREEN    RED                    tlog:mimalloc-defines reverted: game Release has "MI_DEBUG=0 MI_SECURE=0" want "MI_DEBUG=0 MI_SECURE=4"
 MEM-01       GREEN    RED         0x00000000 smoke:crash-arenaoom class=Pass dumps=0
-MEM-01B      GREEN    RED         0x00000003 smoke:crash-debugheapoom class=Fatal dumps=1
+MEM-01B      GREEN    RED         0x00000000 smoke:crash-debugheapoom class=Pass dumps=0
+NOVICTORY-WIN GREEN    RED         0x00000000 smoke:novictory-con class=Pass dumps=0
+NOVICTORY-LOSE GREEN    RED         0x00000000 smoke:novictory-con class=Pass dumps=0
 MEM-02S      GREEN    RED         0x00000000 smoke:crash-heapfail class=Pass dumps=0
 MEM-03S      GREEN    RED         0x00000003 smoke:crash-luaoom class=Fatal dumps=1
 MEM-04S      GREEN    RED         0x00000000 smoke:crash-luapanic class=Pass dumps=0
@@ -785,4 +830,11 @@ MENU-59      GREEN    RED         0x00000000 smoke:crash-menuapplyfail class=Pas
 CUR-05A      GREEN    RED         0x00000000 smoke:cursor-sw class=Pass dumps=0
 DIGEST-01    GREEN    RED         0x00000000 smoke:geo1c_con class=Pass dumps=0
 SIMFIX-C1S   GREEN    RED         0x00000000 smoke:digest-dag1c_ctf class=Pass dumps=0
+MEM-BUILDHEAP GREEN    RED         0x00000001 smoke:crash-buildheapfail class=Fatal dumps=0
+MEM-FATALSIZE GREEN    RED         0x00000001 smoke:crash-buildheapfail class=Fatal dumps=0
+WATER-RESET  GREEN    RED         0x00000001 smoke:repeat-water class=TimeOut dumps=0
+SHADER-BINDLIST GREEN    RED         0x00000000 smoke:commit-flat class=Pass dumps=0
+COMMIT-ARENALOG GREEN    RED         0x00000000 smoke:commit-flat class=Pass dumps=0
+COMMIT-CRTLOG GREEN    RED         0x00000000 smoke:commit-flat class=Pass dumps=0
 HANDLESCAN-GUARD GREEN    RED         0x00000003 smoke:shell-first class=Fatal dumps=1
+HORIZ-LASTCOL GREEN    RED                    perturb:tan1g_con tan1g_con:pad-1=equal tan1g_con:pad-2=equal tan1g_con:fill-1=equal tan1g_con:fill-2=equal tan1g_con:pool-1=split:turn=4509 tan1g_con:pool-2=split:turn=4719 tan1g_con:hog-0=equal tan1g_con:repeat-0=equal
