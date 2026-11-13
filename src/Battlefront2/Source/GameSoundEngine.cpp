@@ -53,8 +53,6 @@ namespace FrameUpdate
 {
 extern float fOneOverTicksPerSecond;
 }
-
-extern float g_fFixedRate;
 extern int g_InGameMoviePlayerState;
 namespace Lua_Callbacks
 {
@@ -286,7 +284,7 @@ void Create()
 
     gSoundHeap = GameMemory::RunTimeHeap;
 
-    for (unsigned int i = 0; i < 4; ++i)
+    for (unsigned int i = 0; i < Snd::EngineBase::kMaxListeners; ++i)
     {
         Snd::EngineBase::smListeners[i].mDopplerFactor = 1.0f;
     }
@@ -298,7 +296,6 @@ void Create()
 
 }
 
-extern int sVoiceChatHeap;
 namespace GameVoiceChat
 {
 extern bool gPlayerChange;
@@ -309,101 +306,8 @@ namespace GameVoiceChat
 unsigned int GetNumNodes();
 }
 
-extern int netVoiceMode;
 
-namespace GameVoiceChat
-{
 
-// FUNCTION: SWBF2 0x0053c040
-bool Open(float fSeconds, bool bSoundWorking)
-{
-    sVoiceChatHeap = GameMemory::ApplicationHeap;
-    int iOldHeap = RedSetCurrentHeap(GameMemory::ApplicationHeap);
-
-    if (GameVoiceChat::gTransport.Open(0x32, 1))
-    {
-        if (VoiceChat::Node::OpenStatic(&GameVoiceChat::gTransport, fSeconds, 1000.0f, 1000.0f))
-        {
-            unsigned int uiNodes = (unsigned int)GameVoiceChat::GetNumNodes();
-            bool bAllOpen = true;
-
-            for (unsigned int i = 0; i < uiNodes; ++i)
-            {
-                GameVoiceChat::gEncoders[i] = new ((GameVoiceChat::Encoder*)GameVoiceChat::gEncoderStorage + i) GameVoiceChat::Encoder;
-                GameVoiceChat::gDecoders[i] = new ((GameVoiceChat::Decoder*)GameVoiceChat::gDecoderStorage + i) GameVoiceChat::Decoder;
-                GameVoiceChat::gNodes[i] = new ((GameVoiceChat::Node*)GameVoiceChat::gNodeStorage + i)
-                    GameVoiceChat::Node(GameVoiceChat::gEncoders[i],
-                                        GameVoiceChat::gDecoders[i]);
-            }
-
-            GameVoiceChat::gPlayerChange = true;
-
-            VoiceChat::Transport::Method cMethod(
-                (VoiceChat::Transport::Method::Type)(netVoiceMode ? netVoiceMode : 2), 0x32);
-            cMethod.SetNumRelayNodes(cMethod.CalculateOptimalRelayNodes(0x32));
-            GameVoiceChat::gTransport.SetMethod(cMethod, true);
-
-            if (!bSoundWorking)
-            {
-                RedSetCurrentHeap(iOldHeap);
-                return true;
-            }
-
-            unsigned int i;
-
-            for (i = 0; i < uiNodes; ++i)
-            {
-                if (!bAllOpen)
-                {
-                    break;
-                }
-                bAllOpen &= GameVoiceChat::gNodes[i]->Open(0xFF, 0xFF, 0x0C);
-            }
-
-            if (bAllOpen)
-            {
-                for (i = 0; i < uiNodes; ++i)
-                {
-                    GameVoiceChat::gNodes[i]->SetSendMask(GameVoiceChat::Transport::mask_TeamFriend, true, false);
-                    GameVoiceChat::gNodes[i]->SetReceiveMask(GameVoiceChat::Transport::mask_Everyone, true, false);
-                }
-                RedSetCurrentHeap(iOldHeap);
-                return true;
-            }
-
-            for (i = 0; i < uiNodes; ++i)
-            {
-                if (GameVoiceChat::gNodes[i]->IsOpen())
-                {
-                    GameVoiceChat::gNodes[i]->Close();
-                }
-            }
-
-            for (i = 0; i < uiNodes; ++i)
-            {
-                (GameVoiceChat::gEncoders[i])->~Encoder();
-
-                (GameVoiceChat::gDecoders[i])->~Decoder();
-
-                GameVoiceChat::gEncoders[i] = 0;
-                GameVoiceChat::gDecoders[i] = 0;
-                GameVoiceChat::gNodes[i] = 0;
-            }
-
-            VoiceChat::Node::CloseStatic();
-        }
-        GameVoiceChat::gTransport.Close();
-    }
-    RedSetCurrentHeap(iOldHeap);
-    return false;
-}
-}
-
-class SoundSpaceRegion
-{
-public:
-    static void DestroyAll();
-};
 
 namespace GameSoundEngine
 {
@@ -487,12 +391,12 @@ void Destroy()
     SoundSpaceRegion::DestroyAll();
     TriggerSoundRegion::DestroyAll();
 
-    for (unsigned int i = 0; i < 4; i++)
+    for (unsigned int i = 0; i < Snd::EngineBase::kMaxListeners; i++)
     {
         Snd::EngineBase::smListeners[i].SetSpace(0);
     }
     Snd::Engine::Update(0.1f);
-    for (unsigned int i = 0; i < 4; i++)
+    for (unsigned int i = 0; i < Snd::EngineBase::kMaxListeners; i++)
     {
         Snd::EngineBase::smListeners[i].Enable(false);
     }
@@ -505,7 +409,7 @@ void Destroy()
 // FUNCTION: SWBF2 0x00538bb0
 bool ChangeMixConfig(unsigned int uiFlags, bool bEnable)
 {
-    if (GameState::GetState() == 0x11E1FC01)
+    if (GameState::GetState() == 0x11E1FC01 /* "shell" */)
     {
         if (uiFlags != 2 ||
             ((GameSoundEngine::sHwMixingSupported || GameSoundEngine::UseKmixer()) &&
@@ -559,27 +463,27 @@ void UpdateBusGains(float fSFX, float fMusic, float fVoiceOver, float fBattleVO,
     gBusGainsUser.mMaster = fMaster;
 
     Snd::Bus* pBus;
-    if ((pBus = Snd::Bus::FindByHashID(0x3b13aa4b)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0x3b13aa4b /* "voiceover" */)) != 0)
     {
         pBus->SetGain(gBusGainsDefault.mVoiceOver * gBusGainsUser.mVoiceOver, false);
     }
-    if ((pBus = Snd::Bus::FindByHashID(0x74d771fc)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0x74d771fc /* "battlechatter" */)) != 0)
     {
         pBus->SetGain(gBusGainsDefault.mBattleVO * gBusGainsUser.mBattleVO, false);
     }
-    if ((pBus = Snd::Bus::FindByHashID(0xeceb308a)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0xeceb308a /* "soundfx" */)) != 0)
     {
         pBus->SetGain(gBusGainsDefault.mSFX * gBusGainsUser.mSFX, false);
     }
-    if ((pBus = Snd::Bus::FindByHashID(0x9f9c4fd4)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0x9f9c4fd4 /* "Music" */)) != 0)
     {
         pBus->SetGain(gBusGainsDefault.mMusic * gBusGainsUser.mMusic, false);
     }
-    if ((pBus = Snd::Bus::FindByHashID(0xaebbad4d)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0xaebbad4d /* "ambience" */)) != 0)
     {
         pBus->SetGain(gBusGainsDefault.mAmbience * gBusGainsUser.mSFX, false);
     }
-    if ((pBus = Snd::Bus::FindByHashID(0x82c7f467)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0x82c7f467 /* "shellfx" */)) != 0)
     {
         pBus->SetGain(gBusGainsDefault.mShellFX * gBusGainsUser.mSFX, false);
     }
@@ -590,27 +494,27 @@ void UpdateBusGains(float fSFX, float fMusic, float fVoiceOver, float fBattleVO,
 void InitializeBusGains()
 {
     Snd::Bus* pBus;
-    if ((pBus = Snd::Bus::FindByHashID(0x3b13aa4b)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0x3b13aa4b /* "voiceover" */)) != 0)
     {
         gBusGainsDefault.mVoiceOver = pBus->mGain;
     }
-    if ((pBus = Snd::Bus::FindByHashID(0x74d771fc)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0x74d771fc /* "battlechatter" */)) != 0)
     {
         gBusGainsDefault.mBattleVO = pBus->mGain;
     }
-    if ((pBus = Snd::Bus::FindByHashID(0xeceb308a)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0xeceb308a /* "soundfx" */)) != 0)
     {
         gBusGainsDefault.mSFX = pBus->mGain;
     }
-    if ((pBus = Snd::Bus::FindByHashID(0x9f9c4fd4)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0x9f9c4fd4 /* "Music" */)) != 0)
     {
         gBusGainsDefault.mMusic = pBus->mGain;
     }
-    if ((pBus = Snd::Bus::FindByHashID(0xaebbad4d)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0xaebbad4d /* "ambience" */)) != 0)
     {
         gBusGainsDefault.mAmbience = pBus->mGain;
     }
-    if ((pBus = Snd::Bus::FindByHashID(0x82c7f467)) != 0)
+    if ((pBus = Snd::Bus::FindByHashID(0x82c7f467 /* "shellfx" */)) != 0)
     {
         gBusGainsDefault.mShellFX = pBus->mGain;
     }
@@ -672,7 +576,7 @@ void GameSoundEngine::Update(float fDeltaTime)
     {
         return;
     }
-    if (GameState::GetState() == 0x8ff60339 && GameLoop::IsGameOver())
+    if (GameState::GetState() == 0x8ff60339 /* "mission" */ && GameLoop::IsGameOver())
     {
         return;
     }

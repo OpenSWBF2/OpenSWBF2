@@ -3,23 +3,8 @@
 #include <stddef.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
-#include "PebbleFL/Common/PblMatrix.h"
-#include "ZephyrCommon.h"
+#include "ZephyrJoint.h"
 
-class ZephyrJointShared
-{
-public:
-    PblMatrix m_kBaseInverse;
-    ZephyrTransform m_kBaseTransform;
-    unsigned int m_kCrc;
-    char m_iParent;
-    char m_iChild;
-    char m_iSibling;
-    unsigned char mTransformFlags;
-    float mScale;
-};
- 
- 
 
 class PblMemChunk;
 

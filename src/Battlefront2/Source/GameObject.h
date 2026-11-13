@@ -4,35 +4,16 @@
 
 #include <stddef.h>
 
+#include "ConnectivityGraph.h"
 #include "Damageable.h"
 #include "EntityGeometry.h"
+#include "PebbleFL/Common/PblRtti.h"
 #include "GameSound.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblList.h"
 #include "PebbleFL/Common/PblListSingle.h"
 
-struct DamageEffectClass
-{
 
-    DamageEffectClass(float fPercent = 0.0f, float fPercentStop = 0.0f, unsigned int uNameHash = 0,
-                      unsigned int uHardPoint = 0,
-                      const PblVector3& vAttachOffset = PblVector3(0.0f, 0.0f, 0.0f),
-                      float fScale = 1.0f, float fInheritVelocity = 0.0f)
-        : mPercent(fPercent), mPercentStop(fPercentStop), mNameHash(uNameHash),
-          mHardPoint(uHardPoint), mAttachOffset(vAttachOffset), mScale(fScale),
-          mInheritVelocity(fInheritVelocity)
-    {
-    }
-
-    float mPercent;
-    float mPercentStop;
-    unsigned int mNameHash;
-    unsigned int mHardPoint;
-    PblVector3 mAttachOffset;
-    float mScale;
-    float mInheritVelocity;
-    GameSound mSound;
-};
  
  
 
@@ -56,28 +37,6 @@ public:
         SOLDIER_UNKNOWN = 5
     };
 
-    GameObjectClass(unsigned int uHash);
-
-    GameObjectClass(GameObjectClass* pBase, unsigned int uHash);
-
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual void SetProperty(unsigned int uProperty, const char* pszValue);
-
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
-
-    virtual ~GameObjectClass();
-
-    virtual int GetSoldierType() const;
-    virtual int GetVehicleType() const;
-    virtual const class ControllableClass* GetControllableClass() const;
-    virtual int GetWeaponCount() const;
-    virtual const class WeaponClass* GetWeaponClass(int iIndex) const;
-    virtual float GetCollisionInflict() const;
-    virtual const DamageEffectClass* GetDamageEffectClass(int iIndex) const;
-    virtual float GetTimeRequiredToEject() const;
-    virtual float GetReboardTime() const;
-
     enum VehicleType
     {
         VEHICLE_SCOUT = 0,
@@ -91,6 +50,30 @@ public:
         VEHICLE_ATAT = 8,
         VEHICLE_UNKNOWN = 9
     };
+
+    GameObjectClass(unsigned int uHash);
+
+    GameObjectClass(GameObjectClass* pBase, unsigned int uHash);
+
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual void SetProperty(unsigned int uProperty, const char* pszValue);
+
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
+
+    virtual ~GameObjectClass();
+
+    static unsigned int GetRtti() { return rttiHashGameObjectClass; }
+
+    virtual SoldierType GetSoldierType() const;
+    virtual VehicleType GetVehicleType() const;
+    virtual const class ControllableClass* GetControllableClass() const;
+    virtual int GetWeaponCount() const;
+    virtual const class WeaponClass* GetWeaponClass(int iIndex) const;
+    virtual float GetCollisionInflict() const;
+    virtual const DamageEffectClass* GetDamageEffectClass(int iIndex) const;
+    virtual float GetTimeRequiredToEject() const;
+    virtual float GetReboardTime() const;
 
     void SetHeroFlag() { mHeroFlag = true; }
 
@@ -121,7 +104,7 @@ public:
     GameSound mSoundHurtFall;
     PblListSingle mSoundDamageRegionList;
 
-    int mAIType;
+    ConnectivityGraph::ProhibitFlag mAIType;
     bool mAINoRepair : 1;
     bool mHeroFlag : 1;
     bool mIsNeutralWhenEmpty : 1;
@@ -270,15 +253,20 @@ extern PblVector3 gVectorZero;
 class GameObject : public EntityGeometry, public Damageable, public PblHandled
 {
 public:
+    // FUNCTION: SWBF2 0x004441f0
+    // GameObject::IsRtti
+    // FUNCTION: SWBF2 0x00535060
+    // GameObject::GetDerivedRtti
+    // FUNCTION: SWBF2 0x00535070
+    // GameObject::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(GameObject, EntityGeometry)
+
 
     GameObject(GameObjectClass* pClass, const EntityDesc& desc, CollisionObjectType eType,
                const RedLodData* pLodData);
 
     virtual ~GameObject();
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
 
     // FUNCTION: SWBF2 0x00444310
@@ -422,7 +410,6 @@ public:
     // FUNCTION: SWBF2 0x004ddff0
     float GetCreatedTime() const { return mCreatedTime; }
 
-    static unsigned int GetRtti() { return rttiHashGameObject; }
     int GetAffiliationToMe(const GameObject* pObject) const;
     bool IsMyFriend(const GameObject* pObject) const;
     bool IsMyEnemy(const GameObject* pObject) const;
@@ -451,8 +438,6 @@ public:
     unsigned int mHealthTypeForLockOn : 4;
     bool mIsTargetable : 1;
 
-    static PblHash rttiHashGameObject;
-    static const char rttiNameGameObject[];
 };
  
 
@@ -487,24 +472,3 @@ inline const char* GameObjectClass::GetDerivedRttiName() const
     return rttiNameGameObjectClass;
 }
 
-// FUNCTION: SWBF2 0x00535060
-inline unsigned int GameObject::GetDerivedRtti() const
-{
-    return rttiHashGameObject;
-}
-
-// FUNCTION: SWBF2 0x00535070
-inline const char* GameObject::GetDerivedRttiName() const
-{
-    return rttiNameGameObject;
-}
-
-// FUNCTION: SWBF2 0x004441f0
-inline bool GameObject::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashGameObject == uRtti)
-    {
-        return true;
-    }
-    return EntityGeometry::IsRtti(uRtti);
-}

@@ -41,7 +41,7 @@ CmdInfo::CmdInfo(int iWhat, ConstCommandPostHandle post)
     mParam = 0;
     mChr = 0;
     mFlag = 0;
-    mWhoCommandPost = const_cast<CommandPost*>(static_cast<const CommandPost*>(post));
+    mWhoCommandPost = const_cast<CommandPost*>((const CommandPost*)post);
 }
 
 // FUNCTION: SWBF2 0x0045cd40

@@ -25,6 +25,21 @@ VoiceChat::Transport::Method::Method(Type type, unsigned char numRelayNodes)
     SetNumRelayNodes(numRelayNodes);
 }
 
+// FUNCTION: SWBF2 0x006745e0
+void VoiceChat::Transport::Method::SetType(Type type) { mType = type; }
+
+// FUNCTION: SWBF2 0x006745f0
+VoiceChat::Transport::Method::Type VoiceChat::Transport::Method::GetType() const { return mType; }
+
+// FUNCTION: SWBF2 0x00674600
+void VoiceChat::Transport::Method::SetNumRelayNodes(unsigned char numRelayNodes) { mNumRelayNodes = numRelayNodes; }
+
+// FUNCTION: SWBF2 0x00674610
+unsigned char VoiceChat::Transport::Method::GetNumRelayNodes() const
+{
+    return mNumRelayNodes;
+}
+
 // FUNCTION: SWBF2 0x00674620
 unsigned char VoiceChat::Transport::Method::CalculateOptimalRelayNodes(unsigned char iNumNodes) const
 {
@@ -404,12 +419,6 @@ bool VoiceChat::Transport::GetSending(unsigned char node) const
     return VoiceChat::GetBit(mLocal.mSending, node) && IsConnectedSend(node);
 }
 
-// FUNCTION: SWBF2 0x00674610
-unsigned char VoiceChat::Transport::Method::GetNumRelayNodes() const
-{
-    return mNumRelayNodes;
-}
-
 // FUNCTION: SWBF2 0x00674ba0
 bool VoiceChat::Transport::IsConnectedNet(unsigned char node) const
 {
@@ -429,15 +438,6 @@ bool VoiceChat::Transport::GetReceivePossible(unsigned char node, unsigned char 
     return GetReceiveEnable(node, stream) && GetSendEnable(stream, node) &&
            IsConnectedReceive(node) && IsConnectedSend(stream);
 }
-
-// FUNCTION: SWBF2 0x006745e0
-void VoiceChat::Transport::Method::SetType(Type type) { mType = type; }
-
-// FUNCTION: SWBF2 0x00674600
-void VoiceChat::Transport::Method::SetNumRelayNodes(unsigned char numRelayNodes) { mNumRelayNodes = numRelayNodes; }
-
-// FUNCTION: SWBF2 0x006745f0
-VoiceChat::Transport::Method::Type VoiceChat::Transport::Method::GetType() const { return mType; }
 
 // FUNCTION: SWBF2 0x00674f40
 const VoiceChat::Transport::Method& VoiceChat::Transport::GetMethod() const { return mMethodIncoming; }

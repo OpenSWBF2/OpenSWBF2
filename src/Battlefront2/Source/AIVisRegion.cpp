@@ -19,7 +19,7 @@ namespace
 
     const PblMatrix& GetMatrix(GameObject* pObject)
     {
-        return static_cast<CollisionObject&>(*pObject).GetMatrix();
+        return ((CollisionObject&)(*pObject)).GetMatrix();
     }
 }
 

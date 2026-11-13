@@ -423,17 +423,17 @@ void ShieldEffect::PlatformInit()
     pcShieldShader* pShader;
     if (RedRenderer::pcGetRenderCaps().pipeline == PIPELINE_FIXED && m_pClass->m_type == 0)
     {
-        pShader = (pcShieldShader*)pcRedShader::Create(0x337519B0, 0xA2, &m_pClass->m_uiTextureHash, 1, 0x100C0,
+        pShader = (pcShieldShader*)pcRedShader::Create(0x337519B0 /* "shield" */, 0xA2, &m_pClass->m_uiTextureHash, 1, 0x100C0,
                                       m_pClass->m_color, m_pClass->m_colorSpecular, 32.0f);
     }
     else if (RedRenderer::pcGetGeometryMode())
     {
-        pShader = (pcShieldShader*)pcRedShader::Create(0x337519B0, 0xD222, &m_pClass->m_uiTextureHash, 1, 0x100C4,
+        pShader = (pcShieldShader*)pcRedShader::Create(0x337519B0 /* "shield" */, 0xD222, &m_pClass->m_uiTextureHash, 1, 0x100C4,
                                       m_pClass->m_color, m_pClass->m_colorSpecular, 32.0f);
     }
     else
     {
-        pShader = (pcShieldShader*)pcRedShader::Create(0x337519B0, 0x222, &m_pClass->m_uiTextureHash, 1, 0x100C4,
+        pShader = (pcShieldShader*)pcRedShader::Create(0x337519B0 /* "shield" */, 0x222, &m_pClass->m_uiTextureHash, 1, 0x100C4,
                                       m_pClass->m_color, m_pClass->m_colorSpecular, 32.0f);
     }
 

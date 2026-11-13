@@ -4,32 +4,6 @@
 #include "RedEngineFL/Util/RedRegion.h"
 #include "PebbleFL/Common/PblTimeBase.h"
 
-// VTABLE: SWBF2 0x0079fbf0
-class SoundStaticRegionFactory : public RedRegionFactory
-{
-public:
-    SoundStaticRegionFactory() : RedRegionFactory("soundstatic") {}
-
-    // SYNTHETIC: SWBF2 0x005393a0
-    // SoundStaticRegionFactory::`scalar deleting destructor'
-
-    virtual void* CreateRegion(RedRegionDesc& desc, const char* pcName) const;
-};
-  
-
-// VTABLE: SWBF2 0x0079fc28
-class SoundStreamRegionFactory : public RedRegionFactory
-{
-public:
-    SoundStreamRegionFactory() : RedRegionFactory("soundstream") {}
-
-    // SYNTHETIC: SWBF2 0x00539440
-    // SoundStreamRegionFactory::`scalar deleting destructor'
-
-    virtual void* CreateRegion(RedRegionDesc& desc, const char* pcName) const;
-};
-  
-
 namespace GameState
 {
 

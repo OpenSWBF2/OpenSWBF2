@@ -14,7 +14,7 @@ void ColorControl::Create()
 
 // FUNCTION: SWBF2 0x0046c0d0
 ColorControl::ColorControl()
-    : FLEffect(0x952BD04Du, 9)
+    : FLEffect(0x952BD04Du /* "ColorControl" */, RENDERABLE_SCREENEFFECT)
 {
     PlatformEnable(true);
 }

@@ -7,6 +7,8 @@
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
 class PblMatrix;
@@ -15,20 +17,21 @@ extern PblMatrix gMatrixIdentity;
 // GLOBAL: SWBF2 0x007e1e80
 unsigned int pcShadowQuadShader::s_uiStencilMask = 0xff;
 
+// GLOBAL: SWBF2 0x009c9d80
+// pcShadowQuadShader::s_uiID
 unsigned int pcShadowQuadShader::s_uiID;
+// GLOBAL: SWBF2 0x009c9d84
+// pcShadowQuadShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcShadowQuadShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9d90
+// pcShadowQuadShader::BeginFuncArray
 pcRedShader::BeginFuncT pcShadowQuadShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9d9c
+// pcShadowQuadShader::EndFuncArray
 pcRedShader::EndFuncT pcShadowQuadShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9da8
+// pcShadowQuadShader::RenderFuncArray
 pcRedShader::RenderFuncT pcShadowQuadShader::RenderFuncArray[MAX_PIPELINES];
-
-// SYNTHETIC: SWBF2 0x00409f20
-// `dynamic initializer for 'pcShadowQuadShader::s_shaderDef''
-// SYNTHETIC: SWBF2 0x00769e60
-// `dynamic atexit destructor for 'pcShadowQuadShader::s_shaderDef''
-
-// GLOBAL: SWBF2 0x009c9de8
-// pcShadowQuadShader::s_shaderDef
-pcRedShaderDef pcShadowQuadShader::s_shaderDef("shadowquad_shader.xml");
 
 // FUNCTION: SWBF2 0x00707f20
 pcShadowQuadShader::pcShadowQuadShader()
@@ -102,12 +105,6 @@ void pcShadowQuadShader::Begin_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetCullMode(PCREDCULL_NONE);
 }
 
-// FUNCTION: SWBF2 0x00708200
-void pcShadowQuadShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x00708220
 RedShadingState* pcShadowQuadShader::CreateShadingState() const
 {
@@ -124,28 +121,10 @@ void pcShadowQuadShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x00708250
-unsigned int pcShadowQuadShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x00708270
 RenderPhaseT pcShadowQuadShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_TRANSPARENT;
-}
-
-// FUNCTION: SWBF2 0x00708280
-unsigned int pcShadowQuadShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x00708290
-pcRedShaderDef* pcShadowQuadShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x007082a0
@@ -221,22 +200,22 @@ void pcShadowQuadShader::_Init(unsigned int uiFlags,
 void pcShadowQuadShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcShadowQuadShader::GetState_Fixed);
+        (GetStateFuncT)(&pcShadowQuadShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcShadowQuadShader::Begin_Fixed);
+        (BeginFuncT)(&pcShadowQuadShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcShadowQuadShader::End_Fixed);
+        (EndFuncT)(&pcShadowQuadShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcShadowQuadShader::Render_Fixed);
+        (RenderFuncT)(&pcShadowQuadShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcShadowQuadShader::GetState_Prog1);
+        (GetStateFuncT)(&pcShadowQuadShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcShadowQuadShader::Begin_Prog1);
+        (BeginFuncT)(&pcShadowQuadShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcShadowQuadShader::End_Prog1);
+        (EndFuncT)(&pcShadowQuadShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcShadowQuadShader::Render_Prog1);
+        (RenderFuncT)(&pcShadowQuadShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x007084e0
@@ -245,7 +224,7 @@ void pcShadowQuadShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -293,6 +272,15 @@ unsigned int pcShadowQuadShader::s_uiRenderTypeHash = PblHash("ShadowQuad");
 // GLOBAL: SWBF2 0x009c9dbc
 // pcShadowQuadShader::s_Factory
 pcShadowQuadShader pcShadowQuadShader::s_Factory;
+
+// SYNTHETIC: SWBF2 0x00409f20
+// `dynamic initializer for 'pcShadowQuadShader::s_shaderDef''
+// SYNTHETIC: SWBF2 0x00769e60
+// `dynamic atexit destructor for 'pcShadowQuadShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9de8
+// pcShadowQuadShader::s_shaderDef
+pcRedShaderDef pcShadowQuadShader::s_shaderDef("shadowquad_shader.xml");
 
 // GLOBAL: SWBF2 0x009c9db8
 unsigned int g_pcShadowQuadShader;

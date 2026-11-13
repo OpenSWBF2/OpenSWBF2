@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PebbleFL/Common/PblHashTable.h"
+#include "PebbleFL/Common/PblRtti.h"
 
 class PblFileChunk;
 
@@ -42,11 +43,12 @@ public:
     Entity() {}
 
     // FUNCTION: SWBF2 0x00443ea0
-    virtual bool IsRtti(unsigned int uRtti) const { return rttiHashEntity == uRtti; }
+    // Entity::IsRtti
     // FUNCTION: SWBF2 0x00458a00
-    virtual unsigned int GetDerivedRtti() const { return rttiHashEntity; }
+    // Entity::GetDerivedRtti
     // FUNCTION: SWBF2 0x00458a10
-    virtual const char* GetDerivedRttiName() const { return rttiNameEntity; }
+    // Entity::GetDerivedRttiName
+    PBL_DECLARE_ROOT_RTTI(Entity)
     // FUNCTION: SWBF2 0x00458a20
     virtual ~Entity() {}
     // FUNCTION: SWBF2 0x00458a30
@@ -66,10 +68,7 @@ public:
     // FUNCTION: SWBF2 0x00458aa0
     virtual const EntityClass* GetEntityClass() const { return 0; }
 
-    static PblHash rttiHashEntity;
 
-    static unsigned int GetRtti() { return rttiHashEntity; }
-    static const char rttiNameEntity[];
 };
  
 
@@ -80,11 +79,16 @@ public:
 class EntityEx : public Entity
 {
 public:
+    // FUNCTION: SWBF2 0x00443ec0
+    // EntityEx::IsRtti
+    // FUNCTION: SWBF2 0x00491700
+    // EntityEx::GetDerivedRtti
+    // FUNCTION: SWBF2 0x00491710
+    // EntityEx::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(EntityEx, Entity)
+
     EntityEx(unsigned int uId, EntityClass* pEntityClass);
     EntityEx(const EntityEx&) = delete;
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
     virtual ~EntityEx();
     // FUNCTION: SWBF2 0x00443ef0
     virtual EntityClass* GetEntityClass() { return mEntityClass; }
@@ -97,10 +101,7 @@ public:
     unsigned int mId;
     EntityClass* mEntityClass;
 
-    static PblHash rttiHashEntityEx;
 
-    static unsigned int GetRtti() { return rttiHashEntityEx; }
-    static const char rttiNameEntityEx[];
     static PblHashTable<EntityEx, 1024> mIdMap;
     static PblPtrSet<32768> sLive;
 
@@ -201,28 +202,6 @@ inline unsigned int EntityClass::GetDerivedRtti() const
 inline const char* EntityClass::GetDerivedRttiName() const
 {
     return rttiNameEntityClass;
-}
-
-// FUNCTION: SWBF2 0x00443ec0
-inline bool EntityEx::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashEntityEx == uRtti)
-    {
-        return true;
-    }
-    return Entity::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x00491700
-inline unsigned int EntityEx::GetDerivedRtti() const
-{
-    return rttiHashEntityEx;
-}
-
-// FUNCTION: SWBF2 0x00491710
-inline const char* EntityEx::GetDerivedRttiName() const
-{
-    return rttiNameEntityEx;
 }
 
 inline EntityClass::MapParams::MapParams(float scale, float speedMin, float speedMax,

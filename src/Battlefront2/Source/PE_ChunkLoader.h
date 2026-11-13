@@ -37,13 +37,13 @@ class ParticleEmitterEffect : public FLEffect
 public:
 
     ParticleEmitterEffect()
-        : FLEffect(0xCEBB215Fu, 3)
+        : FLEffect(0xCEBB215Fu /* "ParticleEmitter" */, RENDERABLE_POSTWORLD)
     {
     }
 
     virtual ~ParticleEmitterEffect();
 
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual FLEffectClass* BuildClass(PblConfig& config) const;
 
     static void Create();

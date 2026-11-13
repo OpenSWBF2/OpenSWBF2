@@ -75,7 +75,7 @@ namespace AI
 class PatrolPathFactory : public GamePathFactory
 {
 public:
-    PatrolPathFactory() : GamePathFactory(0xD4966D93) {}
+    PatrolPathFactory() : GamePathFactory(0xD4966D93 /* "type_PatrolPath" */) {}
 
     // SYNTHETIC: SWBF2 0x00539210
     // AI::PatrolPathFactory::`scalar deleting destructor'

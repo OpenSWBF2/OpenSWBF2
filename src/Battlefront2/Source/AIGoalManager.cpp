@@ -66,7 +66,7 @@ AIGoal* AIGoalManager::FindGoal(Character* pChr)
 // FUNCTION: SWBF2 0x0043a410
 void AIGoalManager::MakeSureUnitHasGoal(Character* pChr)
 {
-    if (pChr->mPlayerId >= 0)
+    if (pChr->GetPlayerId() >= 0)
     {
         return;
     }

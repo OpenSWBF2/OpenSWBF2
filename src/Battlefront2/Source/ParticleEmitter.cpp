@@ -16,6 +16,20 @@ namespace ParticleSystem
 bool IsLodActive(int iLod);
 }
 
+// SYNTHETIC: SWBF2 0x00405be0
+// `dynamic initializer for 'sParticleCache''
+
+// GLOBAL: SWBF2 0x01ef2730
+// sParticleCache
+Particle sParticleCache[128];
+
+// SYNTHETIC: SWBF2 0x00405c20
+// `dynamic initializer for 'sEmitterCache''
+
+// GLOBAL: SWBF2 0x01ef4840
+// sEmitterCache
+Particle sEmitterCache[32];
+
 // SYNTHETIC: SWBF2 0x00405c60
 // `dynamic initializer for 'ParticleEmitter::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00769210
@@ -640,19 +654,5 @@ void ParticleEmitterClass::SetNextSeed(unsigned int uSeed)
         mNext->SetNextSeed(uSeed);
     }
 }
-
-// SYNTHETIC: SWBF2 0x00405be0
-// `dynamic initializer for 'sParticleCache''
-
-// GLOBAL: SWBF2 0x01ef2730
-// sParticleCache
-Particle sParticleCache[128];
-
-// SYNTHETIC: SWBF2 0x00405c20
-// `dynamic initializer for 'sEmitterCache''
-
-// GLOBAL: SWBF2 0x01ef4840
-// sEmitterCache
-Particle sEmitterCache[32];
 
 

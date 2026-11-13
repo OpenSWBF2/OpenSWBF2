@@ -48,7 +48,8 @@ bool ReticuleInterpolator::Update(float)
 {
     if (mCount >= 2)
     {
-        NetGame::GetTurnRatio();
+        const float fRatio = NetGame::GetTurnRatio();
+        const PblVector3 vPos = Interpolate(mPos[mCount & 1], mPos[(mCount - 1) & 1], fRatio);
     }
     return true;
 }
@@ -162,7 +163,13 @@ bool ReticuleDisplay::Update(float fDeltaTime)
         return true;
     }
 
-    Character* pCharacter = Character::FindPlayer(NetGame::GetLocalIndex(mJoystickIndex));
+    int iLocalIndex = NetGame::GetLocalIndex(mJoystickIndex);
+    Character* pCharacter = 0;
+    if (Character::sCharacters && iLocalIndex >= 0 && iLocalIndex < Character::sCharacterLimit)
+    {
+        Character* pCandidate = &Character::sCharacters[iLocalIndex];
+        pCharacter = pCandidate->mPlayerId == iLocalIndex ? pCandidate : 0;
+    }
     if (!pCharacter)
     {
         return true;
@@ -214,9 +221,7 @@ bool ReticuleDisplay::Update(float fDeltaTime)
     }
 
     PblVector3 vAim = pControllable->mTargetInfo.mAimStart + pControllable->mEyeDir * 1024.0f;
-    PblVector3 vCamera;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vCamera), reinterpret_cast<const D3DXVECTOR3*>(&vAim), reinterpret_cast<const D3DXMATRIX*>(&pCamera->_MatrixInverse));
-    PblVector3 vPos = pCamera->TransformCameraPointToProjectionSpace(vCamera);
+    PblVector3 vPos = pCamera->TransformWorldPointToProjectionSpace(vAim);
 
     HUD::ElementMap* pMap = HUD::ElementMap::FindByPlayerIndex(mJoystickIndex);
     if ((!pMap || pMap->GetMode() != HUD::ElementMap::mode_Large) && !GameLoop::sPauseMode)

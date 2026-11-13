@@ -21,6 +21,8 @@ public:
         flags_updatePriority = 8
     };
 
+    typedef void (__cdecl* InactiveCallback)(const VoiceVirtual* const, void* const);
+
     VoiceVirtual(unsigned int uiCustomFlags, VoiceVirtualManager* pManager,
                  bool bRestorePlaybackPos);
     ~VoiceVirtual();
@@ -37,7 +39,7 @@ public:
 
     void ResetPriority();
     void Set3DMode(bool b3DMode);
-    void SetInactiveCallback(void (__cdecl* pfnCallback)(const VoiceVirtual* const, void* const),
+    void SetInactiveCallback(InactiveCallback pfnCallback,
                              void* const pData);
 
     void SetVoiceVirtualManager(VoiceVirtualManager* pManager);
@@ -60,8 +62,7 @@ private:
     {
         if (mInactiveCallback)
         {
-            ((void (__cdecl*)(const VoiceVirtual* const, void* const))mInactiveCallback)(
-                this, mInactiveCallbackData);
+            mInactiveCallback(this, mInactiveCallbackData);
             mInactiveCallback = 0;
             mInactiveCallbackData = 0;
         }
@@ -79,7 +80,7 @@ public:
     VoiceBase* mVoice;
     unsigned int mCustomFlags;
     VoiceVirtualManager* mVoiceManager;
-    void (*mInactiveCallback)();
+    InactiveCallback mInactiveCallback;
     void* mInactiveCallbackData;
 };
 

@@ -60,55 +60,16 @@ static const char* GetSideIcon(int iSide)
     {
         return sideIcons[iSide];
     }
-    if (GameLoop::mMissionScriptHash == 0x2b6c2d0d || GameLoop::mMissionScriptHash == 0x41c2e16a ||
-        GameLoop::mMissionScriptHash == 0xcdb830bd)
+    const char* pIcon = "com_icon_republic";
+    if (GameLoop::mMissionScriptHash != 0x2b6c2d0d /* "nab1c_h" */ &&
+        GameLoop::mMissionScriptHash != 0x41c2e16a /* "nab2c_h" */)
     {
-        return "com_icon_republic";
+        if (GameLoop::mMissionScriptHash != 0xcdb830bd /* "kas1c_h" */)
+        {
+            pIcon = 0;
+        }
     }
-    return 0;
-}
-
-// FUNCTION: SWBF2 0x005a3180
-int MedalsMgr::GetMedalLevel(int iCount)
-{
-    if (iCount >= 64)
-    {
-        return 3;
-    }
-    if (iCount >= 32)
-    {
-        return 2;
-    }
-    return iCount >= 4;
-}
-
-// FUNCTION: SWBF2 0x005a34e0
-int MedalsMgr::GetRankLevel(int iCount)
-{
-    if (iCount >= 300)
-    {
-        return 3;
-    }
-    if (iCount >= 100)
-    {
-        return 2;
-    }
-    return iCount >= 20;
-}
-
-// FUNCTION: SWBF2 0x005a3870
-short MedalsMgr::GetMedalsThisGame(int iType) const
-{
-    if (!mOwner || NetGame::IsEnabled())
-    {
-        return 0;
-    }
-    PlayerProfile::tProfile* pProfile = mOwner->GetProfile();
-    if (!pProfile)
-    {
-        return GetMedals(iType);
-    }
-    return GetMedals(iType) - pProfile->mGameOptions.mMedalsGathered[iType];
+    return pIcon;
 }
 
 namespace Lua_Callbacks
@@ -193,398 +154,6 @@ int ScriptCB_GetPlayerIDAtRank(lua_State*)
             lua_pushnumber(LuaHelper::mState, (float)pCharacter->mPlayerId);
             return 1;
         }
-    }
-    return 0;
-}
-
-// FUNCTION: SWBF2 0x0059f8b0
-int ScriptCB_GetMedalStats(lua_State*)
-{
-    if (lua_gettop(LuaHelper::mState) != 2 || !lua_isnumber(LuaHelper::mState, 1))
-    {
-        return 0;
-    }
-    float fTeam = (float)luaL_checknumber(LuaHelper::mState, 1);
-    if (fTeam < 1.0f || fTeam > 2.0f || !lua_isnumber(LuaHelper::mState, 2))
-    {
-        return 0;
-    }
-    float fRank = (float)luaL_checknumber(LuaHelper::mState, 2);
-    if (fRank < 0.0f || fRank > 999.0f)
-    {
-        return 0;
-    }
-    Team* pTeam = Team::Lookup((int)fTeam);
-    if (!pTeam)
-    {
-        return 0;
-    }
-    DoPeriodicLuaGC(true);
-    if (NetGame::IsEnabled() && netEnabledNext && netClientActive && !PlayerStats::mGotMPStats)
-    {
-        lua_pushnil(LuaHelper::mState);
-        LuaHelper::SetGlobal("stats_listbox_contents");
-        DoPeriodicLuaGC(false);
-        lua_newtable(LuaHelper::mState);
-        lua_newtable(LuaHelper::mState);
-        unsigned short usText[30];
-        ustrncnv(usText, "fix MP stats", 30);
-        Stats_AddItem(usText, usText);
-        lua_rawseti(LuaHelper::mState, -2, 1);
-        LuaHelper::SetGlobal("stats_listbox_contents");
-        DoPeriodicLuaGC(false);
-        return 0;
-    }
-    lua_gettop(LuaHelper::mState);
-    lua_pushnil(LuaHelper::mState);
-    LuaHelper::SetGlobal("stats_listbox_contents");
-    DoPeriodicLuaGC(false);
-    lua_newtable(LuaHelper::mState);
-    Character* pCharacter = 0;
-    for (int i = 0; i < pTeam->mMemberCount; ++i)
-    {
-        pCharacter = pTeam->GetMemberPtr(i);
-        if (pCharacter->GetPlayerStats().mRankOrder == (int)fRank - 1)
-        {
-            break;
-        }
-    }
-    MedalsMgr* pMedals = pCharacter ? pCharacter->mMedalsMgr : 0;
-    for (int i = 0; pMedals && i < 9; ++i)
-    {
-        lua_newtable(LuaHelper::mState);
-        LuaHelper::TableWriteVal("medaltype", (int)pMedals->GetMedalsThisGame(i));
-        lua_rawseti(LuaHelper::mState, -2, i + 1);
-    }
-    lua_pushstring(LuaHelper::mState, "stats_listbox_contents");
-    lua_insert(LuaHelper::mState, -2);
-    lua_settable(LuaHelper::mState, LUA_GLOBALSINDEX);
-    DoPeriodicLuaGC(false);
-    return 0;
-}
-
-// FUNCTION: SWBF2 0x005a00a0
-int ScriptCB_GetCareerRank(lua_State*)
-{
-    if (lua_gettop(LuaHelper::mState) != 1)
-    {
-        return 0;
-    }
-    if (!lua_isnumber(LuaHelper::mState, 1))
-    {
-        return 0;
-    }
-    int iCharacter = (int)luaL_checknumber(LuaHelper::mState, 1);
-    Character* pCharacter = Character::sCharacters && iCharacter >= 0 &&
-        iCharacter < Character::sCharacterLimit ? &Character::sCharacters[iCharacter] : 0;
-    lua_pushnumber(LuaHelper::mState, (float)pCharacter->mMedalsMgr->GetRank());
-    return 1;
-}
-
-// FUNCTION: SWBF2 0x005a0630
-int ScriptCB_GetCareerMedalLevel(lua_State*)
-{
-    if (lua_gettop(LuaHelper::mState) != 2)
-    {
-        return 0;
-    }
-    int iCharacter = (int)luaL_checknumber(LuaHelper::mState, 1);
-    int iType = (int)luaL_checknumber(LuaHelper::mState, 2);
-    int iLevel;
-    if (iCharacter < 0)
-    {
-        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(GetStatsPageJoystick());
-        iLevel = MedalsMgr::GetMedalLevel(pProfile->mGameOptions.mMedalsGathered[iType]);
-    }
-    else
-    {
-        Character* pCharacter = Character::sCharacters && iCharacter < Character::sCharacterLimit
-            ? &Character::sCharacters[iCharacter] : 0;
-        iLevel = pCharacter->mMedalsMgr->GetLevel(iType);
-    }
-    lua_pushnumber(LuaHelper::mState, (float)iLevel);
-    return 1;
-}
-
-// FUNCTION: SWBF2 0x0059fb20
-int ScriptCB_GetCareerPersonalStats(lua_State*)
-{
-    if (lua_gettop(LuaHelper::mState) != 2 || !lua_isnumber(LuaHelper::mState, 1) ||
-        !lua_isnumber(LuaHelper::mState, 2))
-    {
-        return 0;
-    }
-    int iCharacter = (int)luaL_checknumber(LuaHelper::mState, 1);
-    float fPage = (float)luaL_checknumber(LuaHelper::mState, 2);
-    Character* pCharacter = 0;
-    PlayerStats* pStats = 0;
-    PlayerProfile::tProfile* pProfile;
-    if (iCharacter >= 0)
-    {
-        pCharacter = Character::GetPtr(iCharacter);
-        pStats = &pCharacter->GetPlayerStats();
-        pProfile = pCharacter->GetProfile();
-    }
-    else
-    {
-        pProfile = PlayerProfile::GetProfile(GetStatsPageJoystick());
-    }
-    DoPeriodicLuaGC(true);
-
-    if (NetGame::IsEnabled() && NetGame::IsClient() && !PlayerStats::mGotMPStats)
-    {
-        lua_pushnil(LuaHelper::mState);
-        LuaHelper::SetGlobal("stats_listbox_contents");
-        DoPeriodicLuaGC(false);
-        lua_newtable(LuaHelper::mState);
-        lua_newtable(LuaHelper::mState);
-        unsigned short usText[30];
-        ustrncnv(usText, "fix MP stats", 30);
-        Stats_AddItem(usText, usText);
-        lua_rawseti(LuaHelper::mState, -2, 1);
-        LuaHelper::SetGlobal("stats_listbox_contents");
-        DoPeriodicLuaGC(false);
-        return 0;
-    }
-
-    lua_gettop(LuaHelper::mState);
-    lua_pushnil(LuaHelper::mState);
-    LuaHelper::SetGlobal("stats_listbox_contents");
-    DoPeriodicLuaGC(false);
-    lua_newtable(LuaHelper::mState);
-
-    int iPage = (int)fPage;
-    int iFirst = iPage ? 4 : 0;
-    int iEnd = (iPage != 0) * 4 + 4;
-    for (int i = iFirst; i < iEnd; ++i)
-    {
-        lua_newtable(LuaHelper::mState);
-        switch (i)
-        {
-        case 0:
-            Stats_AddItem(RedLocalizeDB::Find(0xc38cd05fu, false),
-                          pProfile ? (int)pProfile->mAccumPoints.mTotalPoints : pStats->GetPoints());
-            break;
-        case 1:
-        {
-            unsigned short usBlank[5];
-            ustrncnv(usBlank, "", 5);
-            Stats_AddItem(usBlank, usBlank);
-            break;
-        }
-        case 2:
-            Stats_AddItem(RedLocalizeDB::Find(0x26adb709u, false),
-                          pProfile ? (int)pProfile->mAccumPoints.mTotalKills
-                                   : pStats->GetKills(-1, 1) + pStats->GetKills(-1, 0));
-            break;
-        case 3:
-            Stats_AddItem(RedLocalizeDB::Find(0x39ef9b83u, false),
-                          pProfile ? (int)pProfile->mAccumPoints.mTotalDeaths
-                                   : pStats->GetDeaths(-1, 1) + pStats->GetDeaths(-1, 0));
-            break;
-        case 4:
-        {
-            int iRank;
-            if (pCharacter)
-            {
-                iRank = pCharacter->mMedalsMgr->GetRank();
-            }
-            else
-            {
-                int iMedals = 0;
-                for (int j = 0; j < 9; ++j)
-                {
-                    iMedals += pProfile->mGameOptions.mMedalsGathered[j];
-                }
-                iRank = MedalsMgr::GetRankLevel(iMedals);
-            }
-            unsigned int uRankName = 0;
-            switch (iRank)
-            {
-            case 0: uRankName = 0x4191047cu; break;
-            case 1: uRankName = 0xf0532ad2u; break;
-            case 2: uRankName = 0x9937379bu; break;
-            case 3: uRankName = 0xa03313bbu; break;
-            }
-            Stats_AddItem(RedLocalizeDB::Find(0x7d54045eu, false), RedLocalizeDB::Find(uRankName, false));
-            break;
-        }
-        case 5:
-        {
-            unsigned short usBlank[5];
-            ustrncnv(usBlank, "", 5);
-            Stats_AddItem(usBlank, usBlank);
-            break;
-        }
-        case 6:
-        {
-            int iKills, iDeaths;
-            if (pProfile)
-            {
-                iKills = pProfile->mAccumPoints.mTotalKills;
-                iDeaths = pProfile->mAccumPoints.mTotalDeaths;
-            }
-            else
-            {
-                iKills = pStats->GetKills(-1, 1) + pStats->GetKills(-1, 0);
-                iDeaths = pStats->GetDeaths(-1, 1) + pStats->GetDeaths(-1, 0);
-            }
-            LuaHelper::TableWriteVal("labelustr", RedLocalizeDB::Find(0xfa323a81u, false));
-            if (iDeaths)
-            {
-                char acRatio[8];
-                _snprintf(acRatio, 8, "%.2f", (float)iKills / (float)iDeaths);
-                LuaHelper::TableWriteVal("contentsstr", acRatio);
-            }
-            else
-            {
-                LuaHelper::TableWriteVal("contentsstr", "--");
-            }
-            break;
-        }
-        case 7:
-        {
-            int iPoints, iLives;
-            if (pProfile)
-            {
-                iPoints = pProfile->mAccumPoints.mTotalPoints;
-                iLives = pProfile->mAccumPoints.mTotalDeaths + 1;
-            }
-            else
-            {
-                iPoints = pStats->GetPoints();
-                iLives = pStats->GetDeaths(-1, 1) + pStats->GetDeaths(-1, 0) + 1;
-            }
-            Stats_AddItem(RedLocalizeDB::Find(0xca14cb66u, false), iPoints / iLives);
-            break;
-        }
-        }
-        lua_rawseti(LuaHelper::mState, -2, i - iFirst + 1);
-    }
-
-    lua_pushstring(LuaHelper::mState, "stats_listbox_contents");
-    lua_insert(LuaHelper::mState, -2);
-    lua_settable(LuaHelper::mState, LUA_GLOBALSINDEX);
-    DoPeriodicLuaGC(false);
-    return 0;
-}
-
-// FUNCTION: SWBF2 0x005a0140
-int ScriptCB_GetCareerMedals(lua_State*)
-{
-    if (lua_gettop(LuaHelper::mState) != 2 || !lua_isnumber(LuaHelper::mState, 1))
-    {
-        return 0;
-    }
-    if (lua_isnumber(LuaHelper::mState, 2))
-    {
-        int iCharacter = (int)luaL_checknumber(LuaHelper::mState, 1);
-        float fPage = (float)luaL_checknumber(LuaHelper::mState, 2);
-        const char* pcTable = (int)fPage == 0 ? "stats_medalbox_left_contents" : "stats_medalbox_right_contents";
-        DoPeriodicLuaGC(true);
-
-        if (NetGame::IsEnabled() && NetGame::IsClient() && !PlayerStats::mGotMPStats)
-        {
-            lua_pushnil(LuaHelper::mState);
-            LuaHelper::SetGlobal(pcTable);
-            DoPeriodicLuaGC(false);
-            lua_newtable(LuaHelper::mState);
-            lua_newtable(LuaHelper::mState);
-            unsigned short usText[30];
-            ustrncnv(usText, "fix MP stats", 30);
-            Stats_AddItem(usText, usText);
-            lua_rawseti(LuaHelper::mState, -2, 1);
-            LuaHelper::SetGlobal(pcTable);
-            DoPeriodicLuaGC(false);
-            return 0;
-        }
-
-        lua_gettop(LuaHelper::mState);
-        lua_pushnil(LuaHelper::mState);
-        LuaHelper::SetGlobal(pcTable);
-        DoPeriodicLuaGC(false);
-        lua_newtable(LuaHelper::mState);
-
-        const short* psGathered = 0;
-        MedalsMgr* pMedals = 0;
-        if (iCharacter < 0)
-        {
-            PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(GetStatsPageJoystick());
-            if (pProfile)
-            {
-                psGathered = pProfile->mGameOptions.mMedalsGathered;
-            }
-        }
-        else
-        {
-            Character* pCharacter = Character::GetPtr(iCharacter);
-            if (pCharacter)
-            {
-                pMedals = pCharacter->mMedalsMgr;
-            }
-        }
-
-        int iPage = (int)fPage;
-        int iFirst = iPage ? 5 : 0;
-        int iEnd = iPage ? 9 : 5;
-        for (int i = iFirst; i < iEnd; ++i)
-        {
-            lua_newtable(LuaHelper::mState);
-            switch (i)
-            {
-            case 0:
-                CareerMedals_AddItem(RedLocalizeDB::Find(0xcafcdffeu, false),
-                                     pMedals ? pMedals->GetMedals(0) : psGathered[0],
-                                     pMedals ? pMedals->GetLevel(0) : MedalsMgr::GetMedalLevel(psGathered[0]));
-                break;
-            case 1:
-                CareerMedals_AddItem(RedLocalizeDB::Find(0x4c112ebcu, false),
-                                     pMedals ? pMedals->GetMedals(2) : psGathered[2],
-                                     pMedals ? pMedals->GetLevel(2) : MedalsMgr::GetMedalLevel(psGathered[2]));
-                break;
-            case 2:
-                CareerMedals_AddItem(RedLocalizeDB::Find(0x21c98eadu, false),
-                                     pMedals ? pMedals->GetMedals(5) : psGathered[5],
-                                     pMedals ? pMedals->GetLevel(5) : MedalsMgr::GetMedalLevel(psGathered[5]));
-                break;
-            case 3:
-                CareerMedals_AddItem(RedLocalizeDB::Find(0xe4035095u, false),
-                                     pMedals ? pMedals->GetMedals(7) : psGathered[7],
-                                     pMedals ? pMedals->GetLevel(7) : MedalsMgr::GetMedalLevel(psGathered[7]));
-                break;
-            case 4:
-                CareerMedals_AddItem(RedLocalizeDB::Find(0xea62b23cu, false),
-                                     pMedals ? pMedals->GetMedals(1) : psGathered[1],
-                                     pMedals ? pMedals->GetLevel(1) : MedalsMgr::GetMedalLevel(psGathered[1]));
-                break;
-            case 5:
-                CareerMedals_AddItem(RedLocalizeDB::Find(0xed854facu, false),
-                                     pMedals ? pMedals->GetMedals(3) : psGathered[3],
-                                     pMedals ? pMedals->GetLevel(3) : MedalsMgr::GetMedalLevel(psGathered[3]));
-                break;
-            case 6:
-                CareerMedals_AddItem(RedLocalizeDB::Find(0xd7a03b48u, false),
-                                     pMedals ? pMedals->GetMedals(4) : psGathered[4],
-                                     pMedals ? pMedals->GetLevel(4) : MedalsMgr::GetMedalLevel(psGathered[4]));
-                break;
-            case 7:
-                CareerMedals_AddItem(RedLocalizeDB::Find(0x4e47ef5bu, false),
-                                     pMedals ? pMedals->GetMedals(6) : psGathered[6],
-                                     pMedals ? pMedals->GetLevel(6) : MedalsMgr::GetMedalLevel(psGathered[6]));
-                break;
-            case 8:
-                CareerMedals_AddItem(RedLocalizeDB::Find(0xfd7404ccu, false),
-                                     pMedals ? pMedals->GetMedals(8) : psGathered[8],
-                                     pMedals ? pMedals->GetLevel(8) : MedalsMgr::GetMedalLevel(psGathered[8]));
-                break;
-            }
-            lua_rawseti(LuaHelper::mState, -2, i - iFirst + 1);
-        }
-
-        lua_pushstring(LuaHelper::mState, pcTable);
-        lua_insert(LuaHelper::mState, -2);
-        lua_settable(LuaHelper::mState, LUA_GLOBALSINDEX);
-        DoPeriodicLuaGC(false);
     }
     return 0;
 }
@@ -819,7 +388,7 @@ int ScriptCB_GetTeamstats(lua_State* L)
     }
     DoPeriodicLuaGC(true);
 
-    if (NetGame::IsEnabled() && NetGame::IsClient() && !PlayerStats::mGotMPStats)
+    if (NetGame::IsEnabled() && (netEnabledNext && netClientActive) && !PlayerStats::mGotMPStats)
     {
         lua_pushnil(LuaHelper::mState);
         LuaHelper::SetGlobal(pcTable);
@@ -954,7 +523,7 @@ int ScriptCB_TeamStatsSetTitles(lua_State* L)
     }
     ustrncnv(usBuf, acBuf, 100);
     ustrlcat(usTitle, usBuf, 100);
-    ((RedTextElement*)RedInterfaceElement::Find(0x964e1d4bu))->SetText(usTitle, true);
+    ((RedTextElement*)RedInterfaceElement::Find(0x964e1d4bu /* "ifs_teamstats.LeftList.Title" */))->SetText(usTitle, true);
 
     ustrlcpy(usTitle, pTeam2->mName, 100);
     if (pTeam2->mCurReinforcements > 1000000 && !bShowCount)
@@ -967,18 +536,18 @@ int ScriptCB_TeamStatsSetTitles(lua_State* L)
     }
     ustrncnv(usBuf, acBuf, 100);
     ustrlcat(usTitle, usBuf, 100);
-    ((RedTextElement*)RedInterfaceElement::Find(0x0a25d764u))->SetText(usTitle, true);
+    ((RedTextElement*)RedInterfaceElement::Find(0x0a25d764u /* "ifs_teamstats.RightList.Title" */))->SetText(usTitle, true);
 
     if (GetSideIcon(pTeam1->GetSide()) && GetSideIcon(pTeam2->GetSide()))
     {
-        Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0xb0fcda7cu);
+        Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0xb0fcda7cu /* "ifs_teamstats.LeftModel" */);
         const bool bSlot = PblInBounds(pTeam1->mColor, (int)fSlot);
         pIcon->SetModel(GetSideIcon(pTeam1->GetSide()));
         if (bSlot)
         {
             pIcon->SetColor(pTeam1->GetColor((int)fSlot));
         }
-        pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x14bdc17du);
+        pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x14bdc17du /* "ifs_teamstats.RightModel" */);
         pIcon->SetModel(GetSideIcon(pTeam2->GetSide()));
         if (bSlot)
         {
@@ -1001,7 +570,7 @@ int ScriptCB_PersonalStatsSetTitles(lua_State* L)
         {
             return 0;
         }
-        Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x262d6743u);
+        Red3DModelElementLite* pIcon = (Red3DModelElementLite*)RedInterfaceElement::Find(0x262d6743u /* "ifs_personalstats.IconModel" */);
         pIcon->SetModel(GetSideIcon(pTeam->GetSide()));
         if (PblInBounds(pTeam->mColor, iSlot))
         {
@@ -1054,7 +623,7 @@ int ScriptCB_GetPersonalStats(lua_State* L)
     }
     DoPeriodicLuaGC(true);
 
-    if (NetGame::IsEnabled() && NetGame::IsClient() && !PlayerStats::mGotMPStats)
+    if (NetGame::IsEnabled() && (netEnabledNext && netClientActive) && !PlayerStats::mGotMPStats)
     {
         lua_pushnil(LuaHelper::mState);
         LuaHelper::SetGlobal("stats_listbox_contents");
@@ -1099,17 +668,17 @@ int ScriptCB_GetPersonalStats(lua_State* L)
         switch (i)
         {
         case 0:
-            Stats_AddItem(RedLocalizeDB::Find(0xc38cd05fu, false), pStats->GetPoints(true));
+            Stats_AddItem(RedLocalizeDB::Find(0xc38cd05fu /* "ifs.Stats.points" */, false), pStats->GetPoints(true));
             break;
         case 1:
-            Stats_AddItem(RedLocalizeDB::Find(0xa63ee31eu, false), pStats->GetPoints(false));
+            Stats_AddItem(RedLocalizeDB::Find(0xa63ee31eu /* "ifs.Stats.hero_points" */, false), pStats->GetPoints(false));
             break;
         case 2:
-            Stats_AddItem(RedLocalizeDB::Find(0x26adb709u, false),
+            Stats_AddItem(RedLocalizeDB::Find(0x26adb709u /* "ifs.Stats.kills" */, false),
                           pStats->GetKills(-1, 1) + pStats->GetKills(-1, 0));
             break;
         case 3:
-            Stats_AddItem(RedLocalizeDB::Find(0x39ef9b83u, false),
+            Stats_AddItem(RedLocalizeDB::Find(0x39ef9b83u /* "ifs.Stats.deaths" */, false),
                           pStats->GetDeaths(-1, 1) + pStats->GetDeaths(-1, 0));
             break;
         case 4:
@@ -1122,42 +691,42 @@ int ScriptCB_GetPersonalStats(lua_State* L)
         case 5:
         {
             const EntityClass* pClass = pStats->GetFavoriteSoldierClass(-1);
-            Stats_AddLabelNameTime(RedLocalizeDB::Find(0x766b2b87u, false), pClass ? pClass->mLabel : 0,
+            Stats_AddLabelNameTime(RedLocalizeDB::Find(0x766b2b87u /* "ifs.Stats.favclass" */, false), pClass ? pClass->mLabel : 0,
                                    (int)pStats->GetFavoriteSoldierTime(-1));
             break;
         }
         case 6:
         {
             const WeaponClass* pWeapon = pStats->GetFavoriteWeaponClass(-1);
-            Stats_AddLabelNameTime(RedLocalizeDB::Find(0xe5a23889u, false), pWeapon ? pWeapon->mLabel : 0,
+            Stats_AddLabelNameTime(RedLocalizeDB::Find(0xe5a23889u /* "ifs.Stats.favweapon" */, false), pWeapon ? pWeapon->mLabel : 0,
                                    (int)pStats->GetFavoriteWeaponTime(-1));
             break;
         }
         case 7:
-            Stats_AddItem(RedLocalizeDB::Find(0x1821d4fbu, false),
+            Stats_AddItem(RedLocalizeDB::Find(0x1821d4fbu /* "ifs.Stats.headshots" */, false),
                           pStats->GetCriticalShots(-1, 1) + pStats->GetCriticalShots(-1, 0));
             break;
         case 8:
             if (pStats->GetNemesisVal(-1, 0) > pStats->GetNemesisVal(-1, 1))
             {
-                Stats_AddPlayerAward(RedLocalizeDB::Find(0xa39860dcu, false), pStats->GetNemesis(-1, 0),
+                Stats_AddPlayerAward(RedLocalizeDB::Find(0xa39860dcu /* "ifs.Stats.nemesis" */, false), pStats->GetNemesis(-1, 0),
                                      pStats->GetNemesisVal(-1, 0));
             }
             else
             {
-                Stats_AddPlayerAward(RedLocalizeDB::Find(0xa39860dcu, false), pStats->GetNemesis(-1, 1),
+                Stats_AddPlayerAward(RedLocalizeDB::Find(0xa39860dcu /* "ifs.Stats.nemesis" */, false), pStats->GetNemesis(-1, 1),
                                      pStats->GetNemesisVal(-1, 1));
             }
             break;
         case 9:
             if (pStats->GetBaitVal(-1, 0) > pStats->GetBaitVal(-1, 1))
             {
-                Stats_AddPlayerAward(RedLocalizeDB::Find(0x1e7c34f0u, false), pStats->GetBait(-1, 0),
+                Stats_AddPlayerAward(RedLocalizeDB::Find(0x1e7c34f0u /* "ifs.Stats.bait" */, false), pStats->GetBait(-1, 0),
                                      pStats->GetBaitVal(-1, 0));
             }
             else
             {
-                Stats_AddPlayerAward(RedLocalizeDB::Find(0x1e7c34f0u, false), pStats->GetBait(-1, 1),
+                Stats_AddPlayerAward(RedLocalizeDB::Find(0x1e7c34f0u /* "ifs.Stats.bait" */, false), pStats->GetBait(-1, 1),
                                      pStats->GetBaitVal(-1, 1));
             }
             break;
@@ -1239,12 +808,12 @@ int ScriptCB_GetAwardStats(lua_State* L)
         case 2:
             pCharacter = PlayerStats::GetAwardChr(AWARDSTAT_TANK_BUSTER);
             iValue = PlayerStats::GetAwardVal(AWARDSTAT_TANK_BUSTER);
-            Stats_AddPlayerAward(RedLocalizeDB::Find(0x2f6a1ed9u, false), pCharacter, iValue);
+            Stats_AddPlayerAward(RedLocalizeDB::Find(0x2f6a1ed9u /* "ifs.Stats.tankbuster" */, false), pCharacter, iValue);
             break;
         case 3:
             pCharacter = PlayerStats::GetAwardChr(AWARDSTAT_KILLING_SPREE);
             iValue = PlayerStats::GetAwardVal(AWARDSTAT_KILLING_SPREE);
-            Stats_AddPlayerAward(RedLocalizeDB::Find(0xd0ad7735u, false), pCharacter, iValue);
+            Stats_AddPlayerAward(RedLocalizeDB::Find(0xd0ad7735u /* "ifs.Stats.killingspree" */, false), pCharacter, iValue);
             break;
         case 4:
         {
@@ -1264,33 +833,33 @@ int ScriptCB_GetAwardStats(lua_State* L)
             {
                 ustrncnv(usText, "", 64);
             }
-            Stats_AddItem(RedLocalizeDB::Find(0x4b56af4eu, false), usText);
+            Stats_AddItem(RedLocalizeDB::Find(0x4b56af4eu /* "ifs.Stats.camper" */, false), usText);
             break;
         }
         case 5:
             pCharacter = PlayerStats::GetAwardChr(AWARDSTAT_SURVIVALIST);
             iValue = PlayerStats::GetAwardVal(AWARDSTAT_SURVIVALIST);
-            Stats_AddPlayerAward(RedLocalizeDB::Find(0x1c47f24au, false), pCharacter, iValue);
+            Stats_AddPlayerAward(RedLocalizeDB::Find(0x1c47f24au /* "ifs.Stats.Survivalist" */, false), pCharacter, iValue);
             break;
         case 6:
             pCharacter = PlayerStats::GetAwardChr(AWARDSTAT_TRAITOR);
             iValue = PlayerStats::GetAwardVal(AWARDSTAT_TRAITOR);
-            Stats_AddPlayerAward(RedLocalizeDB::Find(0x5c23c469u, false), pCharacter, iValue);
+            Stats_AddPlayerAward(RedLocalizeDB::Find(0x5c23c469u /* "ifs.Stats.traitor" */, false), pCharacter, iValue);
             break;
         case 7:
             pCharacter = PlayerStats::GetAwardChr(AWARDSTAT_PUBLIC_ENEMY);
             iValue = PlayerStats::GetAwardVal(AWARDSTAT_PUBLIC_ENEMY);
-            Stats_AddPlayerAward(RedLocalizeDB::Find(0x5d21ecafu, false), pCharacter, iValue);
+            Stats_AddPlayerAward(RedLocalizeDB::Find(0x5d21ecafu /* "ifs.Stats.publicenemy" */, false), pCharacter, iValue);
             break;
         case 8:
             pCharacter = PlayerStats::GetAwardChr(AWARDSTAT_MEAT);
             iValue = PlayerStats::GetAwardVal(AWARDSTAT_MEAT);
-            Stats_AddPlayerAward(RedLocalizeDB::Find(0x1f913713u, false), pCharacter, iValue);
+            Stats_AddPlayerAward(RedLocalizeDB::Find(0x1f913713u /* "ifs.Stats.meat" */, false), pCharacter, iValue);
             break;
         case 9:
             pCharacter = PlayerStats::GetAwardChr(AWARDSTAT_DEADEYE);
             iValue = PlayerStats::GetAwardVal(AWARDSTAT_DEADEYE);
-            Stats_AddPlayerAward(RedLocalizeDB::Find(0x7d3440e7u, false), pCharacter, iValue);
+            Stats_AddPlayerAward(RedLocalizeDB::Find(0x7d3440e7u /* "ifs.Stats.deadeye" */, false), pCharacter, iValue);
             break;
         }
 
@@ -1323,6 +892,398 @@ int ScriptCB_GetAwardStats(lua_State* L)
     lua_settable(LuaHelper::mState, LUA_GLOBALSINDEX);
     DoPeriodicLuaGC(false);
     return 0;
+}
+
+// FUNCTION: SWBF2 0x0059f8b0
+int ScriptCB_GetMedalStats(lua_State*)
+{
+    if (lua_gettop(LuaHelper::mState) != 2 || !lua_isnumber(LuaHelper::mState, 1))
+    {
+        return 0;
+    }
+    float fTeam = (float)luaL_checknumber(LuaHelper::mState, 1);
+    if (fTeam < 1.0f || fTeam > 2.0f || !lua_isnumber(LuaHelper::mState, 2))
+    {
+        return 0;
+    }
+    float fRank = (float)luaL_checknumber(LuaHelper::mState, 2);
+    if (fRank < 0.0f || fRank > 999.0f)
+    {
+        return 0;
+    }
+    Team* pTeam = Team::Lookup((int)fTeam);
+    if (!pTeam)
+    {
+        return 0;
+    }
+    DoPeriodicLuaGC(true);
+    if (NetGame::IsEnabled() && netEnabledNext && netClientActive && !PlayerStats::mGotMPStats)
+    {
+        lua_pushnil(LuaHelper::mState);
+        LuaHelper::SetGlobal("stats_listbox_contents");
+        DoPeriodicLuaGC(false);
+        lua_newtable(LuaHelper::mState);
+        lua_newtable(LuaHelper::mState);
+        unsigned short usText[30];
+        ustrncnv(usText, "fix MP stats", 30);
+        Stats_AddItem(usText, usText);
+        lua_rawseti(LuaHelper::mState, -2, 1);
+        LuaHelper::SetGlobal("stats_listbox_contents");
+        DoPeriodicLuaGC(false);
+        return 0;
+    }
+    lua_gettop(LuaHelper::mState);
+    lua_pushnil(LuaHelper::mState);
+    LuaHelper::SetGlobal("stats_listbox_contents");
+    DoPeriodicLuaGC(false);
+    lua_newtable(LuaHelper::mState);
+    Character* pCharacter = 0;
+    for (int i = 0; i < pTeam->mMemberCount; ++i)
+    {
+        pCharacter = pTeam->GetMemberPtr(i);
+        if (pCharacter->GetPlayerStats().mRankOrder == (int)fRank - 1)
+        {
+            break;
+        }
+    }
+    MedalsMgr* pMedals = pCharacter ? pCharacter->mMedalsMgr : 0;
+    for (int i = 0; pMedals && i < 9; ++i)
+    {
+        lua_newtable(LuaHelper::mState);
+        LuaHelper::TableWriteVal("medaltype", (int)pMedals->GetMedalsThisGame(i));
+        lua_rawseti(LuaHelper::mState, -2, i + 1);
+    }
+    lua_pushstring(LuaHelper::mState, "stats_listbox_contents");
+    lua_insert(LuaHelper::mState, -2);
+    lua_settable(LuaHelper::mState, LUA_GLOBALSINDEX);
+    DoPeriodicLuaGC(false);
+    return 0;
+}
+
+// FUNCTION: SWBF2 0x0059fb20
+int ScriptCB_GetCareerPersonalStats(lua_State*)
+{
+    if (lua_gettop(LuaHelper::mState) != 2 || !lua_isnumber(LuaHelper::mState, 1) ||
+        !lua_isnumber(LuaHelper::mState, 2))
+    {
+        return 0;
+    }
+    int iCharacter = (int)luaL_checknumber(LuaHelper::mState, 1);
+    float fPage = (float)luaL_checknumber(LuaHelper::mState, 2);
+    Character* pCharacter = 0;
+    PlayerStats* pStats = 0;
+    PlayerProfile::tProfile* pProfile;
+    if (iCharacter >= 0)
+    {
+        pCharacter = Character::GetPtr(iCharacter);
+        pStats = &pCharacter->GetPlayerStats();
+        pProfile = pCharacter->GetProfile();
+    }
+    else
+    {
+        pProfile = PlayerProfile::GetProfile(GetStatsPageJoystick());
+    }
+    DoPeriodicLuaGC(true);
+
+    if (NetGame::IsEnabled() && NetGame::IsClient() && !PlayerStats::mGotMPStats)
+    {
+        lua_pushnil(LuaHelper::mState);
+        LuaHelper::SetGlobal("stats_listbox_contents");
+        DoPeriodicLuaGC(false);
+        lua_newtable(LuaHelper::mState);
+        lua_newtable(LuaHelper::mState);
+        unsigned short usText[30];
+        ustrncnv(usText, "fix MP stats", 30);
+        Stats_AddItem(usText, usText);
+        lua_rawseti(LuaHelper::mState, -2, 1);
+        LuaHelper::SetGlobal("stats_listbox_contents");
+        DoPeriodicLuaGC(false);
+        return 0;
+    }
+
+    lua_gettop(LuaHelper::mState);
+    lua_pushnil(LuaHelper::mState);
+    LuaHelper::SetGlobal("stats_listbox_contents");
+    DoPeriodicLuaGC(false);
+    lua_newtable(LuaHelper::mState);
+
+    int iPage = (int)fPage;
+    int iFirst = iPage ? 4 : 0;
+    int iEnd = (iPage != 0) * 4 + 4;
+    for (int i = iFirst; i < iEnd; ++i)
+    {
+        lua_newtable(LuaHelper::mState);
+        switch (i)
+        {
+        case 0:
+            Stats_AddItem(RedLocalizeDB::Find(0xc38cd05fu /* "ifs.Stats.points" */, false),
+                          pProfile ? (int)pProfile->mAccumPoints.mTotalPoints : pStats->GetPoints());
+            break;
+        case 1:
+        {
+            unsigned short usBlank[5];
+            ustrncnv(usBlank, "", 5);
+            Stats_AddItem(usBlank, usBlank);
+            break;
+        }
+        case 2:
+            Stats_AddItem(RedLocalizeDB::Find(0x26adb709u /* "ifs.Stats.kills" */, false),
+                          pProfile ? (int)pProfile->mAccumPoints.mTotalKills
+                                   : pStats->GetKills(-1, 1) + pStats->GetKills(-1, 0));
+            break;
+        case 3:
+            Stats_AddItem(RedLocalizeDB::Find(0x39ef9b83u /* "ifs.Stats.deaths" */, false),
+                          pProfile ? (int)pProfile->mAccumPoints.mTotalDeaths
+                                   : pStats->GetDeaths(-1, 1) + pStats->GetDeaths(-1, 0));
+            break;
+        case 4:
+        {
+            int iRank;
+            if (pCharacter)
+            {
+                iRank = pCharacter->mMedalsMgr->GetRank();
+            }
+            else
+            {
+                int iMedals = 0;
+                for (int j = 0; j < 9; ++j)
+                {
+                    iMedals += pProfile->mGameOptions.mMedalsGathered[j];
+                }
+                iRank = MedalsMgr::GetRankLevel(iMedals);
+            }
+            unsigned int uRankName = 0;
+            switch (iRank)
+            {
+            case 0: uRankName = 0x4191047cu /* "ifs.Stats.playertitle.private" */; break;
+            case 1: uRankName = 0xf0532ad2u /* "ifs.Stats.playertitle.sergeant" */; break;
+            case 2: uRankName = 0x9937379bu /* "ifs.Stats.playertitle.captain" */; break;
+            case 3: uRankName = 0xa03313bbu /* "ifs.Stats.playertitle.General" */; break;
+            }
+            Stats_AddItem(RedLocalizeDB::Find(0x7d54045eu /* "ifs.Stats.rank" */, false), RedLocalizeDB::Find(uRankName, false));
+            break;
+        }
+        case 5:
+        {
+            unsigned short usBlank[5];
+            ustrncnv(usBlank, "", 5);
+            Stats_AddItem(usBlank, usBlank);
+            break;
+        }
+        case 6:
+        {
+            int iKills, iDeaths;
+            if (pProfile)
+            {
+                iKills = pProfile->mAccumPoints.mTotalKills;
+                iDeaths = pProfile->mAccumPoints.mTotalDeaths;
+            }
+            else
+            {
+                iKills = pStats->GetKills(-1, 1) + pStats->GetKills(-1, 0);
+                iDeaths = pStats->GetDeaths(-1, 1) + pStats->GetDeaths(-1, 0);
+            }
+            LuaHelper::TableWriteVal("labelustr", RedLocalizeDB::Find(0xfa323a81u /* "ifs.Stats.killDeathRatio" */, false));
+            if (iDeaths)
+            {
+                char acRatio[8];
+                _snprintf(acRatio, 8, "%.2f", (float)iKills / (float)iDeaths);
+                LuaHelper::TableWriteVal("contentsstr", acRatio);
+            }
+            else
+            {
+                LuaHelper::TableWriteVal("contentsstr", "--");
+            }
+            break;
+        }
+        case 7:
+        {
+            int iPoints, iLives;
+            if (pProfile)
+            {
+                iPoints = pProfile->mAccumPoints.mTotalPoints;
+                iLives = pProfile->mAccumPoints.mTotalDeaths + 1;
+            }
+            else
+            {
+                iPoints = pStats->GetPoints();
+                iLives = pStats->GetDeaths(-1, 1) + pStats->GetDeaths(-1, 0) + 1;
+            }
+            Stats_AddItem(RedLocalizeDB::Find(0xca14cb66u /* "ifs.Stats.ptsperlife" */, false), iPoints / iLives);
+            break;
+        }
+        }
+        lua_rawseti(LuaHelper::mState, -2, i - iFirst + 1);
+    }
+
+    lua_pushstring(LuaHelper::mState, "stats_listbox_contents");
+    lua_insert(LuaHelper::mState, -2);
+    lua_settable(LuaHelper::mState, LUA_GLOBALSINDEX);
+    DoPeriodicLuaGC(false);
+    return 0;
+}
+
+// FUNCTION: SWBF2 0x005a00a0
+int ScriptCB_GetCareerRank(lua_State*)
+{
+    if (lua_gettop(LuaHelper::mState) != 1)
+    {
+        return 0;
+    }
+    if (!lua_isnumber(LuaHelper::mState, 1))
+    {
+        return 0;
+    }
+    int iCharacter = (int)luaL_checknumber(LuaHelper::mState, 1);
+    Character* pCharacter = Character::sCharacters && iCharacter >= 0 &&
+        iCharacter < Character::sCharacterLimit ? &Character::sCharacters[iCharacter] : 0;
+    lua_pushnumber(LuaHelper::mState, (float)pCharacter->mMedalsMgr->GetRank());
+    return 1;
+}
+
+// FUNCTION: SWBF2 0x005a0140
+int ScriptCB_GetCareerMedals(lua_State*)
+{
+    if (lua_gettop(LuaHelper::mState) != 2 || !lua_isnumber(LuaHelper::mState, 1))
+    {
+        return 0;
+    }
+    if (lua_isnumber(LuaHelper::mState, 2))
+    {
+        int iCharacter = (int)luaL_checknumber(LuaHelper::mState, 1);
+        float fPage = (float)luaL_checknumber(LuaHelper::mState, 2);
+        const char* pcTable = (int)fPage == 0 ? "stats_medalbox_left_contents" : "stats_medalbox_right_contents";
+        DoPeriodicLuaGC(true);
+
+        if (NetGame::IsEnabled() && NetGame::IsClient() && !PlayerStats::mGotMPStats)
+        {
+            lua_pushnil(LuaHelper::mState);
+            LuaHelper::SetGlobal(pcTable);
+            DoPeriodicLuaGC(false);
+            lua_newtable(LuaHelper::mState);
+            lua_newtable(LuaHelper::mState);
+            unsigned short usText[30];
+            ustrncnv(usText, "fix MP stats", 30);
+            Stats_AddItem(usText, usText);
+            lua_rawseti(LuaHelper::mState, -2, 1);
+            LuaHelper::SetGlobal(pcTable);
+            DoPeriodicLuaGC(false);
+            return 0;
+        }
+
+        lua_gettop(LuaHelper::mState);
+        lua_pushnil(LuaHelper::mState);
+        LuaHelper::SetGlobal(pcTable);
+        DoPeriodicLuaGC(false);
+        lua_newtable(LuaHelper::mState);
+
+        const short* psGathered = 0;
+        MedalsMgr* pMedals = 0;
+        if (iCharacter < 0)
+        {
+            PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(GetStatsPageJoystick());
+            if (pProfile)
+            {
+                psGathered = pProfile->mGameOptions.mMedalsGathered;
+            }
+        }
+        else
+        {
+            Character* pCharacter = Character::GetPtr(iCharacter);
+            if (pCharacter)
+            {
+                pMedals = pCharacter->mMedalsMgr;
+            }
+        }
+
+        int iPage = (int)fPage;
+        int iFirst = iPage ? 5 : 0;
+        int iEnd = iPage ? 9 : 5;
+        for (int i = iFirst; i < iEnd; ++i)
+        {
+            lua_newtable(LuaHelper::mState);
+            switch (i)
+            {
+            case 0:
+                CareerMedals_AddItem(RedLocalizeDB::Find(0xcafcdffeu /* "game.awards.medal.Gunslinger" */, false),
+                                     pMedals ? pMedals->GetMedals(0) : psGathered[0],
+                                     pMedals ? pMedals->GetLevel(0) : MedalsMgr::GetMedalLevel(psGathered[0]));
+                break;
+            case 1:
+                CareerMedals_AddItem(RedLocalizeDB::Find(0x4c112ebcu /* "game.awards.medal.demolition" */, false),
+                                     pMedals ? pMedals->GetMedals(2) : psGathered[2],
+                                     pMedals ? pMedals->GetLevel(2) : MedalsMgr::GetMedalLevel(psGathered[2]));
+                break;
+            case 2:
+                CareerMedals_AddItem(RedLocalizeDB::Find(0x21c98eadu /* "game.awards.medal.regulator" */, false),
+                                     pMedals ? pMedals->GetMedals(5) : psGathered[5],
+                                     pMedals ? pMedals->GetLevel(5) : MedalsMgr::GetMedalLevel(psGathered[5]));
+                break;
+            case 3:
+                CareerMedals_AddItem(RedLocalizeDB::Find(0xe4035095u /* "game.awards.medal.guardian" */, false),
+                                     pMedals ? pMedals->GetMedals(7) : psGathered[7],
+                                     pMedals ? pMedals->GetLevel(7) : MedalsMgr::GetMedalLevel(psGathered[7]));
+                break;
+            case 4:
+                CareerMedals_AddItem(RedLocalizeDB::Find(0xea62b23cu /* "game.awards.medal.frenzy" */, false),
+                                     pMedals ? pMedals->GetMedals(1) : psGathered[1],
+                                     pMedals ? pMedals->GetLevel(1) : MedalsMgr::GetMedalLevel(psGathered[1]));
+                break;
+            case 5:
+                CareerMedals_AddItem(RedLocalizeDB::Find(0xed854facu /* "game.awards.medal.technician" */, false),
+                                     pMedals ? pMedals->GetMedals(3) : psGathered[3],
+                                     pMedals ? pMedals->GetLevel(3) : MedalsMgr::GetMedalLevel(psGathered[3]));
+                break;
+            case 6:
+                CareerMedals_AddItem(RedLocalizeDB::Find(0xd7a03b48u /* "game.awards.medal.marksman" */, false),
+                                     pMedals ? pMedals->GetMedals(4) : psGathered[4],
+                                     pMedals ? pMedals->GetLevel(4) : MedalsMgr::GetMedalLevel(psGathered[4]));
+                break;
+            case 7:
+                CareerMedals_AddItem(RedLocalizeDB::Find(0x4e47ef5bu /* "game.awards.medal.endurance" */, false),
+                                     pMedals ? pMedals->GetMedals(6) : psGathered[6],
+                                     pMedals ? pMedals->GetLevel(6) : MedalsMgr::GetMedalLevel(psGathered[6]));
+                break;
+            case 8:
+                CareerMedals_AddItem(RedLocalizeDB::Find(0xfd7404ccu /* "game.awards.medal.warhero" */, false),
+                                     pMedals ? pMedals->GetMedals(8) : psGathered[8],
+                                     pMedals ? pMedals->GetLevel(8) : MedalsMgr::GetMedalLevel(psGathered[8]));
+                break;
+            }
+            lua_rawseti(LuaHelper::mState, -2, i - iFirst + 1);
+        }
+
+        lua_pushstring(LuaHelper::mState, pcTable);
+        lua_insert(LuaHelper::mState, -2);
+        lua_settable(LuaHelper::mState, LUA_GLOBALSINDEX);
+        DoPeriodicLuaGC(false);
+    }
+    return 0;
+}
+
+// FUNCTION: SWBF2 0x005a0630
+int ScriptCB_GetCareerMedalLevel(lua_State*)
+{
+    if (lua_gettop(LuaHelper::mState) != 2)
+    {
+        return 0;
+    }
+    int iCharacter = (int)luaL_checknumber(LuaHelper::mState, 1);
+    int iType = (int)luaL_checknumber(LuaHelper::mState, 2);
+    int iLevel;
+    if (iCharacter < 0)
+    {
+        PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(GetStatsPageJoystick());
+        iLevel = MedalsMgr::GetMedalLevel(pProfile->mGameOptions.mMedalsGathered[iType]);
+    }
+    else
+    {
+        Character* pCharacter = Character::sCharacters && iCharacter < Character::sCharacterLimit
+            ? &Character::sCharacters[iCharacter] : 0;
+        iLevel = pCharacter->mMedalsMgr->GetLevel(iType);
+    }
+    lua_pushnumber(LuaHelper::mState, (float)iLevel);
+    return 1;
 }
 
 // FUNCTION: SWBF2 0x0059e510

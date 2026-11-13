@@ -3,8 +3,15 @@
 namespace Snd
 {
 
-struct StreamPacket
+class StreamPacket
 {
+public:
+    enum Flags
+    {
+        flags_lastPacket = 1,
+        flags_discontinuity = 2
+    };
+    typedef void (__cdecl* CompleteCallback)(StreamPacket* const, void* const);
 
     // FUNCTION: SWBF2 0x0053c610
     StreamPacket()
@@ -22,14 +29,6 @@ struct StreamPacket
     ~StreamPacket() {}
 
     void Lock() { ++mRefCount; }
-    bool IsLocked() const { return mRefCount > 0; }
-
-    void SetUsed(unsigned int uiUsed) { mBufferUsed = uiUsed; }
-    unsigned int GetUsed() const { return mBufferUsed; }
-    void SetPosition(unsigned int uiPosition) { mPos = uiPosition; }
-    unsigned int GetPosition() const { return mPos; }
-    void SetBuffer(void* pBuffer) { mBuffer = pBuffer; }
-    void* GetBuffer() const { return mBuffer; }
 
     // FUNCTION: SWBF2 0x0053d330
     void Unlock()
@@ -51,9 +50,14 @@ struct StreamPacket
         }
     }
 
-    bool GetLast() const { return (mFlags & 1) != 0; }
+    bool IsLocked() const { return mRefCount > 0; }
 
-    bool GetDiscontinuity() const { return ((mFlags >> 1) & 1) != 0; }
+    void SetUsed(unsigned int uiUsed) { mBufferUsed = uiUsed; }
+    unsigned int GetUsed() const { return mBufferUsed; }
+    void SetPosition(unsigned int uiPosition) { mPos = uiPosition; }
+    unsigned int GetPosition() const { return mPos; }
+    void SetBuffer(void* pBuffer) { mBuffer = pBuffer; }
+    void* GetBuffer() const { return mBuffer; }
 
     void SetLast(bool bLast)
     {
@@ -66,6 +70,8 @@ struct StreamPacket
             mFlags &= 0xFFFE;
         }
     }
+
+    bool GetLast() const { return (mFlags & 1) != 0; }
 
     // FUNCTION: SWBF2 0x0073caf0
     void SetDiscontinuity(bool bDiscontinuity)
@@ -80,13 +86,25 @@ struct StreamPacket
         }
     }
 
+    bool GetDiscontinuity() const { return ((mFlags >> 1) & 1) != 0; }
+
+    void SetCallback(CompleteCallback pCallback, void* pCallbackData)
+    {
+        mCallback = pCallback;
+        mCallbackData = pCallbackData;
+    }
+
+    CompleteCallback GetCallback() const { return mCallback; }
+
+    void* GetCallbackData() const { return mCallbackData; }
+
+private:
     unsigned int mPos;
     void* mBuffer;
     unsigned int mBufferUsed;
     unsigned short mRefCount;
     unsigned short mFlags;
-    void (__cdecl* mCallback)(StreamPacket* const,
-                             void* const);
+    CompleteCallback mCallback;
     void* mCallbackData;
 };
 

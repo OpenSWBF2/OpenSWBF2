@@ -7,7 +7,7 @@
 #include "RedEngineFL/Memory/engineAlloc.h"
 
 // FUNCTION: SWBF2 0x00411940
-void pcDynamicSprite::ClearViewportsCallback::Render(int)
+void pcDynamicSprite::ClearViewportsCallback::Render(unsigned int) const
 {
     m_pOwner->ClearViewports();
 }
@@ -22,7 +22,7 @@ void pcDynamicSprite::Init()
 }
 // FUNCTION: SWBF2 0x004119e0
 pcDynamicSprite::pcDynamicSprite()
-    : Renderable(2), m_ClearViewportsCallback(this)
+    : Renderable(RENDERABLE_PREWORLD), m_ClearViewportsCallback(this)
 {
     m_iNumViewports = 0;
     m_iNumViewportsX = 0;
@@ -62,7 +62,7 @@ void pcDynamicSprite::Deactivate()
 }
 
 // FUNCTION: SWBF2 0x00411c10
-void pcDynamicSprite::Render(int)
+void pcDynamicSprite::Render(unsigned int) const
 {
     m_iNumTempBufferSprites = 0;
     m_bViewportsLocked = false;

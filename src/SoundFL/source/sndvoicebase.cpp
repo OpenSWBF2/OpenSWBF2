@@ -22,7 +22,7 @@ VoiceBase::VoiceBase()
     SetMuteDistance(1.0f);
     SetMaxDistance(1.0f);
 
-    Source3D::mProps = static_cast<Source3D::Properties*>(this);
+    Source3D::mProps = (Source3D::Properties*)this;
     SetPosVel3D(&Globals::smNullVector, &Globals::smNullVector);
 
     Set3DMode(true);
@@ -78,7 +78,7 @@ void VoiceBase::SetSample(const Sample* pSample)
     if (pSample != mSample)
     {
         mFlags |= flags_updateSample;
-        mSample = const_cast<Sample*>(pSample);
+        mSample = pSample;
     }
 }
 

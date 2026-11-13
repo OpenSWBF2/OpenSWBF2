@@ -65,16 +65,10 @@ template bool util::Vector<char const*, util::BaseArray<char const*,
 // util::HashTable_<int *,char const *,util::Vector<int *,util::BaseArray<int *,util::TypedArrayAllocator<int *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >,util::Vector<char const *,util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::SingletonAllocator<util::DefaultStaticAllocator> > > > >::FindIndex_
 template unsigned int util::HashTable_<int*, char const*, util::HashTable<int*, char const*, util::SingletonAllocator<util::DefaultStaticAllocator> >::ElemVecT, util::HashTable<int*, char const*, util::SingletonAllocator<util::DefaultStaticAllocator> >::KeyVecT, util::HashTable<int*, char const*, util::SingletonAllocator<util::DefaultStaticAllocator> >::HashVecT>::FindIndex_(unsigned int) const;
 
-// TEMPLATE: SWBF2 0x006ad580
-// util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::SingletonAllocator<util::DefaultStaticAllocator> > >
 template util::BaseArray<unsigned int,
     util::TypedArrayAllocator<unsigned int, util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray();
-// TEMPLATE: SWBF2 0x006ad5d0
-// util::BaseArray<int *,util::TypedArrayAllocator<int *,util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray<int *,util::TypedArrayAllocator<int *,util::SingletonAllocator<util::DefaultStaticAllocator> > >
 template util::BaseArray<int*,
     util::TypedArrayAllocator<int*, util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray();
-// TEMPLATE: SWBF2 0x006ad620
-// util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray<char const *,util::TypedArrayAllocator<char const *,util::SingletonAllocator<util::DefaultStaticAllocator> > >
 template util::BaseArray<char const*,
     util::TypedArrayAllocator<char const*, util::SingletonAllocator<util::DefaultStaticAllocator> > >::~BaseArray();
 
@@ -655,8 +649,7 @@ bool RenderObject(RedSceneObject* pObject, unsigned int uiFlags, int iClip)
     {
         fZoom = pCamera->GetZoom();
     }
-    PblVector3 vView;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vView), reinterpret_cast<const D3DXVECTOR3*>(&*(const PblVector3*)&pObject->_Sphere), reinterpret_cast<const D3DXMATRIX*>(&pCamera->GetMatrixInverse()));
+    PblVector3 vView = pCamera->TransformWorldPointToCameraSpace(pObject->_Sphere.GetCenter());
 
     if (pLodData->HasLowRes() && !pLodData->CrossFadeLowRes())
     {
@@ -1093,10 +1086,10 @@ void RedSceneManager::_RenderTransparentObjects(unsigned int uiFlags)
     typedef PblHeap<RedSceneObject*, float> TransparentHeap;
 
     mTransparentPhase = true;
-    while (!static_cast<TransparentHeap*>(mTransparentObjects)->IsEmpty())
+    while (!((TransparentHeap*)mTransparentObjects)->IsEmpty())
     {
-        RedSceneObject* pObject = static_cast<TransparentHeap*>(mTransparentObjects)->Get(0);
-        static_cast<TransparentHeap*>(mTransparentObjects)->Pop();
+        RedSceneObject* pObject = ((TransparentHeap*)mTransparentObjects)->Get(0);
+        ((TransparentHeap*)mTransparentObjects)->Pop();
         pObject->Render(0, 1.0f, pObject->_uiRenderFlags | uiFlags);
     }
     mTransparentPhase = false;

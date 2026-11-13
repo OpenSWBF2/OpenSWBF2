@@ -59,8 +59,6 @@
 #include "StatIconDisplay.h"
 #include "Tracker.h"
 #include "VehicleSpawn.h"
-#include "Battlefront2/Platform/Pc/pcGrassPatch.h"
-#include "Battlefront2/Platform/Pc/pcLeafPatch.h"
 #include "RedEngineFL/Application/pc/pcRedShadowProxy.h"
 #include "RedEngineFL/Application/RedTerrain.h"
 #include "RedEngineFL/Interface/RedGlyphCacheElement.h"
@@ -74,14 +72,31 @@
 #include "ShellLoop.h"
 #include "RedEngineFL/Interface/RedShadowBlob.h"
 
-// SYNTHETIC: SWBF2 0x004023e0
-// `dynamic initializer for 'EntityCloth::sMemoryPool''
-// SYNTHETIC: SWBF2 0x00766df0
-// `dynamic atexit destructor for 'EntityCloth::sMemoryPool''
+// GLOBAL: SWBF2 0x0078db38
+static PblVector3 WIND_DIRECTION(1.0f, 0.0f, 0.0f);
 
-// GLOBAL: SWBF2 0x01eb1080
-// EntityCloth::sMemoryPool
-MemoryPool EntityCloth::sMemoryPool("EntityCloth", sizeof(EntityCloth));
+// SYNTHETIC: SWBF2 0x004023a0
+// `dynamic initializer for 'EntityCloth::rttiHashEntityCloth''
+// EntityCloth::rttiHashEntityCloth
+
+// GLOBAL: SWBF2 0x01eb0fcc
+// EntityCloth::rttiHashEntityCloth
+PblHash EntityCloth::rttiHashEntityCloth("EntityCloth");
+// GLOBAL: SWBF2 0x00788a70
+// EntityCloth::rttiNameEntityCloth
+const char EntityCloth::rttiNameEntityCloth[] = "EntityCloth";
+
+// SYNTHETIC: SWBF2 0x004023b0
+// `dynamic initializer for 'EntityClothClass::rttiHashEntityClothClass''
+// EntityClothClass::rttiHashEntityClothClass
+
+// GLOBAL: SWBF2 0x01eb062c
+// EntityClothClass::rttiHashEntityClothClass
+PblHash EntityClothClass::rttiHashEntityClothClass("EntityClothClass");
+// GLOBAL: SWBF2 0x00788a48
+// EntityClothClass::rttiNameEntityClothClass
+const char EntityClothClass::rttiNameEntityClothClass[] = "EntityClothClass";
+
 // SYNTHETIC: SWBF2 0x004023c0
 // `dynamic initializer for 'ClothData::sMemoryPool''
 // SYNTHETIC: SWBF2 0x00766de0
@@ -90,6 +105,14 @@ MemoryPool EntityCloth::sMemoryPool("EntityCloth", sizeof(EntityCloth));
 // GLOBAL: SWBF2 0x01eb10d0
 // ClothData::sMemoryPool
 MemoryPool ClothData::sMemoryPool("ClothData", sizeof(ClothData));
+// SYNTHETIC: SWBF2 0x004023e0
+// `dynamic initializer for 'EntityCloth::sMemoryPool''
+// SYNTHETIC: SWBF2 0x00766df0
+// `dynamic atexit destructor for 'EntityCloth::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01eb1080
+// EntityCloth::sMemoryPool
+MemoryPool EntityCloth::sMemoryPool("EntityCloth", sizeof(EntityCloth));
 // SYNTHETIC: SWBF2 0x00402400
 // `dynamic initializer for 'ClothData::s_clothDataHashTable''
 
@@ -117,7 +140,7 @@ void ClothData::_Read(PblFileChunk& chunk)
         char acString[128];
         switch (child._iId)
         {
-        case 0x4D524658:
+        case CHUNK_ID('X', 'F', 'R', 'M'):
         {
             float x = child._pFile->ReadFloat();
             float y = child._pFile->ReadFloat();
@@ -140,7 +163,7 @@ void ClothData::_Read(PblFileChunk& chunk)
             m_Transform.SetTranslation(x, y, z, 1.0f);
             break;
         }
-        case 0x41544144:
+        case CHUNK_ID('D', 'A', 'T', 'A'):
         {
             child.ReadString(acString, sizeof(acString));
             m_uiTextureNameHash = PblHash(acString);
@@ -211,19 +234,19 @@ void ClothData::_Read(PblFileChunk& chunk)
             }
             break;
         }
-        case 0x454D414E:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
             child.ReadString(acString, sizeof(acString));
             m_uiNameHash = PblHash(acString);
             break;
-        case 0x544E5250:
+        case CHUNK_ID('P', 'R', 'N', 'T'):
             child.ReadString(acString, sizeof(acString));
             m_uiParentHash = PblTEMPHash(acString);
             break;
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             child.ReadString(acString, sizeof(acString));
             m_uiModelHash = PblHash(acString);
             break;
-        case 0x4C4C4F43:
+        case CHUNK_ID('C', 'O', 'L', 'L'):
         {
             m_uiNumCollisionVolumes = child._pFile->Read32();
             m_pCollisionVolumes = new ClothCollision[m_uiNumCollisionVolumes];
@@ -265,6 +288,7 @@ void ClothData::_Read(PblFileChunk& chunk)
     }
 }
 
+
 // FUNCTION: SWBF2 0x00459ab0
 EntityClothClass::EntityClothClass(unsigned int uHash)
     : EntityClass(uHash)
@@ -275,7 +299,7 @@ EntityClothClass::EntityClothClass(unsigned int uHash)
         mNetIndex = -1;
     }
 
-    mWindDirection = gVectorUnitX;
+    mWindDirection = WIND_DIRECTION;
     mWindSpeed = 10.0f;
     mDampening = 0.5f;
     mDrag = -2.0f;
@@ -326,28 +350,6 @@ template void util::HashTable_<ClothBank*, unsigned int, ClothBE::ClothDataT::El
 
 // TEMPLATE: SWBF2 0x0045c720
 // util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::TNewArrayAlloc<ClothBank *> > >::Reserve_
-
-// SYNTHETIC: SWBF2 0x004023a0
-// `dynamic initializer for 'EntityCloth::rttiHashEntityCloth''
-// EntityCloth::rttiHashEntityCloth
-
-// GLOBAL: SWBF2 0x01eb0fcc
-// EntityCloth::rttiHashEntityCloth
-PblHash EntityCloth::rttiHashEntityCloth("EntityCloth");
-// GLOBAL: SWBF2 0x00788a70
-// EntityCloth::rttiNameEntityCloth
-const char EntityCloth::rttiNameEntityCloth[] = "EntityCloth";
-
-// SYNTHETIC: SWBF2 0x004023b0
-// `dynamic initializer for 'EntityClothClass::rttiHashEntityClothClass''
-// EntityClothClass::rttiHashEntityClothClass
-
-// GLOBAL: SWBF2 0x01eb062c
-// EntityClothClass::rttiHashEntityClothClass
-PblHash EntityClothClass::rttiHashEntityClothClass("EntityClothClass");
-// GLOBAL: SWBF2 0x00788a48
-// EntityClothClass::rttiNameEntityClothClass
-const char EntityClothClass::rttiNameEntityClothClass[] = "EntityClothClass";
 
 
 
@@ -476,10 +478,10 @@ void EntityClothClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x13901A72:
+    case 0x13901A72: /* "windspeed" */
         sscanf(pszValue, "%f", &mWindSpeed);
         break;
-    case 0x415E2B30:
+    case 0x415E2B30: /* "winddirection" */
     {
         float fAngleZ = 0.0f;
         float fAngleY = 0.0f;
@@ -491,57 +493,57 @@ void EntityClothClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mWindDirection = PblVector3(fCos * vWind.x - fSin * vWind.z, vWind.y, fSin * vWind.x + fCos * vWind.z);
         break;
     }
-    case 0x4E994B61:
+    case 0x4E994B61: /* "maxacceleration" */
         sscanf(pszValue, "%f", &mMaxAcceleration);
         break;
-    case 0x5CAF15E1:
+    case 0x5CAF15E1: /* "hardedge" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
         m_uiHardEdge = iValue > 1 ? 1 : iValue;
         break;
     }
-    case 0x6EB957F3:
+    case 0x6EB957F3: /* "particlemass" */
         sscanf(pszValue, "%f", &mParticleMass);
         break;
-    case 0x8311CD99:
+    case 0x8311CD99: /* "stretchconstraint" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
         m_uiDoStretchConstraints = iValue > 1 ? 1 : iValue;
         break;
     }
-    case 0x94DD79B9:
+    case 0x94DD79B9: /* "bendconstraint" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
         m_uiDoBendConstraints = iValue > 1 ? 1 : iValue;
         break;
     }
-    case 0x94E4E309:
+    case 0x94E4E309: /* "priority" */
         sscanf(pszValue, "%f", &mPriority);
         break;
-    case 0xAFE34731:
+    case 0xAFE34731: /* "transparent" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
         m_uiTransparent = iValue > 1 ? 1 : iValue;
         break;
     }
-    case 0xB88C0D43:
+    case 0xB88C0D43: /* "drag" */
         sscanf(pszValue, "%f", &mDrag);
         break;
-    case 0xC1133964:
+    case 0xC1133964: /* "dampening" */
         sscanf(pszValue, "%f", &mDampening);
         break;
-    case 0xDE112858:
+    case 0xDE112858: /* "crossconstraint" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
         m_uiDoCrossConstraints = (iValue > 1 ? 1 : iValue) != 0;
         break;
     }
-    case 0xE90ECACC:
+    case 0xE90ECACC: /* "attachedmesh" */
         mModelHash = PblHash(pszValue);
         break;
     }
@@ -680,29 +682,6 @@ void EntityCloth::ClearData()
     m_pPos = 0;
 }
 
-
-// FUNCTION: SWBF2 0x0040fe10
-void ClothData::PlatformBindInit(EntityClothClass* pClass)
-{
-    ClothData* pData = (ClothData*)this;
-    if (pData->m_pShader)
-    {
-        pData->m_pShader->Release();
-    }
-
-    unsigned int uiMode = 1;
-    if (pClass->m_uiHardEdge)
-    {
-        uiMode = 3;
-    }
-    else if (pClass->m_uiTransparent)
-    {
-        uiMode = 5;
-    }
-
-    pData->m_pShader = pcRedShader::Create(kuiNormalShader, 0x222, &pData->m_uiTextureNameHash, 1, uiMode,
-                                           RedColor::WHITE, RedColor::BLACK, 32.0f);
-}
 
 // FUNCTION: SWBF2 0x0045a260
 EntityCloth::EntityCloth(EntityClothClass* pClass, const EntityDesc& desc)
@@ -1095,7 +1074,7 @@ void EntityCloth::Verlet(float fDeltaTime)
         const PblVector3 vTemp = vPos;
         PblVector3& vOld = m_pOldPos[i];
         PblVector3& vAcceleration = m_pAcceleration[i];
-        vPos += (vPos - vOld) + fDt2 * vAcceleration;
+        vPos += (vPos - vOld) + vAcceleration * fDt2;
         vOld = vTemp;
     }
 }

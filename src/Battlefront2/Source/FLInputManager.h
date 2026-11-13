@@ -6,163 +6,6 @@
 #include "ActionKey.h"
 #include "RedEngineFL/input/RedInputEventHandler.h"
 
-struct BindDestination
-{
-    int mDest;
-};
-
-struct ActionKey;
-
-struct UiBindKeys;
-
-class RedKeyboard;
-class RedLogitechLCD;
-
-// VTABLE: SWBF2 0x00796504
-class RawControllerInputs
-{
-public:
-
-    void ApplyDeadZone(int iLevel);
-
-    RawControllerInputs();
-
-    // SYNTHETIC: SWBF2 0x00414960
-    // RawControllerInputs::`scalar deleting destructor'
-
-    // FUNCTION: SWBF2 0x00414950
-    virtual ~RawControllerInputs() {}
-
-    void CloseChatMode();
-
-    void ReadLatest(float fDeltaTime);
-    void StandardInputProcess();
-    void ChatInputProcess();
-
-    void TeamOrderInputProcess();
-    void ChatKeyProcess(unsigned char ucIndex);
-
-    static float AdjustValueForSensitivity(float fValue, unsigned char ucSensitivity);
-
-    static int __fastcall IndexToRedKey(int iIndex);
-
-    RedKeyboard* GetKeyboard() { return _redKeyboard; }
-
-    void ClearInputsToOff();
-
-    int GetFunctionForAnalog(int iAnalog, int iMode);
-
-    bool IsDefaultBindings(int iMode);
-
-    ActionKey GetCurKeyBinding(unsigned int uiMode, ePROCESSEDINPUT_TYPE uiAction)
-    {
-        return mCurKeyboardBindings[uiMode][uiAction];
-    }
-
-    unsigned int GetInputMode() const { return mMode; }
-    void SetInputMode(unsigned int uiMode) { mMode = uiMode; }
-
-    bool GetFlip() { return mFlip[GetInputMode()] != 0; }
-    bool GetMouseAssist() const { return mMouseAssist[GetInputMode()]; }
-    unsigned char GetJoystickSensitivityX() const { return mJoystickSensitivityX[GetInputMode()]; }
-    unsigned char GetJoystickSensitivityY() const { return mJoystickSensitivityY[GetInputMode()]; }
-    void SetMouseAssist(bool assist, int mode) { mMouseAssist[mode] = assist; }
-
-    void SetFlip(bool bFlip) { mFlip[GetInputMode()] = bFlip; }
-    bool GetFlipForMode(int iMode) { return mFlip[iMode]; }
-
-    void SetKeyBindingsFromMode(ActionKey* pKeys, unsigned int uiMode)
-    {
-        memcpy(mCurKeyboardBindings[uiMode], pKeys, 0x102);
-    }
-
-    float GetMouseX() const { return mRawInputFloat[0][64]; }
-    float GetMouseY() const { return mRawInputFloat[0][65]; }
-
-    static BindDestination sDefaultBindings[5][76];
-
-    static ActionKey sDefaultKeyboardBindings[5][43];
-
-    static UiBindKeys sKeyboardGuiBindings[144];
-    static UiBindKeys s_defUIBindings[76];
-
-
-    unsigned int mMode;
-    bool mFlip[5];
-    unsigned char mReservedAfterFlip[3];
-    float mRawInputFloat[10][76];
-    float mLastRawInputFloat[10][76];
-    bool mLockedRawInputBool[10][76];
-    BindDestination mCurBindings[5][76];
-    ActionKey mCurKeyboardBindings[5][43];
-    unsigned char mReservedBeforeGuiInputs[2];
-    GUIInputs* m_pGuiInputs;
-    bool mProcessAfterReading;
-    unsigned char mReservedBeforeProcessDestination[3];
-    ProcessedInputs* mProcessDestination;
-    union {
-        RedJoystick* _redJoystick[11];
-        struct {
-            RedJoystick* mAttachedJoysticks[10];
-    RedLogitechLCD* mLCDPanel;
-        };
-    };
-
-    bool mScreenshotButtonState[2];
-    unsigned char mReservedBeforeMouse[2];
-    RedMouse* _redMouse;
-    RedKeyboard* _redKeyboard;
-    double mMouseSensitivity[5];
-    unsigned char mJoystickSensitivityX[5];
-    unsigned char mJoystickSensitivityY[5];
-    bool mMouseAssist[5];
-    bool m_CurrKeyState[144];
-    bool m_LastKeyState[144];
-    unsigned short m_ChatMode;
-    unsigned short m_ChatWords[64];
-    unsigned char m_ChatLength;
-    unsigned char m_KeyDownTime[144];
-    double mMouseOldX;
-    double mMouseOldY;
-    float mMouseOldXTimer;
-    float mMouseOldYTimer;
-
-    int mLastMouseDeltaX;
-    int mLastMouseDeltaY;
-};
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-
 // VTABLE: SWBF2 0x0079f1e0
 class FLInputManager : public RedInputEventHandler
 {
@@ -173,7 +16,10 @@ public:
     // SYNTHETIC: SWBF2 0x00529bd0
     // FLInputManager::`scalar deleting destructor'
 
-    virtual ~FLInputManager();
+    // FUNCTION: SWBF2 0x00529b30
+    virtual ~FLInputManager()
+    {
+    }
 
     RawControllerInputs* GetPlayerJoystick(int iPlayer);
 

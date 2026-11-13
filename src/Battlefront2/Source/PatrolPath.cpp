@@ -31,14 +31,14 @@ bool AI::PatrolPath::NodeProperties::ReadPropertyScope(PblConfig& config, PblCon
     NodeProperties* pProps = pPath->mNodeProps;
     switch (data.GetId())
     {
-    case 0x88BE386Eu:
+    case 0x88BE386Eu: /* "WaitMax" */
     {
         float fMax = data.GetFloatArg(0);
         pProps[uIndex].mWaitMax = fMax;
         pProps[uIndex].mWaitMin = fMax > pProps[uIndex].mWaitMin ? pProps[uIndex].mWaitMin : fMax;
         return true;
     }
-    case 0x9AD1DC7Cu:
+    case 0x9AD1DC7Cu: /* "WaitMin" */
     {
         float fMin = data.GetFloatArg(0);
         pProps[uIndex].mWaitMin = fMin;
@@ -171,7 +171,7 @@ bool AI::PatrolPath::Read(PblConfig& config)
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (data.GetId() == 0x84874D36u)
+        if (data.GetId() == 0x84874D36u /* "Path" */)
         {
             if (data.GetNumArgs())
             {
@@ -186,7 +186,7 @@ bool AI::PatrolPath::Read(PblConfig& config)
             while (!scope.IsDone())
             {
                 PblConfig::Data child = scope.ReadNextData();
-                if (child.GetId() == 0x514E905Au)
+                if (child.GetId() == 0x514E905Au /* "Nodes" */)
                 {
                     mNodeProps = new NodeProperties[child.GetUint32Arg(0)];
                 }

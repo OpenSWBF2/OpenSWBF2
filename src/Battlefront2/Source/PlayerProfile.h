@@ -331,8 +331,8 @@ struct OnePrefs
  
 
 extern OnePrefs mAllUserPrefs[1];
-int __fastcall FindByPlayerId(int iPlayer);
-int __fastcall FindByViewport(int iViewport);
+int FindByPlayerId(int iPlayer);
+int FindByViewport(int iViewport);
 int FindByJoystick(int aJoystick);
 }
 

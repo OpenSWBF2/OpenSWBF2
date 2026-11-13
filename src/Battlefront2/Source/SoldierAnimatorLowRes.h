@@ -103,7 +103,10 @@ public:
     static void AddBank(const char* pcName, const char* pcParent);
     static void PostLoad();
     static SoldierAnimatorLowRes* GetAnimator(const EntitySoldier& soldier);
-    static ZephyrSkeletonShared* GetDefaultSkeleton();
+    static ZephyrSkeletonShared* GetDefaultSkeleton()
+    {
+        return s_pHead ? s_pHead->m_pZephyrSkeletonShared : 0;
+    }
 
 private:
     SoldierAnimatorLowRes* GetAnimatorLocal(const EntitySoldier& soldier);

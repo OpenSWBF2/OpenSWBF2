@@ -10,8 +10,8 @@
 #include "RedEngineFL/Interface/RedFont.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 
-static const unsigned int kModel3DHash = 0x1eccdefd;
-static const unsigned int kTextHash = 0xbde64e3e;
+static const unsigned int kModel3DHash = 0x1eccdefd /* "Model3D" */;
+static const unsigned int kTextHash = 0xbde64e3e /* "Text" */;
 
 // GLOBAL: SWBF2 0x00789bd0
 const char* const HUD::ElementVehicleSeating::sMarkerNames[4] = { "Empty", "Self", "Player", "AI" };
@@ -22,12 +22,12 @@ const char* const HUD::ElementVehicleSeating::sMarkerTextNames[4] = { "EmptyText
 
 // GLOBAL: SWBF2 0x00789b90
 const unsigned int HUD::ElementVehicleSeating::sHPNames[16] = {
-    0x963caf2a, 0x9b7f89f3, 0x9fbe9444, 0x81f9c441, 0x8538d9f6, 0x887bff2f, 0x8cbae298, 0xb4f55f25,
-    0xb0344292, 0x66f171f7, 0x62306c40, 0x6f734a99, 0x6bb2572e, 0x75f5072b, 0x71341a9c, 0x7c773c45 };
+    0x963caf2a /* "hp_1" */, 0x9b7f89f3 /* "hp_2" */, 0x9fbe9444 /* "hp_3" */, 0x81f9c441 /* "hp_4" */, 0x8538d9f6 /* "hp_5" */, 0x887bff2f /* "hp_6" */, 0x8cbae298 /* "hp_7" */, 0xb4f55f25 /* "hp_8" */,
+    0xb0344292 /* "hp_9" */, 0x66f171f7 /* "hp_10" */, 0x62306c40 /* "hp_11" */, 0x6f734a99 /* "hp_12" */, 0x6bb2572e /* "hp_13" */, 0x75f5072b /* "hp_14" */, 0x71341a9c /* "hp_15" */, 0x7c773c45 /* "hp_16" */ };
 
 // FUNCTION: SWBF2 0x0055ca40
 HUD::ElementVehicleSeating::Factory::Factory()
-    : HUD::ElementGroupPlayer::Factory(0x6A89B43Au)
+    : HUD::ElementGroupPlayer::Factory(0x6A89B43Au /* "VehicleSeating" */)
 {
     mName = "VehicleSeating";
 }
@@ -89,7 +89,7 @@ HUD::Item* HUD::ElementVehicleSeating::Factory::CreateItem(const char* const pNa
 // FUNCTION: SWBF2 0x0055ca90
 HUD::ElementVehicleSeating::ElementVehicleSeating(const char* const pName, Factory::ItemCallback pCallback,
                                                   void* const pUserData)
-    : HUD::ElementGroupPlayer(*static_cast<RedGroupElement*>(this), pName, pCallback, pUserData)
+    : HUD::ElementGroupPlayer(*(RedGroupElement*)this, pName, pCallback, pUserData)
 {
     mChanged = false;
 
@@ -103,26 +103,32 @@ HUD::ElementVehicleSeating::ElementVehicleSeating(const char* const pName, Facto
         mMarkerTemplates[i].SetDynamicallyAllocated(false);
         mMarkerTemplates[i].SetWriteEnabled(false);
         mMarkerTemplates[i].mSeatingDisplay = this;
-        mMarkerTemplates[i].SetFactory(pMarkerFactory);
+        SeatingMarker* pMarker = &mMarkerTemplates[i];
+        if (pMarker)
+            ((HUD::Item*)pMarker)->SetFactory(pMarkerFactory);
 
         mMarkerTextTemplate[i].HUD::Item::SetName(sMarkerTextNames[i]);
         mMarkerTextTemplate[i].SetDynamicallyAllocated(false);
         mMarkerTextTemplate[i].SetWriteEnabled(false);
         mMarkerTextTemplate[i].mSeatingDisplay = this;
-        mMarkerTextTemplate[i].SetFactory(pTextFactory);
+        SeatingText* pText = &mMarkerTextTemplate[i];
+        if (pText)
+            ((HUD::Item*)pText)->SetFactory(pTextFactory);
     }
 
     for (i = 0; i < 10; ++i)
     {
-        mSeatingMarkers[i].SetDynamicallyAllocated(false);
-        mSeatingMarkers[i].SetWriteEnabled(false);
-        mSeatingMarkers[i].SetFactory(pMarkerFactory);
-        RedGroupElement::AddElement(&mSeatingMarkers[i]);
+        SeatingMarker* pMarker = &mSeatingMarkers[i];
+        pMarker->SetDynamicallyAllocated(false);
+        pMarker->SetWriteEnabled(false);
+        pMarker->SetFactory(pMarkerFactory);
+        RedGroupElement::AddElement(pMarker);
 
-        mSeatingText[i].SetDynamicallyAllocated(false);
-        mSeatingText[i].SetWriteEnabled(false);
-        mSeatingText[i].SetFactory(pTextFactory);
-        RedGroupElement::AddElement(&mSeatingText[i]);
+        SeatingText* pText = &mSeatingText[i];
+        pText->SetDynamicallyAllocated(false);
+        pText->SetWriteEnabled(false);
+        pText->SetFactory(pTextFactory);
+        RedGroupElement::AddElement(pText);
 
         mSeatingState[i] = seatingState_None;
     }
@@ -143,7 +149,7 @@ void HUD::ElementVehicleSeating::Read(PblConfig& config, Factory::ItemCallback p
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (config.m_pChunk->PeekNextChildId() == 0x504f4353)
+        if (config.m_pChunk->PeekNextChildId() == CHUNK_ID('S', 'C', 'O', 'P'))
         {
             bool bFound = false;
             for (unsigned int i = 0; i < 4; ++i)
@@ -225,7 +231,10 @@ void HUD::ElementVehicleSeating::UpdateSeatingState(unsigned int uSeat, SeatingS
     }
 
     const bool bEnable = eState != seatingState_None;
-    PblVector3 vOffset(0.0f, 0.0f, 0.0f);
+    PblVector3 vOffset;
+    vOffset.x = 0.0f;
+    vOffset.y = 0.0f;
+    vOffset.z = 0.0f;
     float fTextOffset = 0.0f;
     SeatingMarker& rMarker = mSeatingMarkers[uSeat];
     SeatingText& rText = mSeatingText[uSeat];
@@ -247,10 +256,9 @@ void HUD::ElementVehicleSeating::UpdateSeatingState(unsigned int uSeat, SeatingS
             {
                 float fDepth = mBackdrop.GetDepth();
                 fDepth *= Red3DModelElementLite::GetDepthMultiplier(true);
-                const float fInvDepth = 1.0f / (float)fDepth;
                 vOffset = mHardpoint.GetTranslation();
-                vOffset.x = fInvDepth * vOffset.x;
-                vOffset.y = -(fInvDepth * vOffset.y);
+                vOffset.x = (1.0f / fDepth) * vOffset.x;
+                vOffset.y = -((1.0f / fDepth) * vOffset.y);
             }
         }
         else
@@ -393,7 +401,7 @@ HUD::ElementVehicleSeating* HUD::ElementVehicleSeating::FindByPlayerIndex(const 
 {
     for (PblListSingle::Itor itor(sSeatingDisplays); itor.GetNode() != sSeatingDisplays.GetTerminator(); ++itor)
     {
-        ElementVehicleSeating* pDisplay = static_cast<ElementVehicleSeating*>(
+        ElementVehicleSeating* pDisplay = (ElementVehicleSeating*)(
             itor.GetNode()->GetObjectA(&sSeatingDisplays, offsetof(ElementVehicleSeating, mNode)));
         if (pDisplay->mPlayerIndex == playerIndex)
         {

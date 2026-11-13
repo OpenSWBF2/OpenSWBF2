@@ -1,4 +1,5 @@
 #include "RedEngineFL/Util/RedCommandConsole.h"
+#include "PopupText.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -32,35 +33,7 @@
 #include "SoundFL/source/win/sndengine.h"
 #include "Trigger.h"
 #include "PlayerController.h"
-namespace GameLoop
-{
 
-// GLOBAL: SWBF2 0x01e5600b
-bool sFreeMode;
-}
-
-namespace GameLoop
-{
-void SetFreeMode(bool bFreeCamera);
-}
-
-// FUNCTION: SWBF2 0x00533600
-void GameLoop::SetFreeMode(bool bFreeCamera)
-{
-    if (sFreeMode == bFreeCamera)
-    {
-        return;
-    }
-    sFreeMode = bFreeCamera;
-    if (bFreeCamera)
-    {
-        CameraManager::Instance()->FreeLook(0);
-    }
-    else
-    {
-        CameraManager::Instance()->ChaseMode(0);
-    }
-}
 
 class StatusDisplay
 {
@@ -68,14 +41,9 @@ public:
     static void EnableViewport(unsigned int uiViewport, bool bEnable);
 };
 
-namespace GameLoop
-{
-void SetFreeMode(bool bFreeCamera);
-}
-namespace PopupText
-{
-void DisablePopup();
-}
+
+
+
 
 extern bool gAttractMode;
 extern bool sPauseMenuSoundEnabled;
@@ -269,7 +237,7 @@ void PauseMenu::_SetPauseAudio(bool bPause)
         return;
     }
 
-    Snd::Bus* pBus = Snd::Bus::FindByHashID(0xFA930D1C);
+    Snd::Bus* pBus = Snd::Bus::FindByHashID(0xFA930D1C /* "ingame_spawnducked" */);
     if (bPause)
     {
         if (pBus)
@@ -587,101 +555,13 @@ bool PauseMenu::AllStatsDone()
 
 namespace PopupText
 {
-enum PopupType { DISABLED = 0, HINT = 1, OBJECTIVE = 2, SELECTION = 3, MAX_POPUP_TYPES = 4 };
 extern PopupType gType;
 extern bool gMapEnabled[1];
 extern bool gSpawnDisplayEnabled[1];
 extern int gNumHints;
 extern Trigger gButtonTrigger;
-bool IsEnabled();
 }
 
-namespace ObjectiveManager
-{
-unsigned int GetCurrentPopupText();
-}
-
-// FUNCTION: SWBF2 0x00620d20
-void PopupText::DisablePopup()
-{
-    if (!PopupText::IsEnabled())
-    {
-        return;
-    }
-
-    const unsigned int uNumCameras = GameLoop::mNumCameras;
-    Snd::Bus* pBus = Snd::Bus::FindByHashID(0xB38617C5);
-    if (pBus)
-    {
-        pBus->Fade(0.5f, 1.0f, -1.0f);
-    }
-    if (GameLoop::sPauseMode)
-    {
-        GameLoop::Resume();
-    }
-
-    for (unsigned int i = 0; i < uNumCameras; ++i)
-    {
-        if (PopupText::gMapEnabled[i])
-        {
-            HUD::Event mapEvent(HUD::GameEvents::gPlayerEvents[i].mapEnable, true);
-            mapEvent.Send();
-        }
-        if (PopupText::gSpawnDisplayEnabled[i])
-        {
-            Character* pPlayer = NetGame::GetLocalPlayer(NetGame::GetLocalIndex(i));
-            SpawnDisplay::Instance(i)->ChangeClass(pPlayer);
-        }
-    }
-
-    switch (PopupText::gType)
-    {
-    case PopupText::HINT:
-        {
-            HUD::Event popupEvent(HUD::GameEvents::gObjectiveEvents.hintPopupDisable, true);
-            popupEvent.Send();
-        }
-        break;
-    case PopupText::OBJECTIVE:
-        {
-            HUD::Event popupEvent(HUD::GameEvents::gObjectiveEvents.objectivePopupDisable, true);
-            popupEvent.Send();
-        }
-        break;
-    case PopupText::SELECTION:
-        {
-            HUD::Event popupEvent(HUD::GameEvents::gObjectiveEvents.selectionPopupDisable, true);
-            popupEvent.Send();
-        }
-        break;
-    default: break;
-    }
-
-    if (uNumCameras == 1)
-    {
-        HUD::ElementMap* pMap = HUD::ElementMap::FindByPlayerIndex(0);
-        if (pMap && pMap->mMode == HUD::ElementMap::mode_Large)
-        {
-            HUD::Event listEvent(HUD::GameEvents::gPlayerEvents[0].objectiveListEnable, true);
-            listEvent.Send();
-            HUD::Event returnEvent(HUD::GameEvents::gPlayerEvents[0].pressSelectToReturn, true);
-            returnEvent.Send();
-            if (ObjectiveManager::GetCurrentPopupText())
-            {
-                HUD::Event detailsEvent(HUD::GameEvents::gPlayerEvents[0].objectiveDetails, true);
-                detailsEvent.Send();
-            }
-            if (PopupText::gNumHints > 0)
-            {
-                HUD::Event hintsEvent(HUD::GameEvents::gPlayerEvents[0].hintsAvailable, true);
-                hintsEvent.Send();
-            }
-        }
-    }
-
-    PopupText::gType = PopupText::DISABLED;
-    PopupText::gButtonTrigger.Clear();
-}
 
 // FUNCTION: SWBF2 0x00616e40
 void PauseMenu::_Reset()

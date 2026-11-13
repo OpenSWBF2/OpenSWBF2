@@ -11,7 +11,7 @@
 #include "GameObject.h"
 #include "NetGame.h"
 #include "UnitController.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Graphics/RedModel.h"
@@ -46,7 +46,7 @@ namespace
 
     inline const CollisionObject* GetCollisionObject(const GameObject* pObject)
     {
-        return &static_cast<const CollisionObject&>(*pObject);
+        return &(const CollisionObject&)(*pObject);
     }
 
     inline const Controllable* GetControllable(const GameObject* pObject)
@@ -128,13 +128,13 @@ bool AimerClass::SetProperty(unsigned int uProperty, const char* pszValue, const
 
     switch (uProperty)
     {
-    case 0x2d6487bd:
+    case 0x2d6487bd: /* "AimerPitchLimits" */
         sscanf(pszValue, "%f %f", &pClass->mPitchMin, &pClass->mPitchMax);
         pClass->mPitchMin *= 0.017453292f;
         pClass->mPitchMax *= 0.017453292f;
         return true;
 
-    case 0x1e534b12:
+    case 0x1e534b12: /* "BarrelNodeName" */
     {
         pClass->mBarrelInfo[sCurBarrel].mHash = PblTEMPHash(pszValue);
         pClass->mBarrelInfo[sCurBarrel].mFireHash = pClass->mBarrelInfo[sCurBarrel].mHash;
@@ -152,8 +152,8 @@ bool AimerClass::SetProperty(unsigned int uProperty, const char* pszValue, const
         return true;
     }
 
-    case 0x2e5375da:
-    case 0x4274fc96:
+    case 0x2e5375da: /* "FireNodeName" */
+    case 0x4274fc96: /* "FirePointName" */
     {
         const unsigned int uFireHash = PblTEMPHash(pszValue);
         pClass->mBarrelInfo[sCurBarrel].mFireHash = uFireHash;
@@ -170,7 +170,7 @@ bool AimerClass::SetProperty(unsigned int uProperty, const char* pszValue, const
         return true;
     }
 
-    case 0x3f38083c:
+    case 0x3f38083c: /* "AimerRestDirection" */
     {
         float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
@@ -180,32 +180,32 @@ bool AimerClass::SetProperty(unsigned int uProperty, const char* pszValue, const
         return true;
     }
 
-    case 0x407e801e:
+    case 0x407e801e: /* "HierarchyLevel" */
         pClass->mIsInert = atoi(pszValue) != 0;
         return true;
 
-    case 0x444f8958:
+    case 0x444f8958: /* "FireOutsideLimits" */
         pClass->mFireOutsideLimits = atoi(pszValue) != 0;
         return true;
 
-    case 0x4106141f:
+    case 0x4106141f: /* "AimerPitchRate" */
         sscanf(pszValue, "%f", &pClass->mPitchRate);
         return true;
 
-    case 0x486a6946:
+    case 0x486a6946: /* "AimerYawRate" */
         sscanf(pszValue, "%f", &pClass->mYawRate);
         return true;
 
-    case 0x665d96ea:
+    case 0x665d96ea: /* "NextAimer" */
         pClass->mNextAimerClass = new AimerClass;
         return true;
 
-    case 0x5a29d1cb:
+    case 0x5a29d1cb: /* "BarrelRecoil" */
         sscanf(pszValue, "%f", &pClass->mBarrelInfo[sCurBarrel].mRecoil);
         pClass->mNumBarrels = Max(pClass->mNumBarrels, sCurBarrel + 1);
         return true;
 
-    case 0xa9c3675c:
+    case 0xa9c3675c: /* "AimerYawLimits" */
         sscanf(pszValue, "%f %f", &pClass->mYawMin, &pClass->mYawMax);
         pClass->mYawMin *= 0.017453292f;
         pClass->mYawMax *= 0.017453292f;
@@ -214,7 +214,7 @@ bool AimerClass::SetProperty(unsigned int uProperty, const char* pszValue, const
                             pClass->mYawMax >= PblMath::fPi && pClass->mYawMax < PblMath::fPi * 2.0f;
         return true;
 
-    case 0xc182abc2:
+    case 0xc182abc2: /* "AimerNodeName" */
         pClass->mMountHash = PblTEMPHash(pszValue);
         if (pModel)
         {
@@ -232,7 +232,7 @@ bool AimerClass::SetProperty(unsigned int uProperty, const char* pszValue, const
         }
         return true;
 
-    case 0xef095ea9:
+    case 0xef095ea9: /* "BarrelLength" */
     {
         float fLength;
         sscanf(pszValue, "%f", &fLength);
@@ -243,12 +243,12 @@ bool AimerClass::SetProperty(unsigned int uProperty, const char* pszValue, const
         return true;
     }
 
-    case 0xe98f377c:
+    case 0xe98f377c: /* "NextBarrel" */
         ++sCurBarrel;
         return true;
 
-    case 0x78ed58ee:
-    case 0xe856b41e:
+    case 0x78ed58ee: /* "BarrelOffset" */
+    case 0xe856b41e: /* "AimerOffset" */
     {
         float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
@@ -272,17 +272,17 @@ Aimer::Aimer(AimerClass* pClass, const Controllable* pOwner, const PblMatrix* pP
     , mPose(pPose)
 {
     mWithinLimitsFlag = true;
-    mOffsetPos = pClass->mOffsetPos;
+    mOffsetPos = mClass->mOffsetPos;
 
     mYaw = 0.0f;
     mPitch = 0.0f;
-    if (pClass->mYawMin > 0.0f || pClass->mYawMax < 0.0f)
+    if (mClass->mYawMin > 0.0f || mClass->mYawMax < 0.0f)
     {
-        mYaw = (pClass->mYawMax + pClass->mYawMin) * 0.5f;
+        mYaw = (mClass->mYawMax + mClass->mYawMin) * 0.5f;
     }
-    if (pClass->mPitchMin > 0.0f || pClass->mPitchMax < 0.0f)
+    if (mClass->mPitchMin > 0.0f || mClass->mPitchMax < 0.0f)
     {
-        mPitch = (pClass->mPitchMax + pClass->mPitchMin) * 0.5f;
+        mPitch = (mClass->mPitchMax + mClass->mPitchMin) * 0.5f;
     }
     mOmegaPitch = 0.0f;
     mOmegaYaw = 0.0f;

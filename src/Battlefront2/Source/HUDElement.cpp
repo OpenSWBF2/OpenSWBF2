@@ -65,37 +65,37 @@ PblListDouble HUD::Element::sList;
 // GLOBAL: SWBF2 0x007e6904
 float HUD::Element::sRuntimeScale = 1.0f;
 
-static const unsigned int kPosition = 0x934f4e0a;
-static const unsigned int kPositionRelative = 0xf9f41ffa;
-static const unsigned int kRotation = 0x21ac415f;
-static const unsigned int kScale = 0x82971c71;
-static const unsigned int kScaleUniform = 0x745450bf;
-static const unsigned int kZOrder = 0xec9f263f;
-static const unsigned int kAlpha = 0x5d8b6dab;
-static const unsigned int kColor = 0x3d7e6258;
-static const unsigned int kColorChange = 0x3c656d30;
-static const unsigned int kColorChangeRate = 0xb4660872;
-static const unsigned int kColorPulseRate = 0xe459101b;
-static const unsigned int kUseChangeColor = 0x849604eb;
-static const unsigned int kFadeInTime = 0x5083ecd9;
-static const unsigned int kFadeHoldTime = 0x8e3e2923;
-static const unsigned int kFadeSustainTime = 0xff48a8f9;
-static const unsigned int kFadeOutTime = 0x798dc484;
-static const unsigned int kBlendMode = 0xfa784eab;
-static const unsigned int kViewport = 0xe4abbac3;
-static const unsigned int kEventEnable = 0xd23096a8;
-static const unsigned int kEventDisable = 0x7b5f76b1;
-static const unsigned int kEventChanged = 0x0d1d42cd;
-static const unsigned int kEventColor = 0x49f429ae;
-static const unsigned int kEventPulseRate = 0xccd945ca;
-static const unsigned int kScalable = 0x0dd385e2;
-static const unsigned int kScaleAll = 0x6db146a8;
+static const unsigned int kPosition = 0x934f4e0a /* "Position" */;
+static const unsigned int kPositionRelative = 0xf9f41ffa /* "PositionRelative" */;
+static const unsigned int kRotation = 0x21ac415f /* "Rotation" */;
+static const unsigned int kScale = 0x82971c71 /* "Scale" */;
+static const unsigned int kScaleUniform = 0x745450bf /* "ScaleUniform" */;
+static const unsigned int kZOrder = 0xec9f263f /* "ZOrder" */;
+static const unsigned int kAlpha = 0x5d8b6dab /* "Alpha" */;
+static const unsigned int kColor = 0x3d7e6258 /* "Color" */;
+static const unsigned int kColorChange = 0x3c656d30 /* "ColorChange" */;
+static const unsigned int kColorChangeRate = 0xb4660872 /* "ColorChangeRate" */;
+static const unsigned int kColorPulseRate = 0xe459101b /* "ColorPulseRate" */;
+static const unsigned int kUseChangeColor = 0x849604eb /* "UseChangeColor" */;
+static const unsigned int kFadeInTime = 0x5083ecd9 /* "FadeInTime" */;
+static const unsigned int kFadeHoldTime = 0x8e3e2923 /* "FadeHoldTime" */;
+static const unsigned int kFadeSustainTime = 0xff48a8f9 /* "FadeSustainTime" */;
+static const unsigned int kFadeOutTime = 0x798dc484 /* "FadeOutTime" */;
+static const unsigned int kBlendMode = 0xfa784eab /* "BlendMode" */;
+static const unsigned int kViewport = 0xe4abbac3 /* "Viewport" */;
+static const unsigned int kEventEnable = 0xd23096a8 /* "EventEnable" */;
+static const unsigned int kEventDisable = 0x7b5f76b1 /* "EventDisable" */;
+static const unsigned int kEventChanged = 0x0d1d42cd /* "EventChanged" */;
+static const unsigned int kEventColor = 0x49f429ae /* "EventColor" */;
+static const unsigned int kEventPulseRate = 0xccd945ca /* "EventPulseRate" */;
+static const unsigned int kScalable = 0x0dd385e2 /* "Scalable" */;
+static const unsigned int kScaleAll = 0x6db146a8 /* "ScaleAll" */;
 
-static const unsigned int kEventFadeOut = 0xb8e23cbb;
-static const unsigned int kEditOnly = 0xca0b9ccb;
-static const unsigned int kAnimEnable = 0xbdbfd84f;
-static const unsigned int kAnimDisable = 0x6242102c;
-static const unsigned int kAnimChange = 0x3455b0a8;
+static const unsigned int kEventFadeOut = 0xb8e23cbb /* "EventFadeOut" */;
+static const unsigned int kEditOnly = 0xca0b9ccb /* "EditOnly" */;
+static const unsigned int kAnimEnable = 0xbdbfd84f /* "AnimEnable" */;
+static const unsigned int kAnimDisable = 0x6242102c /* "AnimDisable" */;
+static const unsigned int kAnimChange = 0x3455b0a8 /* "AnimChange" */;
 
 
 
@@ -1121,7 +1121,7 @@ void HUD::Element::SetRuntimeScaleAll(float fScale)
 {
     for (PblListDouble::Itor itor(&sList); itor.GetNode() != sList.GetTerminator(); ++itor)
     {
-        Element* pElement = static_cast<Element*>(itor.GetNode()->GetObjectA(&sList, offsetof(Element, mNode)));
+        Element* pElement = (Element*)itor.GetNode()->GetObjectA(&sList, offsetof(Element, mNode));
         pElement->SetRuntimeScale(fScale);
     }
     sRuntimeScale = fScale;

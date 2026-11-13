@@ -13,6 +13,12 @@ bool RedVectorElement::s_bPointsInUse;
 // RedVectorElement::s_aPoints
 RedVectorElement::Point RedVectorElement::s_aPoints[1024];
 
+// FUNCTION: SWBF2 0x006bf9a0
+RedVectorElement::~RedVectorElement()
+{
+    Cleanup();
+}
+
 // FUNCTION: SWBF2 0x006bfa30
 void RedVectorElement::DrawLine(float fX, float fY)
 {

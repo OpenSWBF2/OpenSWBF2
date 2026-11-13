@@ -17,7 +17,7 @@ EntitySquadronClass::EntitySquadronClass()
 }
 
 const ODFPropertySet::ODFProperty EntitySquadronClass::sPropertySet[1] = {
-    { 0x7adbb520, ODFPropertySet::type_Float, offsetof(EntitySquadronClass, mSlideTime) },
+    { 0x7adbb520 /* "SquadronSlideTime" */, ODFPropertySet::type_Float, offsetof(EntitySquadronClass, mSlideTime) },
 };
 
 // FUNCTION: SWBF2 0x004fc700
@@ -25,10 +25,10 @@ bool EntitySquadronClass::SetProperty(unsigned int uProperty, const char* pszVal
 {
     switch (uProperty)
     {
-    case 0x959feb6b:
+    case 0x959feb6b: /* "SquadronMemberID" */
         mMember = PblHash(pszValue);
         return true;
-    case 0xe5108b93:
+    case 0xe5108b93: /* "SquadronFormation" */
         AppendFormation(mFormations, mNumFormations, pszValue);
         return true;
     default:
@@ -235,6 +235,7 @@ void EntitySquadron::RemoveFromSquadron()
         class EntityDistance
         {
         public:
+            // FUNCTION: SWBF2 0x004fc6d0
             void* operator new(size_t, void* pMemory) { return pMemory; }
             void operator delete(void*, void*) {}
 

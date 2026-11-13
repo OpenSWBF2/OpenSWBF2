@@ -273,6 +273,7 @@ void RedStencilShadow::Render(const PblMatrix* pMatrix,
                               const PblMatrix** ppBoneMatrices,
                               const RedPose* pPose, bool bFlag) const
 {
+    PblMatrix aSkinMatrices[128];
     if (!GetShadowEnable())
     {
         return;
@@ -284,7 +285,6 @@ void RedStencilShadow::Render(const PblMatrix* pMatrix,
     ShadowRenderable::s_vProjectionUnlit = fLength * direction;
     ShadowRenderable::s_vProjectionLit = vLit;
 
-    PblMatrix aSkinMatrices[128];
     for (PblList<ShadowSegment>::Itor it(m_segmentList); it != m_segmentList.End(); ++it)
     {
         const PblMatrix* pWorld = pMatrix;
@@ -709,9 +709,7 @@ void ShadowData::GenerateSkin(const PblMatrix* pBoneMatrices, int iNumBoneMatric
     for (int i = 0; i < _iNumVertices; ++i)
     {
         const PblMatrix& mSkin = _GetSkinMatrix(uiMaxBones, puiWeights, puiIndices, pBoneMatrices);
-        D3DXVECTOR3 v;
-        D3DXVec3TransformCoord(&v, (const D3DXVECTOR3*)&_pVertices[i], (const D3DXMATRIX*)&mSkin);
-        _pSkinnedVertices[i] = *(const PblVector3*)&v;
+        _pSkinnedVertices[i] = mSkin.ApplyTransform(_pVertices[i]);
         puiWeights += iStride;
         puiIndices += iStride;
     }
@@ -805,26 +803,26 @@ void RedStencilShadow::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x44485347:
+        case CHUNK_ID('G', 'S', 'H', 'D'):
             if (caps.shadowVolume)
             {
                 ReadGPUShadowData(child, pSegment);
             }
             break;
-        case 0x44485343:
+        case CHUNK_ID('C', 'S', 'H', 'D'):
             if (!caps.shadowVolume)
             {
                 ReadCPUShadowData(child, pSegment);
             }
             break;
-        case 0x4D414E42:
+        case CHUNK_ID('B', 'N', 'A', 'M'):
         {
             char acName[256];
             child.ReadString(acName, 256);
             uiBoneIndex = m_pModel->GetBoneIndex(acName);
             break;
         }
-        case 0x50414D42:
+        case CHUNK_ID('B', 'M', 'A', 'P'):
             uiNumBones = child._pFile->Read32();
             if (uiNumBones)
             {
@@ -855,7 +853,8 @@ void ShadowData::Read(PblFileChunk& chunk)
     unsigned char* puiSkinData = 0;
     unsigned int uiSkinNumBones = 0;
     PblVector3* pSkinnedVertices = 0;
-    PblBox box(FLT_MAX, FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX);
+    PblBox box;
+    box.SetEmpty();
 
     PblTraceP("Model has shadow data\n");
     while (!chunk.IsDone())
@@ -863,7 +862,7 @@ void ShadowData::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4E494B53:
+        case CHUNK_ID('S', 'K', 'I', 'N'):
         {
             unsigned int uiNumVertices = child._pFile->Read32();
             uiSkinNumBones = child._pFile->Read32();
@@ -873,7 +872,7 @@ void ShadowData::Read(PblFileChunk& chunk)
             pSkinnedVertices = new PblVector3[uiNumVertices];
             break;
         }
-        case 0x49444853:
+        case CHUNK_ID('S', 'H', 'D', 'I'):
             for (unsigned short i = 0; i < _edgeCount; ++i)
             {
                 pEdges[i].vertex = child._pFile->Read16();
@@ -884,13 +883,13 @@ void ShadowData::Read(PblFileChunk& chunk)
                 child._pFile->Read16();
             }
             break;
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             _iNumVertices = (unsigned short)child._pFile->Read32();
             _edgeCount = (unsigned short)((unsigned short)child._pFile->Read32() >> 2);
             pVertices = new PblVector3[_iNumVertices];
             pEdges = new ShadowEdge[_edgeCount];
             break;
-        case 0x56444853:
+        case CHUNK_ID('S', 'H', 'D', 'V'):
             for (unsigned short i = 0; i < _iNumVertices; ++i)
             {
                 pVertices[i].x = child._pFile->ReadFloat();
@@ -994,12 +993,12 @@ void RedStencilShadow::ReadCPUShadowData(PblFileChunk& chunk, ShadowSegment* pSe
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x41544144:
+        case CHUNK_ID('D', 'A', 'T', 'A'):
             pShadowData = new ShadowData;
             pShadowData->Read(child);
             uiFlags = 2;
             break;
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             iSkinType = child._pFile->Read32();
             break;
         }
@@ -1030,7 +1029,7 @@ void RedStencilShadow::ReadGPUShadowData(PblFileChunk& chunk, ShadowSegment* pSe
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             iSkinType = child._pFile->Read32();
             iNormalMode = child._pFile->Read32();
             if (iSkinType && iNormalMode != 2)
@@ -1041,7 +1040,7 @@ void RedStencilShadow::ReadGPUShadowData(PblFileChunk& chunk, ShadowSegment* pSe
             uiNumVertices = child._pFile->Read32();
             uiPrimCount = child._pFile->Read32();
             break;
-        case 0x46554256:
+        case CHUNK_ID('V', 'B', 'U', 'F'):
         {
             unsigned int uiCount = child._pFile->Read32();
             unsigned int uiSize = child._pFile->Read32();
@@ -1052,7 +1051,7 @@ void RedStencilShadow::ReadGPUShadowData(PblFileChunk& chunk, ShadowSegment* pSe
             pVertexBuffer->Unlock();
             break;
         }
-        case 0x46554249:
+        case CHUNK_ID('I', 'B', 'U', 'F'):
         {
             unsigned int uiNumIndices = child._pFile->Read32();
             pIndexBuffer = pcRedIndexBuffer::Create(uiNumIndices, true, true);

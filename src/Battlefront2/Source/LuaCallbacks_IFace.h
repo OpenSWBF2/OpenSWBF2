@@ -8,6 +8,7 @@ class RedInterfaceElement;
 class RedScreenGroupElement;
 class RedColorValue;
 class PblVector3;
+struct LeaderBoardStatsT;
 struct LeaderBoardPlayerStatsT;
 
 namespace StatsManager
@@ -21,7 +22,7 @@ bool ReadStatsGetResults(unsigned int iPlayer, LeaderBoardPlayerStatsT* pStats);
 }
 namespace StatsManager
 {
-bool FindServicePlayerID();
+bool FindServicePlayerID(const char* pGamerTag, int iSelectedIdx, unsigned __int64& playerID);
 }
 namespace StatsManager
 {
@@ -29,7 +30,7 @@ int GetLeaderBoardId();
 }
 namespace StatsManager
 {
-bool ResetPlayer();
+bool ResetPlayer(unsigned __int64& id);
 }
 namespace Lua_Callbacks
 {
@@ -50,63 +51,6 @@ namespace Lua_Callbacks
 int GetLobbyPlayerCount();
 char const* GetLobbyPlayer(int iPlayer);
 }
-
-struct LeaderBoardStatsT
-{
-    __int64 rating;
-    int shotsFired;
-    int shotsHit;
-    int criticalshots;
-    int livingStreak;
-    int narrowEscapes;
-    int kills;
-    int deaths;
-    int captures;
-    int vehiclesDestroyed;
-    int lastPlayed;
-    int totalPlayingTime;
-    int wins;
-    int losses;
-    int tankBuster;
-    int killingSpree;
-    int camper;
-    int survivalist;
-    int traitor;
-    int publicEnemy;
-    int meat;
-    int deadEye;
-    int pointman;
-    int points;
-    int hero_points;
-    int game_start;
-    int game_finish;
-    int game_rank;
-    unsigned int favoriteClassHash;
-    int favoriteClassTime;
-    unsigned int favoriteVehicleHash;
-    int favoriteVehicleTime;
-    unsigned int favoriteWeaponHash;
-    int favoriteWeaponTime;
-    char nemesis[32];
-    char bait[32];
-    int nemesisDeaths;
-    int baitKills;
-};
- 
- 
- 
-
-struct LeaderBoardPlayerStatsT
-{
-    char username[32];
-    int level;
-    unsigned int titleHash;
-    LeaderBoardStatsT factionStats[4];
-    LeaderBoardStatsT overallStats;
-};
- 
- 
- 
 
 namespace Lua_Callbacks
 {

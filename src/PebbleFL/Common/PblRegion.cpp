@@ -23,7 +23,7 @@ bool PblRegion::IsPointInside(const PblVector3& rPoint) const
         const PblVector3 vDiff = rPoint - mMatrix[3];
         return mSize.x > (float)fabs(DotProduct(vDiff, mMatrix[0]))
             && mSize.y > (float)fabs(DotProduct(vDiff, mMatrix[1]))
-            && mSize.z > (float)fabs(vDiff.x * mMatrix.m[2][0] + vDiff.y * mMatrix.m[2][1] + vDiff.z * mMatrix.m[2][2]);
+            && mSize.z > (float)fabs(DotProduct(vDiff, mMatrix[2]));
     }
 
     case type_cylinder:

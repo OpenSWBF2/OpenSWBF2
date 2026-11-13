@@ -8,19 +8,13 @@
 #include "FLEffect.h"
 #include "GameObject.h"
 #include "NetGame.h"
+#include "Weapon.h"
 #include "RedEngineFL/Application/pc/pcRedParticle.h"
 
 
 extern bool netIsLocalTurn;
 extern bool netIsLateTurn;
 
-class Weapon
-{
-public:
-
-    char mWeaponState[0x70];
-    Aimer* mAimer;
-};
 
 // SYNTHETIC: SWBF2 0x00405a30
 // `dynamic initializer for 'OrdnanceBeam::rttiHashOrdnanceBeam''
@@ -61,7 +55,7 @@ OrdnanceBeamClass::OrdnanceBeamClass(unsigned int uHash)
     mBeamTextureId = 0;
     mBeamColor = RedColor::WHITE;
     mGlowWidth = 0.0f;
-    mGlowTextureId = 0x716BD81Au;
+    mGlowTextureId = 0x716BD81Au /* "lightglow" */;
     mGlowColor = RedColor::WHITE;
     mPassThrough = false;
     mImpactEffect = 0;
@@ -225,7 +219,7 @@ bool OrdnanceBeam::Update(float fDeltaTime)
                 pHit = 0;
             }
 
-            if (!NetGame::IsEnabled() || (NetGame::IsClient() && netIsLocalTurn))
+            if (!NetGame::IsEnabled() || ((netEnabledNext && netClientActive) && netIsLocalTurn))
             {
                 if (((OrdnanceBeamClass*)mClass)->mImpactEffect)
                 {
@@ -404,18 +398,12 @@ Ordnance* OrdnanceBeamClass::Build(const OrdnanceDesc& desc)
     return pBeam;
 }
 
-// FUNCTION: SWBF2 0x005f9690
-float OrdnanceBeamClass::GetRange()
-{
-    return mRange;
-}
-
 // FUNCTION: SWBF2 0x005fa2e0
 void OrdnanceBeamClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x30580110:
+    case 0x30580110: /* "LaserGlowColor" */
     {
         int r, g, b, a;
         sscanf(pszValue, "%i %i %i %i", &r, &g, &b, &a);
@@ -427,82 +415,82 @@ void OrdnanceBeamClass::SetProperty(unsigned int uProperty, const char* pszValue
         mGlowColor = color;
         break;
     }
-    case 0x11727A92:
+    case 0x11727A92: /* "ImpactEffect" */
         if (*pszValue)
         {
             mImpactEffect = FLEffect::Get(PblHash(pszValue));
         }
         break;
-    case 0x398B9AD9:
+    case 0x398B9AD9: /* "BeamGlowWidth" */
         sscanf(pszValue, "%f", &mGlowWidth);
 
-    case 0xC6BFC336:
+    case 0xC6BFC336: /* "BeamGlowTexture" */
         mGlowTextureId = PblHash(pszValue);
         break;
-    case 0x604E2441:
+    case 0x604E2441: /* "PassThrough" */
         mPassThrough = atoi(pszValue) != 0;
         break;
-    case 0x3F30370C:
+    case 0x3F30370C: /* "OrdnanceEffect" */
         switch (PblHash(pszValue))
         {
-        case 0x4A4A69FF:
+        case 0x4A4A69FF: /* "blue_blaster_bolt_small" */
             mBeamWidth = 0.2f;
-            mBeamTextureId = 0xF0E687E7;
+            mBeamTextureId = 0xF0E687E7 /* "bluelaser_L" */;
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.5f;
-            mGlowTextureId = 0x716BD81A;
+            mGlowTextureId = 0x716BD81A /* "lightglow" */;
             mGlowColor = RedColor(0x0a, 0x0a, 0x7f, 0x64);
             break;
-        case 0x09D3224C:
+        case 0x09D3224C: /* "green_blaster_bolt" */
             mBeamWidth = 0.35f;
-            mBeamTextureId = 0xE855B12C;
+            mBeamTextureId = 0xE855B12C /* "greenlaser_L" */;
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.875f;
-            mGlowTextureId = 0x716BD81A;
+            mGlowTextureId = 0x716BD81A /* "lightglow" */;
             mGlowColor = RedColor(0x64, 0xff, 0x64, 0x50);
             break;
-        case 0x5BFD7D80:
+        case 0x5BFD7D80: /* "red_blaster_bolt_small" */
             mBeamWidth = 0.1f;
-            mBeamTextureId = 0x4A040ACC;
+            mBeamTextureId = 0x4A040ACC /* "redlaser_L" */;
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.25f;
-            mGlowTextureId = 0x716BD81A;
+            mGlowTextureId = 0x716BD81A /* "lightglow" */;
             mGlowColor = RedColor(0xff, 0x0a, 0x0a, 0x64);
             break;
-        case 0x8AB31EE0:
+        case 0x8AB31EE0: /* "green_blaster_bolt_small" */
             mBeamWidth = 0.2f;
-            mBeamTextureId = 0xE855B12C;
+            mBeamTextureId = 0xE855B12C /* "greenlaser_L" */;
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.5f;
-            mGlowTextureId = 0x716BD81A;
+            mGlowTextureId = 0x716BD81A /* "lightglow" */;
             mGlowColor = RedColor(0x64, 0xff, 0x64, 0x50);
             break;
-        case 0xD6578027:
+        case 0xD6578027: /* "blue_blaster_bolt" */
             mBeamWidth = 0.35f;
-            mBeamTextureId = 0xF0E687E7;
+            mBeamTextureId = 0xF0E687E7 /* "bluelaser_L" */;
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.875f;
-            mGlowTextureId = 0x716BD81A;
+            mGlowTextureId = 0x716BD81A /* "lightglow" */;
             mGlowColor = RedColor(0x0a, 0x0a, 0x7f, 0x64);
             break;
-        case 0xDD9D59EC:
+        case 0xDD9D59EC: /* "red_blaster_bolt" */
             mBeamWidth = 0.35f;
-            mBeamTextureId = 0x4A040ACC;
+            mBeamTextureId = 0x4A040ACC /* "redlaser_L" */;
             mBeamColor = RedColor::WHITE;
             mGlowWidth = 0.875f;
-            mGlowTextureId = 0x716BD81A;
+            mGlowTextureId = 0x716BD81A /* "lightglow" */;
             mGlowColor = RedColor(0xff, 0x0a, 0x0a, 0x64);
             break;
         }
         break;
-    case 0x6F179AB8:
+    case 0x6F179AB8: /* "LaserWidth" */
         sscanf(pszValue, "%f", &mBeamWidth);
         mGlowWidth = mBeamWidth * 2.5f;
         break;
-    case 0xB709B5E7:
+    case 0xB709B5E7: /* "LaserTexture" */
         mBeamTextureId = PblHash(pszValue);
         break;
-    case 0xA3093ACD:
+    case 0xA3093ACD: /* "BeamColor" */
     {
         int r, g, b, a;
         sscanf(pszValue, "%i %i %i %i", &r, &g, &b, &a);
@@ -514,7 +502,7 @@ void OrdnanceBeamClass::SetProperty(unsigned int uProperty, const char* pszValue
         mBeamColor = color;
         break;
     }
-    case 0xFADC0CD2:
+    case 0xFADC0CD2: /* "Range" */
         sscanf(pszValue, "%f", &mRange);
         break;
     default:

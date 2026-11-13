@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include "md5.h"
 
-#include "NetAdminMd5.h"
 
 void __cdecl MD5Transform(unsigned int* pState, const unsigned char* pBlock);
 void __cdecl MD5EncodeWords(unsigned char* pDest, const unsigned int* pSource, unsigned int uLength);
@@ -176,3 +176,4 @@ void MD5Digest(const char* pcText, unsigned int uLength, char* pcHex)
     MD5Final(aucDigest, &context);
     MD5Print(aucDigest, pcHex);
 }
+

@@ -1,8 +1,22 @@
 #pragma once
 
+// FUNCTION: SWBF2 0x0040c9b0
+inline PblVector3::PblVector3(float fX, float fY, float fZ)
+{
+    x = fX;
+    y = fY;
+    z = fZ;
+}
+
 inline PblVector3::PblVector3(const D3DXVECTOR3* pVector)
     : D3DXVECTOR3(*pVector)
 {
+}
+
+// FUNCTION: SWBF2 0x0040c9e0
+inline PblVector3::PblVector3(const PblVector3& v)
+{
+    *this = v;
 }
 
 inline const PblVector3 RotateY(const PblVector3& vVector, float fAngle)
@@ -16,6 +30,13 @@ inline const PblVector3 RotateY(const PblVector3& vVector, float fAngle)
     return Temp;
 }
 
+inline const PblVector3 RotateZ(const PblVector3& v, float fAngle)
+{
+    float fSin, fCos;
+    PblMath::SinCos(&fSin, &fCos, fAngle);
+    return PblVector3(fCos * v.x + fSin * v.y, fCos * v.y - fSin * v.x, v.z);
+}
+
 inline void PblVector3::Set(float fX, float fY, float fZ)
 {
     x = fX;
@@ -23,13 +44,48 @@ inline void PblVector3::Set(float fX, float fY, float fZ)
     z = fZ;
 }
 
+inline void PblVector3::SetX(float fVal)
+{
+    x = fVal;
+}
+
+inline void PblVector3::SetY(float fVal)
+{
+    y = fVal;
+}
+
+inline void PblVector3::SetZ(float fVal)
+{
+    z = fVal;
+}
+
+// FUNCTION: SWBF2 0x0043ec00
+inline void PblVector3::SetAll(float fValue)
+{
+    x = y = z = fValue;
+}
+
+inline void PblVector3::Reset()
+{
+    x = y = z = 0.0f;
+}
+
+inline bool PblVector3::operator==(const PblVector3& v) const
+{
+    return x == v.x && y == v.y && z == v.z;
+}
+
+// FUNCTION: SWBF2 0x00480480
+inline bool PblVector3::operator!=(const PblVector3& v) const
+{
+    return x != v.x || y != v.y || z != v.z;
+}
+
 // FUNCTION: SWBF2 0x0040ca30
 inline const PblVector3 operator+(const PblVector3& lhs, const PblVector3& rhs)
 {
     PblVector3 Temp;
-    Temp.x = lhs.x + rhs.x;
-    Temp.y = lhs.y + rhs.y;
-    Temp.z = lhs.z + rhs.z;
+    D3DXVec3Add(&Temp, &lhs, &rhs);
     return Temp;
 }
 
@@ -185,11 +241,7 @@ inline float PblVector3::operator()(int i) const
 
 inline const PblVector3 operator*(float lhs, const PblVector3& rhs)
 {
-    PblVector3 Temp;
-    Temp.x = lhs * rhs.x;
-    Temp.y = lhs * rhs.y;
-    Temp.z = lhs * rhs.z;
-    return Temp;
+    return rhs * lhs;
 }
 
 inline const PblVector3 operator*(const PblVector3& lhs, const PblVector3& rhs)
@@ -201,7 +253,47 @@ inline const PblVector3 operator*(const PblVector3& lhs, const PblVector3& rhs)
     return Temp;
 }
 
+inline const PblVector3 Interpolate(const PblVector3& v0, const PblVector3& v1, float fT)
+{
+    PblVector3 v;
+    D3DXVec3Lerp(&v, &v0, &v1, fT);
+    return v;
+}
+
+// FUNCTION: SWBF2 0x00463a30
+inline PblVector4::PblVector4() {}
+
+inline PblVector4::PblVector4(float fX, float fY, float fZ, float fW) : D3DXVECTOR4(fX, fY, fZ, fW) {}
+
 inline PblVector4::PblVector4(float fValue)
     : D3DXVECTOR4(fValue, fValue, fValue, fValue)
 {
+}
+
+inline void PblVector4::Set(float fX, float fY, float fZ, float fW)
+{
+    x = fX;
+    y = fY;
+    z = fZ;
+    w = fW;
+}
+
+inline void PblVector4::SetX(float fVal)
+{
+    x = fVal;
+}
+
+inline void PblVector4::SetY(float fVal)
+{
+    y = fVal;
+}
+
+inline void PblVector4::SetZ(float fVal)
+{
+    z = fVal;
+}
+
+inline void PblVector4::SetW(float fVal)
+{
+    w = fVal;
 }

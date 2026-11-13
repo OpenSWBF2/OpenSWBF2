@@ -66,7 +66,7 @@ EntityPath::BranchRegionFactory::BranchRegionFactory()
 // FUNCTION: SWBF2 0x004d0f00
 void* EntityPath::BranchRegionFactory::CreateRegion(RedRegionDesc& desc, const char* pcName)
 {
-    if (desc.mTypeId != 0xAFD98518u)
+    if (desc.mTypeId != 0xAFD98518u /* "Sphere" */)
     {
         return 0;
     }
@@ -149,18 +149,18 @@ bool EntityPath::NodeProperties::ReadPropertyScope(PblConfig& config, PblConfig:
     NodeProperties& props = pPath->mNodeProps[(unsigned int)((char*)object.node - (char*)&pPath->mNodeArray.GetNode(0)) / sizeof(RedPath::Node)];
     switch (data.GetId())
     {
-    case 0x97D3961Fu:
+    case 0x97D3961Fu: /* "BranchPaths" */
         props.mNumBranchPaths = data.GetUint32Arg(0);
         props.mBranchSet |= 1;
         return true;
-    case 0x5742BBFCu:
+    case 0x5742BBFCu: /* "BranchProbability" */
         props.mBranchProbability = data.GetFloatArg(0);
         return true;
-    case 0x72824274u:
+    case 0x72824274u: /* "MaxAngle" */
         props.mCosMaxAngle = PblMath::Cos(data.GetFloatArg(0) * 0.017453292f);
         props.mBranchSet |= 2;
         return true;
-    case 0xFADC0CD2u:
+    case 0xFADC0CD2u: /* "Range" */
     {
         float fRange = data.GetFloatArg(0);
         props.mBranchSet |= 4;
@@ -168,7 +168,7 @@ bool EntityPath::NodeProperties::ReadPropertyScope(PblConfig& config, PblConfig:
         props.mBranchInfo.range = fRange * fRange;
         return true;
     }
-    case 0x7554BDFDu:
+    case 0x7554BDFDu: /* "BranchRegion" */
     {
         const BranchRegion* pRegion = BranchRegion::FindByID(PblHash(data.GetStringArg(0)));
         if (pRegion)
@@ -179,19 +179,19 @@ bool EntityPath::NodeProperties::ReadPropertyScope(PblConfig& config, PblConfig:
         }
         return true;
     }
-    case 0x7B80C780u:
+    case 0x7B80C780u: /* "Speed" */
         props.mSpeedFactor = data.GetFloatArg(0);
         return true;
-    case 0x858647B2u:
+    case 0x858647B2u: /* "VarianceX" */
         props.mVariance.x = data.GetFloatArg(0);
         return true;
-    case 0x86864945u:
+    case 0x86864945u: /* "VarianceY" */
         props.mVariance.y = data.GetFloatArg(0);
         return true;
-    case 0x8386448Cu:
+    case 0x8386448Cu: /* "VarianceZ" */
         props.mVariance.z = data.GetFloatArg(0);
         return true;
-    case 0x3A390312u:
+    case 0x3A390312u: /* "LandOnArrival" */
         props.mLandOnArrival = data.GetBoolArg(0);
         return true;
     }
@@ -267,7 +267,7 @@ bool EntityPath::Read(PblConfig& config)
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (data.GetId() == 0x84874D36u)
+        if (data.GetId() == 0x84874D36u /* "Path" */)
         {
             sAllocExtraPathNodes = 2;
             if (data.GetNumArgs())
@@ -283,7 +283,7 @@ bool EntityPath::Read(PblConfig& config)
             while (!scope.IsDone())
             {
                 PblConfig::Data child = scope.ReadNextData();
-                if (child.GetId() == 0x514E905Au)
+                if (child.GetId() == 0x514E905Au /* "Nodes" */)
                 {
                     mNodeProps = new NodeProperties[child.GetUint32Arg(0) + 2];
                 }
@@ -500,24 +500,24 @@ bool EntityPath::ReadPropertyScope(PblConfig& config, PblConfig::Data& data,
     EntityPath* pPath = (EntityPath*)object.path;
     switch (data.GetId())
     {
-    case 0x3CBCEB39u:
+    case 0x3CBCEB39u: /* "PathRoll" */
         pPath->mPathRoll = data.GetFloatArg(0) > 0.0f;
         return true;
-    case 0xF22B0522u:
+    case 0xF22B0522u: /* "BranchDifferent" */
         pPath->mDifferentPath = data.GetFloatArg(0) > 0.0f;
         return true;
-    case 0x3311AA8Eu:
+    case 0x3311AA8Eu: /* "SingleDirection" */
         pPath->mSingleDirection = data.GetFloatArg(0) > 0.0f;
         return true;
-    case 0x2FB31C01u:
+    case 0x2FB31C01u: /* "Frequency" */
         pPath->mFrequency = data.GetFloatArg(0);
         return true;
-    case 0x5CAC8EFEu:
-    case 0x5DAC9091u:
-    case 0x5EAC9224u:
-    case 0x5FAC93B7u:
-    case 0x60AC954Au:
-    case 0xAB3E0BFFu:
+    case 0x5CAC8EFEu: /* "Class5" */
+    case 0x5DAC9091u: /* "Class4" */
+    case 0x5EAC9224u: /* "Class3" */
+    case 0x5FAC93B7u: /* "Class2" */
+    case 0x60AC954Au: /* "Class1" */
+    case 0xAB3E0BFFu: /* "Class" */
     {
         char acClass[256];
         strlcpy(acClass, data.GetStringArg(0), sizeof(acClass));
@@ -531,31 +531,31 @@ bool EntityPath::ReadPropertyScope(PblConfig& config, PblConfig::Data& data,
         pPath->mClasses[pPath->mNumClassIDs++].SetMaxCount(uMaxCount);
         return true;
     }
-    case 0x60940EA9u:
+    case 0x60940EA9u: /* "MaxSquadronSize" */
         pPath->mMaxSquadronSize = (int)data.GetFloatArg(0);
         return true;
-    case 0x95EA8376u:
+    case 0x95EA8376u: /* "MaxEntities" */
         pPath->mMaxCount = data.GetUint32Arg(0);
         return true;
-    case 0x7B80C780u:
+    case 0x7B80C780u: /* "Speed" */
         pPath->mSpeedFactor = data.GetFloatArg(0);
         return true;
-    case 0x858647B2u:
+    case 0x858647B2u: /* "VarianceX" */
         pPath->mVariance.x = data.GetFloatArg(0);
         return true;
-    case 0x86864945u:
+    case 0x86864945u: /* "VarianceY" */
         pPath->mVariance.y = data.GetFloatArg(0);
         return true;
-    case 0x8386448Cu:
+    case 0x8386448Cu: /* "VarianceZ" */
         pPath->mVariance.z = data.GetFloatArg(0);
         return true;
-    case 0x8D39BDE6u:
+    case 0x8D39BDE6u: /* "name" */
         pPath->mName = PblHash(data.GetStringArg(0));
         return true;
-    case 0xC87ABC4Du:
+    case 0xC87ABC4Du: /* "EnableObject" */
         pPath->mEnableObject = PblHash(data.GetStringArg(0));
         return true;
-    case 0xDF6DC76Au:
+    case 0xDF6DC76Au: /* "Direction" */
     {
         int iDirection = (int)data.GetFloatArg(0);
         if (iDirection < -1)
@@ -585,9 +585,9 @@ bool EntityPath::IsEnabled()
         return true;
     }
     EntityEx* pEntity = EntityEx::Find(mEnableObject);
-    if (pEntity && pEntity->IsRtti(GameObject::rttiHashGameObject))
+    if (pEntity && pEntity->IsRtti(GameObject::GetRtti()))
     {
-        return static_cast<GameObject*>(pEntity)->mIsAlive;
+        return ((GameObject*)pEntity)->mIsAlive;
     }
     return true;
 }

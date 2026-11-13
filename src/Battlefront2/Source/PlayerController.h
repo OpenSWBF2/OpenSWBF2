@@ -15,6 +15,7 @@ class ProcessedInputs;
 class PlayerController : public Controller
 {
 public:
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
     PlayerController(Controllable* pOwner);
 
     void LogVODeath(int iVictimTeam, int iKillerTeam);

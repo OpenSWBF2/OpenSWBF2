@@ -9,11 +9,11 @@
 
 #include "pcRedAutoSettings.h"
 
-const unsigned int kuiNormalShader = 0xe68b9c52;
-const unsigned int kuiFlareShader = 0x96834737;
-const unsigned int kuiHDRShader = 0xfeb6dbe1;
-const unsigned int kuiSampleShader = 0x96e382a7;
-const unsigned int kuiShimmerShader = 0x4cc5882a;
+const unsigned int kuiNormalShader = 0xe68b9c52 /* "normal" */;
+const unsigned int kuiFlareShader = 0x96834737 /* "Flare" */;
+const unsigned int kuiHDRShader = 0xfeb6dbe1 /* "HDR" */;
+const unsigned int kuiSampleShader = 0x96e382a7 /* "Sample" */;
+const unsigned int kuiShimmerShader = 0x4cc5882a /* "refraction" */;
 
 class PblFileChunk;
 class RedShadingState;
@@ -198,22 +198,49 @@ public:
     virtual unsigned int GetID(unsigned int) const = 0;
     virtual unsigned int GetRenderTypeHash() const = 0;
 
-    virtual RedShadingState* CreateShadingState() const;
+    // FUNCTION: SWBF2 0x006ac820
+    virtual RedShadingState* CreateShadingState() const
+    {
+        return 0;
+    }
 
-    virtual void SetData(const RedShaderData&);
+    // FUNCTION: SWBF2 0x006ad130
+    virtual void SetData(const RedShaderData&)
+    {
+    }
 
     virtual void Bind() = 0;
 
-    virtual unsigned int GetZPrepassState() const;
+    // FUNCTION: SWBF2 0x006ac860
+    virtual unsigned int GetZPrepassState() const
+    {
+        return 0xffffffffu;
+    }
 
-    virtual void RenderZPrepass(const RenderItem*) const;
+    // FUNCTION: SWBF2 0x006ad010
+    virtual void RenderZPrepass(const RenderItem*) const
+    {
+    }
 
-    virtual bool SortAsZWritingTransparent() const;
-    virtual bool IsTransparent() const;
+    // FUNCTION: SWBF2 0x006ad140
+    virtual bool SortAsZWritingTransparent() const
+    {
+        return false;
+    }
+    // FUNCTION: SWBF2 0x006ac9f0
+    virtual bool IsTransparent() const
+    {
+        return false;
+    }
 
+    // FUNCTION: SWBF2 0x006ac830
     virtual unsigned short GetShaderChain(pcRedShader** const ppOut,
-                                          unsigned short usCount,
-                                          const RenderItem*);
+                                          unsigned short,
+                                          const RenderItem*)
+    {
+        *ppOut = this;
+        return 1;
+    }
 
     virtual int GetDiffuseMapHash(int, int);
 
@@ -298,5 +325,29 @@ public:
  
  
  
+
+#define DECLARE_PC_RED_SHADER_METHODS(ShaderClass) \
+public: \
+virtual unsigned int GetID(unsigned int uiPass) const { return s_shaderDef.m_states[uiPass].uiID; } \
+virtual unsigned int GetRenderTypeHash() const { return s_uiRenderTypeHash; } \
+virtual void Bind() { _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray); } \
+private: \
+static pcRedShaderDef s_shaderDef; \
+static unsigned int s_uiID; \
+static ShaderClass s_Factory; \
+static unsigned int s_uiRenderTypeHash; \
+static GetStateFuncT GetStateFuncArray[MAX_PIPELINES]; \
+static BeginFuncT BeginFuncArray[MAX_PIPELINES]; \
+static EndFuncT EndFuncArray[MAX_PIPELINES]; \
+static RenderFuncT RenderFuncArray[MAX_PIPELINES]; \
+virtual pcRedShader* _Create(unsigned int uiFlags, const unsigned int* pParams, \
+                            unsigned int uiNumParams, unsigned int uiMaterialFlags, \
+                            const RedColor& color0, const RedColor& color1, \
+                            float fArg7) const; \
+virtual void _Read(PblFileChunk& chunk) const; \
+virtual void InitFixedFunctionShaderDef() const; \
+virtual pcRedShaderDef* GetShaderDef() const { return &s_shaderDef; } \
+void _InitPipelineFuncArray(); \
+public:
 
 #endif

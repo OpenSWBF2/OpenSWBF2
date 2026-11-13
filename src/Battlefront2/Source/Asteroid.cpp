@@ -6,6 +6,7 @@
 #include "CollisionMesh.h"
 #include "CollisionModel.h"
 #include "CollisionObject.h"
+#include "CollisionManager.h"
 #include "CollisionPrimitive.h"
 #include "Explosion.h"
 #include "GameModel.h"
@@ -34,17 +35,6 @@ extern PblMatrix gMatrixIdentity;
 unsigned int sSoftCollisionMask;
 // GLOBAL: SWBF2 0x01e2fdd8
 unsigned int sOrdnanceCollisionMask;
-
-// SYNTHETIC: SWBF2 0x004022d0
-// `dynamic initializer for 'AsteroidClass::rttiHashAsteroidClass''
-// AsteroidClass::rttiHashAsteroidClass
-
-// GLOBAL: SWBF2 0x01eb024c
-// AsteroidClass::rttiHashAsteroidClass
-PblHash AsteroidClass::rttiHashAsteroidClass("AsteroidClass");
-// GLOBAL: SWBF2 0x00788840
-// AsteroidClass::rttiNameAsteroidClass
-const char AsteroidClass::rttiNameAsteroidClass[] = "AsteroidClass";
 
 // FUNCTION: SWBF2 0x004453d0
 AsteroidClass::AsteroidClass(unsigned int uHash)
@@ -99,15 +89,15 @@ const GameModel* EntityGeometryClass::GetModel()
 }
 
 // FUNCTION: SWBF2 0x00444430
-int GameObjectClass::GetSoldierType() const
+GameObjectClass::SoldierType GameObjectClass::GetSoldierType() const
 {
-    return 5;
+    return SOLDIER_UNKNOWN;
 }
 
 // FUNCTION: SWBF2 0x00444440
-int GameObjectClass::GetVehicleType() const
+GameObjectClass::VehicleType GameObjectClass::GetVehicleType() const
 {
-    return 9;
+    return VEHICLE_UNKNOWN;
 }
 
 // FUNCTION: SWBF2 0x00444450
@@ -159,7 +149,7 @@ void AsteroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x47c86b4a:
+    case 0x47c86b4a: /* "GeometryName" */
     {
         EntityGeometryClass::SetProperty(uProperty, pszValue);
         sSoftCollisionMask = 0;
@@ -169,7 +159,7 @@ void AsteroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
         if (pMesh)
         {
             mCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "CollisionMesh", gMatrixIdentity, 0));
-            int iMaskId = mCollisionModel.GetMaskId(0x29173102);
+            int iMaskId = mCollisionModel.GetMaskId(0x29173102 /* "CollisionMesh" */);
             if (iMaskId >= 0)
             {
                 sSoftCollisionMask |= 1 << iMaskId;
@@ -197,23 +187,23 @@ void AsteroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0xfbe2eb62:
+    case 0xfbe2eb62: /* "MinSpeed" */
         sscanf(pszValue, "%f", &mMinSpeed);
         break;
-    case 0x86df0364:
+    case 0x86df0364: /* "MaxSpeed" */
         sscanf(pszValue, "%f", &mMaxSpeed);
         break;
-    case 0x8ec2719e:
+    case 0x8ec2719e: /* "MinOmega" */
         sscanf(pszValue, "%f", &mMinOmega);
         break;
-    case 0x38970514:
+    case 0x38970514: /* "MaxOmega" */
         sscanf(pszValue, "%f", &mMaxOmega);
         break;
-    case 0x74e9dbae:
+    case 0x74e9dbae: /* "Collidable" */
         sscanf(pszValue, "%d", &mCollidable);
         break;
 
-    case 0xa20a3388:
+    case 0xa20a3388: /* "ChildAsteroid" */
         if (mNumChildren < 10)
         {
             char acClass[256];
@@ -225,16 +215,16 @@ void AsteroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
 
-    case 0x0e15a87f:
+    case 0x0e15a87f: /* "ExplosionBreak" */
         mExplosionBreak = ExplosionClass::Find(PblHash(pszValue));
         break;
-    case 0x02bb1fe0:
-    case 0x8a323f32:
-    case 0x9b30e763:
+    case 0x02bb1fe0: /* "Explosion" */
+    case 0x8a323f32: /* "ExplosionDestruct" */
+    case 0x9b30e763: /* "ExplosionName" */
         mExplosionDestruct = ExplosionClass::Find(PblHash(pszValue));
         break;
 
-    case 0x5dfdc07f:
+    case 0x5dfdc07f: /* "SoldierCollision" */
     {
         int iMaskId = mCollisionModel.GetMaskId(PblHash(pszValue));
         if (iMaskId >= 0)
@@ -244,7 +234,7 @@ void AsteroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
     }
-    case 0xfb2bdf07:
+    case 0xfb2bdf07: /* "OrdnanceCollision" */
     {
         int iMaskId = mCollisionModel.GetMaskId(PblHash(pszValue));
         if (iMaskId >= 0)
@@ -288,11 +278,16 @@ MemoryPool Asteroid::sMemoryPool("Asteroid", sizeof(Asteroid));
 PblHash Asteroid::rttiHashAsteroid("Asteroid");
 const char Asteroid::rttiNameAsteroid[] = "Asteroid";
 
-class CollisionManager
-{
-public:
-    static bool AddAsteroidBody(CollisionObject* pObject);
-};
+// SYNTHETIC: SWBF2 0x004022d0
+// `dynamic initializer for 'AsteroidClass::rttiHashAsteroidClass''
+// AsteroidClass::rttiHashAsteroidClass
+
+// GLOBAL: SWBF2 0x01eb024c
+// AsteroidClass::rttiHashAsteroidClass
+PblHash AsteroidClass::rttiHashAsteroidClass("AsteroidClass");
+// GLOBAL: SWBF2 0x00788840
+// AsteroidClass::rttiNameAsteroidClass
+const char AsteroidClass::rttiNameAsteroidClass[] = "AsteroidClass";
 
 // FUNCTION: SWBF2 0x00445ba0
 Entity* AsteroidClass::Build(const EntityDesc& desc)
@@ -601,13 +596,6 @@ void Asteroid::SetMatrix(const PblMatrix& matrix)
     RecalculateAABB();
 }
 
-// FUNCTION: SWBF2 0x004446b0
-float Asteroid::GetMaxSpeed() const
-{
-    return mVelocity.y * mMatrix.m[2][1] + mVelocity.x * mMatrix.m[2][0] +
-           mVelocity.z * mMatrix.m[2][2];
-}
-
 // FUNCTION: SWBF2 0x004446e0
 float Asteroid::GetMaxStrafe() const
 {
@@ -620,22 +608,10 @@ bool Asteroid::AddToTeamManager() const
     return false;
 }
 
-// FUNCTION: SWBF2 0x00444700
-void Asteroid::SetVelocity(const PblVector3& vVelocity)
-{
-    mVelocity = vVelocity;
-}
-
 // FUNCTION: SWBF2 0x00444720
 GameObjectType Asteroid::GetGameObjectType()
 {
     return GO_UNKNOWN;
-}
-
-// FUNCTION: SWBF2 0x00444730
-EntityType Asteroid::GetEntityType() const
-{
-    return ENT_ASTEROID;
 }
 
 // FUNCTION: SWBF2 0x00444740
@@ -690,7 +666,7 @@ void Asteroid::Kill()
                     {
                         pChild->Init();
                         const PblVector3 vDir = desc.mMatrix.GetTranslation() - mMatrix.GetTranslation();
-                        static_cast<EntityGeometry*>(pChild)->SetVelocity(Normalize(vDir) * 50.0f);
+                        ((EntityGeometry*)pChild)->SetVelocity(Normalize(vDir) * 50.0f);
                     }
                 }
             }
@@ -751,19 +727,12 @@ bool Asteroid::Update(float fDeltaTime)
     {
         const float fInv = 1.0f / fOmega;
         const PblVector3 vAxis = mOmega * fInv;
-        float fSin, fCos;
-        PblMath::SinCos(&fSin, &fCos, fOmega * fDeltaTime * 0.5f);
-        const PblQuaternion qStep(fCos, vAxis.x * fSin, vAxis.y * fSin, vAxis.z * fSin);
+        const PblQuaternion qStep(vAxis, fOmega * fDeltaTime);
         qRotation = qRotation * qStep;
     }
     vPos += mVelocity * fDeltaTime;
 
-    D3DXQUATERNION qNormalized;
-    D3DXQuaternionNormalize(&qNormalized, (const D3DXQUATERNION*)&qRotation);
-    PblMatrix mNew;
-    D3DXMatrixRotationQuaternion((D3DXMATRIX*)&mNew, &qNormalized);
-    mNew[3] = vPos;
-    mNew.m[3][3] = 1.0f;
+    PblMatrix mNew(qRotation, vPos);
     mMatrix = mNew;
     SetRenderPos(vPos);
     AsteroidCollisionFollows(this);
@@ -803,6 +772,3 @@ void Asteroid::DeactivatePhysics()
     DeactivateThread();
 }
 
-// TEMPLATE: SWBF2 0x00446d40
-// Factory<Ordnance,ExplosionClass,OrdnanceDesc>::Find
-template ExplosionClass* Factory<Ordnance, ExplosionClass, OrdnanceDesc>::Find(unsigned int);

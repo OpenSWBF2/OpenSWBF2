@@ -25,7 +25,7 @@
 #include "UnitAgent.h"
 #include "UnitCmdInfo.h"
 #include "UnitController.h"
-#include "WeaponMeleeInstance.h"
+#include "WeaponMelee.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblRandom.h"
@@ -72,7 +72,7 @@ namespace
 
     inline const PblVector3& GetPosition(const GameObject* pObj)
     {
-        return static_cast<const CollisionObject*>(pObj)->GetPosition();
+        return ((const CollisionObject*)pObj)->GetPosition();
     }
 
     inline bool WeaponIsRtti(Weapon* pWpn, unsigned int uRtti)
@@ -82,10 +82,10 @@ namespace
 
     void AI_ForceDeflectState(Weapon* pMelee, bool bDeflect)
     {
-        static_cast<WeaponMelee*>(pMelee)->m_bAI_Deflect = bDeflect;
+        ((WeaponMelee*)pMelee)->m_bAI_Deflect = bDeflect;
     }
 
-    const Damageable* GetDamageable(const GameObject* pObj) { return static_cast<const Damageable*>(pObj); }
+    const Damageable* GetDamageable(const GameObject* pObj) { return (const Damageable*)pObj; }
     bool IsShielded(const Damageable* pDamageable) { return pDamageable->mIsShielded; }
     float GetCurShield(const Damageable* pDamageable) { return pDamageable->mCurShield; }
     float GetMaxShield(const Damageable* pDamageable) { return pDamageable->mMaxShield; }
@@ -305,7 +305,7 @@ void CombatHelper::ExitState()
     Weapon* pWpn = GetMe()->GetCurWpn();
     if (pWpn && WeaponIsRtti(pWpn, WeaponMelee::rttiHashWeaponMelee))
     {
-        static_cast<WeaponMelee*>(pWpn)->m_bAI_Deflect = false;
+        ((WeaponMelee*)pWpn)->m_bAI_Deflect = false;
     }
 
     switch (mCurState)
@@ -370,11 +370,11 @@ void CombatHelper::UpdateState(float dt)
         }
         if (mDeflect)
         {
-            static_cast<WeaponMelee*>(pWpn)->m_bAI_Deflect = true;
+            ((WeaponMelee*)pWpn)->m_bAI_Deflect = true;
         }
         else
         {
-            static_cast<WeaponMelee*>(pWpn)->m_bAI_Deflect = false;
+            ((WeaponMelee*)pWpn)->m_bAI_Deflect = false;
         }
     }
 
@@ -466,9 +466,9 @@ void CombatHelper::UpdateState(float dt)
             const float fTurnTo = AIUtil::GetRandomFloat(0.1f, 0.3f);
             const float fStay = AIUtil::GetRandomFloat(0.4f, 0.7f);
             const float fTurnBack = AIUtil::GetRandomFloat(0.1f, 0.3f);
-            if ((PblRandom::GetGlobalInt() & 1) && static_cast<const GameObject*>(mTargetHandle))
+            if ((PblRandom::GetGlobalInt() & 1) && (const GameObject*)mTargetHandle)
             {
-                GetLowLevel().HeadLook_Object(static_cast<const GameObject*>(mTargetHandle), fTurnTo, fStay, fTurnBack);
+                GetLowLevel().HeadLook_Object((const GameObject*)mTargetHandle, fTurnTo, fStay, fTurnBack);
             }
             else
             {
@@ -504,10 +504,10 @@ void CombatHelper::UpdateState(float dt)
             break;
         }
 
-        const PblMatrix& mMe = GetMe()->GetMatrix();
+        const float* pMe = GetMe()->GetMatrix().m[3];
         const PblVector3& vLastSeen = GetAttackHelper().GetLastSeenTargetPos();
-        const float fDX = vLastSeen.x - mMe.m[3][0];
-        const float fDZ = vLastSeen.z - mMe.m[3][2];
+        const float fDX = vLastSeen.x - pMe[0];
+        const float fDZ = vLastSeen.z - pMe[2];
         const float fRange = CombatUtil::GetCombatRange(GetMe()) + 10.0f;
         if (fDZ * fDZ + fDX * fDX > fRange * fRange)
         {
@@ -523,7 +523,8 @@ void CombatHelper::UpdateState(float dt)
             SetNextState(STATE_LookAround);
             break;
         }
-        if (bNewTarget || eState != mAttackPattern)
+        const bool bChanged = bNewTarget ? true : eState != mAttackPattern;
+        if (bChanged)
         {
             SetNextState(STATE_Engage);
             break;
@@ -534,7 +535,7 @@ void CombatHelper::UpdateState(float dt)
 
         if (GetMe()->GetEntity()->IsRtti(EntityDroideka::rttiHashEntityDroideka))
         {
-            const EntityDroideka* pDroideka = static_cast<const EntityDroideka*>(GetMe()->GetGameObject());
+            const EntityDroideka* pDroideka = (const EntityDroideka*)GetMe()->GetGameObject();
             if (!pDroideka->IsShielded() &&
                 pDroideka->mCurShield > pDroideka->mMaxShield * 0.5f)
             {
@@ -652,7 +653,7 @@ int CombatHelper::EventHandler(AI::EventInfo* pInfo)
         return mOwner->RunForVehicle(pInfo->mGameObject) ? AI::EVT_NotHandled : AI::EVT_Ignored;
 
     case AI::EVT_Grenade:
-        if (GetMe()->GetEntity()->IsRtti(MountedTurret::rttiHashMountedTurret))
+        if (GetMe()->GetEntity()->IsRtti(MountedTurret::GetRtti()))
         {
             return AI::EVT_Ignored;
         }
@@ -666,7 +667,7 @@ int CombatHelper::EventHandler(AI::EventInfo* pInfo)
 
     case AI::EVT_Damaged:
     {
-        AI::EventInfo_Damaged* pDamaged = static_cast<AI::EventInfo_Damaged*>(pInfo);
+        AI::EventInfo_Damaged* pDamaged = (AI::EventInfo_Damaged*)pInfo;
         mOwner->DamagedEventPlayerCentricness(pInfo);
         mOwner->PlayDamageEventVO(pInfo);
 

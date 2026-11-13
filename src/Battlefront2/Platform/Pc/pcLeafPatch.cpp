@@ -1,5 +1,11 @@
 #include <d3dx9math.h>
-#include "pcLeafPatch.h"
+#include <stddef.h>
+#include "Battlefront2/Source/LeafPatch.h"
+#include "PebbleFL/Common/PblHeap.h"
+#include "PebbleFL/Common/PblVector.h"
+#include "RedEngineFL/Application/Renderable.h"
+#include "RedEngineFL/Graphics/RedColor.h"
+#include "RedEngineFL/Graphics/RedMaterial.h"
 #include "pcDynamicSprite.h"
 
 #include "RedEngineFL/Graphics/RedCamera.h"
@@ -13,25 +19,70 @@
 #include <new>
 #include "Battlefront2/Source/BirdEffect.h"
 
+// VTABLE: SWBF2 0x0079655c
+class LeafPatchRenderable : public Renderable
+{
+public:
+
+    LeafPatchRenderable(const LeafPatchClass* pClass);
+    virtual ~LeafPatchRenderable();
+
+    // SYNTHETIC: SWBF2 0x0041b900
+    // LeafPatchRenderable::`scalar deleting destructor'
+
+    virtual void Render(unsigned int value) const;
+
+    void RenderInstance(const PblMatrix& matrix, const RedColor& color, unsigned int uiFlags) const;
+
+private:
+    void Update();
+    void Begin();
+    void AddParticle(const PblVector3& vPos, float fSize, const RedColor& color, float fRotation,
+                     int iParticleIndex, unsigned char ucTexture);
+
+    float m_fDistanceFarShader;
+    pcRedPrimitive* m_pPrimitive;
+    pcRedShader* m_pShader;
+    pcRedPrimitive* m_pPrimitiveFar;
+    pcRedShader* m_pShaderFar;
+    pcRedIndexBuffer* m_pIBReverse;
+    pcRedIndexBuffer* m_pIBForward;
+    const LeafPatchClass* m_pClass;
+    PblHeap<int, float>* mHeap;
+    int m_iNumParticlesAllLODs;
+    unsigned int m_startIndexForward;
+    unsigned int m_startIndexReverse;
+    pcRedVertexBuffer* m_pVB;
+    void* m_pVertices;
+    PblVector3 m_vUp;
+    PblVector3 m_avRight[10];
+    PblVector3 m_vFront;
+    int m_iTexCoordType;
+    mutable bool m_bReflection;
+
+    static const CompressedTexCoord s_CompressedTexCoords[2][4][4];
+    static const TexCoord s_TexCoords[2][4][4];
+};
+
 // FUNCTION: SWBF2 0x0041a740
 LeafPatchRenderable::LeafPatchRenderable(const LeafPatchClass* pClass)
-    : Renderable(2), m_fDistanceFarShader(pClass->mNearFadeDist), m_pClass(pClass)
+    : Renderable(RENDERABLE_PREWORLD), m_fDistanceFarShader(pClass->mNearFadeDist), m_pClass(pClass)
 {
     m_pPrimitive = 0;
     m_pPrimitiveFar = 0;
     m_pVertices = 0;
     if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_UNCOMPRESSED)
     {
-        m_pShader = pcRedShader::Create(0xe68b9c52, 0x2a2, &m_pClass->mTextureHash,
+        m_pShader = pcRedShader::Create(0xe68b9c52 /* "normal" */, 0x2a2, &m_pClass->mTextureHash,
                                         1, 0x10002, RedColor::WHITE, RedColor::BLACK, 32.0f);
-        m_pShaderFar = pcRedShader::Create(0xe68b9c52, 0x2a2, &m_pClass->mTextureHash,
+        m_pShaderFar = pcRedShader::Create(0xe68b9c52 /* "normal" */, 0x2a2, &m_pClass->mTextureHash,
                                            1, 0x10002, RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
     else
     {
-        m_pShader = pcRedShader::Create(0xe68b9c52, 0xd2a2, &m_pClass->mTextureHash,
+        m_pShader = pcRedShader::Create(0xe68b9c52 /* "normal" */, 0xd2a2, &m_pClass->mTextureHash,
                                         1, 0x10002, RedColor::WHITE, RedColor::BLACK, 32.0f);
-        m_pShaderFar = pcRedShader::Create(0xe68b9c52, 0xd2a2, &m_pClass->mTextureHash,
+        m_pShaderFar = pcRedShader::Create(0xe68b9c52 /* "normal" */, 0xd2a2, &m_pClass->mTextureHash,
                                            1, 0x10002, RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
     m_bReflection = false;
@@ -138,7 +189,7 @@ bool LeafPatchClass::RenderMaxDist(const PblMatrix& matrix, float& fDist,
     }
     if (mMaxScatterBirds && !(uiFlags & 0x200000))
     {
-        BirdParticleManager::SetPotentialScatterPoint(&vPos, mMaxScatterBirds);
+        BirdParticleManager::SetPotentialScatterPoint(vPos, mMaxScatterBirds);
     }
     PblMatrix scaled = matrix;
     scaled.SetYAxis(scaled.GetYAxis() * mHeightScale);
@@ -171,10 +222,10 @@ struct LeafPatchVertex
 }
 
 // FUNCTION: SWBF2 0x0041abb0
-void LeafPatchRenderable::Render(int value)
+void LeafPatchRenderable::Render(unsigned int value) const
 {
     m_bReflection = ((unsigned int)value & 0x200000) != 0;
-    Update();
+    const_cast<LeafPatchRenderable*>(this)->Update();
 }
 
 // FUNCTION: SWBF2 0x0041abd0
@@ -376,7 +427,7 @@ void LeafPatchRenderable::AddParticle(const PblVector3& vPos, float fSize, const
 }
 
 // GLOBAL: SWBF2 0x007884f0
-const LeafPatchRenderable::TexCoord LeafPatchRenderable::s_TexCoords[2][4][4] = {
+const TexCoord LeafPatchRenderable::s_TexCoords[2][4][4] = {
     {
         { { 0.0f, 1.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 0.0f } },
         { { 1.0f, 1.0f }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, { 0.0f, 0.0f } },
@@ -392,7 +443,7 @@ const LeafPatchRenderable::TexCoord LeafPatchRenderable::s_TexCoords[2][4][4] = 
 };
 
 // GLOBAL: SWBF2 0x007885f8
-const LeafPatchRenderable::CompressedTexCoord LeafPatchRenderable::s_CompressedTexCoords[2][4][4] = {
+const CompressedTexCoord LeafPatchRenderable::s_CompressedTexCoords[2][4][4] = {
     {
         { { 0, 2047 }, { 2047, 2047 }, { 0, 0 }, { 2047, 0 } },
         { { 2047, 2047 }, { 0, 2047 }, { 2047, 0 }, { 0, 0 } },

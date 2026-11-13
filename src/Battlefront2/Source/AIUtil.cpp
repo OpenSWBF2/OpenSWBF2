@@ -51,7 +51,7 @@
 #include "PassengerSlot.h"
 #include "SnipeHelper.h"
 #include "Team.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/RedModel.h"
@@ -128,7 +128,7 @@ namespace
 
     inline int GetFlyerState(const GameObject* pObj)
     {
-        return static_cast<const EntityFlyer*>(pObj)->GetState();
+        return ((const EntityFlyer*)pObj)->GetState();
     }
 
     PblVector3 GetTargetPoint(const GameObject* pObj, const PblVector3& vFrom,
@@ -150,6 +150,15 @@ bool AIUtil::sUberMode;
 bool AIUtil::IsUberMode()
 {
     return sUberMode;
+}
+
+namespace AIUtil
+{
+// FUNCTION: SWBF2 0x0043ef40
+bool IsDebugOutputVisible()
+{
+    return false;
+}
 }
 
 // FUNCTION: SWBF2 0x0043ef50
@@ -245,32 +254,6 @@ float AIUtil::gSnipeSuitabilityDist = 70.0f;
 // GLOBAL: SWBF2 0x01f9af80
 static unsigned __int64 sSpied[600];
 
-// FUNCTION: SWBF2 0x004417d0
-void AIUtil::ResetSpied(Character* pWatcher)
-{
-    sSpied[Character::GetIndex(pWatcher)] = 0;
-}
-
-namespace AIUtil
-{
-
-// FUNCTION: SWBF2 0x00441780
-void __fastcall AddSpied(Character* aSpy, Character* aSpotter)
-{
-    sSpied[Character::GetIndex(aSpy)] |= 1 << Character::GetIndex(aSpotter);
-}
-}
-
-namespace AIUtil
-{
-
-// FUNCTION: SWBF2 0x00441800
-bool __fastcall IsSpied(Character* aSpy, Character* aSpotter)
-{
-    return (sSpied[Character::GetIndex(aSpy)] & (1 << Character::GetIndex(aSpotter))) != 0;
-}
-}
-
 namespace AIUtil
 {
 
@@ -284,33 +267,6 @@ bool __fastcall ShouldStayInVehicle(const Controllable* pMe)
     }
     return true;
 }
-}
-
-// FUNCTION: SWBF2 0x00441690
-bool AIUtil::IsNearNonAllyCommandPost(const GameObject* pObject, const CommandPost** ppPost)
-{
-    float fNearest = 3.402823466e38f;
-    *ppPost = 0;
-    PblVector3 vObject;
-    vObject = pObject->GetMatrix().GetTranslation();
-    for (int i = 0; i < CommandPostManager::Instance()->GetCount(); ++i)
-    {
-        CommandPost* pPost = CommandPostManager::Instance()->FindPostFromIndex(i);
-        const GameObject* pPostObject = pPost->GetGameObject();
-        if (!pObject->IsMyFriend(pPostObject))
-        {
-            const PblVector3 vDelta = GetCommandPostPos(pPost) - vObject;
-            const float dz = vDelta.z;
-            const float dx = vDelta.x;
-            const float fDistanceSq = dx * dx + dz * dz;
-            if (fDistanceSq < fNearest && fDistanceSq < 5625.0f)
-            {
-                fNearest = fDistanceSq;
-                *ppPost = pPost;
-            }
-        }
-    }
-    return *ppPost != 0;
 }
 
 namespace AIDifficulty
@@ -466,7 +422,7 @@ static void sCalculateTurnControls(const Controllable* pMe, float fScale, const 
 
     if (pMe->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer)
         || pMe->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover)
-        || (pMe->GetEntity()->IsRtti(MountedTurret::rttiHashMountedTurret) && fTurnRate > 0.5f))
+        || (pMe->GetEntity()->IsRtti(MountedTurret::GetRtti()) && fTurnRate > 0.5f))
     {
         vToDest.y = 0.0f;
         const PblVector3 vLocal = UnrotateVector(pMe->GetMatrix(), vToDest);
@@ -511,7 +467,7 @@ static void sCalculateTurnControls(const Controllable* pMe, float fScale, const 
         }
         *pfTurn = fTurn;
 
-        const UnitController* pUnit = UnitControllerPtr(static_cast<const Controller*>(pMe->mCtrl));
+        const UnitController* pUnit = UnitControllerPtr((const Controller*)pMe->mCtrl);
         const float fMax =
             pUnit->mLowLevel.UseFastTurn() ? 2.0f : 1.0f;
         *pfTurn = Clamp(*pfTurn, -fMax, fMax);
@@ -523,7 +479,7 @@ static void sCalculateTurnControls(const Controllable* pMe, float fScale, const 
 
     if (pMe->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer)
         || pMe->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover)
-        || (pMe->GetEntity()->IsRtti(MountedTurret::rttiHashMountedTurret) && fPitchRate > 0.5f))
+        || (pMe->GetEntity()->IsRtti(MountedTurret::GetRtti()) && fPitchRate > 0.5f))
     {
         const PblVector3 vLocal = UnrotateVector(mEye, vToDest2);
         PblVector3 vDir;
@@ -668,7 +624,7 @@ void AIUtil::CalculateHeadingControls(const Controllable* pMe, float fScale,
     {
         vAim = rHeading.mDest;
         fWander = rHeading.mDestWander;
-        pTarget = UnitControllerPtr(static_cast<const Controller*>(pMe->mCtrl))->GetAttackHelperTarget();
+        pTarget = UnitControllerPtr((const Controller*)pMe->mCtrl)->GetAttackHelperTarget();
     }
     else
     {
@@ -744,12 +700,12 @@ namespace
 {
     const Obstacle* HoverGetObstacle(const Entity* pHover)
     {
-        return static_cast<const EntityHover*>(pHover)->mObstacle;
+        return ((const EntityHover*)pHover)->mObstacle;
     }
 
     const Obstacle* FlyerGetObstacle(const Entity* pFlyer)
     {
-        return static_cast<const EntityFlyer*>(pFlyer)->mObstacle;
+        return ((const EntityFlyer*)pFlyer)->mObstacle;
     }
 
     inline const AILowLevel* GetLowLevel(const UnitController* pUnit)
@@ -782,7 +738,7 @@ void UpdatePhysics(const Controllable* pMe, float fScale, const ControllableDest
         const float fDistSq = vToDest.z * vToDest.z + vToDest.x * vToDest.x;
         const bool bInStopDist = fStop * fStop > fDistSq;
         bStopping = bInStopDist &&
-                    !GetLowLevel(UnitControllerPtr(static_cast<const Controller*>(pMe->mCtrl)))->HasPath();
+                    !GetLowLevel(UnitControllerPtr((const Controller*)pMe->mCtrl))->HasPath();
 
         if (bAtDest ||
             (bStopping && (pMe->GetEntity()->IsRtti(EntityWalker::rttiHashEntityWalker) ||
@@ -867,7 +823,7 @@ void UpdatePhysics(const Controllable* pMe, float fScale, const ControllableDest
     if (pMe->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover))
     {
         bUseHeading = (bStopping && bCanStrafe) ||
-                      GetLowLevel(UnitControllerPtr(static_cast<const Controller*>(pMe->mCtrl)))->mAllowHoverStrafe;
+                      GetLowLevel(UnitControllerPtr((const Controller*)pMe->mCtrl))->mAllowHoverStrafe;
     }
     else
     {
@@ -883,7 +839,7 @@ void UpdatePhysics(const Controllable* pMe, float fScale, const ControllableDest
         bool bFromEye = false;
         if (pMe->GetEntity()->IsRtti(EntityDroideka::rttiHashEntityDroideka))
         {
-            if (GetLowLevel(UnitControllerPtr(static_cast<const Controller*>(pMe->mCtrl)))->mFoldStatus ==
+            if (GetLowLevel(UnitControllerPtr((const Controller*)pMe->mCtrl))->mFoldStatus ==
                 FOLD_UNFOLD)
             {
                 bFromEye = true;
@@ -1070,17 +1026,17 @@ void AIUtil::CalculateSoldierSteerPoint(const PblVector3& vPrev, const PblVector
 // FUNCTION: SWBF2 0x00440f20
 bool AIUtil::IsATAT(const Controllable* pControllable)
 {
-    return pControllable->GetEntity()->GetEntityClass()->mId == 0x6fbcdecc;
+    return pControllable->GetEntity()->GetEntityClass()->mId == 0x6fbcdecc /* "imp_walk_atat" */;
 }
 
 // FUNCTION: SWBF2 0x00440f40
 AIUtil::EntityType AIUtil::GetEntityType(const Entity* pEntity)
 {
-    if (pEntity->IsRtti(EntitySoldier::rttiHashEntitySoldier))
+    if (pEntity->IsRtti(EntitySoldier::GetRtti()))
     {
         return ENTITY_SOLDIER;
     }
-    if (pEntity->IsRtti(EntityDroid::rttiHashEntityDroid))
+    if (pEntity->IsRtti(EntityDroid::GetRtti()))
     {
         return ENTITY_DROID;
     }
@@ -1092,7 +1048,7 @@ AIUtil::EntityType AIUtil::GetEntityType(const Entity* pEntity)
     {
         return ENTITY_DROIDEKA;
     }
-    if (pEntity->IsRtti(EntityFlyer::rttiHashEntityFlyer))
+    if (pEntity->IsRtti(EntityFlyer::GetRtti()))
     {
         return ENTITY_FLYER;
     }
@@ -1100,15 +1056,15 @@ AIUtil::EntityType AIUtil::GetEntityType(const Entity* pEntity)
     {
         return ENTITY_HOVER;
     }
-    if (pEntity->IsRtti(MountedTurret::rttiHashMountedTurret))
+    if (pEntity->IsRtti(MountedTurret::GetRtti()))
     {
         return ENTITY_TURRET;
     }
-    if (pEntity->IsRtti(EntityBuildingArmed::rttiHashEntityBuildingArmed))
+    if (pEntity->IsRtti(EntityBuildingArmed::GetRtti()))
     {
         return ENTITY_BUILDING_ARMED;
     }
-    if (pEntity->IsRtti(EntityBuilding::rttiHashEntityBuilding))
+    if (pEntity->IsRtti(EntityBuilding::GetRtti()))
     {
         return ENTITY_BUILDING;
     }
@@ -1116,11 +1072,11 @@ AIUtil::EntityType AIUtil::GetEntityType(const Entity* pEntity)
     {
         return ENTITY_ITEM;
     }
-    if (pEntity->IsRtti(PassengerSlot::rttiHashPassengerSlot))
+    if (pEntity->IsRtti(PassengerSlot::GetRtti()))
     {
         return ENTITY_TURRET;
     }
-    if (pEntity->IsRtti(EntityRemoteTerminal::rttiHashEntityRemoteTerminal))
+    if (pEntity->IsRtti(EntityRemoteTerminal::GetRtti()))
     {
         return ENTITY_REMOTE_TERMINAL;
     }
@@ -1139,10 +1095,10 @@ float AIUtil::StopDistIntermediate(const Controllable* pControllable)
     switch (GetEntityType(pControllable->GetEntity()))
     {
     case ENTITY_FLYER:
-        return static_cast<const EntityFlyerClass*>(pControllable->GetEntity()->GetEntityClass())
+        return ((const EntityFlyerClass*)pControllable->GetEntity()->GetEntityClass())
                    ->mMaxFlyerSpeed * 0.25f;
     case ENTITY_HOVER:
-        return static_cast<const EntityHoverClass*>(pControllable->GetEntity()->GetEntityClass())
+        return ((const EntityHoverClass*)pControllable->GetEntity()->GetEntityClass())
                    ->mForwardSpeed * 0.5f;
     default:
         return 1.0f;
@@ -1158,7 +1114,7 @@ float AIUtil::StopDist(const Controllable* pControllable)
     case ENTITY_DROID:
         return 0.5f;
     case ENTITY_HOVER:
-        return static_cast<const EntityHoverClass*>(pControllable->GetEntity()->GetEntityClass())
+        return ((const EntityHoverClass*)pControllable->GetEntity()->GetEntityClass())
                    ->mForwardSpeed * 0.5f;
     default:
         return 4.0f;
@@ -1309,6 +1265,75 @@ bool AIUtil::IsNearPost(const Controllable* pMe, const CommandPost* pPost, const
     return fRadius * fRadius > fDistSq;
 }
 
+// FUNCTION: SWBF2 0x00441620
+void AIUtil::DeployCargo(GameObject* pObject, const CommandPost*  )
+{
+    const PblList<Controllable>& list = pObject->GetControllableList();
+    PblList<Controllable>::Itor it = list.Begin();
+    ++it;
+    for (; (Controllable*)it; ++it)
+    {
+        Controller* pCtrl = ((Controllable*)it)->mCtrl;
+        if (pCtrl && !pCtrl->IsRtti(PlayerController::rttiHashPlayerController))
+        {
+            pCtrl->mOwner->GetPilot()->ExitVehicle(true, true);
+        }
+    }
+}
+
+// FUNCTION: SWBF2 0x00441690
+bool AIUtil::IsNearNonAllyCommandPost(const GameObject* pObject, const CommandPost** ppPost)
+{
+    float fNearest = 3.402823466e38f;
+    *ppPost = 0;
+    PblVector3 vObject;
+    vObject = pObject->GetMatrix().GetTranslation();
+    for (int i = 0; i < CommandPostManager::Instance()->GetCount(); ++i)
+    {
+        CommandPost* pPost = CommandPostManager::Instance()->FindPostFromIndex(i);
+        const GameObject* pPostObject = pPost->GetGameObject();
+        if (!pObject->IsMyFriend(pPostObject))
+        {
+            const PblVector3 vDelta = GetCommandPostPos(pPost) - vObject;
+            const float dz = vDelta.z;
+            const float dx = vDelta.x;
+            const float fDistanceSq = dx * dx + dz * dz;
+            if (fDistanceSq < fNearest && fDistanceSq < 5625.0f)
+            {
+                fNearest = fDistanceSq;
+                *ppPost = pPost;
+            }
+        }
+    }
+    return *ppPost != 0;
+}
+
+namespace AIUtil
+{
+
+// FUNCTION: SWBF2 0x00441780
+void AddSpied(Character* aSpy, Character* aSpotter)
+{
+    sSpied[Character::GetIndex(aSpy)] |= 1 << Character::GetIndex(aSpotter);
+}
+}
+
+// FUNCTION: SWBF2 0x004417d0
+void AIUtil::ResetSpied(Character* pWatcher)
+{
+    sSpied[Character::GetIndex(pWatcher)] = 0;
+}
+
+namespace AIUtil
+{
+
+// FUNCTION: SWBF2 0x00441800
+bool IsSpied(Character* aSpy, Character* aSpotter)
+{
+    return (sSpied[Character::GetIndex(aSpy)] & (1 << Character::GetIndex(aSpotter))) != 0;
+}
+}
+
 namespace AIUtil
 {
 
@@ -1357,20 +1382,65 @@ bool __cdecl CanPotentiallySee(const Controllable* pMe, const GameObject* pObjec
 }
 }
 
-// FUNCTION: SWBF2 0x00441620
-void AIUtil::DeployCargo(GameObject* pObject, const CommandPost*  )
+// FUNCTION: SWBF2 0x004419c0
+PblVector3 AIUtil::GetMyVisionPos(const Controllable* pMe)
 {
-    const PblList<Controllable>& list = pObject->GetControllableList();
-    PblList<Controllable>::Itor it = list.Begin();
-    ++it;
-    for (; (Controllable*)it; ++it)
+    return pMe->GetEyePoint();
+}
+
+// FUNCTION: SWBF2 0x004419e0
+PblVector3 AIUtil::GetHisVisionTargetPos(const Controllable* pMe, const GameObject* pObj)
+{
+    const PblVector3 vMyPos = GetMyVisionPos(pMe);
+    if (pObj->GetControllable())
     {
-        Controller* pCtrl = ((Controllable*)it)->mCtrl;
-        if (pCtrl && !pCtrl->IsRtti(PlayerController::rttiHashPlayerController))
-        {
-            pCtrl->mOwner->GetPilot()->ExitVehicle(true, true);
-        }
+        PblVector3 vHisEye;
+        vHisEye = pObj->GetControllable()->GetEyePoint();
+        PblVector3 vDir;
+        vDir = pMe->mEyeDir;
+        const PblVector3 vTarget = pObj->GetTargetPoint(vMyPos, vDir, -1);
+        const PblVector3 vSum(vHisEye.x + vTarget.x, vHisEye.y + vTarget.y, vHisEye.z + vTarget.z);
+        return PblVector3(vSum.x * 0.5f, vSum.y * 0.5f, vSum.z * 0.5f);
     }
+    return pObj->GetTargetPoint(vMyPos, pMe->mEyeDir, -1);
+}
+
+// FUNCTION: SWBF2 0x00441ac0
+bool AIUtil::CanSeePosition(Controllable* pMe, const PblVector3& vPos, const GameObject* pObj)
+{
+    const PblVector3 vFrom = GetMyVisionPos(pMe);
+    const GameObject* ignore[2];
+    ignore[0] = pMe->GetGameObject();
+    ignore[1] = pObj;
+    return !CollisionManager::RayTest(vFrom, vPos, ignore, 2, 0x9e);
+}
+
+// FUNCTION: SWBF2 0x00441b10
+bool AIUtil::CanSeePosition(const PblVector3& vFrom, Controllable* pMe, const PblVector3& vTo,
+                            const GameObject* pIgnore)
+{
+    const GameObject* ignore[3];
+    ignore[0] = pMe->GetGameObject();
+    ignore[1] = pIgnore;
+    int iIgnoreCount;
+    if (pIgnore->GetCollisionType() == COLL_ATTACHED && pIgnore->GetControllable() &&
+        pIgnore->GetControllable()->mCharacter && pIgnore->GetControllable()->mCharacter->mVehicle)
+    {
+        ignore[2] = const_cast<GameObject*>(pIgnore)->GetControllable()->mCharacter->mVehicle->GetGameObject();
+        iIgnoreCount = 3;
+    }
+    else
+    {
+        iIgnoreCount = 2;
+    }
+    return !CollisionManager::RayTest(vFrom, vTo, ignore, iIgnoreCount, 0x9e);
+}
+
+// FUNCTION: SWBF2 0x00441bd0
+bool AIUtil::CanSee(Controllable* pMe, const GameObject* pObj, PblVector3* pPos)
+{
+    *pPos = GetHisVisionTargetPos(pMe, pObj);
+    return CanSeePosition(pMe, *pPos, pObj);
 }
 
 // FUNCTION: SWBF2 0x00441c10
@@ -1386,7 +1456,7 @@ float AIUtil::GetCollisionRadius(const GameObject* pObj)
     const EntityType eType = GetEntityType(pObj);
     if (eType == ENTITY_HOVER)
     {
-        const EntityHoverClass* pHover = static_cast<const EntityHoverClass*>(pObj->GetEntityClass());
+        const EntityHoverClass* pHover = (const EntityHoverClass*)pObj->GetEntityClass();
         const float fBarrierX = pHover->mBarrierX;
         if (fBarrierX > 0.0f)
         {
@@ -1412,9 +1482,9 @@ float AIUtil::GetCollisionRadius(const GameObject* pObj)
 }
 
 // FUNCTION: SWBF2 0x00441d40
-int AIUtil::GetAIType(const GameObject* pObj)
+ConnectivityGraph::ProhibitFlag AIUtil::GetAIType(const GameObject* pObj)
 {
-    const int eType = pObj->GetGameObjectClass()->mAIType;
+    const ConnectivityGraph::ProhibitFlag eType = pObj->GetGameObjectClass()->mAIType;
     if (eType == ConnectivityGraph::CGT_FLAG_HOVER && pObj->GetCarriedFlagItem())
     {
         return ConnectivityGraph::CGT_FLAG_SOLDIER;
@@ -1663,7 +1733,7 @@ bool IsImportant(const GameObject* pObj)
         if (100.0f > vVel.x * vVel.x + vVel.y * vVel.y + vVel.z * vVel.z)
         {
             PblVector3 vPos;
-            vPos = static_cast<const CollisionObject*>(pObj)->GetMatrix().GetTranslation();
+            vPos = ((const CollisionObject*)pObj)->GetMatrix().GetTranslation();
             PblVector3 vCam;
             vCam = CameraManager::Instance()->GetCamera(0)->GetMatrix().GetTranslation();
             if (SquaredLength(vCam - vPos) > 2025.0f &&
@@ -1708,7 +1778,7 @@ PblVector3 AIUtil::DumbDown(const GameObject* pObject, float fDeltaTime, Aimer* 
     if (pUnit && pUnit->mLodState < 3)
     {
         const GameObject* pTarget = pUnit->GetAttackHelperTarget();
-        if (!pTarget || !pTarget->GetControllable() || pTarget->GetControllable()->mPlayerId < 0)
+        if (!pTarget || !pTarget->GetControllable() || !pTarget->GetControllable()->IsPlayer())
         {
             return vDir;
         }
@@ -1733,7 +1803,7 @@ PblVector3 AIUtil::DumbDown(const GameObject* pObject, float fDeltaTime, Aimer* 
     }
 
     PblVector3 vAim = pAimer->mDirection;
-    if (vDir.y * vAim.y + vDir.x * vAim.x + vAim.z * vDir.z < (float)cos(0.523598790f))
+    if (DotProduct(vDir, vAim) < (float)cos(0.523598790f))
     {
         const PblVector3 vUp = CrossProduct(vDir, vAim);
         PblMatrix mAim(CrossProduct(vDir, vUp), vUp, vDir, gVectorZero);
@@ -1777,67 +1847,6 @@ bool AIUtil::IsSnipeHintNearby(const GameObject* pObj, const SnipeHelper& helper
     return false;
 }
 
-// FUNCTION: SWBF2 0x004419c0
-PblVector3 AIUtil::GetMyVisionPos(const Controllable* pMe)
-{
-    return pMe->GetEyePoint();
-}
-
-// FUNCTION: SWBF2 0x004419e0
-PblVector3 AIUtil::GetHisVisionTargetPos(const Controllable* pMe, const GameObject* pObj)
-{
-    const PblVector3 vMyPos = GetMyVisionPos(pMe);
-    if (pObj->GetControllable())
-    {
-        PblVector3 vHisEye;
-        vHisEye = pObj->GetControllable()->GetEyePoint();
-        PblVector3 vDir;
-        vDir = pMe->mEyeDir;
-        const PblVector3 vTarget = pObj->GetTargetPoint(vMyPos, vDir, -1);
-        const PblVector3 vSum(vHisEye.x + vTarget.x, vHisEye.y + vTarget.y, vHisEye.z + vTarget.z);
-        return PblVector3(vSum.x * 0.5f, vSum.y * 0.5f, vSum.z * 0.5f);
-    }
-    return pObj->GetTargetPoint(vMyPos, pMe->mEyeDir, -1);
-}
-
-// FUNCTION: SWBF2 0x00441ac0
-bool AIUtil::CanSeePosition(Controllable* pMe, const PblVector3& vPos, const GameObject* pObj)
-{
-    const PblVector3 vFrom = GetMyVisionPos(pMe);
-    const GameObject* ignore[2];
-    ignore[0] = pMe->GetGameObject();
-    ignore[1] = pObj;
-    return !CollisionManager::RayTest(vFrom, vPos, ignore, 2, 0x9e);
-}
-
-// FUNCTION: SWBF2 0x00441b10
-bool AIUtil::CanSeePosition(const PblVector3& vFrom, Controllable* pMe, const PblVector3& vTo,
-                            const GameObject* pIgnore)
-{
-    const GameObject* ignore[3];
-    ignore[0] = pMe->GetGameObject();
-    ignore[1] = pIgnore;
-    int iIgnoreCount;
-    if (pIgnore->GetCollisionType() == COLL_ATTACHED && pIgnore->GetControllable() &&
-        pIgnore->GetControllable()->mCharacter && pIgnore->GetControllable()->mCharacter->mVehicle)
-    {
-        ignore[2] = const_cast<GameObject*>(pIgnore)->GetControllable()->mCharacter->mVehicle->GetGameObject();
-        iIgnoreCount = 3;
-    }
-    else
-    {
-        iIgnoreCount = 2;
-    }
-    return !CollisionManager::RayTest(vFrom, vTo, ignore, iIgnoreCount, 0x9e);
-}
-
-// FUNCTION: SWBF2 0x00441bd0
-bool AIUtil::CanSee(Controllable* pMe, const GameObject* pObj, PblVector3* pPos)
-{
-    *pPos = GetHisVisionTargetPos(pMe, pObj);
-    return CanSeePosition(pMe, *pPos, pObj);
-}
-
 // FUNCTION: SWBF2 0x00442b80
 void AIUtil::GrenadeAlert(const PblVector3& vPos, const GameObject* pObject, float* pBeginTime,
                           float* pLastEventTime)
@@ -1860,7 +1869,7 @@ void AIUtil::GrenadeAlert(const PblVector3& vPos, const GameObject* pObject, flo
                 {
                     continue;
                 }
-                if (!bSoldierAlerted && pTarget->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
+                if (!bSoldierAlerted && pTarget->GetEntity()->IsRtti(EntitySoldier::GetRtti()))
                 {
                     bSoldierAlerted = true;
                     pTarget->Flee();
@@ -1956,11 +1965,11 @@ const Obstacle* AIUtil::_GetGameObjectBarrier(const GameObject* pObj)
     }
     if (pObj->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover))
     {
-        return static_cast<const EntityHover*>(pObj->GetEntity())->mObstacle;
+        return ((const EntityHover*)pObj->GetEntity())->mObstacle;
     }
-    if (pObj->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
+    if (pObj->GetEntity()->IsRtti(EntityFlyer::GetRtti()))
     {
-        return static_cast<const EntityFlyer*>(pObj->GetEntity())->mObstacle;
+        return ((const EntityFlyer*)pObj->GetEntity())->mObstacle;
     }
     return 0;
 }
@@ -1985,7 +1994,7 @@ PblVector3 AIUtil::GetRandomAccessiblePoint(const UnitController* pCtrl)
         return PblVector3(0.0f, 0.0f, 0.0f);
     }
 
-    const GameObject* pObj = static_cast<const Controllable*>(pCtrl->mOwner)->GetGameObject();
+    const GameObject* pObj = ((const Controllable*)pCtrl->mOwner)->GetGameObject();
     const ConnectivityGraph* pGraph = ConnectivityGraphManager::GetWorldGraph((ConnectivityGraph::ProhibitFlag)-1);
     const ConnectivityNode* pNode;
     if (pGraph && (pNode = pGraph->GetRandomAccessibleNode(pCtrl)) != 0)
@@ -2052,7 +2061,7 @@ float GetThreatSwitchTime(const UnitController* pCtrl)
 void AIUtil::TellAIToExit(GameObject* pObject)
 {
     const PblList<Controllable>& list = pObject->GetControllableList();
-    for (PblList<Controllable>::Itor it = list.Begin(); (Controllable*)it; ++it)
+    for (PblList<Controllable>::Itor it(&list); (Controllable*)it; ++it)
     {
         UnitController* pUnit = UnitControllerPtr((Controllable*)it);
         if (!pUnit)

@@ -3,6 +3,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 
 #include "Navigator.h"
+#include "PebbleFL/Common/PblRtti.h"
 
 class Obstacle;
 
@@ -18,8 +19,13 @@ public:
         STATE_FINAL = 4
     };
 
-    static PblHash rttiHashNavigatorPathFollower;
-    static const char rttiNameNavigatorPathFollower[];
+    // FUNCTION: SWBF2 0x005adad0
+    // NavigatorPathFollower::IsRtti
+    // FUNCTION: SWBF2 0x005adb00
+    // NavigatorPathFollower::GetDerivedRtti
+    // FUNCTION: SWBF2 0x005adb10
+    // NavigatorPathFollower::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(NavigatorPathFollower, Navigator)
 
     NavigatorPathFollower(AILowLevel* pOwner, bool bDoCallbacksOnPts,
                           const Obstacle** ppIgnore, int iIgnoreCnt,
@@ -29,9 +35,6 @@ public:
                           bool bRollIntoDest, AIPath* pPath);
     virtual ~NavigatorPathFollower();
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
     virtual void ReceivePathResult(AIPath* pPath);
 
 protected:
@@ -48,24 +51,3 @@ public:
 
  
 
-// FUNCTION: SWBF2 0x005adad0
-inline bool NavigatorPathFollower::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashNavigatorPathFollower == uRtti)
-    {
-        return true;
-    }
-    return Navigator::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x005adb00
-inline unsigned int NavigatorPathFollower::GetDerivedRtti() const
-{
-    return rttiHashNavigatorPathFollower;
-}
-
-// FUNCTION: SWBF2 0x005adb10
-inline const char* NavigatorPathFollower::GetDerivedRttiName() const
-{
-    return rttiNameNavigatorPathFollower;
-}

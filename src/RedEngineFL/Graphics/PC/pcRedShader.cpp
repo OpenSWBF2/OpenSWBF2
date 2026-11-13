@@ -13,17 +13,9 @@
 #include "pcRedPixelShader.h"
 #include "pcRedVertexShader.h"
 
-void __cdecl PblTraceP(const char* Format, ...);
-
 #pragma init_seg(lib)
 
-// SYNTHETIC: SWBF2 0x004072e0
-// `dynamic initializer for 'pcRedShader::s_ShaderFactoryByRenderType''
-
-// GLOBAL: SWBF2 0x007f5050
-// pcRedShader::s_ShaderFactoryByRenderType
-PblHashTable<const pcRedShader, pcRedShader::FACTORY_SLOTS>
-    pcRedShader::s_ShaderFactoryByRenderType;
+void __cdecl PblTraceP(const char* Format, ...);
 
 // GLOBAL: SWBF2 0x007f4fe8
 // pcRedShaderDef::s_IDCount
@@ -124,31 +116,10 @@ pcRedShader* __cdecl pcRedShader::Create(unsigned int uiNameHash,
     return 0;
 }
 
-// FUNCTION: SWBF2 0x006ac820
-RedShadingState* pcRedShader::CreateShadingState() const
-{
-    return 0;
-}
-
-// FUNCTION: SWBF2 0x006ac830
-unsigned short pcRedShader::GetShaderChain(pcRedShader** const ppOut,
-                                           unsigned short,
-                                           const RenderItem*)
-{
-    *ppOut = this;
-    return 1;
-}
-
 // FUNCTION: SWBF2 0x006ac850
 int pcRedShader::GetDiffuseMapHash(int, int)
 {
     return *(const int*)m_material;
-}
-
-// FUNCTION: SWBF2 0x006ac860
-unsigned int pcRedShader::GetZPrepassState() const
-{
-    return 0xffffffffu;
 }
 
 // FUNCTION: SWBF2 0x006ac870
@@ -200,12 +171,6 @@ void pcRedShaderDef::InitFixedFunction(unsigned int uiVertexFormatSupport,
     }
 }
 
-// FUNCTION: SWBF2 0x006ac9f0
-bool pcRedShader::IsTransparent() const
-{
-    return false;
-}
-
 // FUNCTION: SWBF2 0x006aca00
 void pcRedShaderDef::LoadVertexAndPixelShader(unsigned int uiState, unsigned int uiPass,
                                               unsigned int uiVertexShader) const
@@ -228,7 +193,7 @@ void __cdecl pcRedShader::Read(PblFileChunk& chunk)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x50595452)
+        if (child._iId != CHUNK_ID('R', 'T', 'Y', 'P'))
         {
             continue;
         }
@@ -262,10 +227,10 @@ void pcRedShaderDef::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x45504950:
+        case CHUNK_ID('P', 'I', 'P', 'E'):
             ReadPipeline(child, uiNumPipelines);
             break;
-        case 0x4f464e49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             uiNumPipelines = (unsigned int)child._pFile->Read32();
             m_uiVertexFormatSupport = child._pFile->Read8();
             break;
@@ -293,7 +258,7 @@ void pcRedShaderDef::ReadPipeline(PblFileChunk& chunk, unsigned int)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4f464e49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
         {
             const unsigned int uiPipeline = (unsigned int)child._pFile->Read32();
             const PipelineT eCaps = RedRenderer::pcGetRenderCaps().pipeline;
@@ -311,16 +276,16 @@ void pcRedShaderDef::ReadPipeline(PblFileChunk& chunk, unsigned int)
             m_vertexShaderPool = new pcRedVertexShader*[m_uiVertexShaderPoolSize];
             break;
         }
-        case 0x54415453:
+        case CHUNK_ID('S', 'T', 'A', 'T'):
             ReadState(child);
             break;
-        case 0x5f505350:
+        case CHUNK_ID('P', 'S', 'P', '_'):
         {
             int i = 0;
             while (!child.IsDone())
             {
                 PblFileChunk program = child.ReadNextChild();
-                if (program._iId == 0x5f5f5350)
+                if (program._iId == CHUNK_ID('P', 'S', '_', '_'))
                 {
                     m_pixelShaderPool[i] = new pcRedPixelShader;
                     m_pixelShaderPool[i]->Read(program);
@@ -329,13 +294,13 @@ void pcRedShaderDef::ReadPipeline(PblFileChunk& chunk, unsigned int)
             }
             break;
         }
-        case 0x5f505356:
+        case CHUNK_ID('V', 'S', 'P', '_'):
         {
             int i = 0;
             while (!child.IsDone())
             {
                 PblFileChunk program = child.ReadNextChild();
-                if (program._iId == 0x5f5f5356)
+                if (program._iId == CHUNK_ID('V', 'S', '_', '_'))
                 {
                     m_vertexShaderPool[i] = new pcRedVertexShader;
                     m_vertexShaderPool[i]->Read(program);
@@ -358,13 +323,13 @@ void pcRedShaderDef::ReadState(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x53534150:
+        case CHUNK_ID('P', 'A', 'S', 'S'):
             while (!child.IsDone())
             {
                 PblFileChunk item = child.ReadNextChild();
                 switch (item._iId)
                 {
-                case 0x5f535650:
+                case CHUNK_ID('P', 'V', 'S', '_'):
                 {
                     const unsigned int iSlot = item._pFile->Read32();
                     const unsigned int iProgram = item._pFile->Read32();
@@ -372,12 +337,12 @@ void pcRedShaderDef::ReadState(PblFileChunk& chunk)
                     break;
                 }
 
-                case 0x5f535050:
+                case CHUNK_ID('P', 'P', 'S', '_'):
                     m_states[iState].pass[iPass].pPixelShader =
                         m_pixelShaderPool[item._pFile->Read32()];
                     break;
 
-                case 0x4f464e49:
+                case CHUNK_ID('I', 'N', 'F', 'O'):
                 {
                     ++iPass;
                     m_states[iState].pass[iPass] = PassT();
@@ -390,7 +355,7 @@ void pcRedShaderDef::ReadState(PblFileChunk& chunk)
             }
             break;
 
-        case 0x4f464e49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
         {
             iState = child._pFile->Read32();
             const unsigned int uiNumPasses = (unsigned int)child._pFile->Read32();
@@ -400,11 +365,6 @@ void pcRedShaderDef::ReadState(PblFileChunk& chunk)
         }
         }
     }
-}
-
-// FUNCTION: SWBF2 0x006ad010
-void pcRedShader::RenderZPrepass(const RenderItem*) const
-{
 }
 
 // FUNCTION: SWBF2 0x006ad020
@@ -440,17 +400,6 @@ void pcRedShaderDef::Reset()
     PblCrtFree(m_apShadersToBind);
     m_uiNumShadersToBind = 0;
     m_apShadersToBind = 0;
-}
-
-// FUNCTION: SWBF2 0x006ad130
-void pcRedShader::SetData(const RedShaderData&)
-{
-}
-
-// FUNCTION: SWBF2 0x006ad140
-bool pcRedShader::SortAsZWritingTransparent() const
-{
-    return false;
 }
 
 // FUNCTION: SWBF2 0x006ad150
@@ -796,3 +745,11 @@ static int _link_pcTerrainShader() { return ++g_pcTerrainShader; }
 // GLOBAL: SWBF2 0x007f4ffc
 // s_pcTerrainShaderLinked
 static unsigned int s_pcTerrainShaderLinked = _link_pcTerrainShader();
+
+// SYNTHETIC: SWBF2 0x004072e0
+// `dynamic initializer for 'pcRedShader::s_ShaderFactoryByRenderType''
+
+// GLOBAL: SWBF2 0x007f5050
+// pcRedShader::s_ShaderFactoryByRenderType
+PblHashTable<const pcRedShader, pcRedShader::FACTORY_SLOTS>
+    pcRedShader::s_ShaderFactoryByRenderType;

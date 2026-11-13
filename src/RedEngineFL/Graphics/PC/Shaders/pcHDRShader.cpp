@@ -9,21 +9,28 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/RedMaterial.h"
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
 // GLOBAL: SWBF2 0x009caabc
 RedTexture* s_pTextureWhite;
 
+// GLOBAL: SWBF2 0x009caa10
+// pcHDRShader::s_uiID
 unsigned int pcHDRShader::s_uiID;
+// GLOBAL: SWBF2 0x009caa14
+// pcHDRShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcHDRShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009caa20
+// pcHDRShader::BeginFuncArray
 pcRedShader::BeginFuncT pcHDRShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009caa2c
+// pcHDRShader::EndFuncArray
 pcRedShader::EndFuncT pcHDRShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009caa38
+// pcHDRShader::RenderFuncArray
 pcRedShader::RenderFuncT pcHDRShader::RenderFuncArray[MAX_PIPELINES];
-// SYNTHETIC: SWBF2 0x0040a820
-// `dynamic initializer for 'pcHDRShader::s_shaderDef''
-// SYNTHETIC: SWBF2 0x0076a070
-// `dynamic atexit destructor for 'pcHDRShader::s_shaderDef''
-pcRedShaderDef pcHDRShader::s_shaderDef("hdr_shader.xml");
 
 // FUNCTION: SWBF2 0x007138b0
 pcHDRShader::pcHDRShader()
@@ -90,12 +97,6 @@ void pcHDRShader::Begin_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetSamplerState(3, D3DSAMP_MIPFILTER, D3DTEXF_POINT);
 }
 
-// FUNCTION: SWBF2 0x00713b80
-void pcHDRShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x00713ba0
 void pcHDRShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -110,28 +111,10 @@ void pcHDRShader::End_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetTexture(3, 0);
 }
 
-// FUNCTION: SWBF2 0x00713be0
-unsigned int pcHDRShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x00713c00
 RenderPhaseT pcHDRShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_OPAQUE;
-}
-
-// FUNCTION: SWBF2 0x00713c10
-unsigned int pcHDRShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x00713c20
-pcRedShaderDef* pcHDRShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x00713c30
@@ -200,7 +183,7 @@ void pcHDRShader::Render_Prog1(const RenderItem* pItem, unsigned int) const
 
     if (m_state == HDR_MODE_SCALEANDBLOOM)
     {
-        RedRenderer::pcSetTexture(0, RedTexture::Find(0xde020766));
+        RedRenderer::pcSetTexture(0, RedTexture::Find(0xde020766 /* "white" */));
         RedRenderer::pcSetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
         RedRenderer::pcSetRenderState(D3DRS_SRCBLEND, D3DBLEND_DESTCOLOR);
         RedRenderer::pcSetRenderState(D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR);
@@ -266,22 +249,22 @@ void pcHDRShader::_Init(unsigned int uiFlags,
 void pcHDRShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcHDRShader::GetState_Fixed);
+        (GetStateFuncT)(&pcHDRShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcHDRShader::Begin_Fixed);
+        (BeginFuncT)(&pcHDRShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcHDRShader::End_Fixed);
+        (EndFuncT)(&pcHDRShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcHDRShader::Render_Fixed);
+        (RenderFuncT)(&pcHDRShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcHDRShader::GetState_Prog1);
+        (GetStateFuncT)(&pcHDRShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcHDRShader::Begin_Prog1);
+        (BeginFuncT)(&pcHDRShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcHDRShader::End_Prog1);
+        (EndFuncT)(&pcHDRShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcHDRShader::Render_Prog1);
+        (RenderFuncT)(&pcHDRShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x00714130
@@ -290,7 +273,7 @@ void pcHDRShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -319,6 +302,8 @@ void pcHDRShader::_StaticInit() const
 
 // SYNTHETIC: SWBF2 0x0040a840
 // `dynamic initializer for 'pcHDRShader::s_uiRenderTypeHash''
+// GLOBAL: SWBF2 0x009caa7c
+// pcHDRShader::s_uiRenderTypeHash
 unsigned int pcHDRShader::s_uiRenderTypeHash = PblHash("hdr");
 
 // SYNTHETIC: SWBF2 0x0040a800
@@ -329,6 +314,14 @@ unsigned int pcHDRShader::s_uiRenderTypeHash = PblHash("hdr");
 // GLOBAL: SWBF2 0x009caa80
 // pcHDRShader::s_Factory
 pcHDRShader pcHDRShader::s_Factory;
+
+// SYNTHETIC: SWBF2 0x0040a820
+// `dynamic initializer for 'pcHDRShader::s_shaderDef''
+// SYNTHETIC: SWBF2 0x0076a070
+// `dynamic atexit destructor for 'pcHDRShader::s_shaderDef''
+// GLOBAL: SWBF2 0x009caa48
+// pcHDRShader::s_shaderDef
+pcRedShaderDef pcHDRShader::s_shaderDef("hdr_shader.xml");
 
 // GLOBAL: SWBF2 0x009caa44
 unsigned int g_pcHDRShader;

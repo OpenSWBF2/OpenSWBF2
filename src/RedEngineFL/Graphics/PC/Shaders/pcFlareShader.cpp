@@ -7,22 +7,25 @@
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
+// GLOBAL: SWBF2 0x009c9b50
+// pcFlareShader::s_uiID
 unsigned int pcFlareShader::s_uiID;
+// GLOBAL: SWBF2 0x009c9b54
+// pcFlareShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcFlareShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9b60
+// pcFlareShader::BeginFuncArray
 pcRedShader::BeginFuncT pcFlareShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9b6c
+// pcFlareShader::EndFuncArray
 pcRedShader::EndFuncT pcFlareShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9b78
+// pcFlareShader::RenderFuncArray
 pcRedShader::RenderFuncT pcFlareShader::RenderFuncArray[MAX_PIPELINES];
-
-// SYNTHETIC: SWBF2 0x00409d40
-// `dynamic initializer for 'pcFlareShader::s_shaderDef''
-// SYNTHETIC: SWBF2 0x00769dd0
-// `dynamic atexit destructor for 'pcFlareShader::s_shaderDef''
-
-// GLOBAL: SWBF2 0x009c9bc0
-// pcFlareShader::s_shaderDef
-pcRedShaderDef pcFlareShader::s_shaderDef("flare_shader.xml");
 
 // FUNCTION: SWBF2 0x00705ec0
 pcFlareShader::pcFlareShader()
@@ -96,12 +99,6 @@ void pcFlareShader::Begin_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
 }
 
-// FUNCTION: SWBF2 0x007061d0
-void pcFlareShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x007061f0
 void pcFlareShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -112,28 +109,10 @@ void pcFlareShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x00706210
-unsigned int pcFlareShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x00706230
 RenderPhaseT pcFlareShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_TRANSPARENT;
-}
-
-// FUNCTION: SWBF2 0x00706240
-unsigned int pcFlareShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x00706250
-pcRedShaderDef* pcFlareShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x00706260
@@ -294,22 +273,22 @@ void pcFlareShader::_Init(unsigned int uiFlags,
 void pcFlareShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcFlareShader::GetState_Fixed);
+        (GetStateFuncT)(&pcFlareShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcFlareShader::Begin_Fixed);
+        (BeginFuncT)(&pcFlareShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcFlareShader::End_Fixed);
+        (EndFuncT)(&pcFlareShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcFlareShader::Render_Fixed);
+        (RenderFuncT)(&pcFlareShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcFlareShader::GetState_Prog1);
+        (GetStateFuncT)(&pcFlareShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcFlareShader::Begin_Prog1);
+        (BeginFuncT)(&pcFlareShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcFlareShader::End_Prog1);
+        (EndFuncT)(&pcFlareShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcFlareShader::Render_Prog1);
+        (RenderFuncT)(&pcFlareShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x00706750
@@ -318,7 +297,7 @@ void pcFlareShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -366,6 +345,15 @@ unsigned int pcFlareShader::s_uiRenderTypeHash = PblHash("flare");
 // GLOBAL: SWBF2 0x009c9b90
 // pcFlareShader::s_Factory
 pcFlareShader pcFlareShader::s_Factory;
+
+// SYNTHETIC: SWBF2 0x00409d40
+// `dynamic initializer for 'pcFlareShader::s_shaderDef''
+// SYNTHETIC: SWBF2 0x00769dd0
+// `dynamic atexit destructor for 'pcFlareShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9bc0
+// pcFlareShader::s_shaderDef
+pcRedShaderDef pcFlareShader::s_shaderDef("flare_shader.xml");
 
 // GLOBAL: SWBF2 0x009c9b84
 unsigned int g_pcFlareShader;

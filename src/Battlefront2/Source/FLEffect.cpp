@@ -48,18 +48,8 @@ extern PblVector3 gVectorUnitX;
 extern PblVector3 gVectorUnitY;
 extern PblVector3 gVectorUnitZ;
 
-class PblMatrix;
-extern PblMatrix gMatrixIdentity;
-#define _IdentityMatrix (gMatrixIdentity)
-
 // GLOBAL: SWBF2 0x01e51e26
 bool FLEffect::s_bInitRender;
-
-// SYNTHETIC: SWBF2 0x004038f0
-// `dynamic initializer for 'FLEffect::s_EffectFactories''
-
-// GLOBAL: SWBF2 0x01ebd020
-PblHashTable<FLEffect, 32> FLEffect::s_EffectFactories;
 
 // SYNTHETIC: SWBF2 0x004038d0
 // `dynamic initializer for 'FLEffect::_Thread''
@@ -69,6 +59,12 @@ PblHashTable<FLEffect, 32> FLEffect::s_EffectFactories;
 // GLOBAL: SWBF2 0x01ebd124
 // FLEffect::_Thread
 FLEffect::FLEffectThread FLEffect::_Thread;
+
+// SYNTHETIC: SWBF2 0x004038f0
+// `dynamic initializer for 'FLEffect::s_EffectFactories''
+
+// GLOBAL: SWBF2 0x01ebd020
+PblHashTable<FLEffect, 32> FLEffect::s_EffectFactories;
 
 // SYNTHETIC: SWBF2 0x00403910
 // `dynamic initializer for 'FLEffect::s_EffectClasses''
@@ -88,7 +84,7 @@ MemoryPool FLEffectObject::s_OffsetMatrixPool("FLEffectObject::OffsetMatrix", si
 PblPtrSet<1024> FLEffectObject::sLuaHandles;
 
 // FUNCTION: SWBF2 0x00526b20
-void FLEffect::InitAll(bool bMission)
+void FLEffect::InitAll(bool bAllowRender)
 {
     FLEffectObject::Init();
 
@@ -118,15 +114,15 @@ void FLEffect::InitAll(bool bMission)
     EntityLightFXParser::Create();
     ParticleEmitterEffect::Create();
 
-    s_bInitRender = true;
+    s_bInitRender = bAllowRender;
 
-    for (PblHashTable<FLEffect, 32>::Itor i = s_EffectFactories.Begin();
-         i != s_EffectFactories.End(); ++i)
+    for (PblHashTable<FLEffect, 32>::Itor it = s_EffectFactories.Begin();
+         it != s_EffectFactories.End(); ++it)
     {
-        (*i).Init();
-        if ((*i).m_bEnabled)
+        it->Init();
+        if (bAllowRender && it->m_bEnabled)
         {
-            (*i).Activate((*i).m_renderPriority);
+            it->Activate(it->m_renderPriority);
         }
     }
 
@@ -142,11 +138,11 @@ void FLEffect::CleanupAll()
     _Thread.DeactivateThread();
     s_bInitRender = false;
 
-    for (PblHashTable<FLEffect, 32>::Itor i = s_EffectFactories.Begin();
-         i != s_EffectFactories.End(); ++i)
+    for (PblHashTable<FLEffect, 32>::Itor it = s_EffectFactories.Begin();
+         it != s_EffectFactories.End(); ++it)
     {
-        (*i).Deactivate();
-        (*i).Cleanup();
+        it->Deactivate();
+        it->Cleanup();
     }
 
     while (s_EffectClasses.GetNumEntries())
@@ -199,7 +195,7 @@ void FLEffect::Read(PblFileChunk& chunk)
     {
         PblConfig::Data data = config.ReadNextData();
         unsigned int uiId = data.GetId();
-        if (uiId == 0x6E6E8D54)
+        if (uiId == 0x6E6E8D54 /* "Effect" */)
         {
             FLEffect* pEffect = s_EffectFactories.Find(PblHash(data.GetStringArg(0)));
             PblConfig scope(config.ReadNextScope(), true);
@@ -218,7 +214,7 @@ void FLEffect::Read(PblFileChunk& chunk)
                 if (pClass)
                 {
                     unsigned int uiName = uiDefaultName;
-                    if (uiId != 0xCEBB215F && data.GetNumArgs() == 1 &&
+                    if (uiId != 0xCEBB215F /* "ParticleEmitter" */ && data.GetNumArgs() == 1 &&
                         PblHash(data.GetStringArg(0)))
                     {
                         uiName = PblHash(data.GetStringArg(0));
@@ -379,7 +375,7 @@ void FLEffectObject::DetachFromTarget()
 // FUNCTION: SWBF2 0x00527270
 void FLEffectObject::SetLocalOffsetMatrix(const PblMatrix& mOffset)
 {
-    if (&mOffset == &_IdentityMatrix)
+    if (&mOffset == &gMatrixIdentity)
     {
         if (m_pmLocalOffsetMatrix)
         {
@@ -459,7 +455,7 @@ void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, const P
     {
         m_uiAttachFlags |= ATTACHED_DYNAMIC;
     }
-    _Attach(_IdentityMatrix);
+    _Attach(gMatrixIdentity);
 }
 
 // FUNCTION: SWBF2 0x005273a0
@@ -549,7 +545,7 @@ void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, unsigne
     {
         m_uiAttachFlags |= ATTACHED_DYNAMIC;
     }
-    _Attach(_IdentityMatrix);
+    _Attach(gMatrixIdentity);
 }
 
 // FUNCTION: SWBF2 0x00527590
@@ -604,7 +600,7 @@ void FLEffectObject::AttachEffectToObject(const EntityGeometry* pObject, bool bD
     {
         m_uiAttachFlags |= ATTACHED_DYNAMIC;
     }
-    _Attach(_IdentityMatrix);
+    _Attach(gMatrixIdentity);
 }
 
 // FUNCTION: SWBF2 0x005276a0
@@ -631,7 +627,7 @@ void FLEffectObject::AttachEffectToMatrix(const PblMatrix* pMatrix, bool b)
     {
         m_uiAttachFlags |= ATTACHED_DYNAMIC;
     }
-    _Attach(_IdentityMatrix);
+    _Attach(gMatrixIdentity);
 }
 
 // FUNCTION: SWBF2 0x00527720
@@ -652,7 +648,7 @@ void FLEffectObject::AttachEffectToVector(const PblVector3* pVector, bool b)
     m_mWorldMatrix.m[1][3] = 0.0f;
     m_mWorldMatrix[2] = gVectorUnitZ;
     m_mWorldMatrix.m[2][3] = 0.0f;
-    _Attach(_IdentityMatrix);
+    _Attach(gMatrixIdentity);
 }
 
 // FUNCTION: SWBF2 0x005277c0
@@ -669,7 +665,7 @@ void FLEffectObject::AttachEffectToVector(const PblVector3* pVector, const PblVe
     }
 
     m_mWorldMatrix = DirectionMatrix(vDir, gVectorUnitY, m_mWorldMatrix.GetTranslation());
-    _Attach(_IdentityMatrix);
+    _Attach(gMatrixIdentity);
 }
 
 // FUNCTION: SWBF2 0x00527860
@@ -716,7 +712,7 @@ void FLEffectObject::_Attach(const PblMatrix& mOffset)
     {
         SetLocalOffsetMatrix(mOffset);
     }
-    else if (&mOffset != &_IdentityMatrix)
+    else if (&mOffset != &gMatrixIdentity)
     {
         m_pmLocalOffsetMatrix = const_cast<PblMatrix*>(&mOffset);
         _UpdateWorldMatrix();
@@ -782,7 +778,7 @@ void FLEffectObject::_UpdateWorldMatrix()
                 PblVector3 vWorld;
                 D3DXVec3TransformNormal((D3DXVECTOR3*)&vWorld, (const D3DXVECTOR3*)&vOffset,
                                         (const D3DXMATRIX*)&mWorld);
-                mWorld[3] += vWorld;
+                D3DXVec3Add((D3DXVECTOR3*)&mWorld[3], (const D3DXVECTOR3*)&mWorld[3], (const D3DXVECTOR3*)&vWorld);
                 UpdatedWorldMatrix();
             }
             return;

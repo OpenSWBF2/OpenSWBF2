@@ -337,9 +337,3 @@ unsigned int PblHandled::HandleIdOffset()
 {
     return offsetof(PblHandled, mHandleId);
 }
-
-// FUNCTION: SWBF2 0x00423e90
-unsigned int PblHandled::GetHandleId() const
-{
-    return mHandleId;
-}

@@ -25,12 +25,6 @@ RedVectorElement::RedVectorElement()
     m_pInterfaceShader = 0;
 }
 
-// FUNCTION: SWBF2 0x006bf9a0
-RedVectorElement::~RedVectorElement()
-{
-    Cleanup();
-}
-
 // FUNCTION: SWBF2 0x006bfb30
 void RedVectorElement::SetBlendMode(BlendModeT eBlendMode)
 {

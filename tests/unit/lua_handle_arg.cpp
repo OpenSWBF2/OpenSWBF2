@@ -487,7 +487,7 @@ TEST_CASE("lua handle sites route through validation" * doctest::test_suite("reg
             CHECK(bCompare);
         }
     }
-    CHECK(iUpvalue == 24);
+    CHECK(iUpvalue == 12);
     CHECK(iAccessor == 1);
     CHECK(iSaveItems == 3);
     for (int k = 0; k < iCompareOnly; ++k)
@@ -505,14 +505,8 @@ TEST_CASE("lua handle sites route through validation" * doctest::test_suite("reg
         { "LuaCallbacks_Mission.cpp", 6 },
         { "LuaCallbacks_IFace.cpp", 2 },
         { "ActiveRegion.cpp", 1 },
-        { "EventManager_Timer.cpp", 2 },
-        { "EventManager_Character.cpp", 1 },
-        { "EventManager_CommandPost.cpp", 1 },
-        { "EventManager_Flag.cpp", 1 },
-        { "EventManager_LuaUser.cpp", 1 },
-        { "EventManager_Object.cpp", 1 },
-        { "EventManager_Region.cpp", 1 },
-        { "EventManager_Team.cpp", 1 },
+        { "EventManager_Timer.cpp", 1 },
+        { "EventManager_LuaCallback.h", 1 },
     };
     for (size_t i = 0; i < sizeof(akGets) / sizeof(akGets[0]); ++i)
     {
@@ -542,14 +536,7 @@ TEST_CASE("lua handle sites route through validation" * doctest::test_suite("reg
         { "src\\Battlefront2\\Source\\LuaCallbacks_IFace.cpp", "(void)ensure(RedInterfaceElement::sLuaHandles.Insert(pCurCreateObject));" },
         { "src\\Battlefront2\\Source\\ActiveRegion.cpp", "return PblRegion::Contains(pRegion) ? pRegion : 0;" },
         { "src\\Battlefront2\\Source\\EventManager_Timer.cpp", "if (!Timer::sMap.HasValue(pTimer))" },
-        { "src\\Battlefront2\\Source\\EventManager_Character.cpp", "if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)" },
-        { "src\\Battlefront2\\Source\\EventManager_CommandPost.cpp", "if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)" },
-        { "src\\Battlefront2\\Source\\EventManager_Flag.cpp", "if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)" },
-        { "src\\Battlefront2\\Source\\EventManager_LuaUser.cpp", "if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)" },
-        { "src\\Battlefront2\\Source\\EventManager_Object.cpp", "if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)" },
-        { "src\\Battlefront2\\Source\\EventManager_Region.cpp", "if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)" },
-        { "src\\Battlefront2\\Source\\EventManager_Team.cpp", "if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)" },
-        { "src\\Battlefront2\\Source\\EventManager_Timer.cpp", "if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)" },
+        { "src\\Battlefront2\\Source\\EventManager_LuaCallback.h", "if (pEvent->Contains(pCallback) && !pCallback->mChild)" },
         { "src\\Battlefront2\\Source\\Entity.h", "EntityEx(const EntityEx&) = delete;" },
         { "src\\Battlefront2\\Source\\Entity.h", "static PblPtrSet<32768> sLive;" },
         { "src\\Battlefront2\\Source\\Entity.cpp", "(void)ensure(sLive.Insert(this));" },

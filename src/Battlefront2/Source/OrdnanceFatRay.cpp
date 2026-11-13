@@ -174,37 +174,37 @@ void OrdnanceFatRayClass::SetProperty(unsigned int uProperty, const char* pszVal
 {
     switch (uProperty)
     {
-    case 0x47D0E794:
+    case 0x47D0E794: /* "MaxDamage" */
     {
         sscanf(pszValue, "%f", &mMaxDamage);
             break;
     }
-    case 0xFE544F96:
+    case 0xFE544F96: /* "MinDamage" */
     {
         sscanf(pszValue, "%f", &mMinDamage);
             break;
     }
-    case 0xAF922A6B:
+    case 0xAF922A6B: /* "DamageDeduction" */
     {
         sscanf(pszValue, "%f", &mDamageDeduction);
             break;
     }
-    case 0xAEE05D99:
+    case 0xAEE05D99: /* "MaxPush" */
     {
         sscanf(pszValue, "%f", &mMaxPush);
             break;
     }
-    case 0x3ED11AC3:
+    case 0x3ED11AC3: /* "MinPush" */
     {
         sscanf(pszValue, "%f", &mMinPush);
             break;
     }
-    case 0x58A7DA24:
+    case 0x58A7DA24: /* "PushDeduction" */
     {
         sscanf(pszValue, "%f", &mPushDeduction);
             break;
     }
-    case 0xA4C53EFD:
+    case 0xA4C53EFD: /* "RayRadius" */
     {
         sscanf(pszValue, "%f", &mRayRadius);
             break;

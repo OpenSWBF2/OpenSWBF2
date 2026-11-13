@@ -33,10 +33,9 @@ unsigned int sTeam2Hash;
 // GLOBAL: SWBF2 0x007e7f98
 int sEras = -1;
 
-namespace GameLoop
-{
-extern bool mbHistoricalRules;
-}
+
+
+
 
 // FUNCTION: SWBF2 0x005a4410
 int MissionPlayList::GetMaxSize()

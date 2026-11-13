@@ -14,7 +14,7 @@ void BlurEffect::Create()
 
 // FUNCTION: SWBF2 0x0044c380
 BlurEffect::BlurEffect()
-    : FLEffect(0x6BFBD198u, 7)
+    : FLEffect(0x6BFBD198u /* "BLUR" */, RENDERABLE_PREFIRSTPERSON)
 {
     Enable(false);
     m_pFilterShader = 0;
@@ -60,7 +60,7 @@ void BlurEffect::ReadConfig(PblConfig& config)
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (data.GetId() != 0xAF8BB8CEu)
+        if (data.GetId() != 0xAF8BB8CEu /* "Enable" */)
         {
             PlatformReadConfigData(data);
         }

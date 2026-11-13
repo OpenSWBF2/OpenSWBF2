@@ -3,6 +3,11 @@
 #include <stddef.h>
 #include "PblFile.h"
 
+// A chunk's tag from its four characters as they appear in the file: "INFO" is CHUNK_ID('I', 'N', 'F', 'O')
+#define CHUNK_ID(a, b, c, d)                                                                                  \
+    ((unsigned int)(unsigned char)(a) | ((unsigned int)(unsigned char)(b) << 8) |                              \
+     ((unsigned int)(unsigned char)(c) << 16) | ((unsigned int)(unsigned char)(d) << 24))
+
 class PblFileChunk
 {
 public:

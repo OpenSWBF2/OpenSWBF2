@@ -96,12 +96,6 @@ namespace AIDebug
 bool SkipCameraForLODs();
 }
 
-// FUNCTION: SWBF2 0x004386a0
-bool AIDebug::SkipCameraForLODs()
-{
-    return false;
-}
-
 // FUNCTION: SWBF2 0x00663d00
 void UnitController::ResetFriendlyList()
 {
@@ -118,7 +112,7 @@ namespace
 
     inline const PblVector3& GetPosition(const GameObject* pObject)
     {
-    return static_cast<const CollisionObject*>(pObject)->GetPosition();
+    return ((const CollisionObject*)pObject)->GetPosition();
     }
 
 
@@ -288,7 +282,7 @@ float UnitController::GetUpdateRate() const
 // FUNCTION: SWBF2 0x00663540
 void UnitController::EnterCombat()
 {
-    mAgent = new UnitCombatAgent(this, *static_cast<const UnitCombatInfo*>(GetCurCmd()));
+    mAgent = new UnitCombatAgent(this, *(const UnitCombatInfo*)GetCurCmd());
 }
 
 // FUNCTION: SWBF2 0x00663030
@@ -311,7 +305,7 @@ void UnitController::EnterState()
     case STATE_CAPTURECP:
     {
         const CommandPost* pPost =
-            static_cast<const UnitCaptureCPInfo*>(GetCurCmd())->GetCommandPost();
+            ((const UnitCaptureCPInfo*)GetCurCmd())->GetCommandPost();
         if (!pPost)
         {
             return;
@@ -328,7 +322,7 @@ void UnitController::EnterState()
     }
     case STATE_BOARD:
     {
-        const UnitBoardInfo* pInfo = static_cast<const UnitBoardInfo*>(GetCurCmd());
+        const UnitBoardInfo* pInfo = (const UnitBoardInfo*)GetCurCmd();
         GameObject* pVehicle = pInfo->GetVehicle();
         mAgent = new UnitBoardAgent(this, pVehicle, pInfo->GetVOResponseHandle());
         break;
@@ -341,8 +335,8 @@ void UnitController::EnterState()
         break;
     case STATE_SC_FOLLOW:
     {
-        const UnitFollowInfo* pInfo = static_cast<const UnitFollowInfo*>(GetCurCmd());
-        mAgent = new UnitFollowAgent(this, static_cast<GameObject*>(pInfo->GetWho()),
+        const UnitFollowInfo* pInfo = (const UnitFollowInfo*)GetCurCmd();
+        mAgent = new UnitFollowAgent(this, (GameObject*)pInfo->GetWho(),
                                      pInfo->GetParam() != 0);
         break;
     }
@@ -351,7 +345,7 @@ void UnitController::EnterState()
         break;
     case STATE_CTFOFFENSE:
     {
-        const UnitGoalAgentInfo* pInfo = static_cast<const UnitGoalAgentInfo*>(GetCurCmd());
+        const UnitGoalAgentInfo* pInfo = (const UnitGoalAgentInfo*)GetCurCmd();
         mAgent = new UnitCTFOffenseAgent(this, pInfo->GetFlag(), pInfo->GetPos());
         break;
     }
@@ -361,14 +355,14 @@ void UnitController::EnterState()
     case STATE_DEFEND:
     {
         AI::GoalTarget target(AI::GTT_NONE);
-        static_cast<const UnitGoalAgentInfo*>(GetCurCmd())->GetGoalTarget(target);
+        ((const UnitGoalAgentInfo*)GetCurCmd())->GetGoalTarget(target);
         mAgent = new UnitDefendAgent(this, target);
         break;
     }
     case STATE_DESTROY:
     {
         AI::GoalTarget target(AI::GTT_NONE);
-        static_cast<const UnitGoalAgentInfo*>(GetCurCmd())->GetGoalTarget(target);
+        ((const UnitGoalAgentInfo*)GetCurCmd())->GetGoalTarget(target);
         mAgent = new UnitDestroyAgent(this, target);
         break;
     }
@@ -459,11 +453,11 @@ void UnitController::UpdateLowLevel(float dt)
 
     switch (mLodState)
     {
-    case 0:
-    case 1:
+    case AILOD_WICKED_LOW:
+    case AILOD_LOWER:
         mLowLevelUpdateSkips = 4;
         break;
-    case 2:
+    case AILOD_LOW:
         mLowLevelUpdateSkips = 2;
         break;
     default:
@@ -504,7 +498,7 @@ CmdInfo UnitController::CopyCurCmd() const
 // FUNCTION: SWBF2 0x00663c00
 const UnitCmdInfo* UnitController::GetCurCmd() const
 {
-    return static_cast<const UnitCmdInfo*>(&mCurCmd);
+    return (const UnitCmdInfo*)(&mCurCmd);
 }
 
 // FUNCTION: SWBF2 0x00663c10
@@ -612,7 +606,7 @@ void UnitController::UpdateLodState()
         {
             iCharLod = iLod;
         }
-        iLod = static_cast<AILodState>(iCharLod);
+        iLod = (AILodState)iCharLod;
         if (fClosestDistSq > fDistSq)
         {
             fClosestDistSq = fDistSq;
@@ -826,8 +820,8 @@ void UnitController::UseAutoTurrets()
         }
         if (pClass->IsRtti(WeaponDispenserClass::rttiHashWeaponDispenserClass))
         {
-            EntityClass* pDispense = static_cast<const WeaponDispenserClass*>(pClass)->mDispenseClass;
-            if (pDispense && pDispense->IsRtti(EntityBuildingArmedClass::rttiHashEntityBuildingArmedClass) &&
+            EntityClass* pDispense = ((const WeaponDispenserClass*)pClass)->mDispenseClass;
+            if (pDispense && pDispense->IsRtti(EntityBuildingArmedClass::GetRtti()) &&
                 (pClass->mAITargetTypes & 1))
             {
                 AILowLevel* pLowLevel = &mLowLevel;

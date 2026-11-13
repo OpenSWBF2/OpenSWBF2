@@ -6,6 +6,7 @@
 
 #include "Controllable.h"
 #include "Entity.h"
+#include "PebbleFL/Common/PblRtti.h"
 #include "Trackable.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
@@ -47,14 +48,20 @@ class RedPose;
 class PassengerSlot : public EntityEx, public Controllable
 {
 public:
+    // FUNCTION: SWBF2 0x0060f460
+    // PassengerSlot::IsRtti
+    // FUNCTION: SWBF2 0x0060f490
+    // PassengerSlot::GetDerivedRtti
+    // FUNCTION: SWBF2 0x0060f4a0
+    // PassengerSlot::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(PassengerSlot, EntityEx)
+
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
 
     static MemoryPool sMemoryPool;
 
     PassengerSlot(GameObject* pParent, PassengerSlotClass* pClass, RedPose* pPose);
     virtual ~PassengerSlot();
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
     virtual void Init();
     virtual Entity* GetEntity();
     virtual const Entity* GetEntity() const;
@@ -91,23 +98,10 @@ public:
     PblMatrix mAimMatrix;
     PassengerSlotClass* mClass;
 
-    static PblHash rttiHashPassengerSlot;
-    static const char rttiNamePassengerSlot[];
 };
  
  
  
  
-
-// FUNCTION: SWBF2 0x0060f460
-inline bool PassengerSlot::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashPassengerSlot == uRtti)
-    {
-        return true;
-    }
-    return EntityEx::rttiHashEntityEx == uRtti ||
-           Entity::rttiHashEntity == uRtti;
-}
 
 

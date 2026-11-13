@@ -18,7 +18,7 @@
 #include "CollisionObject.h"
 #include "EventInfo.h"
 #include "GameModel.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "AnimatedAddon.h"
 #include "CameraManager.h"
@@ -66,13 +66,14 @@
 #include "SoldierAnimationData.h"
 #include "Team.h"
 #include "UnitController.h"
-#include "WeaponMeleeInstance.h"
+#include "WeaponMelee.h"
 #include "Cloth.h"
 #include "FlagItem.h"
+#include "PowerupItem.h"
 #include "WaterEffect.h"
 #include "RedEngineFL/Application/RedTerrain.h"
 #include "RedEngineFL/Application/RedWater.h"
-#include "RedEngineFL/Application/pc/pcRedDropShadow.h"
+#include "RedEngineFL/Application/RedDropShadow.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedStencilShadow.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
@@ -118,6 +119,15 @@ PblMatrix NormalMatrix(const PblVector3& vDir, const PblVector3& vNormal, const 
 
 
 
+// SYNTHETIC: SWBF2 0x00402d40
+// `dynamic initializer for 'EntitySoldier::sMemoryPool''
+// SYNTHETIC: SWBF2 0x00766fb0
+// `dynamic atexit destructor for 'EntitySoldier::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01ebc100
+// EntitySoldier::sMemoryPool
+MemoryPool EntitySoldier::sMemoryPool("EntitySoldier", sizeof(EntitySoldier));
+
 // SYNTHETIC: SWBF2 0x00402d60
 // `dynamic initializer for 'EntitySoldier::rttiHashEntitySoldier''
 // EntitySoldier::rttiHashEntitySoldier
@@ -129,15 +139,6 @@ PblHash EntitySoldier::rttiHashEntitySoldier("EntitySoldier");
 // EntitySoldier::rttiNameEntitySoldier
 const char EntitySoldier::rttiNameEntitySoldier[] = "EntitySoldier";
 
-// SYNTHETIC: SWBF2 0x00402d40
-// `dynamic initializer for 'EntitySoldier::sMemoryPool''
-// SYNTHETIC: SWBF2 0x00766fb0
-// `dynamic atexit destructor for 'EntitySoldier::sMemoryPool''
-
-// GLOBAL: SWBF2 0x01ebc100
-// EntitySoldier::sMemoryPool
-MemoryPool EntitySoldier::sMemoryPool("EntitySoldier", sizeof(EntitySoldier));
-
 // SYNTHETIC: SWBF2 0x00402d70
 // `dynamic initializer for 'EntitySoldierClass::rttiHashEntitySoldierClass''
 // EntitySoldierClass::rttiHashEntitySoldierClass
@@ -148,6 +149,12 @@ PblHash EntitySoldierClass::rttiHashEntitySoldierClass("EntitySoldierClass");
 // GLOBAL: SWBF2 0x007895c8
 // EntitySoldierClass::rttiNameEntitySoldierClass
 const char EntitySoldierClass::rttiNameEntitySoldierClass[] = "EntitySoldierClass";
+
+extern bool gShowSoldierPolyCount;
+
+// SYNTHETIC: SWBF2 0x00402d80
+// `dynamic initializer for 'g_SoldierPolyCount''
+RedCommandConsole g_SoldierPolyCount("SoldierPolyCount", MultiVar(&gShowSoldierPolyCount));
 
 // SYNTHETIC: SWBF2 0x00402db0
 // `dynamic initializer for 'AcklayData::sMemoryPool''
@@ -172,11 +179,6 @@ static int sCurDropItem;
 // GLOBAL: SWBF2 0x01e51dd5
 static bool gMidgetTime;
 
-ZephyrSkeletonShared* SoldierAnimatorLowResClass::GetDefaultSkeleton()
-{
-    return s_pHead ? s_pHead->m_pZephyrSkeletonShared : 0;
-}
-
 // SYNTHETIC: SWBF2 0x0043cf20
 // Aimer::`scalar deleting destructor'
 
@@ -185,12 +187,6 @@ ZephyrSkeletonShared* SoldierAnimatorLowResClass::GetDefaultSkeleton()
 
 
 
-
-// FUNCTION: SWBF2 0x004de080
-const RedPose* EntitySoldier::GetPose() const
-{
-    return mAcklayData ? mAcklayData->GetPose() : 0;
-}
 
 // FUNCTION: SWBF2 0x004de0a0
 bool EntitySoldier::CollideTrisWithAllPrimitives() const
@@ -234,29 +230,6 @@ const PblMatrix& EntitySoldier::GetMatrix() const
     return mMatrix;
 }
 
-// FUNCTION: SWBF2 0x004de100
-const PblVector3& EntitySoldier::GetVelocity() const
-{
-    return mVelocity;
-}
-
-// FUNCTION: SWBF2 0x004de110
-void EntitySoldier::SetVelocity(const PblVector3& vVelocity)
-{
-    mVelocity = vVelocity;
-}
-
-// FUNCTION: SWBF2 0x004de130
-void EntitySoldier::SetPosition(const PblVector3& vPosition)
-{
-    mMatrix.SetTranslation(vPosition);
-
-    PblVector3 center;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&center), reinterpret_cast<const D3DXVECTOR3*>(&mModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
-    SetCollisionCenter(center);
-    RecalculateAABB();
-}
-
 // FUNCTION: SWBF2 0x004de1d0
 void EntitySoldier::SetMatrix(const PblMatrix& matrix)
 {
@@ -266,18 +239,6 @@ void EntitySoldier::SetMatrix(const PblMatrix& matrix)
     D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&center), reinterpret_cast<const D3DXVECTOR3*>(&mModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     SetCollisionCenter(center);
     RecalculateAABB();
-}
-
-// FUNCTION: SWBF2 0x004de280
-TargetInfo* EntitySoldier::GetTargetInfo()
-{
-    return &mTargetInfo;
-}
-
-// FUNCTION: SWBF2 0x004de290
-Trackable* EntitySoldier::GetTrackable()
-{
-    return this;
 }
 
 // FUNCTION: SWBF2 0x004de2b0
@@ -304,42 +265,6 @@ PlayableEntitySounds* EntitySoldier::GetPlayableEntitySounds()
     return this;
 }
 
-// FUNCTION: SWBF2 0x004de2f0
-int EntitySoldier::GetWeaponIndex(int iChannel) const
-{
-    return mWeaponIndex[iChannel];
-}
-
-// FUNCTION: SWBF2 0x004de310
-int EntitySoldier::GetActiveWeaponChannel()
-{
-    return mActiveChannel;
-}
-
-// FUNCTION: SWBF2 0x004de320
-Weapon* EntitySoldier::GetWeaponPtr(int iIndex) const
-{
-    return mWeapon[iIndex];
-}
-
-// FUNCTION: SWBF2 0x004de340
-EnergyBar* EntitySoldier::GetEnergyBar()
-{
-    return &mEnergyBar;
-}
-
-// FUNCTION: SWBF2 0x004de350
-const Aimer* EntitySoldier::GetAimer(int iIndex) const
-{
-    return &mAimer;
-}
-
-// FUNCTION: SWBF2 0x004de360
-GameObjectType EntitySoldier::GetGameObjectType()
-{
-    return GO_SOLDIER;
-}
-
 // FUNCTION: SWBF2 0x004de370
 EntityType EntitySoldier::GetEntityType() const
 {
@@ -350,20 +275,6 @@ EntityType EntitySoldier::GetEntityType() const
 bool EntitySoldier::IsFirstPersonAvailablePS2() const
 {
     return true;
-}
-
-// FUNCTION: SWBF2 0x004de390
-bool EntitySoldier::IsForcedThirdPerson() const
-{
-    for (int i = 0; i < 2; ++i)
-    {
-        int iIndex = mWeaponIndex[i];
-        if (iIndex >= 0 && mWeapon[iIndex]->IsMelee())
-        {
-            return true;
-        }
-    }
-    return false;
 }
 
 // FUNCTION: SWBF2 0x004de3d0
@@ -383,40 +294,10 @@ bool EntitySoldier::PostCollision::Update(float fDeltaTime)
 
 
 
-// FUNCTION: SWBF2 0x004de490
-int EntitySoldierClass::GetWeaponCount() const
-{
-    return mWeaponCount;
-}
-
-// FUNCTION: SWBF2 0x004de4a0
-const WeaponClass* EntitySoldierClass::GetWeaponClass(int iIndex) const
-{
-    return mWeaponClass[iIndex];
-}
-
-// FUNCTION: SWBF2 0x004de4c0
-int EntitySoldierClass::GetSoldierType() const
-{
-    return mSoldierType;
-}
-
 // FUNCTION: SWBF2 0x004de4d0
 const ControllableClass* EntitySoldierClass::GetControllableClass() const
 {
-    return static_cast<const ControllableClass*>(this);
-}
-
-// FUNCTION: SWBF2 0x004de4e0
-AI::EventInfo::EventInfo(EventType eType, float fFloat, int iInt)
-    : mNextCmd(CMD_NONE, 0, PblVector3(0, 0, 0), 0),
-      mType(eType),
-      mGameObject(0),
-      mPos(0, 0, 0),
-      mFloat(fFloat),
-      mInt(iInt),
-      mVoidPtr(0)
-{
+    return (const ControllableClass*)this;
 }
 
 // FUNCTION: SWBF2 0x004de570
@@ -476,7 +357,7 @@ void AcklayData::SetupBasePose(const ZephyrSkeletonShared* pSkeleton)
 // FUNCTION: SWBF2 0x004e7bf0
 FoleyFX* EntitySoldier::GetFoleyFX() const
 {
-    return CollisionObject::GetFoleyFX(0xd098618c);
+    return CollisionObject::GetFoleyFX(0xd098618c /* "FoleyFXSoldier" */);
 }
 
 // FUNCTION: SWBF2 0x004e7c00
@@ -498,7 +379,7 @@ void EntitySoldier::PlayFootstep(float fSpeed, bool bRightFoot, const PblVector3
         bRun = true;
     }
 
-    FoleyFXSoldier* pFoley = static_cast<FoleyFXSoldier*>(GetFoleyFX());
+    FoleyFXSoldier* pFoley = (FoleyFXSoldier*)GetFoleyFX();
     Weapon* pWeapon = mWeapon[mActiveIndex];
     if (bRun)
     {
@@ -671,9 +552,9 @@ void EntitySoldier::UpdateFoleyFX(const RedPose& pose, const PblMatrix& mWorld)
         return;
     }
 
-    const float fLeftFoot = pose.Find(0x1af77461)->m[3][1];
-    const float fRightFoot = pose.Find(0x2f06fa86)->m[3][1];
-    PblMatrix mRoot = *pose.Find(0x16e27226) * mWorld;
+    const float fLeftFoot = pose.Find(0x1af77461 /* "bone_l_foot" */)->m[3][1];
+    const float fRightFoot = pose.Find(0x2f06fa86 /* "bone_r_foot" */)->m[3][1];
+    PblMatrix mRoot = *pose.Find(0x16e27226 /* "bone_root" */) * mWorld;
     const PblVector3 vRoot = mRoot.GetTranslation();
 
     float fWaterHeight = -FLT_MAX;
@@ -708,11 +589,11 @@ void EntitySoldier::UpdateFoleyFX(const RedPose& pose, const PblMatrix& mWorld)
         {
             PlayFootstep(0.0f, false, &mWorld.GetTranslation(), &mVelocity);
             mSoundState |= 4;
-            if (!NetGame::IsEnabled() || (NetGame::IsClient() && netIsLocalTurn))
+            if (!NetGame::IsEnabled() || ((netEnabledNext && netClientActive) && netIsLocalTurn))
             {
                 if (RedTerrain::_bEnable)
                 {
-                    PblMatrix mFoot = *pose.Find(0x1af77461) * mWorld;
+                    PblMatrix mFoot = *pose.Find(0x1af77461 /* "bone_l_foot" */) * mWorld;
                     RedTerrain::GetInterpolatedHeight(mFoot.m[3][0], mFoot.m[3][2]);
                 }
                 if (bInWater)
@@ -743,11 +624,11 @@ void EntitySoldier::UpdateFoleyFX(const RedPose& pose, const PblMatrix& mWorld)
         {
             PlayFootstep(0.0f, true, &mWorld.GetTranslation(), &mVelocity);
             mSoundState |= 8;
-            if (!NetGame::IsEnabled() || (NetGame::IsClient() && netIsLocalTurn))
+            if (!NetGame::IsEnabled() || ((netEnabledNext && netClientActive) && netIsLocalTurn))
             {
                 if (RedTerrain::_bEnable)
                 {
-                    PblMatrix mFoot = *pose.Find(0x2f06fa86) * mWorld;
+                    PblMatrix mFoot = *pose.Find(0x2f06fa86 /* "bone_r_foot" */) * mWorld;
                     RedTerrain::GetInterpolatedHeight(mFoot.m[3][0], mFoot.m[3][2]);
                 }
                 if (bInWater)
@@ -822,11 +703,10 @@ EntitySoldier::EntitySoldier(EntitySoldierClass* pClass, const EntityDesc& desc)
         AddToScene();
     }
 
-    mVelocity.x = 0.0f;
-    mVelocity.y = 0.0f;
     mVelocity.z = 0.0f;
+    mVelocity.y = 0.0f;
+    mVelocity.x = 0.0f;
     mFlags |= flags_footprintLeft | flags_isGrounded;
-    mGroundNormal = PblVector3(0.0f, 1.0f, 0.0f);
     mPitchValue = -0.07f;
     mPitchOffset = 0.0f;
     mPitchVelocity = 0.0f;
@@ -835,6 +715,7 @@ EntitySoldier::EntitySoldier(EntitySoldierClass* pClass, const EntityDesc& desc)
     mTurnAngle = 0.0f;
     mPrevZoom = -1.0f;
     mSquadCommandClearTimer = 0.0f;
+    mGroundNormal = PblVector3(0.0f, 1.0f, 0.0f);
 
     memset(mWeapon, 0, sizeof(mWeapon));
     m_bPrimaryWeaponIsMelee = 0;
@@ -885,7 +766,7 @@ EntitySoldier::EntitySoldier(EntitySoldierClass* pClass, const EntityDesc& desc)
             m_bPrimaryWeaponIsMelee = 1;
         }
     }
-    for (int iChannel = 0; iChannel < 2; ++iChannel)
+    for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
     {
         mWeaponIndex[iChannel] = -1;
         for (int i = 0; i < mClass->mWeaponCount; ++i)
@@ -971,10 +852,10 @@ EntitySoldier::EntitySoldier(EntitySoldierClass* pClass, const EntityDesc& desc)
     mAnimationHash = 0;
     mLeftFootElevation = 0.0f;
     mRightFootElevation = 0.0f;
+    mDrownTime = mClass->mDrownTime;
     mFlyingInFirstPerson = 0;
     mSkip = 0;
     mDoProneRotation = 0;
-    mDrownTime = mClass->mDrownTime;
     mAILastCollisionNormal = PblVector3(0.0f, 0.0f, 0.0f);
     mFoliageCollisionTime = 0.0f;
     mForceFrameNum1 = -1.0f;
@@ -1005,7 +886,7 @@ EntitySoldier::EntitySoldier(EntitySoldierClass* pClass, const EntityDesc& desc)
     mFootSlideEffectRightHandle = NULL;
     mFootSlideEffectLeftHandle = NULL;
     mChokeEffectHandle = NULL;
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < kMaxSmolderEffects; ++i)
     {
         mSmolderEffectHandle[i] = NULL;
         mSmolderEffectBone[i] = 0;
@@ -1028,7 +909,7 @@ EntitySoldier::EntitySoldier(EntitySoldierClass* pClass, const EntityDesc& desc)
     {
         for (unsigned int i = 0; i < mModelLowRes->mClothCount; ++i)
         {
-            EntityClass* pClothClass = EntityClass::Find(mModelLowRes->mClothList[i]);
+            EntityClass* pClothClass = EntityClass::Find(mModelLowRes->GetClothHash(i));
             mClothPiece[mModel->mClothCount + i] = pClothClass ? (EntityCloth*)pClothClass->Build(desc) : 0;
         }
     }
@@ -1154,8 +1035,8 @@ void EntitySoldier::RecalculateAABB()
     }
     else
     {
-        float fOffset = sCollisionOffset[mStanceIndex] + 0.1f;
-        SetCollisionCenter(mMatrix.GetYAxis() * fOffset + mMatrix.GetTranslation());
+        float fY = sCollisionOffset[mStanceIndex] + 0.1f;
+        SetCollisionCenter(fY * mMatrix.GetYAxis() + mMatrix.GetTranslation());
         SetCollisionRadius(sCollisionRadius2[mStanceIndex]);
         float fRadius = sCollisionRadius[mStanceIndex];
         float fHalfHeight = sCollisionHeight[mStanceIndex] * 0.5f + 0.1f;
@@ -1228,7 +1109,7 @@ extern bool gThreadIsEven;
 
 namespace VisionManager
 {
-void __fastcall AddFakeRayhitResult(UnitController* pUnit, const GameObject* pObject);
+void AddFakeRayhitResult(UnitController* pUnit, const GameObject* pObject);
 }
 
 PblMatrix DirectionMatrix(const PblVector3& vDir, const PblVector3& vUp, const PblVector3& vPos);
@@ -1245,11 +1126,8 @@ static PblVector3 sEyePointRelativeWeaponOffset[3] = {
 // GLOBAL: SWBF2 0x01faa468
 bool gPlayerSoldierCollisionOccurred;
 
-extern bool gShowSoldierPolyCount;
-namespace GameLoop
-{
-extern float sClientDeltaTime;
-}
+
+
 
 bool IsNeverDies(EntityType eType);
 
@@ -1261,7 +1139,8 @@ bool gLowResModelsEnabled;
 void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlags)
 {
     bool bOwnView = false;
-    if (SpawnDisplay::Instance(FLRenderer::GetCurrentViewport())->mVisible &&
+    bool bSpawnVisible = SpawnDisplay::Instance(FLRenderer::GetCurrentViewport())->mVisible;
+    if (bSpawnVisible &&
         SpawnDisplay::Instance(FLRenderer::GetCurrentViewport())->mMode == SpawnDisplay::eSPAWNDISPLAY)
     {
         ucLod = 1;
@@ -1282,7 +1161,7 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
     }
     mLastRenderedLod = ucLod;
 
-    float fAlpha = fFade;
+    float fAlpha;
     bool bHidden = false;
     if (!RenderTrackable(mPlayerId))
     {
@@ -1293,6 +1172,10 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         fAlpha = 0.0f;
         bHidden = true;
     }
+    else
+    {
+        fAlpha = fFade;
+    }
 
     bool bFirstPersonView = false;
     int iLocal = NetGame::GetLocalIndex(FLRenderer::GetCurrentViewport());
@@ -1301,10 +1184,13 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         bFirstPersonView = Tracker::GetTracker(iLocal)->IsFirstPersonView();
         Character* pLocal = Character::GetPtr(iLocal);
         GameObject* pLocalVehicle = pLocal && pLocal->mVehicle ? pLocal->mVehicle->GetGameObject() : 0;
-        if (bFirstPersonView && pLocalVehicle && mCharacter && mCharacter->mVehicle &&
-            mCharacter->mVehicle->GetGameObject() == pLocalVehicle)
+        if (bFirstPersonView && pLocalVehicle && mCharacter)
         {
-            return;
+            bool bInVehicle = mCharacter->mVehicle != 0;
+            if (bInVehicle && mCharacter->mVehicle->GetGameObject() == pLocalVehicle)
+            {
+                return;
+            }
         }
     }
 
@@ -1319,13 +1205,13 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         }
     }
 
-    if (mClass->m_bDynamicLighting)
+    if (!mClass->m_bDynamicLighting)
     {
-        uiFlags &= ~0x80;
+        uiFlags |= 0x80;
     }
     else
     {
-        uiFlags |= 0x80;
+        uiFlags &= ~0x80;
     }
 
     if (mState == SoldierState::HERO_FLEE)
@@ -1370,7 +1256,7 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
 
     bool bStencilShadow = true;
     bool bDropShadow = mState != SoldierState::PILOT_ANIMATION;
-    if (m_uiInvisibilityAlpha || (fAlpha < 0.15f && !IsAlive()))
+    if (m_uiInvisibilityAlpha > 0 || (fAlpha < 0.15f && !IsAlive()))
     {
         bStencilShadow = false;
         bDropShadow = false;
@@ -1411,7 +1297,7 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
     }
     PblMatrix mCamera = RedRenderer::GetCamera()->GetMatrix();
 
-    Controllable* pVehicle = mCharacter ? mCharacter->mVehicle : 0;
+    Controllable* pVehicle = mCharacter ? mCharacter->GetVehicle() : 0;
     if (pVehicle && NetGame::IsEnabled())
     {
         if (mLastPilotInfoFrame > NetGame::GetTurnNumber())
@@ -1433,48 +1319,43 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         }
     }
 
-    if (!bHidden)
+    if (!ucLod && !bHidden && !bFirstPersonView)
     {
-
-        if (!ucLod && !bFirstPersonView)
+        const PblVector3& vOffset = mClass->mTargetPointOffset[mStanceIndex];
+        float fDepth = DotProduct(mCamera.GetTranslation() - (vOffset + mWorld.GetTranslation()),
+                                  mCamera.GetZAxis());
+        fDepth = Max(fDepth, 0.0f);
+        if (fDepth < 2.2f)
         {
-            const PblVector3& vOffset = mClass->mTargetPointOffset[mStanceIndex];
-            float fDepth = DotProduct(mCamera.GetZAxis(),
-                mCamera.GetTranslation() - (vOffset + mWorld.GetTranslation()));
-            fDepth = Max(fDepth, 0.0f);
-            if (fDepth < 2.2f)
+            float fNear = 0.0f;
+            float fFar = 0.0f;
+            float fWidth = 0.0f;
+            float fHeight = 0.0f;
+            RedRenderer::GetCamera()->GetFrustum(fNear, fFar, fWidth, fHeight);
+            float fClear = fDepth - fNear;
+            if (fClear < 0.0f)
             {
-                float fNear = 0.0f;
-                float fFar = 0.0f;
-                float fWidth = 0.0f;
-                float fHeight = 0.0f;
-                RedRenderer::GetCamera()->GetFrustum(fNear, fFar, fWidth, fHeight);
-                float fClear = fDepth - fNear;
-                if (fClear < 0.0f)
+                return;
+            }
+            if (fAlpha >= 0.06f)
+            {
+                if (fClear < 1.2f)
                 {
-                    return;
+                    fAlpha = fClear / 1.2f * fAlpha;
                 }
-                if (fAlpha >= 0.06f)
-                {
-                    if (fClear < 1.2f)
-                    {
-                        fAlpha = fClear / 1.2f * fAlpha;
-                    }
-                    fAlpha = Max(fAlpha, 0.06f);
-                }
+                fAlpha = Max(fAlpha, 0.06f);
             }
         }
-        if (!RedSceneManager::InTransparentPhase() &&
-            (m_uiInvisibilityAlpha || (!ucLod && fAlpha < 1.0f)))
-        {
-            RedSceneManager::AddTransparentObject(this);
-            return;
-        }
     }
-
+    if (!bHidden && !RedSceneManager::InTransparentPhase() &&
+        (m_uiInvisibilityAlpha > 0 || (!ucLod && fAlpha < 1.0f)))
+    {
+        RedSceneManager::AddTransparentObject(this);
+        return;
+    }
     if (mSkip)
     {
-        mWorld.SetTranslation(mWorld.GetTranslation() + mVelocity * mSkipTime);
+        mWorld.SetTranslation(mVelocity * mSkipTime + mWorld.GetTranslation());
     }
 
     float fLight = 1.0f;
@@ -1485,7 +1366,8 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
     float fBrightness = fLight * 1.2f + 0.3f;
     fBrightness = Min(fBrightness, 1.0f);
 
-    GameModel* pModel = (ucLod || (gLowResModelsEnabled && !NetGame::IsEnabled())) ? mModelLowRes : mModel;
+    bool bFullRes = !ucLod;
+    GameModel* pModel = ((gLowResModelsEnabled && !NetGame::IsEnabled()) || !bFullRes) ? mModelLowRes : mModel;
     if (!pModel)
     {
         return;
@@ -1501,6 +1383,10 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         unsigned char ucInvisibility = m_uiInvisibilityAlpha;
         unsigned char ucCloak = 0xff;
         fAttachAlpha = 0.0f;
+        if (bOwnView && ucInvisibility > 0xd8)
+        {
+            ucInvisibility = 0xd8;
+        }
         if (ucInvisibility < 0x80)
         {
             ucCloak = (unsigned char)(ucInvisibility * 2);
@@ -1508,20 +1394,16 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         }
         else
         {
-            if (bOwnView && ucInvisibility > 0xd8)
-            {
-                ucInvisibility = 0xd8;
-            }
             fModelAlpha = (255 - ucInvisibility) / 127.0f;
         }
         pShadingPose = &shadingPose;
         shadingPose.BindToModel(pModel->GetRedModel(0));
-        if (RedShadingState* pState = shadingPose.CreateDefaultShadingState(0x4cc5882a))
+        if (RedShadingState* pState = shadingPose.CreateDefaultShadingState(0x4cc5882a /* "refraction" */))
         {
             RedColor color = RedColor::WHITE;
             color.a = ucCloak;
-            pState->GetColorParam(0xbc6f8a5e) = color;
-            pState->GetIntParam(0x7802a19a) = 1;
+            pState->GetColorParam(0xbc6f8a5e /* "refraction_color" */) = color;
+            pState->GetIntParam(0x7802a19a /* "REFRACTIVE" */) = 1;
         }
     }
 
@@ -1534,18 +1416,24 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
     colorAttach.a = (unsigned char)(int)(fAttachFade * 255.0f);
 
     RedPose pose;
+    const RedPose* pPose = NULL;
 
     bool bReflected = false;
-    unsigned int uiReflectFlags = 0;
+    unsigned int uiReflectFlags = uiFlags;
     PblMatrix mReflection;
-    if (!ucLod && !(uiFlags & 0x200000) &&
+    PblMatrix mHeadLook;
+    if (!ucLod && !(uiReflectFlags & 0x200000) &&
         FLRenderer::IsReflected(*(const PblVector3*)&_Sphere, _Sphere.w, mReflection, false))
     {
         bReflected = true;
-        uiReflectFlags = (uiFlags & ~0x10000) | 0x10000100;
+        uiReflectFlags = (uiReflectFlags & ~0x10000) | 0x10000100;
         PblMatrix mTemp;
         mTemp = mWorld * mReflection;
         mReflection = mTemp;
+    }
+    else
+    {
+        uiReflectFlags = 0;
     }
 
     Weapon* pActive = NULL;
@@ -1578,7 +1466,6 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
 
     SetupLightingState(uiFlags);
 
-    const RedPose* pPose = NULL;
     unsigned int uiModelFlags;
     unsigned int uiPoseFlags;
     if (!ucLod)
@@ -1600,6 +1487,7 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
             mSoldierAnimatorLowRes = NULL;
         }
 
+        uiModelFlags = uiFlags;
         if (mSoldierAnimator)
         {
             pPose = &pose;
@@ -1612,11 +1500,11 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
                 mSoldierAnimator->SetWeaponAnimationMap(
                     (SoldierAnimationBank::MAP)pAnimated->mSoldierAnimationMap);
                 int eWeaponState = pActive->mState;
-                mSoldierAnimator->SetAlert(IsAlert());
+                mSoldierAnimator->SetAlert(mAlertTimer > 0.0f);
                 bool bFiring = (unsigned int)(eWeaponState - 1) <= 1;
                 if (!pActive->IsMelee())
                 {
-                    if (pActive->mFiredFlag)
+                    if (pActive->GetFiredFlag())
                     {
                         if (NetGame::IsEnabled() && !bFiring)
                         {
@@ -1624,7 +1512,7 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
                         }
                         if (!bHidden)
                         {
-                            pActive->mFiredFlag = 0;
+                            pActive->ClearFiredFlag();
                         }
                     }
                     else if (bFiring)
@@ -1690,15 +1578,11 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
             }
 
             const PblVector3* pAim;
-            if (mPlayerId < 0)
-            {
-                pAim = &mEyeDir;
-            }
-            else
+            if (mPlayerId >= 0)
             {
                 Controllable* pControllable = mCharacter ? mCharacter->GetControllable() : 0;
-                if (pControllable &&
-                    pControllable->GetControllableClass()->mAnimatesUnitAsTurret)
+                bool bTurret = pControllable ? pControllable->GetControllableClass()->mAnimatesUnitAsTurret : false;
+                if (bTurret)
                 {
                     Weapon* pWeapon = pControllable->GetWeaponPtr(0);
                     pAim = pWeapon ? &pWeapon->mAimer->GetDirection() : &mAimer.GetDirection();
@@ -1708,30 +1592,50 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
                     pAim = &vAim;
                 }
             }
+            else
+            {
+                pAim = &mEyeDir;
+            }
             mSoldierAnimator->SetAimDirection(*pAim);
 
-            mSoldierAnimator->ForceAnimationBlend(mForceFrameNum1, mForceFrameNum2, mForceFrameBlend);
-            ZephyrSkeletonShared* pSkeleton = mClass->mSpecialSkeleton;
-            if (mForceFrameNum1 >= 0.0f && pSkeleton &&
-                pSkeleton != SoldierAnimatorClass::sInstance->GetDefaultSkeleton() &&
+            {
+                SoldierAnimator* pAnimator = mSoldierAnimator;
+                float fFrame1 = mForceFrameNum1;
+                float fFrame2 = mForceFrameNum2;
+                float fBlend = mForceFrameBlend;
+                pAnimator->mForceFrameNum1 = fFrame1;
+                pAnimator->mForceFrameNum2 = fFrame2;
+                pAnimator->mForceFrameBlend = fBlend;
+            }
+            if (mForceFrameNum1 >= 0.0f && mClass->mSpecialSkeleton &&
+                mClass->mSpecialSkeleton != SoldierAnimatorClass::sInstance->GetDefaultSkeleton() &&
                 mClass->mSkeletonRootScale != 1.0f)
             {
-                int iRoot = pSkeleton->GetJointIdxByCrc(0x16e27226);
-                pSkeleton->SetJointScale(iRoot, 1.0f);
+                int iRoot = mClass->mSpecialSkeleton->GetJointIdxByCrc(0x16e27226 /* "bone_root" */);
+                mClass->mSpecialSkeleton->SetJointScale(iRoot, 1.0f);
                 mSoldierAnimator->SetupPose(pose);
-                pSkeleton->SetJointScale(iRoot, mClass->mSkeletonRootScale);
+                mClass->mSpecialSkeleton->SetJointScale(iRoot, mClass->mSkeletonRootScale);
             }
             else
             {
                 mSoldierAnimator->SetupPose(pose);
             }
-            mSoldierAnimator->ForceAnimationBlend(-1.0f, -1.0f, -1.0f);
+            {
+                SoldierAnimator* pAnimator = mSoldierAnimator;
+                pAnimator->mForceFrameNum1 = -1.0f;
+                pAnimator->mForceFrameNum2 = -1.0f;
+                pAnimator->mForceFrameBlend = -1.0f;
+            }
 
             if (mTentacles && !mClass->mAddon)
             {
                 PblMatrix aTentacleMatrices[20];
-                mTentacles->DoTentacles(&pose, GetMatrix(), GetVelocity(), aTentacleMatrices,
-                                        (uiFlags & 0x200000) ? 0.0f : -1.0f);
+                float fDeltaTime = -1.0f;
+                if ((uiFlags & 0x200000) > 0)
+                {
+                    fDeltaTime = 0.0f;
+                }
+                mTentacles->DoTentacles(&pose, GetMatrix(), GetVelocity(), aTentacleMatrices, fDeltaTime);
             }
 
             if (mAcklayData)
@@ -1746,31 +1650,36 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
             else
             {
 
-                PblMatrix mHeadLook;
                 if (mCharacter && mCharacter->mVehicle && !mCharacter->mRemote &&
-                    GetObjectData(0) == COLL_ATTACHED && IsAlive())
+                    GetCollisionType() == COLL_ATTACHED && IsAlive())
                 {
-                    if (const PblMatrix* pHead = pose.Find(0x8afdf5e4))
+                    if (const PblMatrix* pHead = pose.Find(0x8afdf5e4 /* "bone_head" */))
                     {
-                        PblVector3 worldHeadDir = mCharacter->mVehicle->mEyeDir;
-                        PblVector3 localHeadDir = mMatrix.GetInverseFast().ApplyRotation(worldHeadDir);
-                        PblVector3 localHeadDirOld = pHead->GetYAxis();
-                        float deltaDot = DotProduct(localHeadDirOld, localHeadDir);
-                        if (deltaDot > -1.0f)
+                        PblVector3 vDir = mCharacter->mVehicle->mEyeDir;
+                        PblVector3 vLocal;
+                        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXMATRIX*>(&mMatrix.GetInverseFast()));
+                        PblVector3 vUp = pHead->GetYAxis();
+                        float fDot = vUp.y * vLocal.y + vLocal.x * vUp.x + vUp.z * vLocal.z;
+                        if (fDot > -1.0f)
                         {
-                            if (deltaDot < 0.4f)
+                            if (fDot < 0.4f)
                             {
-                                localHeadDir = localHeadDirOld * 0.4f +
-                                    Normalize(localHeadDir - localHeadDirOld * deltaDot) *
-                                    (float)sqrt(1.0f - 0.4f * 0.4f);
+                                PblVector3 vPerp = vLocal - vUp * fDot;
+                                PblVector3 vSide;
+                                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vSide), reinterpret_cast<const D3DXVECTOR3*>(&vPerp));
+                                float fSin = (float)sqrt(1.0f - 0.4f * 0.4f);
+                                vLocal = vUp * 0.4f + vSide * fSin;
                             }
-                            mHeadLook = DirectionMatrix(localHeadDir, (*pHead)[0], (*pHead)[3]);
-                            PblVector3 temp = mHeadLook.GetXAxis();
-                            mHeadLook.SetXAxis(mHeadLook.GetYAxis());
-                            mHeadLook.SetYAxis(mHeadLook.GetZAxis());
-                            mHeadLook.SetZAxis(temp);
-                            pose.Remove(0x8afdf5e4);
-                            pose.Store(0x8afdf5e4, &mHeadLook);
+                            mHeadLook = DirectionMatrix(vLocal, (*pHead)[0], (*pHead)[3]);
+                            PblVector3 vX = mHeadLook[0];
+                            mHeadLook[0] = mHeadLook[1];
+                            mHeadLook.m[0][3] = 0.0f;
+                            mHeadLook[1] = mHeadLook[2];
+                            mHeadLook.m[1][3] = 0.0f;
+                            mHeadLook[2] = vX;
+                            mHeadLook.m[2][3] = 0.0f;
+                            pose.Remove(0x8afdf5e4 /* "bone_head" */);
+                            pose.Store(0x8afdf5e4 /* "bone_head" */, &mHeadLook);
                         }
                     }
                 }
@@ -1783,24 +1692,24 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
                          (mState == SoldierState::CROUCH &&
                           (pLowLevel->GetHeadLookState() == AI::HEAD_LOOK_RIGHT ||
                            pLowLevel->GetHeadLookState() == AI::HEAD_LOOK_LEFT))) &&
-                        pLowLevel->CalcHeadLookMatrix(pose.Find(0x8afdf5e4), &mHeadLook))
+                        pLowLevel->CalcHeadLookMatrix(pose.Find(0x8afdf5e4 /* "bone_head" */), &mHeadLook))
                     {
-                        pose.Remove(0x8afdf5e4);
-                        pose.Store(0x8afdf5e4, &mHeadLook);
+                        pose.Remove(0x8afdf5e4 /* "bone_head" */);
+                        pose.Store(0x8afdf5e4 /* "bone_head" */, &mHeadLook);
                     }
                 }
 
                 if (mJetEffectHandle)
                 {
-                    PblMatrix mOffset(reinterpret_cast<const _D3DXMATRIXA16*>(pose.Find(0xe5b51072)));
+                    PblMatrix mOffset(reinterpret_cast<const _D3DXMATRIXA16*>(pose.Find(0xe5b51072 /* "bone_ribcage" */)));
                     mJetEffectHandle->SetLocalOffsetMatrix(mOffset);
                 }
                 if (mJetIdleEffectHandle)
                 {
-                    PblMatrix mOffset(reinterpret_cast<const _D3DXMATRIXA16*>(pose.Find(0xe5b51072)));
+                    PblMatrix mOffset(reinterpret_cast<const _D3DXMATRIXA16*>(pose.Find(0xe5b51072 /* "bone_ribcage" */)));
                     mJetIdleEffectHandle->SetLocalOffsetMatrix(mOffset);
                 }
-                for (int i = 0; i < 5; ++i)
+                for (int i = 0; i < kMaxSmolderEffects; ++i)
                 {
                     if (mSmolderEffectHandle[i])
                     {
@@ -1814,20 +1723,22 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
                 float fWaterHeight;
                 if (RedWater::GetWaterHeight(GetPosition(), fWaterHeight))
                 {
+                    const PblMatrix* pRightFoot = pose.Find(0x2f06fa86 /* "bone_r_foot" */);
                     PblMatrix mFoot = mWorld;
-                    if (const PblMatrix* pRightFoot = pose.Find(0x2f06fa86))
+                    if (pRightFoot)
                     {
                         mFoot = *pRightFoot * mWorld;
                     }
                     PblVector3 vRightFoot = mFoot.GetTranslation();
-                    const PblMatrix* pLeftFoot = pose.Find(0x1af77461);
+                    const PblMatrix* pLeftFoot = pose.Find(0x1af77461 /* "bone_l_foot" */);
                     if (!pLeftFoot)
                     {
                         pLeftFoot = &gMatrixIdentity;
                     }
                     mFoot = *pLeftFoot * mWorld;
                     PblVector3 vLeftFoot = mFoot.GetTranslation();
-                    const float fSpeed2 = SquaredLength(GetVelocity());
+                    const PblVector3& vVelocity = GetVelocity();
+                    float fSpeed2 = vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y + vVelocity.z * vVelocity.z;
                     if (fWaterHeight > vRightFoot.y)
                     {
                         if (!(mFlags & flags_rightFootInWater))
@@ -1867,14 +1778,14 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
                 float fDeltaTime = GameLoop::sClientDeltaTime;
                 if (mClass->mFootSlideEffect && fDeltaTime > 0.0f)
                 {
-                    PblMatrix mRightFoot = PblMatrix(reinterpret_cast<const _D3DXMATRIXA16*>(pose.Find(0x2f06fa86))) * mWorld;
+                    PblMatrix mRightFoot;
+                    mRightFoot = *pose.Find(0x2f06fa86 /* "bone_r_foot" */) * mWorld;
                     bool bSlide = false;
                     if (!(mFlags & flags_rightFootInWater) && (mFlags & flags_isGrounded) &&
                         SquaredLength(m_vPosFootRight) > 0.0f)
                     {
-                        PblVector3 vVelocity = (mRightFoot.GetTranslation() - m_vPosFootRight) / fDeltaTime;
-                        float fSpeedSqr = SquaredLength(vVelocity);
-                        bSlide = fSpeedSqr >= 25.0f;
+                        bSlide = SquaredLength((1.0f / fDeltaTime) * (mRightFoot.GetTranslation() - m_vPosFootRight)) >= 25.0f;
+                        (void)(mFootSlideEffectRightHandle != 0);
                     }
                     m_vPosFootRight = mRightFoot.GetTranslation();
                     if (bSlide && mFootSlideEffectRightHandle == 0)
@@ -1897,14 +1808,13 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
                         }
                     }
 
-                    PblMatrix mLeftFoot = PblMatrix(reinterpret_cast<const _D3DXMATRIXA16*>(pose.Find(0x1af77461))) * mWorld;
-                    bSlide = false;
+                    PblMatrix mLeftFoot;
+                    mLeftFoot = *pose.Find(0x1af77461 /* "bone_l_foot" */) * mWorld;
                     if (!(mFlags & flags_leftFootInWater) && (mFlags & flags_isGrounded) &&
                         SquaredLength(m_vPosFootLeft) > 0.0f)
                     {
-                        PblVector3 vVelocity = (mLeftFoot.GetTranslation() - m_vPosFootLeft) / fDeltaTime;
-                        float fSpeedSqr = SquaredLength(vVelocity);
-                        bSlide = fSpeedSqr >= 25.0f;
+                        bSlide = SquaredLength((1.0f / fDeltaTime) * (mLeftFoot.GetTranslation() - m_vPosFootLeft)) >= 25.0f;
+                        (void)(mFootSlideEffectLeftHandle != 0);
                     }
                     m_vPosFootLeft = mLeftFoot.GetTranslation();
                     if (bSlide && mFootSlideEffectLeftHandle == 0)
@@ -1947,10 +1857,10 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         if (pAddon && mState != SoldierState::JET_HOVER && mState != SoldierState::JET_JUMP)
         {
             unsigned int uiAddonFlags = bStencilShadow ? (uiFlags | 0x10000) : (uiFlags & ~0x10000);
-            pAddon->Render(mTentacles, GetVelocity(), pPose, mWorld, colorAttach, uiAddonFlags);
+            pAddon->Render(mTentacles, GetVelocity(), pPose, &mWorld, colorAttach, uiAddonFlags);
             if (bReflected && pPose)
             {
-                pAddon->Render(mTentacles, GetVelocity(), pPose, mReflection, colorAttach, uiReflectFlags);
+                pAddon->Render(mTentacles, GetVelocity(), pPose, &mReflection, colorAttach, uiReflectFlags);
             }
         }
 
@@ -1971,21 +1881,13 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
                 const PblMatrix* pBone = 0;
                 if (pPose)
                 {
-                    pBone = pPose->Find(0xd2afb28a);
+                    pBone = pPose->Find(0xd2afb28a /* "bone_neck" */);
                     if (!pBone)
                     {
-                        pBone = pPose->Find(0x8afdf5e4);
+                        pBone = pPose->Find(0x8afdf5e4 /* "bone_head" */);
                     }
                 }
-                PblMatrix mChoke;
-                if (pBone)
-                {
-                    mChoke = *pBone * mWorld;
-                }
-                else
-                {
-                    mChoke = mWorld;
-                }
+                const PblMatrix& mChoke = pBone ? *pBone * mWorld : mWorld;
                 mChokeEffectHandle->AttachEffectToMatrix(&gMatrixIdentity, mChoke, false);
                 if (mState != SoldierState::CHOKE)
                 {
@@ -1995,7 +1897,6 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
             }
         }
 
-        uiModelFlags = uiFlags & ~0x10000;
         if (bStencilShadow && pModel->GetRedModel(0)->_pStencilShadow && RedStencilShadow::GetShadowEnable())
         {
             RedDirectionalLight* pLight = RedLight::GetGlobalDirectionalLight(0);
@@ -2009,13 +1910,13 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
             RedRenderer::GetCamera()->GetFrustum(fNear, fFar, fWidth, fHeight);
             const RedCamera* pCamera = RedRenderer::GetCamera();
             float fLength;
-            uiModelFlags = uiFlags;
             if (pLight)
             {
                 uiModelFlags = uiFlags | 0x10000;
                 const PblVector3& vDir = pLight->m_vDirection;
                 float fMinLength = _Sphere.w * -2.0f / vDir.y;
-                PblVector3 vStart(_Sphere.x, _Sphere.w + _Sphere.y, _Sphere.z);
+                PblVector3 vStart = _Sphere;
+                vStart.y += _Sphere.w;
                 const GameObject* pIgnore = this;
                 CollisionObject* pHit;
                 fLength = CollisionManager::RayHit(vStart, vDir, 50.0f, pHit, NULL, &pIgnore, 1, 0x90, false) * 50.0f;
@@ -2030,11 +1931,14 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
             }
             RedRenderer::SetStencilShadowLength(fLength);
             const PblMatrix& mView = pCamera->GetMatrix();
-            const float fCameraDistSqr = SquaredLength(
-                mView.GetTranslation() - mView.GetZAxis() * fNear - _Sphere.GetCenter());
-            const float fMaxCameraIntersectionDist = _Sphere.w + fLength + fWidth * 1.33f;
-            RedRenderer::SetStencilShadowZFail(fMaxCameraIntersectionDist * fMaxCameraIntersectionDist > fCameraDistSqr);
+            float fDistSq = SquaredLength(mView.GetTranslation() - mView.GetZAxis() * fNear - (const PblVector3&)_Sphere);
+            float fReach = _Sphere.w + fLength + fWidth * 1.33f;
+            RedRenderer::SetStencilShadowZFail(fReach * fReach > fDistSq);
             bDropShadow = false;
+        }
+        else
+        {
+            uiModelFlags = uiFlags & ~0x10000;
         }
         uiPoseFlags = 0x40000000;
     }
@@ -2084,7 +1988,10 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
 
         if (mSoldierAnimator && mSoldierAnimator->GetFramesSinceUsed() > 1)
         {
-            mSoldierAnimator->Release(*this);
+            if (mSoldierAnimator->mOwner == this)
+            {
+                mSoldierAnimator->mOwner = NULL;
+            }
             mSoldierAnimator = NULL;
         }
 
@@ -2103,16 +2010,14 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         PblMatrix mRoot;
         if (mSoldierAnimatorLowRes->GetRootMatrixAnimation(*this, mRoot))
         {
-            PblMatrix mTemp;
-            mTemp = mRoot * mWorld;
-            if (mState == SoldierState::FLY || mState == SoldierState::TUMBLE)
+            if (mState != SoldierState::FLY && mState != SoldierState::TUMBLE)
             {
-                mRoot = mTemp;
-                mWorld = NormalMatrix(mRoot.GetZAxis(), mRoot.GetYAxis(), mRoot.GetTranslation());
+                mWorld = mRoot * mWorld;
             }
             else
             {
-                mWorld = mTemp;
+                mRoot = mRoot * mWorld;
+                mWorld = NormalMatrix(mRoot.GetZAxis(), mRoot.GetYAxis(), mRoot.GetTranslation());
             }
         }
 
@@ -2122,12 +2027,12 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         }
         if (mJetIdleEffectHandle && pPose)
         {
-            PblMatrix mOffset(reinterpret_cast<const _D3DXMATRIXA16*>(pPose->Find(0xe5b51072)));
+            PblMatrix mOffset(reinterpret_cast<const _D3DXMATRIXA16*>(pPose->Find(0xe5b51072 /* "bone_ribcage" */)));
             mJetIdleEffectHandle->SetLocalOffsetMatrix(mOffset);
         }
         if (const RedPose* pLowResPose = mSoldierAnimatorLowRes->GetPose())
         {
-            for (int i = 0; i < 5; ++i)
+            for (int i = 0; i < kMaxSmolderEffects; ++i)
             {
                 if (mSmolderEffectHandle[i])
                 {
@@ -2148,15 +2053,15 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
             pShadingPose = &shadingPose;
         }
         pShadingPose->BindToModel(pModel->GetRedModel(0));
-        if (RedShadingState* pState = pShadingPose->CreateShadingState(0xdc5803e9))
+        if (RedShadingState* pState = pShadingPose->CreateShadingState(0xdc5803e9 /* "override_texture" */))
         {
-            pState->GetIntParam(0x891891e9) = mClass->mOverrideTextureHash;
+            pState->GetIntParam(0x891891e9 /* "diffuse_texture" */) = mClass->mOverrideTextureHash;
         }
         if (mClass->mOverrideTextureHash2)
         {
-            if (RedShadingState* pState = pShadingPose->CreateShadingState(0xb98e11c1))
+            if (RedShadingState* pState = pShadingPose->CreateShadingState(0xb98e11c1 /* "override_texture2" */))
             {
-                pState->GetIntParam(0x891891e9) = mClass->mOverrideTextureHash2;
+                pState->GetIntParam(0x891891e9 /* "diffuse_texture" */) = mClass->mOverrideTextureHash2;
             }
         }
     }
@@ -2169,19 +2074,36 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
 
     if (pModel->mClothCount)
     {
-        RedColor colorCloth = RedColor::WHITE;
-        colorCloth.a = (unsigned char)(int)((ucLod ? fAttachAlpha : fAttachFade) * 255.0f);
-        unsigned int uClothArg = (mPlayerId >= 0 && mState == SoldierState::PRONE) ? 5 : 1;
-        for (unsigned int i = 0; i < pModel->mClothCount; ++i)
+        float fClothAlpha = fAttachAlpha;
+        if (!ucLod)
         {
-            if (mClothPiece[i])
+            fClothAlpha = fAttachFade;
+        }
+        RedColor colorCloth = RedColor::WHITE;
+        colorCloth.a = (unsigned char)(int)(fClothAlpha * 255.0f);
+        if (mPlayerId >= 0 && mState == SoldierState::PRONE)
+        {
+            for (unsigned int i = 0; i < pModel->mClothCount; ++i)
             {
-                mClothPiece[i]->Render(mWorld, pPose, ucLod, colorCloth, uiModelFlags, uClothArg);
+                if (mClothPiece[i])
+                {
+                    mClothPiece[i]->Render(mWorld, pPose, ucLod, colorCloth, uiModelFlags, 5);
+                }
+            }
+        }
+        else
+        {
+            for (unsigned int i = 0; i < pModel->mClothCount; ++i)
+            {
+                if (mClothPiece[i])
+                {
+                    mClothPiece[i]->Render(mWorld, pPose, ucLod, colorCloth, uiModelFlags, 1);
+                }
             }
         }
     }
 
-    if (ucLod)
+    if (ucLod > 0)
     {
         if (pActive && pActive->IsMelee())
         {
@@ -2196,7 +2118,7 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         if (pPrimary->mClass->mIsOffhand)
         {
             pOffhand = pPrimary;
-            int iIndex = mWeaponIndex[!mActiveChannel];
+            char iIndex = mWeaponIndex[!mActiveChannel];
             pPrimary = iIndex >= 0 ? mWeapon[iIndex] : NULL;
         }
         if (pPrimary)
@@ -2226,13 +2148,13 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         if (!(uiModelFlags & 0x220000) && fAttachAlpha > 0.0f && pPose)
         {
             pPose->BindToSkeleton(GetModel()->GetRedModel(0)->_pSkeleton);
-            if (const PblMatrix* pHead = pPose->Find(0x8afdf5e4))
+            if (const PblMatrix* pHead = pPose->Find(0x8afdf5e4 /* "bone_head" */))
             {
                 float fHeight = pHead->m[3][1];
                 if (fHeight > 0.3f)
                 {
                     const PblVector3& vDir = RedLight::GetGlobalDirectionalLight(0)->m_vDirection;
-                    float fShadowFade = fHeight < 0.8f ? (fHeight - 0.3f) * 2.0f : 1.0f;
+                    float fShadowFade = fHeight >= 0.8f ? 1.0f : (fHeight - 0.3f) * 2.0f;
                     if (mFlags & flags_isGrounded)
                     {
                         float fShadowAlpha =
@@ -2240,9 +2162,9 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
                         if (fShadowAlpha > 0.0f)
                         {
                             PblVector3 vPos = mWorld.GetTranslation();
-                            PblVector3 vNormal(0.0f - vDir.x * 0.2f, 0.8f - vDir.y * 0.2f, 0.0f - vDir.z * 0.2f);
-                            if (-(vNormal.x * vDir.x) - vDir.z * vNormal.z >
-                                -(vDir.x * mGroundNormal.x) - vDir.z * mGroundNormal.z)
+                            PblVector3 vNormal = PblVector3(0.0f, 0.8f, 0.0f) - vDir * 0.2f;
+                            if (-(vDir.x * mGroundNormal.x) - vDir.z * mGroundNormal.z <
+                                -(vNormal.x * vDir.x) - vDir.z * vNormal.z)
                             {
                                 RedDropShadowManager::AddShadow(sPlayerShadow, vPos, vNormal, vDir, 0.0f, fHeight,
                                                                 mClass->mSkeletonRootScale * 2.0f, fShadowAlpha);
@@ -2252,29 +2174,25 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
                     else
                     {
                         const GameObject* pIgnore = this;
-                        PblVector3 vDown(-gVectorUnitY.x, -gVectorUnitY.y, -gVectorUnitY.z);
                         PblVector3 vNormal = gVectorUnitY;
-                        PblVector3 vStart(mWorld.m[3][0] - vDown.x * 0.5f, mWorld.m[3][1] - vDown.y * 0.5f,
-                                          mWorld.m[3][2] - vDown.z * 0.5f);
+                        PblVector3 vDown = -gVectorUnitY;
+                        PblVector3 vStart = mWorld.GetTranslation() - vDown * 0.5f;
                         CollisionObject* pHit;
                         float fHit =
                             CollisionManager::RayHit(vStart, vDown, 4.0f, pHit, &vNormal, &pIgnore, 1, 0x90, true);
                         if (fHit < 1.0f)
                         {
                             float fDrop = fHit * 4.0f;
-                            PblVector3 vHit(vDown.x * fDrop + vStart.x, vDown.y * fDrop + vStart.y,
-                                            vDown.z * fDrop + vStart.z);
-                            PblVector3 vShadowNormal(0.0f - vDir.x * 0.2f, 0.8f - vDir.y * 0.2f,
-                                                     0.0f - vDir.z * 0.2f);
-                            if (-(vShadowNormal.x * vDir.x) - vDir.z * vShadowNormal.z >
-                                -(vNormal.x * vDir.x) - vDir.z * vNormal.z)
+                            PblVector3 vHit = vDown * fDrop + vStart;
+                            PblVector3 vShadowNormal = PblVector3(0.0f, 0.8f, 0.0f) - vDir * 0.2f;
+                            if (-(vNormal.x * vDir.x) - vDir.z * vNormal.z <
+                                -(vShadowNormal.x * vDir.x) - vDir.z * vShadowNormal.z)
                             {
                                 float fStart = mWorld.m[3][1] - vHit.y;
-                                float fShadowAlpha = (1.0f - RedRenderer::GetShadowIntensity()) *
-                                                     ((1.0f - fHit) * (fShadowFade * fAttachAlpha));
                                 RedDropShadowManager::AddShadow(sPlayerShadow, vHit, vShadowNormal, vDir, fStart,
                                                                 fStart + fHeight, mClass->mSkeletonRootScale * 2.0f,
-                                                                fShadowAlpha);
+                                                                (1.0f - RedRenderer::GetShadowIntensity()) *
+                                                                    ((1.0f - fHit) * (fShadowFade * fAttachAlpha)));
                             }
                         }
                     }
@@ -2294,8 +2212,7 @@ void EntitySoldier::Render(unsigned char ucLod, float fFade, unsigned int uiFlag
         {
             if (const PblMatrix* pBone = pPose->Find(pFlag->GetCarriedSoldierBoneHash()))
             {
-                PblMatrix mFlag;
-                mFlag = *pBone * mWorld;
+                PblMatrix mFlag = *pBone * mWorld;
                 reinterpret_cast<GameObject*>(pFlag)->SetMatrix(mFlag);
                 pFlag->RenderHelper(ucLod, fAlpha, uiModelFlags);
             }
@@ -2326,7 +2243,7 @@ bool EntitySoldier::CollisionCallback(const CollisionResult* pResult, CollisionO
         {
             if (GetWeaponPtr(i)->IsRtti(WeaponInvisibility::rttiHashWeaponInvisibility))
             {
-                static_cast<WeaponInvisibility*>(GetWeaponPtr(i))->StartFlicker();
+                ((WeaponInvisibility*)GetWeaponPtr(i))->StartFlicker();
                 break;
             }
         }
@@ -2349,7 +2266,7 @@ bool EntitySoldier::CollisionCallback(const CollisionResult* pResult, CollisionO
             }
             vRelVel -= pOther->GetGameObject()->GetVelocity();
         }
-        PblVector3 vSeparation = pResult->mSeparationNormal;
+        const PblVector3& vSeparation = pResult->mSeparationNormal;
         float fApproach = DotProduct(vSeparation, vRelVel);
 
         FoleyFXCollider::CollisionCallback(pOther->GetCollisionType(), pOther, &GetPosition());
@@ -2943,7 +2860,7 @@ bool EntitySoldier::UpdateBoardVsChangeClass()
             const PblVector3& vMe = GetCollisionCenter();
             const PblVector3& vPost = pPost->GetGameObject()->GetCollisionCenter();
             PblVector3 vDir(vPost.x - vMe.x, vPost.y - vMe.y, vPost.z - vMe.z);
-            float fDist = PblMath::Sqrt(vDir.y * vDir.y + vDir.x * vDir.x + vDir.z * vDir.z);
+            float fDist = PblMath::Sqrt(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
             if (fDist > 0.0001f)
             {
                 float fInv = 1.0f / fDist;
@@ -2964,12 +2881,12 @@ bool EntitySoldier::UpdateBoardVsChangeClass()
                 const PblVector3& vMe = GetPosition();
                 const PblVector3& vOther = aObjects[i]->GetPosition();
                 PblVector3 vDir(vOther.x - vMe.x, vOther.y - vMe.y, vOther.z - vMe.z);
-                float fDist = PblMath::Sqrt(vDir.y * vDir.y + vDir.x * vDir.x + vDir.z * vDir.z);
+                float fDist = PblMath::Sqrt(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
                 if (fDist > 0.0001f)
                 {
-                    float fInv = 1.0f / fDist;
+                    PblVector3 vNorm = vDir * (1.0f / fDist);
                     if (aObjects[i]->GetGameObjectClass()->mSwitchClassRadius > fDist &&
-                        mEyeDir.x * (vDir.x * fInv) + mEyeDir.y * (vDir.y * fInv) + mEyeDir.z * (vDir.z * fInv) >
+                        mEyeDir.x * vNorm.x + mEyeDir.y * vNorm.y + mEyeDir.z * vNorm.z >
                             0.15f &&
                         aObjects[i]->mTeam == mTeam)
                     {
@@ -2996,7 +2913,14 @@ bool EntitySoldier::UpdateBoardVsChangeClass()
              ToolTipsDisplay::sInstance->ShouldTestForToolTipState(TTT_ApproachTurret)) &&
             pVehicle)
         {
-            ToolTipsDisplay::sInstance->ShowTip(bVehicle ? TTT_ApproachVehicle : TTT_ApproachTurret, 0);
+            if (bVehicle)
+            {
+                ToolTipsDisplay::sInstance->ShowTip(TTT_ApproachVehicle, 0);
+            }
+            else
+            {
+                ToolTipsDisplay::sInstance->ShowTip(TTT_ApproachTurret, 0);
+            }
         }
         ToolTipsDisplay::sInstance->ShowTip(TTT_SoldierFire, 0);
         ToolTipsDisplay::sInstance->ShowTip(TTT_SoldierSprint, 0);
@@ -3035,11 +2959,11 @@ bool EntitySoldier::UpdateBoardVsChangeClass()
             const PblVector3& vMe = GetCollisionCenter();
             const PblVector3& vPost = pPost->GetGameObject()->GetCollisionCenter();
             PblVector3 vDir(vPost.x - vMe.x, vPost.y - vMe.y, vPost.z - vMe.z);
-            float fDist = PblMath::Sqrt(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
+            float fDist = PblMath::Sqrt(vDir.y * vDir.y + vDir.x * vDir.x + vDir.z * vDir.z);
             if (fDist > 0.0001f)
             {
-                float fInv = 1.0f / fDist;
-                if (mEyeDir.x * (vDir.x * fInv) + mEyeDir.y * (vDir.y * fInv) + mEyeDir.z * (vDir.z * fInv) > 0.15f &&
+                PblVector3 vNorm = vDir * (1.0f / fDist);
+                if (mEyeDir.x * vNorm.x + mEyeDir.y * vNorm.y + mEyeDir.z * vNorm.z > 0.15f &&
                     pPost->CanTeamSpawnHere(GetTeam()))
                 {
                     mCanChangeClass = true;
@@ -3056,12 +2980,12 @@ bool EntitySoldier::UpdateBoardVsChangeClass()
                 const PblVector3& vMe = GetPosition();
                 const PblVector3& vOther = aObjects[i]->GetPosition();
                 PblVector3 vDir(vOther.x - vMe.x, vOther.y - vMe.y, vOther.z - vMe.z);
-                float fDist = PblMath::Sqrt(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
+                float fDist = PblMath::Sqrt(vDir.y * vDir.y + vDir.x * vDir.x + vDir.z * vDir.z);
                 if (fDist > 0.0001f)
                 {
-                    float fInv = 1.0f / fDist;
+                    PblVector3 vNorm = vDir * (1.0f / fDist);
                     if (aObjects[i]->GetGameObjectClass()->mSwitchClassRadius > fDist &&
-                        mEyeDir.x * (vDir.x * fInv) + mEyeDir.y * (vDir.y * fInv) + mEyeDir.z * (vDir.z * fInv) >
+                        mEyeDir.x * vNorm.x + mEyeDir.y * vNorm.y + mEyeDir.z * vNorm.z >
                             0.15f &&
                         aObjects[i]->mTeam == mTeam)
                     {
@@ -3072,10 +2996,7 @@ bool EntitySoldier::UpdateBoardVsChangeClass()
             }
         }
     }
-    if (mClass->GetHeroFlag())
-    {
-        mCanChangeClass = false;
-    }
+    mCanChangeClass &= !mClass->GetHeroFlag();
 
     if (!mControlUse.IsPressed())
     {
@@ -3085,7 +3006,14 @@ bool EntitySoldier::UpdateBoardVsChangeClass()
     {
         if (iJoystick < 0)
         {
-            pVehicle = TryBoard(NetGame::IsEnabled() && NetGame::IsClient(), bVehicle);
+            if (NetGame::IsEnabled() && NetGame::IsClient())
+            {
+                pVehicle = TryBoard(true, bVehicle);
+            }
+            else
+            {
+                pVehicle = TryBoard(false, bVehicle);
+            }
         }
         else if (pVehicle && !(NetGame::IsEnabled() && NetGame::IsClient()))
         {
@@ -3096,7 +3024,14 @@ bool EntitySoldier::UpdateBoardVsChangeClass()
             if (mCharacter)
             {
                 ToolTipsDisplay::sInstance->CancelTip(0);
-                ToolTipsDisplay::sInstance->CancelTimeoutTip(bVehicle ? TTT_ApproachVehicle : TTT_ApproachTurret, 0);
+                if (bVehicle)
+                {
+                    ToolTipsDisplay::sInstance->CancelTimeoutTip(TTT_ApproachVehicle, 0);
+                }
+                else
+                {
+                    ToolTipsDisplay::sInstance->CancelTimeoutTip(TTT_ApproachTurret, 0);
+                }
             }
             return true;
         }
@@ -3127,8 +3062,8 @@ GameObject* EntitySoldier::TryBoard(bool bArg, bool& rIsVehicle)
             const PblVector3 vMax = box._vMax + PblVector3(GetCollisionRadius() + 0.5f, GetCollisionRadius() + 0.5f,
                                                            GetCollisionRadius() + 0.5f);
             const PblVector3 vLocal = apObjects[i]->GetMatrix().GetInverseFast().ApplyTransform(GetCollisionCenter());
-            if (!(vLocal.x >= vMin.x && vMax.x >= vLocal.x && vLocal.y >= vMin.y && vMax.y >= vLocal.y &&
-                  vLocal.z >= vMin.z && vMax.z >= vLocal.z))
+            const PblBox bbox(vMin, vMax);
+            if (!bbox.ContainsPoint(vLocal))
             {
                 continue;
             }
@@ -3270,15 +3205,15 @@ bool EntitySoldier::UpdateIndirect(float fDeltaTime)
             lowLevel.mDoJetJump = false;
             if (mInputLockTime <= 0.0f)
             {
-                if (mState == SoldierState::JUMP)
-                {
-                    JetJump();
-                }
-                else if (!lowLevel.mJetJumping)
+                if (mState != SoldierState::JUMP && !lowLevel.mJetJumping)
                 {
                     Jump();
                     lowLevel.mDoJetJump = false;
                     lowLevel.mJetJumping = true;
+                }
+                else if (mState == SoldierState::JUMP)
+                {
+                    JetJump();
                 }
                 else if (mState != SoldierState::JET_HOVER && mState != SoldierState::JET_JUMP)
                 {
@@ -3290,9 +3225,9 @@ bool EntitySoldier::UpdateIndirect(float fDeltaTime)
         {
             mInputLockTime = 0.0f;
             Jump();
+            lowLevel.SetJump(PblVector3(0.0f, 0.0f, 0.0f));
             lowLevel.mDoJump = false;
             lowLevel.mJumping = true;
-            lowLevel.mAIJetJumpDir = PblVector3(0.0f, 0.0f, 0.0f);
         }
         else if (lowLevel.mJumping)
         {
@@ -3362,11 +3297,13 @@ bool EntitySoldier::UpdateIndirect(float fDeltaTime)
             float fDiff = fHoverHeight - GetPosition().y;
             if (fDiff > 0.0f)
             {
-                mMatrix[3] += PblVector3(0.0f, Min(fDiff * 0.35f, fDeltaTime * 30.0f), 0.0f);
+                float fMove = Min(fDiff * 0.35f, fDeltaTime * 30.0f);
+                mMatrix[3] += PblVector3(0.0f, fMove, 0.0f);
             }
             else if (fDiff < 0.0f)
             {
-                mMatrix[3] += PblVector3(0.0f, Max(fDiff * 0.35f, fDeltaTime * -30.0f), 0.0f);
+                float fMove = Max(fDiff * 0.35f, fDeltaTime * -30.0f);
+                mMatrix[3] += PblVector3(0.0f, fMove, 0.0f);
             }
         }
     }
@@ -3440,7 +3377,7 @@ bool EntitySoldier::CanEnterVehicle(const GameObject* pObject) const
 
 static inline int GetFlyerState(const GameObject* pObject)
 {
-    return static_cast<const EntityFlyer*>(pObject)->mState;
+    return ((const EntityFlyer*)pObject)->mState;
 }
 
 // FUNCTION: SWBF2 0x004f09c0
@@ -3816,7 +3753,7 @@ void EntitySoldier::ActivatePhysics()
 {
     ActivateThread(0, PER_TURN);
     mPostCollision.ActivateThread(-15, PER_TURN);
-    for (int iChannel = 0; iChannel < 2; ++iChannel)
+    for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
     {
         if (mWeaponIndex[iChannel] >= 0 && mWeapon[mWeaponIndex[iChannel]] &&
             !mWeapon[mWeaponIndex[iChannel]]->IsSelected())
@@ -3843,7 +3780,7 @@ bool EntitySoldier::RenderTrackable(unsigned int uView) const
         }
     }
     const Controllable* pControllable = GetControllable();
-    if (pControllable && pControllable->GetEntity()->IsRtti(PassengerSlot::rttiHashPassengerSlot))
+    if (pControllable && pControllable->GetEntity()->IsRtti(PassengerSlot::GetRtti()))
     {
         return false;
     }
@@ -3878,30 +3815,25 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     : GameObjectClass(uHash)
 {
     m_bDynamicLighting = true;
-    mLODClass = 2;
+    mChunkFrequency = -1.0f;
     mHealthType = HEALTH_TYPE_PERSON;
-    mLockOnMinDist = 0.0f;
-    mLockOnMaxDist = 15.0f;
-    mLockOnMaxTrackDist = 500.0f;
     mPilotType = PILOT_SELF;
-
     mCanCapturePosts = true;
     mCanEnterVehicles = true;
-
+    mLODClass = 2;
     mModelLowRes = 0;
     mAcceleration = 70.0f;
     mMaxSpeed = 9.0f;
     mMaxStrafeSpeed = 7.0f;
     mMaxTurnSpeed = 2.0f;
     mMaxPitchSpeed = 1.0f;
-    mMinPitch = -0.8f;
-    mMaxPitch = 1.1f;
     mJumpVerticalSpeed = 8.0f;
     mJumpForwardSpeedFactor = 1.3f;
     mJumpStrafeSpeedFactor = 1.0f;
     mRollSpeedFactor = 1.7f;
+    mMinPitch = -0.8f;
+    mMaxPitch = 1.1f;
     mSprintAccelerateTime = 0.5f;
-
     m_bRecoverFromTumble = 0;
     m_bUseDirectionalJumps = 1;
     mJetShowHud = 1;
@@ -3911,34 +3843,30 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     m_numTentacles = 0;
     m_bonesPerTentacle = 0;
     m_tentacleCollType = 0;
-
     mThrustFactor[0] = 1.0f;
-    mThrustFactor[1] = 0.7f;
-    mThrustFactor[2] = 0.3f;
-    mThrustFactor[3] = 1.5f;
-    mThrustFactor[4] = 0.03f;
-    mThrustFactor[5] = 0.02f;
-    mThrustFactor[6] = 0.3f;
-    mThrustFactor[7] = 0.0f;
-
     mStrafeFactor[0] = 1.0f;
-    mStrafeFactor[1] = 0.6f;
-    mStrafeFactor[2] = 0.2f;
-    mStrafeFactor[3] = 0.5f;
-    mStrafeFactor[4] = 0.03f;
-    mStrafeFactor[5] = 0.02f;
-    mStrafeFactor[6] = 0.3f;
-    mStrafeFactor[7] = 0.0f;
-
     mTurnFactor[0] = 1.0f;
+    mThrustFactor[1] = 0.7f;
+    mStrafeFactor[1] = 0.6f;
     mTurnFactor[1] = 1.0f;
+    mThrustFactor[2] = 0.3f;
+    mStrafeFactor[2] = 0.2f;
     mTurnFactor[2] = 0.5f;
+    mThrustFactor[3] = 1.5f;
+    mStrafeFactor[3] = 0.5f;
     mTurnFactor[3] = 0.2f;
+    mThrustFactor[4] = 0.03f;
+    mStrafeFactor[4] = 0.03f;
     mTurnFactor[4] = 0.5f;
-    mTurnFactor[5] = 0.6f;
+    mThrustFactor[6] = 0.3f;
+    mStrafeFactor[6] = 0.3f;
     mTurnFactor[6] = 1.0f;
+    mThrustFactor[7] = 0.0f;
+    mStrafeFactor[7] = 0.0f;
     mTurnFactor[7] = 0.1f;
-
+    mThrustFactor[5] = 0.02f;
+    mStrafeFactor[5] = 0.02f;
+    mTurnFactor[5] = 0.6f;
     mCollisionThreshold[0] = 10.0f;
     mCollisionThreshold[1] = 3.0f;
     mCollisionThreshold[2] = 0.0f;
@@ -3946,78 +3874,24 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     mCollisionScale[1] = 0.0f;
     mCollisionScale[2] = 0.0f;
     mCollisionInflict = 1.0f;
-
-    for (int i = 0; i < 8; ++i)
-    {
-        mWeaponClass[i] = 0;
-    }
-    for (int i = 0; i < 8; ++i)
-    {
-        mWeaponAmmo[i].uiAmmo = 0;
-        mWeaponAmmo[i].uiHeat = 0;
-        mWeaponAmmo[i].bFlagAmmoInfinite = 0;
-        mWeaponAmmo[i].bFlagShareHeat = 0;
-        mWeaponAmmo[i].bFlagShareAmmo = 0;
-    }
-    for (int i = 0; i < 8; ++i)
-    {
-        mWeaponChannel[i] = 0;
-    }
-
+    memset(mWeaponClass, 0, sizeof(mWeaponClass));
+    memset(mWeaponAmmo, 0, sizeof(mWeaponAmmo));
+    memset(mWeaponChannel, 0, sizeof(mWeaponChannel));
     mWeaponCount = 0;
-    mOverrideTextureHash = 0;
-    mOverrideTextureHash2 = 0;
-
-    mEnergyBarClass.Init(100.0f, 20.0f);
-
-    mEnergyRestore = 10.0f;
-    mEnergyRestoreIdle = 15.0f;
-    mEnergyDrainSprint = 20.0f;
-    mEnergyCostJump = 10.0f;
-    mEnergyCostJumpSprint = 30.0f;
-    mEnergyCostRoll = 10.0f;
-    mJetJump = 7.0f;
-    mJetPush = 14.0f;
-    mJetAcceleration = 20.0f;
-    mJetFuelRechargeRate = 0.0f;
-    mJetFuelCost = 0.2f;
-    mJetFuelInitialCost = 0.0f;
-    mJetFuelMinBorder = 0.1f;
-    mJetEnergyDrain = 0.0f;
-    mJetPackEffect = 0;
-    mJetPackIdleEffect = 0;
-
-    mHealthGainEffect = 0x9D26C2F2u;
-    mAmmoGainEffect = 0x2A72AE31u;
-    mEnergyGainEffect = 0x9796A1C5u;
-    mBuffHealthEffect = 0xBB3E84E9u;
-    mBuffOffenseEffect = 0xC17AB11Au;
-    mBuffDefenseEffect = 0x28B9F3ACu;
-    mDebuffEffect = 0xCAA14018u;
-    mInvincibleEffect = 0x9796A1C5u;
-    mFootSlideEffect = 0;
-    mChokeEffect = 0;
-    m_fBlurEffect = 0.0f;
-    mWaterSplashEffect = 0xA40BAAA7u;
-    mFootWaterSplashEffect = 0xA40BAAA7u;
-    mWakeWaterSplashEffect = 0xA40BAAA7u;
-
-    mNoiseFactor = 5.0f;
-    mSoldierType = 5;
-    mImmuneToMines = false;
-
-    mAimerClass = new AimerClass();
-    mAimerClass->mOffsetPos = PblVector3(0.0f, 2.0f, 0.0f);
-
-    mCameraSettings[0][0].mCameraEyePointOffset.x = 0.0f;
-    mCameraSettings[0][0].mCameraEyePointOffset.y = 1.8f;
-    mCameraSettings[0][0].mCameraEyePointOffset.z = 0.0f;
+    mCameraSettingBlendTime[0] = 0.75f;
+    mCameraSettingBlendTime[1] = 1.0f;
+    mCameraSettingBlendTime[2] = 0.75f;
+    PblVector3& vEyeOffset = mCameraSettings[0][0].mCameraEyePointOffset;
+    vEyeOffset.x = 0.0f;
+    vEyeOffset.y = 1.8f;
+    vEyeOffset.z = 0.0f;
     mCameraSettings[0][0].mCameraTrackCenter.x = 0.0f;
     mCameraSettings[0][0].mCameraTrackCenter.y = 2.3f;
     mCameraSettings[0][0].mCameraTrackCenter.z = 0.0f;
     mCameraSettings[0][0].mCameraTrackOffset.x = 0.0f;
     mCameraSettings[0][0].mCameraTrackOffset.y = 0.0f;
     mCameraSettings[0][0].mCameraTrackOffset.z = 4.5f;
+    mCameraSettings[0][1].mCameraTrackCenter = mCameraSettings[0][1].mCameraEyePointOffset = vEyeOffset;
     mCameraSettings[0][0].mCameraMoveTensionL = 15.0f;
     mCameraSettings[0][0].mCameraMoveTensionR = 15.0f;
     mCameraSettings[0][0].mCameraMoveTensionU = 15.0f;
@@ -4025,9 +3899,7 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     mCameraSettings[0][0].mCameraMoveTensionF = 15.0f;
     mCameraSettings[0][0].mCameraMoveTensionB = 15.0f;
     mCameraSettings[0][0].mCameraAimTension = FLT_MAX;
-
-    mCameraSettings[0][1].mCameraEyePointOffset = mCameraSettings[0][0].mCameraEyePointOffset;
-    mCameraSettings[0][1].mCameraTrackCenter = mCameraSettings[0][0].mCameraEyePointOffset;
+    
     mCameraSettings[0][1].mCameraTrackOffset = gVectorZero;
     mCameraSettings[0][1].mCameraMoveTensionL = FLT_MAX;
     mCameraSettings[0][1].mCameraMoveTensionR = FLT_MAX;
@@ -4036,7 +3908,7 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     mCameraSettings[0][1].mCameraMoveTensionF = FLT_MAX;
     mCameraSettings[0][1].mCameraMoveTensionB = FLT_MAX;
     mCameraSettings[0][1].mCameraAimTension = FLT_MAX;
-
+    
     mCameraSettings[1][0].mCameraEyePointOffset.x = 0.0f;
     mCameraSettings[1][0].mCameraEyePointOffset.y = 1.2f;
     mCameraSettings[1][0].mCameraEyePointOffset.z = 0.0f;
@@ -4046,6 +3918,7 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     mCameraSettings[1][0].mCameraTrackOffset.x = 0.0f;
     mCameraSettings[1][0].mCameraTrackOffset.y = 0.0f;
     mCameraSettings[1][0].mCameraTrackOffset.z = 3.5f;
+    mCameraSettings[1][1].mCameraTrackCenter = mCameraSettings[1][1].mCameraEyePointOffset = mCameraSettings[1][0].mCameraEyePointOffset;
     mCameraSettings[1][0].mCameraMoveTensionL = 15.0f;
     mCameraSettings[1][0].mCameraMoveTensionR = 15.0f;
     mCameraSettings[1][0].mCameraMoveTensionU = 15.0f;
@@ -4053,9 +3926,7 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     mCameraSettings[1][0].mCameraMoveTensionF = 15.0f;
     mCameraSettings[1][0].mCameraMoveTensionB = 15.0f;
     mCameraSettings[1][0].mCameraAimTension = FLT_MAX;
-
-    mCameraSettings[1][1].mCameraEyePointOffset = mCameraSettings[1][0].mCameraEyePointOffset;
-    mCameraSettings[1][1].mCameraTrackCenter = mCameraSettings[1][0].mCameraEyePointOffset;
+    
     mCameraSettings[1][1].mCameraTrackOffset = gVectorZero;
     mCameraSettings[1][1].mCameraMoveTensionL = FLT_MAX;
     mCameraSettings[1][1].mCameraMoveTensionR = FLT_MAX;
@@ -4064,7 +3935,7 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     mCameraSettings[1][1].mCameraMoveTensionF = FLT_MAX;
     mCameraSettings[1][1].mCameraMoveTensionB = FLT_MAX;
     mCameraSettings[1][1].mCameraAimTension = FLT_MAX;
-
+    
     mCameraSettings[2][0].mCameraEyePointOffset.x = 0.0f;
     mCameraSettings[2][0].mCameraEyePointOffset.y = 0.3f;
     mCameraSettings[2][0].mCameraEyePointOffset.z = 0.0f;
@@ -4081,7 +3952,7 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     mCameraSettings[2][0].mCameraMoveTensionF = 15.0f;
     mCameraSettings[2][0].mCameraMoveTensionB = 15.0f;
     mCameraSettings[2][0].mCameraAimTension = FLT_MAX;
-
+    
     mCameraSettings[2][1].mCameraEyePointOffset = mCameraSettings[2][0].mCameraEyePointOffset;
     mCameraSettings[2][1].mCameraTrackCenter = mCameraSettings[2][0].mCameraEyePointOffset;
     mCameraSettings[2][1].mCameraTrackOffset = gVectorZero;
@@ -4092,7 +3963,7 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     mCameraSettings[2][1].mCameraMoveTensionF = FLT_MAX;
     mCameraSettings[2][1].mCameraMoveTensionB = FLT_MAX;
     mCameraSettings[2][1].mCameraAimTension = FLT_MAX;
-
+    
     mCameraSettings[3][0].mCameraEyePointOffset.x = 0.0f;
     mCameraSettings[3][0].mCameraEyePointOffset.y = 1.8f;
     mCameraSettings[3][0].mCameraEyePointOffset.z = 0.0f;
@@ -4109,7 +3980,7 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     mCameraSettings[3][0].mCameraMoveTensionF = 15.0f;
     mCameraSettings[3][0].mCameraMoveTensionB = 15.0f;
     mCameraSettings[3][0].mCameraAimTension = FLT_MAX;
-
+    
     mCameraSettings[3][1].mCameraEyePointOffset = mCameraSettings[3][0].mCameraEyePointOffset;
     mCameraSettings[3][1].mCameraTrackCenter = mCameraSettings[3][0].mCameraEyePointOffset;
     mCameraSettings[3][1].mCameraTrackOffset = gVectorZero;
@@ -4120,62 +3991,86 @@ EntitySoldierClass::EntitySoldierClass(unsigned int uHash)
     mCameraSettings[3][1].mCameraMoveTensionF = FLT_MAX;
     mCameraSettings[3][1].mCameraMoveTensionB = FLT_MAX;
     mCameraSettings[3][1].mCameraAimTension = FLT_MAX;
-
-    mCameraSettingBlendTime[0] = 0.75f;
-    mCameraSettingBlendTime[1] = 1.0f;
-    mCameraSettingBlendTime[2] = 0.75f;
-
-    for (int i = 0; i < 3; ++i)
-    {
-        mCollisionModels[i].mDeathOnFlyerLand = true;
-    }
-
-    m_vCollisionHeadOffset = gVectorZero;
-    m_vCollisionTorsoOffset = gVectorZero;
-    m_fCollisionHeadScale = 1.0f;
-    m_fCollisionTorsoScale = 1.0f;
-
+    
+    mAimerClass = new AimerClass();
+    mAimerClass->mOffsetPos = PblVector3(0.0f, 2.0f, 0.0f);
+    
     mSpecialSkeleton = 0;
     mUpperBodyAnimMask.ClearAll();
     mLowerBodyAnimMask.ClearAll();
     mSpecialSkeletonLowRes = 0;
+    mDropItemCount = 0;
+    memset(mDropItemClass, 0, sizeof(mDropItemClass));
+    memset(mDropItemProbability, 0, sizeof(mDropItemProbability));
+    mNoiseFactor = 5.0f;
+    mSoldierType = SOLDIER_UNKNOWN;
+    mImmuneToMines = false;
     mAddon = 0;
     mFootstepStride = 1.75f;
-
     mShockFadeOutTime = 0.5f;
     mShockFadeInTime = 3.0f;
     mShockFadeOutGain = 1.0f;
     mLowHealthThreshold = 0.3f;
-
-    mDropItemCount = 0;
-    for (int i = 0; i < 8; ++i)
-    {
-        mDropItemClass[i] = 0;
-    }
-    for (int i = 0; i < 8; ++i)
-    {
-        mDropItemProbability[i] = 0.0f;
-    }
-
     mDrownTime = 3.0f;
-    mChunkFrequency = -1.0f;
+    mEnergyBarClass.Init(100.0f, 20.0f);
+    mEnergyRestore = 10.0f;
+    mEnergyRestoreIdle = 15.0f;
+    mEnergyDrainSprint = 20.0f;
+    mEnergyCostJump = 10.0f;
+    mEnergyCostJumpSprint = 30.0f;
+    mEnergyCostRoll = 10.0f;
+    mJetEnergyDrain = 0.0f;
+    mJetFuelRechargeRate = 0.0f;
+    mJetFuelCost = 0.2f;
+    mJetFuelInitialCost = 0.0f;
+    mJetFuelMinBorder = 0.1f;
+    mJetJump = 7.0f;
+    mJetPush = 14.0f;
+    mJetAcceleration = 20.0f;
+    mJetPackEffect = 0;
+    mJetPackIdleEffect = 0;
+    mHealthGainEffect = 0x9D26C2F2u /* "com_sfx_powerup_blue" */;
+    mAmmoGainEffect = 0x2A72AE31u /* "com_sfx_powerup_red" */;
+    mEnergyGainEffect = 0x9796A1C5u /* "com_sfx_powerup_green" */;
+    mBuffHealthEffect = 0xBB3E84E9u /* "com_sfx_buffed_regen" */;
+    mBuffOffenseEffect = 0xC17AB11Au /* "com_sfx_buffed_offense" */;
+    mBuffDefenseEffect = 0x28B9F3ACu /* "com_sfx_buffed_defense" */;
+    mDebuffEffect = 0xCAA14018u /* "com_sfx_buffed_poison" */;
+    mInvincibleEffect = 0x9796A1C5u /* "com_sfx_powerup_green" */;
+    mFootSlideEffect = 0;
+    mChokeEffect = 0;
+    m_fBlurEffect = 0.0f;
+    mWaterSplashEffect = 0xA40BAAA7u /* "com_sfx_watersplash_xs" */;
+    mFootWaterSplashEffect = 0xA40BAAA7u /* "com_sfx_watersplash_xs" */;
+    mWakeWaterSplashEffect = 0xA40BAAA7u /* "com_sfx_watersplash_xs" */;
+    mFirstPersonModelHandle = -1;
     mSkeletonRootScale = 1.0f;
     mCollisionRootScale = 1.0f;
     mSkeletonRootScaleLowRes = 1.0f;
-    mMinFootHeight = 0.17f;
     mAnimationBank = SoldierAnimationBank::HUMAN;
-    mFirstPersonModelHandle = -1;
-
+    mOverrideTextureHash = 0;
+    mOverrideTextureHash2 = 0;
+    for (int i = 0; i < 3; ++i)
+    {
+    mCollisionModels[i].mDeathOnFlyerLand = true;
+    }
+    
+    m_vCollisionHeadOffset = gVectorZero;
+    m_vCollisionTorsoOffset = gVectorZero;
+    m_fCollisionHeadScale = 1.0f;
+    m_fCollisionTorsoScale = 1.0f;
     mSndHeroSelectable = 0;
     mSndHeroSpawned = 0;
     mSndHeroDefeated = 0;
     mSndForHeroKiller = 0;
-
     mFleeLikeAHero = 0;
-
     mTargetPointOffset[0] = PblVector3(0.0f, 1.4f, 0.0f);
     mTargetPointOffset[1] = PblVector3(0.0f, 0.6f, 0.0f);
     mTargetPointOffset[2] = PblVector3(0.0f, 0.2f, 0.0f);
+    mLockOnMinDist = 0.0f;
+    mLockOnMaxDist = 15.0f;
+    mLockOnMaxTrackDist = 500.0f;
+    mMinFootHeight = 0.17f;
 }
 
 // FUNCTION: SWBF2 0x004f5cc0
@@ -4215,33 +4110,15 @@ EntitySoldierClass::EntitySoldierClass(EntitySoldierClass* pBase, unsigned int u
     m_numTentacles = pBase->m_numTentacles;
     m_tentacleCollType = pBase->m_tentacleCollType;
     m_bIsAcklay = pBase->m_bIsAcklay;
-    for (int i = 0; i < 8; ++i)
-    {
-        mThrustFactor[i] = pBase->mThrustFactor[i];
-    }
-    for (int i = 0; i < 8; ++i)
-    {
-        mStrafeFactor[i] = pBase->mStrafeFactor[i];
-    }
-    for (int i = 0; i < 8; ++i)
-    {
-        mTurnFactor[i] = pBase->mTurnFactor[i];
-    }
-    for (int i = 0; i < 3; ++i)
-    {
-        mCollisionThreshold[i] = pBase->mCollisionThreshold[i];
-    }
-    for (int i = 0; i < 3; ++i)
-    {
-        mCollisionScale[i] = pBase->mCollisionScale[i];
-    }
+    memcpy(mThrustFactor, pBase->mThrustFactor, sizeof(mThrustFactor));
+    memcpy(mStrafeFactor, pBase->mStrafeFactor, sizeof(mStrafeFactor));
+    memcpy(mTurnFactor, pBase->mTurnFactor, sizeof(mTurnFactor));
+    memcpy(mCollisionThreshold, pBase->mCollisionThreshold, sizeof(mCollisionThreshold));
+    memcpy(mCollisionScale, pBase->mCollisionScale, sizeof(mCollisionScale));
     mCollisionInflict = pBase->mCollisionInflict;
-    for (int i = 0; i < 8; ++i)
-    {
-        mWeaponClass[i] = pBase->mWeaponClass[i];
-        mWeaponAmmo[i] = pBase->mWeaponAmmo[i];
-        mWeaponChannel[i] = pBase->mWeaponChannel[i];
-    }
+    memcpy(mWeaponClass, pBase->mWeaponClass, sizeof(mWeaponClass));
+    memcpy(mWeaponAmmo, pBase->mWeaponAmmo, sizeof(mWeaponAmmo));
+    memcpy(mWeaponChannel, pBase->mWeaponChannel, sizeof(mWeaponChannel));
     mWeaponCount = pBase->mWeaponCount;
     mOverrideTextureHash = pBase->mOverrideTextureHash;
     mOverrideTextureHash2 = pBase->mOverrideTextureHash2;
@@ -4281,10 +4158,7 @@ EntitySoldierClass::EntitySoldierClass(EntitySoldierClass* pBase, unsigned int u
     mImmuneToMines = pBase->mImmuneToMines;
     mAimerClass = pBase->mAimerClass;
     memcpy(mCameraSettings, pBase->mCameraSettings, sizeof(mCameraSettings));
-    for (int i = 0; i < 3; ++i)
-    {
-        mCameraSettingBlendTime[i] = pBase->mCameraSettingBlendTime[i];
-    }
+    memcpy(mCameraSettingBlendTime, pBase->mCameraSettingBlendTime, sizeof(mCameraSettingBlendTime));
     for (int i = 0; i < 3; ++i)
     {
         mCollisionModels[i].mDeathOnFlyerLand = pBase->mCollisionModels[i].mDeathOnFlyerLand;
@@ -4318,14 +4192,8 @@ EntitySoldierClass::EntitySoldierClass(EntitySoldierClass* pBase, unsigned int u
     mChokeSound = pBase->mChokeSound;
     mLowHealthThreshold = pBase->mLowHealthThreshold;
     mDropItemCount = pBase->mDropItemCount;
-    for (int i = 0; i < 8; ++i)
-    {
-        mDropItemClass[i] = pBase->mDropItemClass[i];
-    }
-    for (int i = 0; i < 8; ++i)
-    {
-        mDropItemProbability[i] = pBase->mDropItemProbability[i];
-    }
+    memcpy(mDropItemClass, pBase->mDropItemClass, sizeof(mDropItemClass));
+    memcpy(mDropItemProbability, pBase->mDropItemProbability, sizeof(mDropItemProbability));
     mDrownTime = pBase->mDrownTime;
     mChunkFrequency = pBase->mChunkFrequency;
     mSkeletonRootScale = pBase->mSkeletonRootScale;
@@ -4334,14 +4202,8 @@ EntitySoldierClass::EntitySoldierClass(EntitySoldierClass* pBase, unsigned int u
     mAnimationBank = pBase->mAnimationBank;
     mFirstPersonModelHandle = pBase->mFirstPersonModelHandle;
     mExplosion = pBase->mExplosion;
-    for (int i = 0; i < 3; ++i)
-    {
-        mUpperBodyId[i] = pBase->mUpperBodyId[i];
-    }
-    for (int i = 0; i < 3; ++i)
-    {
-        mLowerBodyId[i] = pBase->mLowerBodyId[i];
-    }
+    memcpy(mUpperBodyId, pBase->mUpperBodyId, sizeof(mUpperBodyId));
+    memcpy(mLowerBodyId, pBase->mLowerBodyId, sizeof(mLowerBodyId));
     mSndHeroSelectable = pBase->mSndHeroSelectable;
     mSndHeroSpawned = pBase->mSndHeroSpawned;
     mSndHeroDefeated = pBase->mSndHeroDefeated;
@@ -4379,7 +4241,7 @@ void EntitySoldierClass::PostReadSetup()
         mSkeletonRootScale = 0.6f;
         if (mSpecialSkeleton && mSpecialSkeleton != SoldierAnimatorClass::Instance()->GetDefaultSkeleton())
         {
-            int iJoint = (int)mSpecialSkeleton->m_kHashCRC2Joint.Find(0x16e27226) - 1;
+            int iJoint = (int)mSpecialSkeleton->m_kHashCRC2Joint.Find(0x16e27226 /* "bone_root" */) - 1;
             mSpecialSkeleton->SetJointScale(iJoint, mSkeletonRootScale);
         }
 
@@ -4466,13 +4328,16 @@ void EntitySoldierClass::PostReadSetup()
         }
         else
         {
-            matrix.m[3][1] = 0.62700003f;
+            PblVector3 vSafe = matrix.GetTranslation();
+            vSafe.y = 0.62700003f;
+            matrix.SetTranslation(vSafe);
         }
+        PblVector3 vSafe0 = matrix.GetTranslation();
         mCollisionModels[0].AddBody(new CollisionBodyPrimitive(primitive, "coll_body_upper", matrix, 0));
-        mCameraSettings[0][0].mCameraSafePoint = matrix.GetTranslation();
-        mCameraSettings[0][1].mCameraSafePoint = matrix.GetTranslation();
-        mCameraSettings[3][0].mCameraSafePoint = matrix.GetTranslation();
-        mCameraSettings[3][1].mCameraSafePoint = matrix.GetTranslation();
+        mCameraSettings[0][0].mCameraSafePoint = vSafe0;
+        mCameraSettings[0][1].mCameraSafePoint = vSafe0;
+        mCameraSettings[3][0].mCameraSafePoint = vSafe0;
+        mCameraSettings[3][1].mCameraSafePoint = vSafe0;
 
         primitive.SetSphere(fHeadRadius);
         matrix.m[3][0] = 0.0f;
@@ -4520,7 +4385,9 @@ void EntitySoldierClass::PostReadSetup()
         }
         else
         {
-            matrix.m[3][1] = 0.62700003f;
+            PblVector3 vSafe = matrix.GetTranslation();
+            vSafe.y = 0.62700003f;
+            matrix.SetTranslation(vSafe);
         }
         mCollisionModels[1].AddBody(new CollisionBodyPrimitive(primitive, "coll_body_upper", matrix, 0));
         mCameraSettings[1][0].mCameraSafePoint = matrix.GetTranslation();
@@ -4598,8 +4465,8 @@ void EntitySoldierClass::PostReadSetup()
         for (int i = 0; i < 3; ++i)
         {
             CollisionModel& model = mCollisionModels[i];
-            mLowerBodyId[i] = model.GetMaskId(0x9458FB2E);
-            mUpperBodyId[i] = model.GetMaskId(0x2C31EC5B);
+            mLowerBodyId[i] = model.GetMaskId(0x9458FB2E /* "coll_body_lower" */);
+            mUpperBodyId[i] = model.GetMaskId(0x2C31EC5B /* "coll_body_upper" */);
 
             unsigned int uLegs = 0;
             if (mLowerBodyId[i] >= 0)
@@ -4610,12 +4477,12 @@ void EntitySoldierClass::PostReadSetup()
             {
                 uLegs |= 1 << mUpperBodyId[i];
             }
-            int iId = model.GetMaskId(0x0DB3CAEA);
+            int iId = model.GetMaskId(0x0DB3CAEA /* "coll_body_medium" */);
             if (iId >= 0)
             {
                 uLegs |= 1 << iId;
             }
-            iId = model.GetMaskId(0x6A085208);
+            iId = model.GetMaskId(0x6A085208 /* "coll_body_medium2" */);
             if (iId >= 0)
             {
                 uLegs |= 1 << iId;
@@ -4624,11 +4491,11 @@ void EntitySoldierClass::PostReadSetup()
             model.SetCollisionMask(COLL_STATIC, CollisionMask(uLegs));
             model.SetCollisionMask(COLL_RIGID, CollisionMask(uLegs));
 
-            model.SetCollisionMask(COLL_SOFT, CollisionMask(1 << model.GetMaskId(0xFE858165)));
+            model.SetCollisionMask(COLL_SOFT, CollisionMask(1 << model.GetMaskId(0xFE858165 /* "main_body" */)));
 
-            unsigned int uHit = 1 << model.GetMaskId(0xCA25B9F3);
-            uHit |= 1 << model.GetMaskId(0xE8B9E01A);
-            uHit |= 1 << model.GetMaskId(0x34FCD074);
+            unsigned int uHit = 1 << model.GetMaskId(0xCA25B9F3 /* "coll_torso" */);
+            uHit |= 1 << model.GetMaskId(0xE8B9E01A /* "coll_head" */);
+            uHit |= 1 << model.GetMaskId(0x34FCD074 /* "coll_body" */);
             model.SetCollisionMask(COLL_ORDNANCE, CollisionMask(uHit));
         }
     }
@@ -4675,8 +4542,8 @@ void EntitySoldierClass::PostReadSetup()
     matrix.m[3][3] = 1.0f;
     mDeadCollision.AddBody(new CollisionBodyPrimitive(primitive, "coll_body_medium2", matrix, 0));
 
-    int iLower = mDeadCollision.GetMaskId(0x9458FB2E);
-    int iUpper = mDeadCollision.GetMaskId(0x2C31EC5B);
+    int iLower = mDeadCollision.GetMaskId(0x9458FB2E /* "coll_body_lower" */);
+    int iUpper = mDeadCollision.GetMaskId(0x2C31EC5B /* "coll_body_upper" */);
     unsigned int uDead = 0;
     if (iLower >= 0)
     {
@@ -4686,12 +4553,12 @@ void EntitySoldierClass::PostReadSetup()
     {
         uDead |= 1 << iUpper;
     }
-    int iId = mDeadCollision.GetMaskId(0x0DB3CAEA);
+    int iId = mDeadCollision.GetMaskId(0x0DB3CAEA /* "coll_body_medium" */);
     if (iId >= 0)
     {
         uDead |= 1 << iId;
     }
-    iId = mDeadCollision.GetMaskId(0x6A085208);
+    iId = mDeadCollision.GetMaskId(0x6A085208 /* "coll_body_medium2" */);
     if (iId >= 0)
     {
         uDead |= 1 << iId;
@@ -4713,90 +4580,90 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
 {
     switch (uProperty)
     {
-    case 0x2FA0BA9D:
-    case 0x9F8A0040:
+    case 0x2FA0BA9D: /* "Acceleration" */
+    case 0x9F8A0040: /* "Acceleraton" */
         sscanf(pszValue, "%f", &mAcceleration);
         break;
-    case 0x86DF0364:
+    case 0x86DF0364: /* "MaxSpeed" */
         sscanf(pszValue, "%f", &mMaxSpeed);
         break;
-    case 0x3437A33D:
+    case 0x3437A33D: /* "MaxStrafeSpeed" */
         sscanf(pszValue, "%f", &mMaxStrafeSpeed);
         break;
-    case 0x5433F589:
+    case 0x5433F589: /* "MaxTurnSpeed" */
         sscanf(pszValue, "%f", &mMaxTurnSpeed);
         break;
-    case 0xB5534BE0:
+    case 0xB5534BE0: /* "MaxPitchSpeed" */
         sscanf(pszValue, "%f", &mMaxPitchSpeed);
         break;
-    case 0x3403B139:
+    case 0x3403B139: /* "PitchLimits" */
         sscanf(pszValue, "%f %f", &mMinPitch, &mMaxPitch);
         mMinPitch *= 0.017453292f;
         mMaxPitch *= 0.017453292f;
         break;
-    case 0xC415D23A:
+    case 0xC415D23A: /* "JumpHeight" */
     {
         float fHeight = 0.0f;
         sscanf(pszValue, "%f", &fHeight);
         mJumpVerticalSpeed = (float)sqrt(fHeight * 2.0f * 18.0f);
         break;
     }
-    case 0x8EF41EF6:
+    case 0x8EF41EF6: /* "JumpForwardSpeedFactor" */
         sscanf(pszValue, "%f", &mJumpForwardSpeedFactor);
         break;
-    case 0x32505412:
+    case 0x32505412: /* "JumpStrafeSpeedFactor" */
         sscanf(pszValue, "%f", &mJumpStrafeSpeedFactor);
         break;
-    case 0x07FF90DA:
+    case 0x07FF90DA: /* "RollSpeedFactor" */
         sscanf(pszValue, "%f", &mRollSpeedFactor);
         break;
-    case 0x56389879:
+    case 0x56389879: /* "SprintAccelerateTime" */
         sscanf(pszValue, "%f", &mSprintAccelerateTime);
         break;
 
-    case 0x50208DC0:
+    case 0x50208DC0: /* "RecoverFromTumble" */
         m_bRecoverFromTumble = atoi(pszValue) != 0;
         break;
-    case 0x3AF4F6FD:
+    case 0x3AF4F6FD: /* "UseDirectionalJumps" */
         m_bUseDirectionalJumps = atoi(pszValue) != 0;
         break;
-    case 0xAFC3ABEE:
+    case 0xAFC3ABEE: /* "JetShowHud" */
         mJetShowHud = atoi(pszValue) != 0;
         break;
-    case 0x91FABB5C:
-        if (PblHash(pszValue) == 0x70CEAB2D)
+    case 0x91FABB5C: /* "JetType" */
+        if (PblHash(pszValue) == 0x70CEAB2D /* "hover" */)
         {
             mJetTypeHover = 1;
         }
         break;
-    case 0x268DAC2D:
+    case 0x268DAC2D: /* "FleeLikeAHero" */
         mFleeLikeAHero = atoi(pszValue);
         break;
-    case 0xC372B928:
+    case 0xC372B928: /* "IsAcklay" */
     {
         int iAcklay = 0;
         sscanf(pszValue, "%d", &iAcklay);
         m_bIsAcklay = iAcklay != 0;
         break;
     }
-    case 0x523E0533:
+    case 0x523E0533: /* "UseDirectionalDeaths" */
         m_bUseDirectionalDeaths = atoi(pszValue) != 0;
         break;
-    case 0xE0359276:
+    case 0xE0359276: /* "NumTentacles" */
     {
         int iNum;
         sscanf(pszValue, "%d", &iNum);
         m_numTentacles = iNum;
         break;
     }
-    case 0x087A4DC9:
+    case 0x087A4DC9: /* "BonesPerTentacle" */
     {
         int iNum;
         sscanf(pszValue, "%d", &iNum);
         m_bonesPerTentacle = iNum;
         break;
     }
-    case 0xF7AB24F5:
+    case 0xF7AB24F5: /* "TentacleCollType" */
     {
         int iType;
         sscanf(pszValue, "%d", &iType);
@@ -4804,7 +4671,7 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         break;
     }
 
-    case 0x47BF39C1:
+    case 0x47BF39C1: /* "ControlSpeed" */
     {
         char acState[257];
         float fThrust = 1.0f;
@@ -4818,14 +4685,14 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         int iState;
         switch (PblHash(acState))
         {
-        case 0x75493323: iState = 0; break;
-        case 0x4E4FA58B: iState = 1; break;
-        case 0x6DD99A25: iState = 2; break;
-        case 0x76F15155: iState = 3; break;
-        case 0xA73F5C0D: iState = 4; break;
-        case 0x16FF3D1E: iState = 5; break;
-        case 0xD7E330F4: iState = 6; break;
-        case 0x4C009BC2: iState = 7; break;
+        case 0x75493323: /* "Stand" */ iState = 0; break;
+        case 0x4E4FA58B: /* "Crouch" */ iState = 1; break;
+        case 0x6DD99A25: /* "Prone" */ iState = 2; break;
+        case 0x76F15155: /* "Sprint" */ iState = 3; break;
+        case 0xA73F5C0D: /* "Jump" */ iState = 4; break;
+        case 0x16FF3D1E: /* "Roll" */ iState = 5; break;
+        case 0xD7E330F4: /* "Jet" */ iState = 6; break;
+        case 0x4C009BC2: /* "tumble" */ iState = 7; break;
         default:
             return;
         }
@@ -4841,24 +4708,24 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         break;
     }
 
-    case 0x2CDB588A:
+    case 0x2CDB588A: /* "CollisionThreshold" */
         sscanf(pszValue, "%f %f %f", &mCollisionThreshold[0], &mCollisionThreshold[1], &mCollisionThreshold[2]);
         break;
-    case 0x1A87BACF:
+    case 0x1A87BACF: /* "CollisionScale" */
         sscanf(pszValue, "%f %f %f", &mCollisionScale[0], &mCollisionScale[1], &mCollisionScale[2]);
         break;
-    case 0x2EF03732:
+    case 0x2EF03732: /* "CollisionInflict" */
         sscanf(pszValue, "%f", &mCollisionInflict);
         break;
-    case 0x28ADDA49:
+    case 0x28ADDA49: /* "NoCombatInterrupt" */
         mCombatInterrupts = atoi(pszValue) == 0;
         break;
 
-    case 0xD0329E80:
+    case 0xD0329E80: /* "WeaponSection" */
         sWeaponSection = atoi(pszValue) - 1;
         break;
-    case 0x6F332041:
-    case 0xFBF47DBA:
+    case 0x6F332041: /* "Weapon" */
+    case 0xFBF47DBA: /* "WeaponName" */
     {
         mWeaponClass[sWeaponSection] = WeaponClass::Find(PblHash(pszValue));
         int iCount = sWeaponSection + 1;
@@ -4869,38 +4736,38 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         mWeaponCount = iCount;
         break;
     }
-    case 0xDC697015:
-    case 0x2CE1A1D1:
+    case 0xDC697015: /* "PrimaryWeapon" */
+    case 0x2CE1A1D1: /* "WeaponName1" */
         mWeaponClass[0] = WeaponClass::Find(PblHash(pszValue));
         mWeaponCount = mWeaponCount > 1 ? mWeaponCount : 1;
         break;
-    case 0x4ADC9ACD:
-    case 0x29E19D18:
+    case 0x4ADC9ACD: /* "SecondaryWeapon" */
+    case 0x29E19D18: /* "WeaponName2" */
         mWeaponClass[1] = WeaponClass::Find(PblHash(pszValue));
         mWeaponCount = mWeaponCount > 2 ? mWeaponCount : 2;
         break;
-    case 0x2AE19EAB:
+    case 0x2AE19EAB: /* "WeaponName3" */
         mWeaponClass[2] = WeaponClass::Find(PblHash(pszValue));
         mWeaponCount = mWeaponCount > 3 ? mWeaponCount : 3;
         break;
-    case 0x2FE1A68A:
+    case 0x2FE1A68A: /* "WeaponName4" */
         mWeaponClass[3] = WeaponClass::Find(PblHash(pszValue));
         mWeaponCount = mWeaponCount > 4 ? mWeaponCount : 4;
         break;
 
-    case 0xDC19BD13:
-    case 0x9E84BC86:
-    case 0x9D84BAF3:
-    case 0x9C84B960:
-    case 0xA384C465:
+    case 0xDC19BD13: /* "WeaponAmmo" */
+    case 0x9E84BC86: /* "WeaponAmmo1" */
+    case 0x9D84BAF3: /* "WeaponAmmo2" */
+    case 0x9C84B960: /* "WeaponAmmo3" */
+    case 0xA384C465: /* "WeaponAmmo4" */
     {
         int iWeapon = sWeaponSection;
         switch (uProperty)
         {
-        case 0x9E84BC86: iWeapon = 0; break;
-        case 0x9D84BAF3: iWeapon = 1; break;
-        case 0x9C84B960: iWeapon = 2; break;
-        case 0xA384C465: iWeapon = 3; break;
+        case 0x9E84BC86: /* "WeaponAmmo1" */ iWeapon = 0; break;
+        case 0x9D84BAF3: /* "WeaponAmmo2" */ iWeapon = 1; break;
+        case 0x9C84B960: /* "WeaponAmmo3" */ iWeapon = 2; break;
+        case 0xA384C465: /* "WeaponAmmo4" */ iWeapon = 3; break;
         }
         int iAmmo = 0;
         sscanf(pszValue, "%d", &iAmmo);
@@ -4913,19 +4780,19 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         }
         break;
     }
-    case 0x8585BB8A:
-    case 0xEC868761:
-    case 0xE98682A8:
-    case 0xEA86843B:
-    case 0xEF868C1A:
+    case 0x8585BB8A: /* "WeaponShareAmmo" */
+    case 0xEC868761: /* "WeaponShareAmmo1" */
+    case 0xE98682A8: /* "WeaponShareAmmo2" */
+    case 0xEA86843B: /* "WeaponShareAmmo3" */
+    case 0xEF868C1A: /* "WeaponShareAmmo4" */
     {
         int iWeapon = sWeaponSection;
         switch (uProperty)
         {
-        case 0xEC868761: iWeapon = 0; break;
-        case 0xE98682A8: iWeapon = 1; break;
-        case 0xEA86843B: iWeapon = 2; break;
-        case 0xEF868C1A: iWeapon = 3; break;
+        case 0xEC868761: /* "WeaponShareAmmo1" */ iWeapon = 0; break;
+        case 0xE98682A8: /* "WeaponShareAmmo2" */ iWeapon = 1; break;
+        case 0xEA86843B: /* "WeaponShareAmmo3" */ iWeapon = 2; break;
+        case 0xEF868C1A: /* "WeaponShareAmmo4" */ iWeapon = 3; break;
         }
         int iShare = 0;
         sscanf(pszValue, "%d", &iShare);
@@ -4943,19 +4810,19 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         }
         break;
     }
-    case 0x9455A446:
-    case 0xF9D1E755:
-    case 0xF6D1E29C:
-    case 0xF7D1E42F:
-    case 0xF4D1DF76:
+    case 0x9455A446: /* "WeaponShareHeat" */
+    case 0xF9D1E755: /* "WeaponShareHeat1" */
+    case 0xF6D1E29C: /* "WeaponShareHeat2" */
+    case 0xF7D1E42F: /* "WeaponShareHeat3" */
+    case 0xF4D1DF76: /* "WeaponShareHeat4" */
     {
         int iWeapon = sWeaponSection;
         switch (uProperty)
         {
-        case 0xF9D1E755: iWeapon = 0; break;
-        case 0xF6D1E29C: iWeapon = 1; break;
-        case 0xF7D1E42F: iWeapon = 2; break;
-        case 0xF4D1DF76: iWeapon = 3; break;
+        case 0xF9D1E755: /* "WeaponShareHeat1" */ iWeapon = 0; break;
+        case 0xF6D1E29C: /* "WeaponShareHeat2" */ iWeapon = 1; break;
+        case 0xF7D1E42F: /* "WeaponShareHeat3" */ iWeapon = 2; break;
+        case 0xF4D1DF76: /* "WeaponShareHeat4" */ iWeapon = 3; break;
         }
         int iShare = 0;
         sscanf(pszValue, "%d", &iShare);
@@ -4971,35 +4838,35 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         }
         break;
     }
-    case 0x16472328:
+    case 0x16472328: /* "WeaponChannel" */
     {
         int iChannel;
         sscanf(pszValue, "%d", &iChannel);
         mWeaponChannel[sWeaponSection] = (unsigned int)iChannel <= 1 ? (char)iChannel : 0;
         break;
     }
-    case 0x2AFC405B:
+    case 0x2AFC405B: /* "WeaponChannel1" */
     {
         int iChannel;
         sscanf(pszValue, "%d", &iChannel);
         mWeaponChannel[0] = (unsigned int)iChannel <= 1 ? (char)iChannel : 0;
         break;
     }
-    case 0x2BFC41EE:
+    case 0x2BFC41EE: /* "WeaponChannel2" */
     {
         int iChannel;
         sscanf(pszValue, "%d", &iChannel);
         mWeaponChannel[1] = (unsigned int)iChannel <= 1 ? (char)iChannel : 0;
         break;
     }
-    case 0x2CFC4381:
+    case 0x2CFC4381: /* "WeaponChannel3" */
     {
         int iChannel;
         sscanf(pszValue, "%d", &iChannel);
         mWeaponChannel[2] = (unsigned int)iChannel <= 1 ? (char)iChannel : 0;
         break;
     }
-    case 0x2DFC4514:
+    case 0x2DFC4514: /* "WeaponChannel4" */
     {
         int iChannel;
         sscanf(pszValue, "%d", &iChannel);
@@ -5007,14 +4874,14 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         break;
     }
 
-    case 0x09DB74AC:
+    case 0x09DB74AC: /* "OverrideTexture" */
         mOverrideTextureHash = PblHash(pszValue);
         break;
-    case 0x227894BA:
+    case 0x227894BA: /* "OverrideTexture2" */
         mOverrideTextureHash2 = PblHash(pszValue);
         break;
 
-    case 0x942ED301:
+    case 0x942ED301: /* "EnergyRestore" */
         sscanf(pszValue, "%f", &mEnergyRestore);
         if (mEnergyRestore < 0.0f)
         {
@@ -5025,35 +4892,35 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
             mEnergyRestoreIdle = mEnergyRestore;
         }
         break;
-    case 0x082EAF37:
+    case 0x082EAF37: /* "EnergyRestoreIdle" */
         sscanf(pszValue, "%f", &mEnergyRestoreIdle);
         if (mEnergyRestore > mEnergyRestoreIdle)
         {
             mEnergyRestoreIdle = mEnergyRestore;
         }
         break;
-    case 0x134361B9:
+    case 0x134361B9: /* "EnergyDrainSprint" */
         sscanf(pszValue, "%f", &mEnergyDrainSprint);
         if (mEnergyDrainSprint < 0.0f)
         {
             mEnergyDrainSprint = 0.0f;
         }
         break;
-    case 0x0B4A7FD4:
+    case 0x0B4A7FD4: /* "EnergyCostJump" */
         sscanf(pszValue, "%f", &mEnergyCostJump);
         if (mEnergyCostJump < 0.0f)
         {
             mEnergyCostJump = 0.0f;
         }
         break;
-    case 0xA44B8F28:
+    case 0xA44B8F28: /* "EnergyCostJumpSprint" */
         sscanf(pszValue, "%f", &mEnergyCostJumpSprint);
         if (mEnergyCostJumpSprint < 0.0f)
         {
             mEnergyCostJumpSprint = 0.0f;
         }
         break;
-    case 0xCA24CD33:
+    case 0xCA24CD33: /* "EnergyCostRoll" */
         sscanf(pszValue, "%f", &mEnergyCostRoll);
         if (mEnergyCostRoll < 0.0f)
         {
@@ -5061,130 +4928,130 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         }
         break;
 
-    case 0xC4B2CB20:
+    case 0xC4B2CB20: /* "JetJump" */
         sscanf(pszValue, "%f", &mJetJump);
         break;
-    case 0xF0B75E90:
+    case 0xF0B75E90: /* "JetPush" */
         sscanf(pszValue, "%f", &mJetPush);
         break;
-    case 0x8AAC2908:
+    case 0x8AAC2908: /* "JetAcceleration" */
         sscanf(pszValue, "%f", &mJetAcceleration);
         break;
-    case 0x0825C1BF:
+    case 0x0825C1BF: /* "JetFuelRechargeRate" */
         sscanf(pszValue, "%f", &mJetFuelRechargeRate);
         break;
-    case 0x36D9DE4D:
+    case 0x36D9DE4D: /* "JetFuelCost" */
         sscanf(pszValue, "%f", &mJetFuelCost);
         break;
-    case 0x1EBB5841:
+    case 0x1EBB5841: /* "JetFuelInitialCost" */
         sscanf(pszValue, "%f", &mJetFuelInitialCost);
         break;
-    case 0xF8A37C8A:
+    case 0xF8A37C8A: /* "JetFuelMinBorder" */
         sscanf(pszValue, "%f", &mJetFuelMinBorder);
         break;
-    case 0x0C2425EA:
+    case 0x0C2425EA: /* "JetEnergyDrain" */
         sscanf(pszValue, "%f", &mJetEnergyDrain);
         break;
-    case 0x69C4D0DD:
+    case 0x69C4D0DD: /* "JetEffect" */
         mJetPackEffect = FLEffect::Get(PblHash(pszValue));
         break;
-    case 0xBC5EDAD3:
+    case 0xBC5EDAD3: /* "JetIdleEffect" */
         mJetPackIdleEffect = FLEffect::Get(PblHash(pszValue));
         break;
 
-    case 0x68C9C2D9:
+    case 0x68C9C2D9: /* "HealthGainEffect" */
         mHealthGainEffect = PblHash(pszValue);
         break;
-    case 0x8D8743F9:
+    case 0x8D8743F9: /* "AmmoGainEffect" */
         mAmmoGainEffect = PblHash(pszValue);
         break;
-    case 0x80A20AE3:
+    case 0x80A20AE3: /* "EnergyGainEffect" */
         mEnergyGainEffect = PblHash(pszValue);
         break;
-    case 0x32839537:
+    case 0x32839537: /* "BuffHealthEffect" */
         mBuffHealthEffect = PblHash(pszValue);
         break;
-    case 0x5B84DF23:
+    case 0x5B84DF23: /* "BuffOffenseEffect" */
         mBuffOffenseEffect = PblHash(pszValue);
         break;
-    case 0x8B003201:
+    case 0x8B003201: /* "BuffDefenseEffect" */
         mBuffDefenseEffect = PblHash(pszValue);
         break;
-    case 0x1F3FEA32:
+    case 0x1F3FEA32: /* "DebuffEffect" */
         mDebuffEffect = PblHash(pszValue);
         break;
-    case 0x9B485275:
+    case 0x9B485275: /* "InvincibleEffect" */
         mInvincibleEffect = PblHash(pszValue);
         break;
-    case 0xB8F82137:
+    case 0xB8F82137: /* "FootSlideEffect" */
         mFootSlideEffect = PblHash(pszValue);
         break;
-    case 0xAD9245D2:
+    case 0xAD9245D2: /* "ChokeEffect" */
         mChokeEffect = PblHash(pszValue);
         break;
-    case 0xB9282909:
+    case 0xB9282909: /* "BlurEffect" */
         sscanf(pszValue, "%f", &m_fBlurEffect);
         break;
-    case 0xDEA64CFA:
+    case 0xDEA64CFA: /* "WaterSplashEffect" */
         mWaterSplashEffect = PblHash(pszValue);
         break;
-    case 0x057266EE:
+    case 0x057266EE: /* "FootWaterSplashEffect" */
         mFootWaterSplashEffect = PblHash(pszValue);
         break;
-    case 0xF44FEE52:
+    case 0xF44FEE52: /* "WakeWaterSplashEffect" */
         mWakeWaterSplashEffect = PblHash(pszValue);
         break;
 
-    case 0x54A7AEDF:
+    case 0x54A7AEDF: /* "UnitType" */
         mSoldierType = FindSoldierType(pszValue);
         break;
-    case 0x62A8F10F:
+    case 0x62A8F10F: /* "ImmuneToMines" */
         mImmuneToMines = atoi(pszValue) != 0;
         break;
 
-    case 0xBACA6BF1:
+    case 0xBACA6BF1: /* "CAMERASECTION" */
         switch (PblHash(pszValue))
         {
-        case 0x75493323:
+        case 0x75493323: /* "Stand" */
             sCurrentCameraSplit = 0; sCurrentCameraStance = 0; sCurrentCameraZoomed = 0;
             break;
-        case 0x94D7CDEC:
+        case 0x94D7CDEC: /* "STANDZOOM" */
             sCurrentCameraSplit = 0; sCurrentCameraStance = 0; sCurrentCameraZoomed = 1;
             break;
-        case 0x4E4FA58B:
+        case 0x4E4FA58B: /* "Crouch" */
             sCurrentCameraSplit = 0; sCurrentCameraStance = 1; sCurrentCameraZoomed = 0;
             break;
-        case 0xF648B5F4:
+        case 0xF648B5F4: /* "CROUCHZOOM" */
             sCurrentCameraSplit = 0; sCurrentCameraStance = 1; sCurrentCameraZoomed = 1;
             break;
-        case 0x6DD99A25:
+        case 0x6DD99A25: /* "Prone" */
             sCurrentCameraSplit = 0; sCurrentCameraStance = 2; sCurrentCameraZoomed = 0;
             break;
-        case 0x0016DA92:
+        case 0x0016DA92: /* "PRONEZOOM" */
             sCurrentCameraSplit = 0; sCurrentCameraStance = 2; sCurrentCameraZoomed = 1;
             break;
-        case 0x76F15155:
+        case 0x76F15155: /* "Sprint" */
             sCurrentCameraSplit = 0; sCurrentCameraStance = 3; sCurrentCameraZoomed = 0;
             break;
-        case 0xD8AECCCD:
+        case 0xD8AECCCD: /* "SPLITSTAND" */
             sCurrentCameraSplit = 1; sCurrentCameraStance = 0; sCurrentCameraZoomed = 0;
             break;
-        case 0x1643517A:
+        case 0x1643517A: /* "SPLITSTANDZOOM" */
             sCurrentCameraSplit = 1; sCurrentCameraStance = 0; sCurrentCameraZoomed = 1;
             break;
-        case 0xCA780CF9:
+        case 0xCA780CF9: /* "SPLITCROUCH" */
             sCurrentCameraSplit = 1; sCurrentCameraStance = 1; sCurrentCameraZoomed = 0;
             break;
-        case 0x37E029EE:
+        case 0x37E029EE: /* "SPLITCROUCHZOOM" */
             sCurrentCameraSplit = 1; sCurrentCameraStance = 1; sCurrentCameraZoomed = 1;
             break;
-        case 0xF6D39CCB:
+        case 0xF6D39CCB: /* "SPLITPRONE" */
             sCurrentCameraSplit = 1; sCurrentCameraStance = 2; sCurrentCameraZoomed = 0;
             break;
-        case 0xFE5CFC34:
+        case 0xFE5CFC34: /* "SPLITPRONEZOOM" */
             sCurrentCameraSplit = 1; sCurrentCameraStance = 2; sCurrentCameraZoomed = 1;
             break;
-        case 0x4ABADB57:
+        case 0x4ABADB57: /* "SPLITSPRINT" */
             sCurrentCameraSplit = 1; sCurrentCameraStance = 3; sCurrentCameraZoomed = 0;
             break;
         default:
@@ -5192,7 +5059,7 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
             break;
         }
         break;
-    case 0xC3E3DCFC:
+    case 0xC3E3DCFC: /* "CameraBlendTime" */
         if (sCurrentCameraStance > 0 && !sCurrentCameraZoomed &&
             !(sCurrentCameraSplit && CameraManager::sInstance->m_iNumCam <= 1))
         {
@@ -5200,7 +5067,7 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         }
         break;
 
-    case 0x47C86B4A:
+    case 0x47C86B4A: /* "GeometryName" */
     {
         GameObjectClass::SetProperty(uProperty, pszValue);
         mLodData = SoldierLodData(mModel ? mModel->GetRedModel(0) : 0, 0);
@@ -5211,16 +5078,16 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         mLowerBodyAnimMask = pAnimatorClass->GetDefaultLowerBodyAnimMask();
         break;
     }
-    case 0xA490EBA1:
+    case 0xA490EBA1: /* "GeometryLowRes" */
         mModelLowRes = const_cast<GameModel*>(GameModel::Find(PblHash(pszValue)));
         mLodData = SoldierLodData(mModel ? mModel->GetRedModel(0) : 0, mModelLowRes->GetRedModel(0));
         break;
-    case 0x6363D774:
+    case 0x6363D774: /* "firstperson" */
         mFirstPersonModelHandle = FirstPerson::AddGeometry(pszValue);
         break;
 
-    case 0x7012F6CD:
-    case 0x98557A5E:
+    case 0x7012F6CD: /* "SkeletonName" */
+    case 0x98557A5E: /* "AnimationName" */
     {
         char acBuffer[257];
         strlcpy(acBuffer, pszValue, sizeof(acBuffer));
@@ -5248,8 +5115,8 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         }
         break;
     }
-    case 0x55F297D2:
-    case 0x1ECC7E0D:
+    case 0x55F297D2: /* "SkeletonLowRes" */
+    case 0x1ECC7E0D: /* "AnimationLowRes" */
         if (!gMidgetTime)
         {
             char acBuffer[257];
@@ -5275,16 +5142,16 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
             }
         }
         break;
-    case 0xE8888B42:
+    case 0xE8888B42: /* "AnimatedAddon" */
         mAddon = new AnimatedAddon(*mSpecialSkeleton);
         break;
-    case 0x94272331:
-    case 0xA423E008:
-    case 0xDDDCDE45:
+    case 0x94272331: /* "GeometryAddon" */
+    case 0xA423E008: /* "AddonAttachJoint" */
+    case 0xDDDCDE45: /* "AnimationAddon" */
         mAddon->SetProperty(uProperty, pszValue);
         break;
 
-    case 0x33AB42BA:
+    case 0x33AB42BA: /* "CollisionHeadOffset" */
     {
         float x = 0.0f, y = 0.0f, z = 0.0f;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -5293,7 +5160,7 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         m_vCollisionHeadOffset.z = z;
         break;
     }
-    case 0x463A5C7D:
+    case 0x463A5C7D: /* "CollisionTorsoOffset" */
     {
         float x = 0.0f, y = 0.0f, z = 0.0f;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -5302,72 +5169,72 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         m_vCollisionTorsoOffset.z = z;
         break;
     }
-    case 0x4F90C3A1:
+    case 0x4F90C3A1: /* "CollisionHeadScale" */
         sscanf(pszValue, "%f", &m_fCollisionHeadScale);
         break;
-    case 0xB199E320:
+    case 0xB199E320: /* "CollisionTorsoScale" */
         sscanf(pszValue, "%f", &m_fCollisionTorsoScale);
         break;
-    case 0xD641F0D6:
+    case 0xD641F0D6: /* "FootstepStride" */
         sscanf(pszValue, "%f", &mFootstepStride);
         break;
-    case 0x44C8744D:
+    case 0x44C8744D: /* "RunSpeed" */
         sscanf(pszValue, "%f", &mRunSpeed);
         break;
 
-    case 0x399EE477:
+    case 0x399EE477: /* "AcquiredTargetSound" */
         mAcquiredTargetSound.SetID(pszValue, false, false);
         break;
-    case 0xC007B675:
+    case 0xC007B675: /* "HidingSound" */
         mHidingSound.SetID(pszValue, false, false);
         break;
-    case 0xEB6089A1:
+    case 0xEB6089A1: /* "ApproachingTargetSound" */
         mApproachingTargetSound.SetID(pszValue, false, false);
         break;
-    case 0x94353BF8:
+    case 0x94353BF8: /* "FleeSound" */
         mFleeSound.SetID(pszValue, false, false);
         break;
-    case 0x130971AE:
+    case 0x130971AE: /* "PreparingForDamageSound" */
         mPreparingForDamageSound.SetID(pszValue, false, false);
         break;
-    case 0xD3C54780:
+    case 0xD3C54780: /* "HeardEnemySound" */
         mHeardEnemySound.SetID(pszValue, false, false);
         break;
-    case 0x4EE58508:
+    case 0x4EE58508: /* "ChargeSound" */
         mChargeSound.SetID(pszValue, false, false);
         break;
-    case 0x65A920BA:
+    case 0x65A920BA: /* "AmbientSound" */
         mAmbientSound.SetID(pszValue, false, false);
         break;
-    case 0x20CD1D00:
+    case 0x20CD1D00: /* "ShockFadeOutTime" */
         sscanf(pszValue, "%f", &mShockFadeOutTime);
         break;
-    case 0x716ADADD:
+    case 0x716ADADD: /* "ShockFadeInTime" */
         sscanf(pszValue, "%f", &mShockFadeInTime);
         break;
-    case 0xECF4A152:
+    case 0xECF4A152: /* "ShockFadeOutGain" */
         sscanf(pszValue, "%f", &mShockFadeOutGain);
         break;
-    case 0xF66784C8:
+    case 0xF66784C8: /* "ShockSound" */
         mShockSound.SetID(pszValue, false, false);
         break;
-    case 0x5625FC0B:
+    case 0x5625FC0B: /* "ClothingRustleSound" */
         mClothingRustleSound.SetID(pszValue, false, false);
         break;
-    case 0xF8D3E5D2:
+    case 0xF8D3E5D2: /* "LowHealthSound" */
         mLowHealthSound.SetID(pszValue, false, false);
         break;
-    case 0xC865523E:
+    case 0xC865523E: /* "LowHealthThreshold" */
         sscanf(pszValue, "%f", &mLowHealthThreshold);
         break;
-    case 0xDF0FB8AE:
+    case 0xDF0FB8AE: /* "ChokeSound" */
         mChokeSound.SetID(pszValue, false, false);
         break;
 
-    case 0x5EA04066:
+    case 0x5EA04066: /* "NextDropItem" */
         ++sCurDropItem;
         break;
-    case 0x406D2B75:
+    case 0x406D2B75: /* "DropItemClass" */
     {
         mDropItemClass[sCurDropItem] = EntityClass::Find(PblHash(pszValue));
         int iCount = sCurDropItem + 1;
@@ -5378,7 +5245,7 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         mDropItemCount = iCount;
         break;
     }
-    case 0x26996DAE:
+    case 0x26996DAE: /* "DropItemProbability" */
     {
         sscanf(pszValue, "%f", &mDropItemProbability[sCurDropItem]);
         int iCount = sCurDropItem + 1;
@@ -5390,61 +5257,61 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         break;
     }
 
-    case 0x43B50014:
+    case 0x43B50014: /* "ChunkFrequency" */
         sscanf(pszValue, "%f", &mChunkFrequency);
         break;
-    case 0x4CACC3D0:
+    case 0x4CACC3D0: /* "SkeletonRootScale" */
         sscanf(pszValue, "%f", &mSkeletonRootScale);
         if (mSpecialSkeleton && mSpecialSkeleton != SoldierAnimatorClass::Instance()->GetDefaultSkeleton() &&
             mSkeletonRootScale != 1.0f)
         {
-            int iJoint = (int)mSpecialSkeleton->m_kHashCRC2Joint.Find(0x16E27226) - 1;
+            int iJoint = (int)mSpecialSkeleton->m_kHashCRC2Joint.Find(0x16E27226 /* "bone_root" */) - 1;
             mSpecialSkeleton->SetJointScale(iJoint, mSkeletonRootScale);
         }
         break;
-    case 0xC64A53AB:
+    case 0xC64A53AB: /* "CollisionRootScale" */
         sscanf(pszValue, "%f", &mCollisionRootScale);
         break;
-    case 0x26239CD4:
+    case 0x26239CD4: /* "SkeletonRootScaleLowRes" */
         sscanf(pszValue, "%f", &mSkeletonRootScaleLowRes);
         if (mSpecialSkeletonLowRes && mSpecialSkeletonLowRes != SoldierAnimatorLowResClass::GetDefaultSkeleton() &&
             mSkeletonRootScaleLowRes != 1.0f)
         {
-            int iJoint = (int)mSpecialSkeletonLowRes->m_kHashCRC2Joint.Find(0xE6E47876) - 1;
+            int iJoint = (int)mSpecialSkeletonLowRes->m_kHashCRC2Joint.Find(0xE6E47876 /* "bone_pelvis" */) - 1;
             mSpecialSkeletonLowRes->SetJointScale(iJoint, mSkeletonRootScaleLowRes);
         }
         break;
-    case 0x91415FA0:
+    case 0x91415FA0: /* "MinFootHeight" */
         sscanf(pszValue, "%f", &mMinFootHeight);
         break;
-    case 0x02BB1FE0:
-    case 0x9B30E763:
+    case 0x02BB1FE0: /* "Explosion" */
+    case 0x9B30E763: /* "ExplosionName" */
         mExplosion = ExplosionClass::Find(PblHash(pszValue));
         break;
 
-    case 0x4AC2B220:
+    case 0x4AC2B220: /* "SndHeroSelectable" */
         mSndHeroSelectable = PblHash(pszValue);
         break;
-    case 0xE4DEE4EE:
+    case 0xE4DEE4EE: /* "SndHeroSpawned" */
         mSndHeroSpawned = PblHash(pszValue);
         break;
-    case 0xD3A93472:
+    case 0xD3A93472: /* "SndHeroDefeated" */
         mSndHeroDefeated = PblHash(pszValue);
         break;
-    case 0xEF9E29F7:
+    case 0xEF9E29F7: /* "SndHeroKiller" */
         mSndForHeroKiller = PblHash(pszValue);
         break;
-    case 0xF5B46BE4:
+    case 0xF5B46BE4: /* "SoldierMusic" */
         mSoldierMusic.SetID(pszValue);
         break;
-    case 0x3BEC98DA:
+    case 0x3BEC98DA: /* "AISoldierMusic" */
         mAISoldierMusic.SetID(pszValue);
         break;
-    case 0x99257468:
+    case 0x99257468: /* "SoldierAnnoucement" */
         mSoldierAnnouncement.SetID(pszValue, false, false);
         break;
 
-    case 0x71735CF7:
+    case 0x71735CF7: /* "TargetPointOffsetStand" */
     {
         float x = 0.0f, y = 0.0f, z = 0.0f;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -5453,7 +5320,7 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         mTargetPointOffset[0].z = z;
         break;
     }
-    case 0x0355B70F:
+    case 0x0355B70F: /* "TargetPointOffsetCrouch" */
     {
         float x = 0.0f, y = 0.0f, z = 0.0f;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -5482,25 +5349,25 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
 }
 
 // FUNCTION: SWBF2 0x004fa880
-int EntitySoldierClass::FindSoldierType(const char* pszName)
+GameObjectClass::SoldierType EntitySoldierClass::FindSoldierType(const char* pszName)
 {
     switch (PblHash(pszName))
     {
-    case 0xC322AD05:
-        return 0;
-    case 0xB0143BE7:
-    case 0x66557E0C:
-        return 1;
-    case 0x3B3E18E8:
-    case 0x29520BB4:
-    case 0xD940D530:
-        return 2;
-    case 0x10066AE1:
-        return 3;
-    case 0xDF625F90:
-        return 4;
+    case 0xC322AD05: /* "Scout" */
+        return SOLDIER_SCOUT;
+    case 0xB0143BE7: /* "Anti-Armor" */
+    case 0x66557E0C: /* "Assault" */
+        return SOLDIER_ROCKET;
+    case 0x3B3E18E8: /* "Support" */
+    case 0x29520BB4: /* "Repair" */
+    case 0xD940D530: /* "Special" */
+        return SOLDIER_REPAIR;
+    case 0x10066AE1: /* "Pilot" */
+        return SOLDIER_PILOT;
+    case 0xDF625F90: /* "Trooper" */
+        return SOLDIER_TROOPER;
     }
-    return 5;
+    return SOLDIER_UNKNOWN;
 }
 
 // FUNCTION: SWBF2 0x004fa900
@@ -5554,106 +5421,6 @@ const float UnitCircleNormalize(float fAngle)
     return fAngle;
 }
 
-// FUNCTION: SWBF2 0x004e0090
-void EntitySoldier::TriggerBuffHealthEffect()
-{
-    if (mBuffHealthTimer > 0.0f && GetInvisibilityFactor() == 0.0f &&
-        (IsThreadActive() || GetObjectData(0) == COLL_ATTACHED))
-    {
-        if (mClass->mBuffHealthEffect && mBuffHealthEffectHandle == 0)
-        {
-            if (FLEffectClass* pEffectClass = FLEffect::Get(mClass->mBuffHealthEffect))
-            {
-                if (FLEffectObject* pEffect = pEffectClass->BuildEffect())
-                {
-                    pEffect->AttachEffectToObject(this, true);
-                    mBuffHealthEffectHandle = pEffect;
-                }
-            }
-        }
-    }
-    else if (mBuffHealthEffectHandle)
-    {
-        mBuffHealthEffectHandle->StopAndFinish();
-        mBuffHealthEffectHandle = NULL;
-    }
-}
-
-// FUNCTION: SWBF2 0x004e01d0
-void EntitySoldier::TriggerBuffOffenseEffect()
-{
-    if (mBuffOffenseTimer > 0.0f && GetInvisibilityFactor() == 0.0f &&
-        (IsThreadActive() || GetObjectData(0) == COLL_ATTACHED))
-    {
-        if (mClass->mBuffOffenseEffect && mBuffOffenseEffectHandle == 0)
-        {
-            if (FLEffectClass* pEffectClass = FLEffect::Get(mClass->mBuffOffenseEffect))
-            {
-                if (FLEffectObject* pEffect = pEffectClass->BuildEffect())
-                {
-                    pEffect->AttachEffectToObject(this, true);
-                    mBuffOffenseEffectHandle = pEffect;
-                }
-            }
-        }
-    }
-    else if (mBuffOffenseEffectHandle)
-    {
-        mBuffOffenseEffectHandle->StopAndFinish();
-        mBuffOffenseEffectHandle = NULL;
-    }
-}
-
-// FUNCTION: SWBF2 0x004e0310
-void EntitySoldier::TriggerBuffDefenseEffect()
-{
-    if (mBuffDefenseTimer > 0.0f && GetInvisibilityFactor() == 0.0f &&
-        (IsThreadActive() || GetObjectData(0) == COLL_ATTACHED))
-    {
-        if (mClass->mBuffDefenseEffect && mBuffDefenseEffectHandle == 0)
-        {
-            if (FLEffectClass* pEffectClass = FLEffect::Get(mClass->mBuffDefenseEffect))
-            {
-                if (FLEffectObject* pEffect = pEffectClass->BuildEffect())
-                {
-                    pEffect->AttachEffectToObject(this, true);
-                    mBuffDefenseEffectHandle = pEffect;
-                }
-            }
-        }
-    }
-    else if (mBuffDefenseEffectHandle)
-    {
-        mBuffDefenseEffectHandle->StopAndFinish();
-        mBuffDefenseEffectHandle = NULL;
-    }
-}
-
-// FUNCTION: SWBF2 0x004e0450
-void EntitySoldier::TriggerDebuffEffect()
-{
-    if (mDebuffDamageTimer > 0.0f && GetInvisibilityFactor() == 0.0f &&
-        (IsThreadActive() || GetObjectData(0) == COLL_ATTACHED))
-    {
-        if (mClass->mDebuffEffect && mDebuffEffectHandle == 0)
-        {
-            if (FLEffectClass* pEffectClass = FLEffect::Get(mClass->mDebuffEffect))
-            {
-                if (FLEffectObject* pEffect = pEffectClass->BuildEffect())
-                {
-                    pEffect->AttachEffectToObject(this, true);
-                    mDebuffEffectHandle = pEffect;
-                }
-            }
-        }
-    }
-    else if (mDebuffEffectHandle)
-    {
-        mDebuffEffectHandle->StopAndFinish();
-        mDebuffEffectHandle = NULL;
-    }
-}
-
 // FUNCTION: SWBF2 0x004e0670
 void EntitySoldier::UpdateSmolderTimers(float fDeltaTime)
 {
@@ -5675,14 +5442,14 @@ void EntitySoldier::UpdateSmolderTimers(float fDeltaTime)
             DamageDesc desc(mSmolderDamageOwner, mSmolderDamageRate * fDeltaTime);
             Damageable::ApplyDamage(desc, 0xffffffff);
         }
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < kMaxSmolderEffects; ++i)
         {
             TriggerSmolderEffect(i, mSmolderEffectBone[i], mSmolderEffect[i]);
         }
     }
     else
     {
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < kMaxSmolderEffects; ++i)
         {
             if (FLEffectObject* pEffect = mSmolderEffectHandle[i])
             {
@@ -5778,10 +5545,7 @@ bool EntitySoldier::Update(float fDeltaTime)
 
             PblMatrix mObject = mStandingOnObj->mCollisionModel->GetWorldMatrix(
                 mStandingOnBody, mStandingOnObj->GetMatrix(), mStandingOnObj->GetPose());
-            PblMatrix mLocal;
-            mLocal = mMatrix * mLastVehicleMatrix;
-            PblMatrix mNew;
-            mNew = mLocal * mObject;
+            PblMatrix mNew = mMatrix * mLastVehicleMatrix * mObject;
             const PblVector3& vUp = mMatrix.GetYAxis();
             const PblVector3& vFront = mNew.GetZAxis();
             if ((float)fabs((double)(vUp.y * vFront.y + vUp.x * vFront.x + vUp.z * vFront.z)) < 0.99f)
@@ -5793,11 +5557,11 @@ bool EntitySoldier::Update(float fDeltaTime)
                 }
             }
 
-            float fLastSpeed = sqrtf(mStandingOnObjLastVelocity.x * mStandingOnObjLastVelocity.x +
+            float fLastSpeed = PblMath::Sqrt(mStandingOnObjLastVelocity.x * mStandingOnObjLastVelocity.x +
                                      mStandingOnObjLastVelocity.y * mStandingOnObjLastVelocity.y +
                                      mStandingOnObjLastVelocity.z * mStandingOnObjLastVelocity.z);
             const PblVector3& vObjectVelocity = mStandingOnObj->GetVelocity();
-            float fObjectSpeed = sqrtf(vObjectVelocity.x * vObjectVelocity.x + vObjectVelocity.y * vObjectVelocity.y +
+            float fObjectSpeed = PblMath::Sqrt(vObjectVelocity.x * vObjectVelocity.x + vObjectVelocity.y * vObjectVelocity.y +
                                        vObjectVelocity.z * vObjectVelocity.z);
             float fSpeedLost;
             if (fLastSpeed > fObjectSpeed && (fSpeedLost = fLastSpeed - fObjectSpeed) > 8.2f)
@@ -5827,58 +5591,30 @@ bool EntitySoldier::Update(float fDeltaTime)
 
         CollisionObject* pHit = 0;
         const GameObject* pIgnore = GetGameObject();
-        PblVector3 vDown(-gVectorUnitY.x, -gVectorUnitY.y, -gVectorUnitY.z);
-        PblVector3 vOffset(mMatrix.m[1][0] * 0.4f, mMatrix.m[1][1] * 0.4f, mMatrix.m[1][2] * 0.4f);
-        const PblVector3& vPos = GetPosition();
-        PblVector3 vStart(vPos.x + vOffset.x, vPos.y + vOffset.y, vPos.z + vOffset.z);
         PblVector3 vNormal;
-        CollisionManager::RayHit(vStart, vDown, 2.0f, pHit, &vNormal, &pIgnore, 1, 0x98, false);
+        CollisionManager::RayHit(GetPosition() + mMatrix.GetYAxis() * 0.4f, -gVectorUnitY, 2.0f, pHit, &vNormal, &pIgnore, 1,
+                                 0x98, false);
 
-        PblVector3 vUp;
         bool bSlope = false;
         if (pHit)
         {
-            PblVector3 vHitNormal;
-            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vHitNormal), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
-            vNormal = vHitNormal;
-            if (vHitNormal.y > 0.5f)
+            vNormal = Normalize(vNormal);
+            if (vNormal.y > 0.5f)
             {
-                vUp = PblVector3(vHitNormal.x * 0.05f + mMatrix.m[1][0] * 0.95f,
-                                 vHitNormal.y * 0.05f + mMatrix.m[1][1] * 0.95f,
-                                 vHitNormal.z * 0.05f + mMatrix.m[1][2] * 0.95f);
+                mMatrix[1] = Normalize(vNormal * 0.05f + mMatrix[1] * 0.95f);
                 bSlope = true;
             }
         }
         if (!bSlope)
         {
-            vUp = PblVector3(gVectorUnitY.x * 0.25f + mMatrix.m[1][0] * 0.75f,
-                             gVectorUnitY.y * 0.25f + mMatrix.m[1][1] * 0.75f,
-                             gVectorUnitY.z * 0.25f + mMatrix.m[1][2] * 0.75f);
+            mMatrix[1] = Normalize(gVectorUnitY * 0.25f + mMatrix[1] * 0.75f);
         }
-
-        PblVector3 vAxis;
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vAxis), reinterpret_cast<const D3DXVECTOR3*>(&vUp));
-        mMatrix.m[1][0] = vAxis.x;
-        mMatrix.m[1][1] = vAxis.y;
-        mMatrix.m[1][2] = vAxis.z;
         mMatrix.m[1][3] = 0.0f;
 
-        PblVector3 vCross(mMatrix.m[2][2] * mMatrix.m[1][1] - mMatrix.m[2][1] * mMatrix.m[1][2],
-                          mMatrix.m[2][0] * mMatrix.m[1][2] - mMatrix.m[1][0] * mMatrix.m[2][2],
-                          mMatrix.m[1][0] * mMatrix.m[2][1] - mMatrix.m[2][0] * mMatrix.m[1][1]);
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vAxis), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
-        mMatrix.m[0][0] = vAxis.x;
-        mMatrix.m[0][1] = vAxis.y;
-        mMatrix.m[0][2] = vAxis.z;
+        mMatrix[0] = Normalize(CrossProduct(mMatrix[1], mMatrix[2]));
         mMatrix.m[0][3] = 0.0f;
 
-        vCross = PblVector3(mMatrix.m[1][2] * mMatrix.m[0][1] - mMatrix.m[1][1] * mMatrix.m[0][2],
-                            mMatrix.m[1][0] * mMatrix.m[0][2] - mMatrix.m[0][0] * mMatrix.m[1][2],
-                            mMatrix.m[0][0] * mMatrix.m[1][1] - mMatrix.m[1][0] * mMatrix.m[0][1]);
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vAxis), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
-        mMatrix.m[2][0] = vAxis.x;
-        mMatrix.m[2][1] = vAxis.y;
-        mMatrix.m[2][2] = vAxis.z;
+        mMatrix[2] = Normalize(CrossProduct(mMatrix[0], mMatrix[1]));
         mMatrix.m[2][3] = 0.0f;
     }
 
@@ -5900,7 +5636,7 @@ bool EntitySoldier::Update(float fDeltaTime)
 
     if (mState == SoldierState::SPRINT)
     {
-        for (int i = 0; i < 2; ++i)
+        for (int i = 0; i < kNumWeaponChannels; ++i)
         {
             int iIndex = mWeaponIndex[i];
             if ((iIndex == -1 || (!mWeapon[iIndex]->IsMelee() && !mWeapon[iIndex]->IsMeleeThrow())) &&
@@ -5931,11 +5667,12 @@ bool EntitySoldier::Update(float fDeltaTime)
             int iTypes = 0;
             float fLockDist = 2000.0f;
             float fLoseDist = 2500.0f;
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < kNumWeaponChannels; ++i)
             {
-                if (mWeaponIndex[i] != -1)
+                int iIndex = mWeaponIndex[i];
+                if (iIndex != -1)
                 {
-                    const WeaponClass* pClass = mWeapon[mWeaponIndex[i]]->mClass;
+                    const WeaponClass* pClass = mWeapon[iIndex]->mClass;
                     iTypes = pClass->mTargetTypes;
                     fLockDist = pClass->mTargetLockMaxDistance;
                     fLoseDist = pClass->mTargetLockMaxDistanceLose;
@@ -5967,11 +5704,12 @@ bool EntitySoldier::Update(float fDeltaTime)
     {
 
         int iTypes = 0;
-        for (int i = 0; i < 2; ++i)
+        for (int i = 0; i < kNumWeaponChannels; ++i)
         {
-            if (mWeaponIndex[i] != -1)
+            int iIndex = mWeaponIndex[i];
+            if (iIndex != -1)
             {
-                iTypes = mWeapon[mWeaponIndex[i]]->mClass->mTargetTypes;
+                iTypes = mWeapon[iIndex]->mClass->mTargetTypes;
                 break;
             }
         }
@@ -6029,8 +5767,10 @@ bool EntitySoldier::Update(float fDeltaTime)
 
     if (!(NetGame::IsEnabled() && NetGame::IsClient()))
     {
-        if (mVelocity.y < -60.0f || mMatrix.m[3][1] < -1000.0f || fabsf(mMatrix.m[3][0]) > 2500.0f ||
-            fabsf(mMatrix.m[3][2]) > 2500.0f || mMatrix.m[3][1] > 1000.0f)
+        const float fX = mMatrix.m[3][0];
+        const float fZ = mMatrix.m[3][2];
+        if (mVelocity.y < -60.0f || mMatrix.m[3][1] < -1000.0f || (fX < 0.0f ? -fX : fX) > 2500.0f ||
+            (fZ < 0.0f ? -fZ : fZ) > 2500.0f || mMatrix.m[3][1] > 1000.0f)
         {
             Kill();
             return false;
@@ -6079,7 +5819,14 @@ bool EntitySoldier::Update(float fDeltaTime)
         int iPlayer = mInitialPlayerId;
         if (WasPlayer() && !Character::GetPtr(iPlayer)->mUnit)
         {
-            Trackable::TrackDeath(iPlayer, mClass->GetHeroFlag() ? 0 : mDamageOwner.mCharacter);
+            if (mClass->GetHeroFlag())
+            {
+                Trackable::TrackDeath(iPlayer, 0);
+            }
+            else
+            {
+                Trackable::TrackDeath(iPlayer, mDamageOwner.mCharacter);
+            }
             if (mTracker && mTracker->IsFirstPersonView() && iJoystick >= 0)
             {
                 FirstPerson::Activate(iJoystick, false);
@@ -6093,13 +5840,13 @@ bool EntitySoldier::Update(float fDeltaTime)
     {
         UpdateFoleyFX(fDeltaTime);
 
-        if (mAmbientSound.GetPlaying())
+        if (!mAmbientSound.GetPlaying())
         {
-            mAmbientSound.Update(&mClass->mAmbientSound, &mMatrix.GetTranslation(), &mVelocity);
+            mAmbientSound.Play(&mClass->mAmbientSound, &mMatrix.GetTranslation(), &mVelocity, true);
         }
         else
         {
-            mAmbientSound.Play(&mClass->mAmbientSound, &mMatrix.GetTranslation(), &mVelocity, true);
+            mAmbientSound.Update(&mClass->mAmbientSound, &mMatrix.GetTranslation(), &mVelocity);
         }
 
         if (IsAlive() && mClass->mLowHealthThreshold * mMaxHealth >= mCurHealth)
@@ -6150,12 +5897,13 @@ bool EntitySoldier::Update(float fDeltaTime)
                     DamageOwner owner(mCharacter, this, GetTeam(), pClass, 0, 1.0f);
                     mClass->mExplosion->CreateExplosion(GetCollisionCenter(), owner, false, COLL_UNKNOWN);
                 }
-                if (!(NetGame::IsEnabled() && NetGame::IsClient()))
+                if (!(NetGame::IsEnabled() && (netEnabledNext && netClientActive)))
                 {
                     float fChunk = 1.0f;
                     if (mCurHealth > -50.0f)
                     {
-                        fChunk = mCurHealth / -50.0f * 0.9f + 0.1f;
+                        float fRatio = mCurHealth / -50.0f;
+                        fChunk = fRatio * 0.9f + 0.1f;
                     }
                     CreateChunkCluster(fChunk);
                     RemoveFromCollisionManager();
@@ -6271,9 +6019,8 @@ bool EntitySoldier::Update(float fDeltaTime)
     PblVector3 vLocalVelocity;
     if (pWeapon)
     {
-        vLocalVelocity.x = mVelocity.y * mMatrix.m[0][1] + mVelocity.x * mMatrix.m[0][0] + mVelocity.z * mMatrix.m[0][2];
-        vLocalVelocity.y = mVelocity.y * mMatrix.m[1][1] + mVelocity.x * mMatrix.m[1][0] + mVelocity.z * mMatrix.m[1][2];
-        vLocalVelocity.z = mVelocity.y * mMatrix.m[2][1] + mVelocity.x * mMatrix.m[2][0] + mVelocity.z * mMatrix.m[2][2];
+        vLocalVelocity = PblVector3(DotProduct(mVelocity, mMatrix.GetXAxis()), DotProduct(mVelocity, mMatrix.GetYAxis()),
+                                    DotProduct(mVelocity, mMatrix.GetZAxis()));
         pWeapon->NotifySoldierState(mState, mStateTimer + fDeltaTime, mInputLockTime > 0.0f, mTargetInfo.mIsAiming,
                                     vLocalVelocity);
         if (pWeapon->OverrideSoldierControls())
@@ -6286,11 +6033,11 @@ bool EntitySoldier::Update(float fDeltaTime)
     }
 
     bool bBusy = false;
+    int iBest = -1;
     int iChannel;
-    for (iChannel = 0; iChannel < 2; ++iChannel)
+    for (iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
     {
-        int iIndex = mWeaponIndex[iChannel];
-        if (iIndex >= 0 && mWeapon[iIndex] && mWeapon[iIndex]->IsBusy())
+        if (mWeaponIndex[iChannel] >= 0 && mWeapon[mWeaponIndex[iChannel]] && mWeapon[mWeaponIndex[iChannel]]->IsBusy())
         {
             bBusy = true;
             break;
@@ -6298,25 +6045,24 @@ bool EntitySoldier::Update(float fDeltaTime)
     }
     if (!bBusy)
     {
-        int iBest = -1;
         for (iChannel = 1; iChannel >= 0; --iChannel)
         {
-            int iIndex = mWeaponIndex[iChannel];
-            if (iIndex < 0 || !mWeapon[iIndex])
+            if (mWeaponIndex[iChannel] < 0 || !mWeapon[mWeaponIndex[iChannel]])
             {
                 continue;
             }
-            Weapon* pChannelWeapon = mWeapon[iIndex];
+            Weapon* pChannelWeapon = mWeapon[mWeaponIndex[iChannel]];
             if (pChannelWeapon->WillBecomeBusy())
             {
                 bBusy = true;
+                iBest = iChannel;
                 break;
             }
             if (iBest < 0)
             {
                 if (pChannelWeapon->IsMelee())
                 {
-                    if (static_cast<WeaponMelee*>(pChannelWeapon)->GetWeaponMeleeAnimation() < 0xa4)
+                    if (((WeaponMelee*)pChannelWeapon)->GetWeaponMeleeAnimation() < 0xa4)
                     {
                         iBest = iChannel;
                     }
@@ -6327,26 +6073,16 @@ bool EntitySoldier::Update(float fDeltaTime)
                 }
             }
         }
-        if (!bBusy)
-        {
-            iChannel = iBest < 0 ? 0 : iBest;
-        }
+        iChannel = iBest < 0 ? 0 : iBest;
     }
 
-    if (mActiveIndex == mWeaponIndex[iChannel])
-    {
-        if (pWeapon && !pWeapon->IsMelee() && pWeapon->mState == Weapon::RELOAD)
-        {
-            SetAlert(false);
-        }
-    }
-    else
+    if (mActiveIndex != mWeaponIndex[iChannel])
     {
 
         if (pWeapon && pWeapon->IsMeleeThrow() && mWeapon[0] && mWeapon[0]->IsMelee())
         {
 
-            static_cast<WeaponMelee*>(mWeapon[0])->m_pMeleeThrow = reinterpret_cast<WeaponMeleeThrow*>(pWeapon);
+            ((WeaponMelee*)mWeapon[0])->m_pMeleeThrow = reinterpret_cast<WeaponMeleeThrow*>(pWeapon);
         }
         bool bOffhand = pWeapon->mClass->mIsOffhand || pWeapon->IsMeleeThrow();
         Weapon* pNext = mWeapon[mWeaponIndex[iChannel]];
@@ -6372,6 +6108,13 @@ bool EntitySoldier::Update(float fDeltaTime)
             fPitch = GetPitchAdjusted();
         }
         SetAlert(false);
+    }
+    else
+    {
+        if (pWeapon && !pWeapon->IsMelee() && pWeapon->mState == Weapon::RELOAD)
+        {
+            SetAlert(false);
+        }
     }
 
     if (bBusy)
@@ -6441,6 +6184,9 @@ bool EntitySoldier::Update(float fDeltaTime)
         }
 
         s_fSplashTimeout += fDeltaTime;
+        const float fSplashBase = 0.9f;
+        // GLOBAL: SWBF2 0x01faa964
+        static float s_fSplashInterval = fSplashBase / 9.0f;
         if (vVelocity.y < -5.0f && s_fSplashTimeout > 1.0f)
         {
             WaterEffect::AddWaterEffect(mClass->mWaterSplashEffect, GetPosition());
@@ -6453,13 +6199,10 @@ bool EntitySoldier::Update(float fDeltaTime)
     }
 
     float fKickScale = mKickScale;
-    float fPitchVelocity = mPitchVelocity;
-    mPitchValue = fPitchVelocity * (fKickScale < 1.0f ? fKickScale : 1.0f) * fDeltaTime + mPitchValue;
-    mPitchOffset = fPitchVelocity * fDeltaTime + mPitchOffset;
-    float fDamp = fDeltaTime * 20.0f;
-    mPitchVelocity = fPitchVelocity - (fDamp < 1.0f ? fDamp : 1.0f) * fPitchVelocity;
-    fDamp = fDeltaTime * 6.0f;
-    mPitchOffset = mPitchOffset - (fDamp < 1.0f ? fDamp : 1.0f) * mPitchOffset;
+    mPitchValue += mPitchVelocity * Min(fKickScale, 1.0f) * fDeltaTime;
+    mPitchOffset += mPitchVelocity * fDeltaTime;
+    mPitchVelocity -= Min(fDeltaTime * 20.0f, 1.0f) * mPitchVelocity;
+    mPitchOffset -= Min(fDeltaTime * 6.0f, 1.0f) * mPitchOffset;
     mKickScale = mKickBuild - fDeltaTime * 2.0f + fKickScale;
     if (mKickScale < 0.0f)
     {
@@ -6469,25 +6212,11 @@ bool EntitySoldier::Update(float fDeltaTime)
     mPitchValue = fPitchRate * fPitch * fDeltaTime + mPitchValue;
     if (mState == SoldierState::PRONE)
     {
-        if (mPitchValue < -0.4f)
-        {
-            mPitchValue = -0.4f;
-        }
-        else if (mPitchValue > 0.4f)
-        {
-            mPitchValue = 0.4f;
-        }
+        mPitchValue = Clamp(mPitchValue, -0.4f, 0.4f);
     }
     else
     {
-        if (mPitchValue < mClass->mMinPitch)
-        {
-            mPitchValue = mClass->mMinPitch;
-        }
-        else if (mPitchValue > mClass->mMaxPitch)
-        {
-            mPitchValue = mClass->mMaxPitch;
-        }
+        mPitchValue = Clamp(mPitchValue, mClass->mMinPitch, mClass->mMaxPitch);
     }
 
     if (mState != SoldierState::JET_HOVER && mState != SoldierState::JET_JUMP)
@@ -6505,13 +6234,10 @@ bool EntitySoldier::Update(float fDeltaTime)
 
     if (fDeltaTime > 0.0f && VehicleEngine::IsOn())
     {
-        float fSpeed = sqrtf(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y + mVelocity.z * mVelocity.z);
+        float fSpeed = PblMath::Sqrt(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y + mVelocity.z * mVelocity.z);
         bool bFirstPerson = mTracker && mTracker->IsFirstPersonView();
-        bool bLocalPlayer = false;
-        if (mPlayerId >= 0 && (NetGame::GetLocalPlayer(0) == mCharacter || NetGame::GetLocalPlayer(1) == mCharacter))
-        {
-            bLocalPlayer = true;
-        }
+        bool bLocalPlayer =
+            mPlayerId >= 0 && (GetCharacter() == NetGame::GetLocalPlayer(0) || GetCharacter() == NetGame::GetLocalPlayer(1));
         float fHealth = 0.0f;
         if (mMaxHealth != 0.0f)
         {
@@ -6541,32 +6267,39 @@ bool EntitySoldier::Update(float fDeltaTime)
     else if (mState <= SoldierState::PRONE)
     {
         const PblVector3& vVelocity = GetVelocity();
-        fEnergyRestore = vVelocity.x * vVelocity.x + vVelocity.z * vVelocity.z < 1.0f ? mClass->mEnergyRestoreIdle
-                                                                                      : mClass->mEnergyRestore;
+        if (vVelocity.x * vVelocity.x + vVelocity.z * vVelocity.z < 1.0f)
+        {
+            fEnergyRestore = mClass->mEnergyRestoreIdle;
+        }
+        else
+        {
+            fEnergyRestore = mClass->mEnergyRestore;
+        }
     }
     if (pWeapon)
     {
         pWeapon->OverrideSoldierEnergyRestore(fEnergyRestore);
     }
     EnergyBar* pEnergyBar = &mEnergyBar;
-    if (fEnergyRestore < 0.0f)
-    {
-        pEnergyBar->SpendEnergy(-(fEnergyRestore * fDeltaTime));
-    }
-    else
+    if (fEnergyRestore >= 0.0f)
     {
 
         float fMultiplier = mCharacter && mCharacter->mMedalsMgr &&
                                     mCharacter->mMedalsMgr->IsAwardAvailable(MedalsMgr::ENDURANCE)
                                 ? 1.5f
                                 : 1.0f;
-        bool bTeamBonus = BonusManager::Instance()->IsTeamBonusActive(GetTeam(), 0x85ad826d);
-        float fRestore = fEnergyRestore * fMultiplier * fDeltaTime;
-        if (bTeamBonus)
+        if (BonusManager::Instance()->IsTeamBonusActive(GetTeam(), 0x85ad826d /* "team_bonus_energy_boost" */))
         {
-            fRestore *= 3.0f;
+            pEnergyBar->AddEnergy(fEnergyRestore * fMultiplier * fDeltaTime * 3.0f);
         }
-        pEnergyBar->AddEnergy(fRestore);
+        else
+        {
+            pEnergyBar->AddEnergy(fEnergyRestore * fMultiplier * fDeltaTime);
+        }
+    }
+    else
+    {
+        pEnergyBar->SpendEnergy(-(fEnergyRestore * fDeltaTime));
     }
 
     switch (mState)
@@ -6590,17 +6323,13 @@ bool EntitySoldier::Update(float fDeltaTime)
         }
         float fOmega = GetOmega(mPlayerId >= 0 ? pClass->mTurnFactor[0] * fTurn : fTurn);
         float fAccelScale = 1.0f;
-        if (mInputLockTime > 0.0f && (m_uiInputLockMask & INPUTLOCK_MOVEMENT))
+        if (!(mInputLockTime <= 0.0f) && (m_uiInputLockMask & INPUTLOCK_MOVEMENT))
         {
             fAccelScale = m_bSlide ? 0.05f : 1.7f;
         }
         Move(fDeltaTime, fForward, fSide, fOmega, mClass->mAcceleration * fAccelScale);
 
-        if (mFlags & flags_isGrounded)
-        {
-            mFlags &= ~flags_fallTimer;
-        }
-        else
+        if (!(mFlags & flags_isGrounded))
         {
             if (!(mFlags & flags_fallTimer))
             {
@@ -6611,6 +6340,10 @@ bool EntitySoldier::Update(float fDeltaTime)
             {
                 SetState(SoldierState::FALL);
             }
+        }
+        else
+        {
+            mFlags &= ~flags_fallTimer;
         }
 
         if (mPlayerId >= 0 && (!(mFlags & flags_fallTimer) || mStateTimer < 0.3f))
@@ -6627,141 +6360,20 @@ bool EntitySoldier::Update(float fDeltaTime)
             {
                 JumpUsingEnergy();
             }
-            else if ((mControlThrustFwd.TappedAndPressed() ||
-                      ((mControlSprint.Tapped() || mControlSprint.Held()) && CheckMoveControlForSprint(fThrust, fStrafe) &&
-                       mVelocity.x * mMatrix.m[2][0] + mVelocity.y * mMatrix.m[2][1] + mVelocity.z * mMatrix.m[2][2] >
-                           mClass->mMaxSpeed * 0.9f)) &&
-                     SprintUsingEnergy())
+            else if (mControlThrustFwd.TappedAndPressed())
             {
-                ToolTipsDisplay::sInstance->CancelTimeoutTip(TTT_SoldierSprint, mPlayerId);
+                if (SprintUsingEnergy())
+                {
+                    ToolTipsDisplay::sInstance->CancelTimeoutTip(TTT_SoldierSprint, mPlayerId);
+                }
             }
-        }
-        break;
-    }
-    case SoldierState::CROUCH:
-    {
-        mStanceIndex = 1;
-        const EntitySoldierClass* pClass = mClass;
-        float fForward = pClass->mMaxSpeed * fThrust * pClass->mThrustFactor[1];
-        float fSide = -(pClass->mMaxStrafeSpeed * fStrafe * pClass->mStrafeFactor[1]);
-        if (fOverrideBlend >= 1.0f)
-        {
-            fForward = fOverrideForward;
-            fSide = fOverrideStrafe;
-        }
-        else if (fOverrideBlend > 0.0f)
-        {
-            fForward = (fOverrideForward - fForward) * fOverrideBlend + fForward;
-            fSide = (fOverrideStrafe - fSide) * fOverrideBlend + fSide;
-        }
-        float fOmega = GetOmega(mPlayerId >= 0 ? pClass->mTurnFactor[1] * fTurn : fTurn);
-        float fAccelScale = 1.0f;
-        if (mInputLockTime > 0.0f && (m_uiInputLockMask & INPUTLOCK_MOVEMENT))
-        {
-            fAccelScale = m_bSlide ? 0.05f : 1.7f;
-        }
-        Move(fDeltaTime, fForward, fSide, fOmega, mClass->mAcceleration * fAccelScale);
-
-        if (mFlags & flags_isGrounded)
-        {
-            mFlags &= ~flags_fallTimer;
-        }
-        else
-        {
-            if (!(mFlags & flags_fallTimer))
+            else if ((mControlSprint.Tapped() || mControlSprint.Held()) && CheckMoveControlForSprint(fThrust, fStrafe) &&
+                     DotProduct(mVelocity, mMatrix.GetZAxis()) > mClass->mMaxSpeed * 0.9f)
             {
-                mFlags |= flags_fallTimer;
-                mStateTimer = 0.0f;
-            }
-            if (mStateTimer > 0.3f)
-            {
-                Stand();
-                mStateTimer = 0.3f;
-            }
-        }
-
-        if (mPlayerId >= 0)
-        {
-            if (mControlSpecialMove.IsDown() && CheckMoveControlForRoll(fThrust, fStrafe))
-            {
-                RollUsingEnergy();
-            }
-            else if ((mControlCrouch.Tapped() || mControlCrouch.HeldAndReleased()) && mStateTimer > 0.15f)
-            {
-                Stand();
-            }
-            else if (mControlJump.IsPressed() && mStateTimer > 0.5f)
-            {
-                Stand();
-            }
-        }
-        break;
-    }
-    case SoldierState::PRONE:
-    {
-        mStanceIndex = 2;
-        if (fStrafe * fStrafe + fThrust * fThrust > 0.01f)
-        {
-            if (mControlFire[0].IsDown())
-            {
-                mControlFire[0].Clear();
-            }
-            if (mControlFire[1].IsDown())
-            {
-                mControlFire[1].Clear();
-            }
-            if (m_bPrimaryWeaponIsMelee)
-            {
-                mControlReload.Clear();
-            }
-        }
-        const EntitySoldierClass* pClass = mClass;
-        fThrust = fThrust * (fThrust > 0.0f ? pClass->mMaxSpeed : pClass->mMaxStrafeSpeed) * pClass->mThrustFactor[2];
-        fStrafe = -(pClass->mMaxStrafeSpeed * fStrafe * pClass->mStrafeFactor[2]);
-        if (fOverrideBlend >= 1.0f)
-        {
-            fThrust = fOverrideForward;
-            fStrafe = fOverrideStrafe;
-        }
-        else if (fOverrideBlend > 0.0f)
-        {
-            fThrust = (fOverrideForward - fThrust) * fOverrideBlend + fThrust;
-            fStrafe = (fOverrideStrafe - fStrafe) * fOverrideBlend + fStrafe;
-        }
-        float fOmega = GetOmega(pClass->mTurnFactor[2] * fTurn);
-        float fAccelScale = 1.0f;
-        if (mInputLockTime > 0.0f && (m_uiInputLockMask & INPUTLOCK_MOVEMENT))
-        {
-            fAccelScale = m_bSlide ? 0.05f : 1.7f;
-        }
-        Move(fDeltaTime, fThrust, fStrafe, fOmega, mClass->mAcceleration * fAccelScale);
-
-        if (mFlags & flags_isGrounded)
-        {
-            mFlags &= ~flags_fallTimer;
-        }
-        else
-        {
-            if (!(mFlags & flags_fallTimer))
-            {
-                mFlags |= flags_fallTimer;
-                mStateTimer = 0.0f;
-            }
-            if (mStateTimer > 0.3f)
-            {
-                SetState(SoldierState::FALL);
-            }
-        }
-
-        if (mPlayerId >= 0)
-        {
-            if (mControlCrouch.IsPressed())
-            {
-                Stand();
-            }
-            else if (mControlJump.IsPressed() && mStateTimer > 0.5f)
-            {
-                Stand();
+                if (SprintUsingEnergy())
+                {
+                    ToolTipsDisplay::sInstance->CancelTimeoutTip(TTT_SoldierSprint, mPlayerId);
+                }
             }
         }
         break;
@@ -6792,17 +6404,13 @@ bool EntitySoldier::Update(float fDeltaTime)
         }
         float fOmega = GetOmega(mPlayerId >= 0 ? pClass->mTurnFactor[3] * fTurn : fTurn);
         float fAccelScale = 1.0f;
-        if (mInputLockTime > 0.0f && (m_uiInputLockMask & INPUTLOCK_MOVEMENT))
+        if (!(mInputLockTime <= 0.0f) && (m_uiInputLockMask & INPUTLOCK_MOVEMENT))
         {
             fAccelScale = m_bSlide ? 0.05f : 1.7f;
         }
         Move(fDeltaTime, fForward, fSide, fOmega, mClass->mAcceleration * fAccelScale);
 
-        if (mFlags & flags_isGrounded)
-        {
-            mFlags &= ~flags_fallTimer;
-        }
-        else
+        if (!(mFlags & flags_isGrounded))
         {
             if (!(mFlags & flags_fallTimer))
             {
@@ -6813,6 +6421,10 @@ bool EntitySoldier::Update(float fDeltaTime)
             {
                 SetState(SoldierState::FALL);
             }
+        }
+        else
+        {
+            mFlags &= ~flags_fallTimer;
         }
 
         if (mPlayerId >= 0 && (!(mFlags & flags_fallTimer) || mStateTimer < 0.3f))
@@ -6826,10 +6438,134 @@ bool EntitySoldier::Update(float fDeltaTime)
                 JumpUsingEnergy();
             }
             else if (mControlSprint.Tapped() || mControlSprint.HeldAndReleased() || !CheckMoveControlForSprint(fThrust, fStrafe) ||
-                     mVelocity.x * mMatrix.m[2][0] + mVelocity.y * mMatrix.m[2][1] + mVelocity.z * mMatrix.m[2][2] <= 0.2f ||
+                     !(DotProduct(mVelocity, mMatrix.GetZAxis()) > 0.2f) ||
                      !SprintUsingEnergy())
             {
                 EndSprint();
+            }
+        }
+        break;
+    }
+    case SoldierState::CROUCH:
+    {
+        mStanceIndex = 1;
+        const EntitySoldierClass* pClass = mClass;
+        float fForward = pClass->mMaxSpeed * fThrust * pClass->mThrustFactor[1];
+        float fSide = -(pClass->mMaxStrafeSpeed * fStrafe * pClass->mStrafeFactor[1]);
+        if (fOverrideBlend >= 1.0f)
+        {
+            fForward = fOverrideForward;
+            fSide = fOverrideStrafe;
+        }
+        else if (fOverrideBlend > 0.0f)
+        {
+            fForward = (fOverrideForward - fForward) * fOverrideBlend + fForward;
+            fSide = (fOverrideStrafe - fSide) * fOverrideBlend + fSide;
+        }
+        float fOmega = GetOmega(mPlayerId >= 0 ? pClass->mTurnFactor[1] * fTurn : fTurn);
+        float fAccelScale = 1.0f;
+        if (!(mInputLockTime <= 0.0f) && (m_uiInputLockMask & INPUTLOCK_MOVEMENT))
+        {
+            fAccelScale = m_bSlide ? 0.05f : 1.7f;
+        }
+        Move(fDeltaTime, fForward, fSide, fOmega, mClass->mAcceleration * fAccelScale);
+
+        if (!(mFlags & flags_isGrounded))
+        {
+            if (!(mFlags & flags_fallTimer))
+            {
+                mFlags |= flags_fallTimer;
+                mStateTimer = 0.0f;
+            }
+            if (mStateTimer > 0.3f)
+            {
+                Stand();
+                mStateTimer = 0.3f;
+            }
+        }
+        else
+        {
+            mFlags &= ~flags_fallTimer;
+        }
+
+        if (mPlayerId >= 0)
+        {
+            if (mControlSpecialMove.IsDown() && CheckMoveControlForRoll(fThrust, fStrafe))
+            {
+                RollUsingEnergy();
+            }
+            else if ((mControlCrouch.Tapped() || mControlCrouch.HeldAndReleased()) && mStateTimer > 0.15f)
+            {
+                Stand();
+            }
+            else if (mControlJump.IsPressed() && mStateTimer > 0.5f)
+            {
+                Stand();
+            }
+        }
+        break;
+    }
+    case SoldierState::PRONE:
+    {
+        mStanceIndex = 2;
+        if (fStrafe * fStrafe + fThrust * fThrust > 0.1f * 0.1f)
+        {
+            if (mControlFire[0].IsDown())
+            {
+                mControlFire[0].Clear();
+            }
+            if (mControlFire[1].IsDown())
+            {
+                mControlFire[1].Clear();
+            }
+            if (m_bPrimaryWeaponIsMelee)
+            {
+                mControlReload.Clear();
+            }
+        }
+        const EntitySoldierClass* pClass = mClass;
+        fThrust = fThrust * (fThrust > 0.0f ? pClass->mMaxSpeed : pClass->mMaxStrafeSpeed) * pClass->mThrustFactor[2];
+        fStrafe = -(pClass->mMaxStrafeSpeed * fStrafe * pClass->mStrafeFactor[2]);
+        if (fOverrideBlend >= 1.0f)
+        {
+            fThrust = fOverrideForward;
+            fStrafe = fOverrideStrafe;
+        }
+        else if (fOverrideBlend > 0.0f)
+        {
+            fThrust = (fOverrideForward - fThrust) * fOverrideBlend + fThrust;
+            fStrafe = (fOverrideStrafe - fStrafe) * fOverrideBlend + fStrafe;
+        }
+        float fOmega = GetOmega(pClass->mTurnFactor[2] * fTurn);
+        float fAccelScale = 1.0f;
+        if (!(mInputLockTime <= 0.0f) && (m_uiInputLockMask & INPUTLOCK_MOVEMENT))
+        {
+            fAccelScale = m_bSlide ? 0.05f : 1.7f;
+        }
+        Move(fDeltaTime, fThrust, fStrafe, fOmega, mClass->mAcceleration * fAccelScale);
+
+        if (!(mFlags & flags_isGrounded))
+        {
+            if (!(mFlags & flags_fallTimer))
+            {
+                mFlags |= flags_fallTimer;
+                mStateTimer = 0.0f;
+            }
+            if (mStateTimer > 0.3f)
+            {
+                SetState(SoldierState::FALL);
+            }
+        }
+        else
+        {
+            mFlags &= ~flags_fallTimer;
+        }
+
+        if (mPlayerId >= 0)
+        {
+            if (mControlCrouch.IsPressed() || (mControlJump.IsPressed() && mStateTimer > 0.5f))
+            {
+                Stand();
             }
         }
         break;
@@ -6856,8 +6592,8 @@ bool EntitySoldier::Update(float fDeltaTime)
         bool bCanJetJump = false;
         if (IsAlive())
         {
-            int iFactor = mState == SoldierState::FLY ? 7 : 4;
             bCanJetJump = mState != SoldierState::FLY;
+            int iFactor = bCanJetJump ? 4 : 7;
             float fOmega = GetOmega(mClass->mTurnFactor[iFactor] * fTurn);
             float fForward;
             float fSide;
@@ -6865,7 +6601,7 @@ bool EntitySoldier::Update(float fDeltaTime)
             {
                 fForward = fOverrideForward;
                 fSide = fOverrideStrafe;
-                if (fOverrideBlend < 1.0f)
+                if (!(fOverrideBlend >= 1.0f))
                 {
                     fForward = (fForward - 0.0f) * fOverrideBlend + 0.0f;
                     fSide = (fSide - 0.0f) * fOverrideBlend + 0.0f;
@@ -6887,7 +6623,7 @@ bool EntitySoldier::Update(float fDeltaTime)
         float fCeiling = AIUtil::gMaxPlayerFlyHeight - mMatrix.m[3][1];
         if (fCeiling < 5.0f)
         {
-            mVelocity.y = (5.0f - fCeiling) * -10.0f * fDeltaTime + mVelocity.y;
+            mVelocity.AddY((5.0f - fCeiling) * -10.0f * fDeltaTime);
         }
 
         if (mStateTimer > 0.3f && (mFlags & flags_isGrounded))
@@ -6907,7 +6643,7 @@ bool EntitySoldier::Update(float fDeltaTime)
             {
                 SetState(SoldierState::BOUNCE);
             }
-            if (FoleyFXSoldier* pFoley = static_cast<FoleyFXSoldier*>(GetFoleyFX()))
+            if (FoleyFXSoldier* pFoley = (FoleyFXSoldier*)GetFoleyFX())
             {
                 pFoley->mBodyFall.Play(&mMatrix.GetTranslation(), &mVelocity, false, true);
             }
@@ -7005,7 +6741,7 @@ bool EntitySoldier::Update(float fDeltaTime)
         float fCeiling = AIUtil::gMaxPlayerFlyHeight - mMatrix.m[3][1];
         if (fCeiling < 5.0f)
         {
-            mVelocity.y = (5.0f - fCeiling) * -10.0f * fDeltaTime + mVelocity.y;
+            mVelocity.AddY((5.0f - fCeiling) * -10.0f * fDeltaTime);
         }
 
         if (mFlags & flags_isGrounded)
@@ -7032,18 +6768,19 @@ bool EntitySoldier::Update(float fDeltaTime)
         }
         float fOmega = GetOmega(mClass->mTurnFactor[7] * fTurn);
         float fAcceleration = mClass->mAcceleration;
+        const PblVector3& vVelocity = mVelocity;
         float fForward = mClass->mThrustFactor[7] * fThrust * fAcceleration -
-                         (mVelocity.y * mMatrix.m[2][1] * 2.5f + mVelocity.x * mMatrix.m[2][0] * 2.5f +
-                          mVelocity.z * mMatrix.m[2][2] * 2.5f);
-        float fSide = mVelocity.z * mMatrix.m[0][2] * -2.5f -
-                      (mVelocity.y * mMatrix.m[0][1] * 2.5f + mVelocity.x * mMatrix.m[0][0] * 2.5f) -
+                         (vVelocity.y * mMatrix.m[2][1] * 2.5f + vVelocity.x * mMatrix.m[2][0] * 2.5f +
+                          vVelocity.z * mMatrix.m[2][2] * 2.5f);
+        float fSide = vVelocity.z * mMatrix.m[0][2] * -2.5f -
+                      (vVelocity.y * mMatrix.m[0][1] * 2.5f + vVelocity.x * mMatrix.m[0][0] * 2.5f) -
                       mClass->mStrafeFactor[7] * fStrafe * fAcceleration;
         MoveOffGround(fDeltaTime, fOmega, fForward, fSide);
         if (mStateTimer > 0.5f &&
             (mVelocity.x * mVelocity.x + mVelocity.z * mVelocity.z < 16.0f || mStateTimer >= 0.75f))
         {
             SetState(SoldierState::BOUNCE);
-            if (FoleyFXSoldier* pFoley = static_cast<FoleyFXSoldier*>(GetFoleyFX()))
+            if (FoleyFXSoldier* pFoley = (FoleyFXSoldier*)GetFoleyFX())
             {
                 pFoley->mBodyFall.Play(&mMatrix.GetTranslation(), &mVelocity, false, true);
             }
@@ -7097,31 +6834,27 @@ bool EntitySoldier::Update(float fDeltaTime)
         }
 
         const PblVector3& vFront = GetMatrix().GetZAxis();
-        float fForwardSpeed = mVelocity.y * vFront.y + mVelocity.x * vFront.x + mVelocity.z * vFront.z;
+        float fForwardSpeed = DotProduct(mVelocity, vFront);
         const PblVector3& vRight = GetMatrix().GetXAxis();
-        float fSideSpeed = mVelocity.y * vRight.y + mVelocity.x * vRight.x + mVelocity.z * vRight.z;
+        float fSideSpeed = DotProduct(mVelocity, vRight);
         float fSpeedSq = fSideSpeed * fSideSpeed + fForwardSpeed * fForwardSpeed;
         float fOmega = 0.0f;
-        if (fSpeedSq > 0.01f)
+        if (fSpeedSq > 0.1f * 0.1f)
         {
             // GLOBAL: SWBF2 0x01faa94c
-            static const float sMaxSoldierTurnRate = PblMath::fTwoPi * 3.0f;
-            float fAngle = (float)atan2(fSideSpeed, fForwardSpeed);
-            if (fAngle > sMaxSoldierTurnRate * fDeltaTime)
+            static const float sMaxSoldierTurnRate = PblMath::fPi * 6.0f;
+            fOmega = atan2f(fSideSpeed, fForwardSpeed);
+            if (fOmega > sMaxSoldierTurnRate * fDeltaTime)
             {
                 fOmega = sMaxSoldierTurnRate;
             }
-            else if (-(sMaxSoldierTurnRate * fDeltaTime) > fAngle)
+            else if (-(sMaxSoldierTurnRate * fDeltaTime) > fOmega)
             {
                 fOmega = -sMaxSoldierTurnRate;
             }
-            else
+            else if (fDeltaTime > 0.0f)
             {
-                fOmega = fAngle;
-                if (fDeltaTime > 0.0f)
-                {
-                    fOmega = fAngle / fDeltaTime;
-                }
+                fOmega = fOmega / fDeltaTime;
             }
         }
         float fAcceleration = mClass->mAcceleration;
@@ -7137,7 +6870,7 @@ bool EntitySoldier::Update(float fDeltaTime)
             {
                 Stand(false);
             }
-            if (FoleyFXSoldier* pFoley = static_cast<FoleyFXSoldier*>(GetFoleyFX()))
+            if (FoleyFXSoldier* pFoley = (FoleyFXSoldier*)GetFoleyFX())
             {
                 pFoley->mBodyFall.Play(&mMatrix.GetTranslation(), &mVelocity, false, true);
             }
@@ -7193,17 +6926,14 @@ bool EntitySoldier::Update(float fDeltaTime)
         // GLOBAL: SWBF2 0x01faa970
         static const float CHOKE_MAX_ROTATE_RATE = PblMath::fPi;
         float fOmega = 0.0f;
-        float fFront = m_vChokeDir.x * mMatrix.m[2][0] + m_vChokeDir.y * mMatrix.m[2][1] + m_vChokeDir.z * mMatrix.m[2][2];
+        float fFront = DotProduct(m_vChokeDir, mMatrix.GetZAxis());
         if (fFront < 0.7071f)
         {
-            fOmega = m_vChokeDir.x * mMatrix.m[0][0] + m_vChokeDir.y * mMatrix.m[0][1] + m_vChokeDir.z * mMatrix.m[0][2] > 0.0f
-                         ? CHOKE_MAX_ROTATE_RATE
-                         : -CHOKE_MAX_ROTATE_RATE;
+            fOmega = DotProduct(m_vChokeDir, mMatrix.GetXAxis()) > 0.0f ? CHOKE_MAX_ROTATE_RATE : -CHOKE_MAX_ROTATE_RATE;
         }
         else if (fFront < 0.99f)
         {
-            fOmega = (m_vChokeDir.x * mMatrix.m[0][0] + m_vChokeDir.y * mMatrix.m[0][1] + m_vChokeDir.z * mMatrix.m[0][2]) *
-                     CHOKE_MAX_ROTATE_RATE * 1.4142f;
+            fOmega = DotProduct(m_vChokeDir, mMatrix.GetXAxis()) * CHOKE_MAX_ROTATE_RATE * 1.4142f;
         }
         Move(fDeltaTime, 0.0f, 0.0f, fOmega, 36.0f);
         if (mStateTimer > 0.5f)
@@ -7213,34 +6943,39 @@ bool EntitySoldier::Update(float fDeltaTime)
         break;
     }
     case SoldierState::DEAD:
+    {
+        mStanceIndex = 2;
+        if (mControlFire[0].IsDown())
+        {
+            mControlFire[0].Clear();
+        }
+        if (mControlFire[1].IsDown())
+        {
+            mControlFire[1].Clear();
+        }
+        if (m_bPrimaryWeaponIsMelee)
+        {
+            mControlReload.Clear();
+        }
+
+        float fTime = mStateTimer < 1.0f ? mStateTimer : 1.0f;
+        if (IsInCollisionList())
+        {
+            Move(fDeltaTime, 0.0f, 0.0f, 0.0f, fTime * 100.0f * fTime);
+        }
+        if (mStateTimer > 4.0f || mVanishing)
+        {
+            RemoveFromCollisionManager();
+            if (!(NetGame::IsEnabled() && NetGame::IsClient()))
+            {
+                return false;
+            }
+        }
+        break;
+    }
     case SoldierState::HERO_FLEE:
     {
-        if (mState == SoldierState::DEAD)
-        {
-            mStanceIndex = 2;
-            if (mControlFire[0].IsDown())
-            {
-                mControlFire[0].Clear();
-            }
-            if (mControlFire[1].IsDown())
-            {
-                mControlFire[1].Clear();
-            }
-            if (m_bPrimaryWeaponIsMelee)
-            {
-                mControlReload.Clear();
-            }
-
-            float fTime = mStateTimer < 1.0f ? mStateTimer : 1.0f;
-            if (IsInCollisionList())
-            {
-                Move(fDeltaTime, 0.0f, 0.0f, 0.0f, fTime * 100.0f * fTime);
-            }
-        }
-        else
-        {
-            mStanceIndex = 1;
-        }
+        mStanceIndex = 1;
         if (mStateTimer > 4.0f || mVanishing)
         {
             RemoveFromCollisionManager();
@@ -7277,13 +7012,13 @@ bool EntitySoldier::Update(float fDeltaTime)
         pWeapon->OverrideAimer();
     }
 
-    if (mState == SoldierState::DEAD)
+    if (mState != SoldierState::DEAD)
     {
-        SetCollisionModel(&mClass->mDeadCollision);
+        SetCollisionStance(mStanceIndex);
     }
     else
     {
-        SetCollisionStance(mStanceIndex);
+        SetCollisionModel(&mClass->mDeadCollision);
     }
     RecalculateAABB();
 
@@ -7306,19 +7041,19 @@ bool EntitySoldier::Update(float fDeltaTime)
     if (IsAlive())
     {
 
-        for (int iSwitch = 0; iSwitch < 2; ++iSwitch)
+        for (int iSwitch = 0; iSwitch < kNumWeaponChannels; ++iSwitch)
         {
             MedalsMgr* pMedals = 0;
             if (mCharacter)
             {
                 pMedals = mCharacter->mMedalsMgr;
             }
-            int iIndex = mWeaponIndex[iSwitch];
-            if (iIndex < 0 || mControlSwitch[iSwitch] == 0.0f)
+            if (mWeaponIndex[iSwitch] < 0 || mControlSwitch[iSwitch] == 0.0f)
             {
                 continue;
             }
 
+            int iIndex = mWeaponIndex[iSwitch];
             int iNew = iIndex;
             bool bAvailable;
             do
@@ -7356,7 +7091,7 @@ bool EntitySoldier::Update(float fDeltaTime)
                         bAvailable = pClass->mMedalsTypeToUnlock == -1;
                     }
                 }
-            } while (!((iNew == iIndex || mClass->mWeaponChannel[iNew] == iSwitch) && bAvailable));
+            } while (!((iNew == mWeaponIndex[iSwitch] || mClass->mWeaponChannel[iNew] == iSwitch) && bAvailable));
 
             if (iNew == iIndex || !mWeapon[iNew])
             {
@@ -7368,7 +7103,7 @@ bool EntitySoldier::Update(float fDeltaTime)
             else
             {
                 Weapon* pOld = mWeapon[iIndex];
-                if (pOld->mSelectedFlag)
+                if (pOld->IsSelected())
                 {
                     pOld->Deselect(iSwitch, false);
                     mWeaponIndex[iSwitch] = (char)iNew;
@@ -7413,10 +7148,10 @@ bool EntitySoldier::Update(float fDeltaTime)
                                            fDelay + GameLoop::GetMissionTime());
                         AI::EventType eCommand = AI::EVT_Vehicle_WaitForPickUp;
                         EventManager::CharacterEvent::mIssueAICommand.Trigger(*mCharacter, eCommand);
-                        const unsigned short* pText = RedLocalizeDB::Find(0xa0590ed7, false);
+                        const unsigned short* pText = RedLocalizeDB::Find(0xa0590ed7 /* "game.squadcommand.hold" */, false);
                         for (unsigned int i = 0; i < NetGame::GetNumLocalPlayers(); ++i)
                         {
-                            if (NetGame::GetLocalPlayer(i) == mCharacter)
+                            if (GetCharacter() == NetGame::GetLocalPlayer(i))
                             {
                                 MessageDisplay::Instance(i, MessageDisplay::DISPLAY_SYSTEM_MSG)
                                     ->AddMessage(pText, RedColor::CYAN);
@@ -7443,10 +7178,10 @@ bool EntitySoldier::Update(float fDeltaTime)
                         AI::VOHelper::Play(AI::VOT_SC_Follow, this, 0, pTarget, 0.0f);
                         AI::EventType eCommand = AI::EVT_SC_FollowChr;
                         EventManager::CharacterEvent::mIssueAICommand.Trigger(*mCharacter, eCommand);
-                        const unsigned short* pText = RedLocalizeDB::Find(0x731fd493, false);
+                        const unsigned short* pText = RedLocalizeDB::Find(0x731fd493 /* "game.squadcommand.follow" */, false);
                         for (unsigned int i = 0; i < NetGame::GetNumLocalPlayers(); ++i)
                         {
-                            if (NetGame::GetLocalPlayer(i) == mCharacter)
+                            if (GetCharacter() == NetGame::GetLocalPlayer(i))
                             {
                                 MessageDisplay::Instance(i, MessageDisplay::DISPLAY_SYSTEM_MSG)
                                     ->AddMessage(pText, RedColor::CYAN);
@@ -7460,10 +7195,10 @@ bool EntitySoldier::Update(float fDeltaTime)
                         AI::VOHelper::Play(AI::VOT_SC_StopFollow, this, 0, pTarget, 0.0f);
                         AI::EventType eCommand = AI::EVT_SC_StopFollowChr;
                         EventManager::CharacterEvent::mIssueAICommand.Trigger(*mCharacter, eCommand);
-                        const unsigned short* pText = RedLocalizeDB::Find(0x0e0280e5, false);
+                        const unsigned short* pText = RedLocalizeDB::Find(0x0e0280e5 /* "game.squadcommand.moveout" */, false);
                         for (unsigned int i = 0; i < NetGame::GetNumLocalPlayers(); ++i)
                         {
-                            if (NetGame::GetLocalPlayer(i) == mCharacter)
+                            if (GetCharacter() == NetGame::GetLocalPlayer(i))
                             {
                                 MessageDisplay::Instance(i, MessageDisplay::DISPLAY_SYSTEM_MSG)
                                     ->AddMessage(pText, RedColor::CYAN);
@@ -7489,10 +7224,10 @@ bool EntitySoldier::Update(float fDeltaTime)
                     AI::VOHelper::Play(AI::VOT_SC_StopFollow, this, 0, 0, 0.0f);
                     AI::EventType eCommand = AI::EVT_SC_StopFollowChr;
                     EventManager::CharacterEvent::mIssueAICommand.Trigger(*mCharacter, eCommand);
-                    const unsigned short* pText = RedLocalizeDB::Find(0x0e0280e5, false);
+                    const unsigned short* pText = RedLocalizeDB::Find(0x0e0280e5 /* "game.squadcommand.moveout" */, false);
                     for (unsigned int i = 0; i < NetGame::GetNumLocalPlayers(); ++i)
                     {
-                        if (NetGame::GetLocalPlayer(i) == mCharacter)
+                        if (GetCharacter() == NetGame::GetLocalPlayer(i))
                         {
                             MessageDisplay::Instance(i, MessageDisplay::DISPLAY_SYSTEM_MSG)
                                 ->AddMessage(pText, RedColor::CYAN);
@@ -7584,7 +7319,7 @@ bool EntitySoldier::Stand()
                 FirstPerson::ProneToStand(iFirstPerson);
             }
         }
-        if (FoleyFXSoldier* pFoley = static_cast<FoleyFXSoldier*>(GetFoleyFX()))
+        if (FoleyFXSoldier* pFoley = (FoleyFXSoldier*)GetFoleyFX())
         {
             pFoley->mStand.Play(&mMatrix.GetTranslation(), &mVelocity, false, true);
         }
@@ -7620,7 +7355,7 @@ bool EntitySoldier::Stand()
         {
             FirstPerson::Land(iFirstPerson);
         }
-        if (FoleyFXSoldier* pFoley = static_cast<FoleyFXSoldier*>(GetFoleyFX()))
+        if (FoleyFXSoldier* pFoley = (FoleyFXSoldier*)GetFoleyFX())
         {
             pFoley->mLand.Play(&mMatrix.GetTranslation(), &mVelocity, false, true);
         }
@@ -7684,7 +7419,7 @@ bool EntitySoldier::Crouch()
     {
         return false;
     }
-    if (FoleyFXSoldier* pFoley = static_cast<FoleyFXSoldier*>(GetFoleyFX()))
+    if (FoleyFXSoldier* pFoley = (FoleyFXSoldier*)GetFoleyFX())
     {
         pFoley->mSquat.Play(&mMatrix.GetTranslation(), &mVelocity, false, true);
     }
@@ -7739,7 +7474,7 @@ bool EntitySoldier::Jump()
         mVelocity += vRight * ((mClass->mJumpStrafeSpeedFactor - 1.0f) * fSide);
     }
 
-    if (FoleyFXSoldier* pFoley = static_cast<FoleyFXSoldier*>(GetFoleyFX()))
+    if (FoleyFXSoldier* pFoley = (FoleyFXSoldier*)GetFoleyFX())
     {
         mCurFoleySound = pFoley->mJump;
         mLongFoleySound.Play(&mCurFoleySound, &mMatrix.GetTranslation(), &mVelocity, true);
@@ -8299,23 +8034,23 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
     if (pWeapon)
     {
         bool bOffhand = false;
-        if (pWeapon->mClass->mIsOffhand)
+        if (!pWeapon->mClass->mIsOffhand)
         {
-            if (mActiveChannel == 1 && mWeaponIndex[0] >= 0 && mWeapon[mWeaponIndex[0]])
+            if (pWeapon->IsMeleeThrow() && mActiveChannel == 1 && mWeaponIndex[0] >= 0 &&
+                mWeapon[mWeaponIndex[0]])
             {
                 pAnimWeapon = mWeapon[mWeaponIndex[0]];
-                bOffhand = true;
-            }
-            else if (mActiveIndex != 0 && mWeapon[0])
-            {
-                pAnimWeapon = mWeapon[0];
-                bOffhand = true;
             }
         }
-        else if (pWeapon->IsMeleeThrow() && mActiveChannel == 1 && mWeaponIndex[0] >= 0 &&
-                 mWeapon[mWeaponIndex[0]])
+        else if (mActiveChannel == 1 && mWeaponIndex[0] >= 0 && mWeapon[mWeaponIndex[0]])
         {
             pAnimWeapon = mWeapon[mWeaponIndex[0]];
+            bOffhand = true;
+        }
+        else if (mActiveIndex != 0 && mWeapon[0])
+        {
+            pAnimWeapon = mWeapon[0];
+            bOffhand = true;
         }
 
         if (pAnimWeapon->mSoldierAnimationMap != SoldierAnimationBank::INVALID_MAP)
@@ -8325,16 +8060,18 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
 
         if (pAnimWeapon->IsMelee())
         {
-            WeaponMelee* pMelee = static_cast<WeaponMelee*>(pAnimWeapon);
-            bool bAlert = pMelee->IsAnimationVelocityAligned();
-            if (!bAlert)
+            WeaponMelee* pMelee = (WeaponMelee*)pAnimWeapon;
+            if (pMelee->IsAnimationVelocityAligned())
             {
-                unsigned char eAnim = pMelee->GetWeaponMeleeAnimation();
-                const SoldierAnimation* pAnim = SoldierAnimatorClass::Instance()->GetUpperBodyAnimation(
-                    (SoldierAnimationBank::MAP)pAnimWeapon->mSoldierAnimationMap, eAnim);
-                bAlert = pAnim && pAnim->GetAimType() == SoldierAnimationData::AIM_TORSO;
+                SetAlert(true);
             }
-            SetAlert(bAlert);
+            else
+            {
+                const SoldierAnimation* pAnim = SoldierAnimatorClass::Instance()->GetUpperBodyAnimation(
+                    (SoldierAnimationBank::MAP)pAnimWeapon->mSoldierAnimationMap,
+                    pMelee->GetWeaponMeleeAnimation());
+                SetAlert(pAnim && pAnim->m_pAnimData->m_uiAimType == SoldierAnimationData::AIM_TORSO);
+            }
         }
         else if (!SoldierAnimationBank::HasAlertState(
                      (SoldierAnimationBank::WEAPON)pAnimWeapon->GetSoldierAnimationWeapon()))
@@ -8366,11 +8103,26 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
     }
 
     PblVector3 vMovement = GetPosition() - m_vLastPosition;
-    const float fMinMove = mClass->mSkeletonRootScale * fDeltaTime * (mMoveAnim == MOVEANIM_IDLE ? 0.3f : 0.2f);
+    float fMoveFactor;
+    if (mMoveAnim == MOVEANIM_IDLE)
+    {
+        fMoveFactor = 0.3f;
+    }
+    else
+    {
+        fMoveFactor = 0.2f;
+    }
+    float fMinMove = mClass->mSkeletonRootScale * fDeltaTime * fMoveFactor;
     int iMove = 0;
     m_vLastPosition = GetPosition();
     float fDistSq = SquaredLengthXZ(vMovement);
-    if (mState >= SoldierState::SPRINT || fMinMove * fMinMove > fDistSq)
+    if (mState >= SoldierState::SPRINT)
+    {
+        mLegAngleForward = 1;
+        mMoveAnim = MOVEANIM_IDLE;
+        mLegAngle = 0.0f;
+    }
+    else if (fMinMove * fMinMove > fDistSq)
     {
         mLegAngleForward = 1;
         mMoveAnim = MOVEANIM_IDLE;
@@ -8379,10 +8131,10 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
     else
     {
         iMove = 1;
-        float fDeltaX = DotProduct(vMovement, mMatrix.GetXAxis());
-        float fDeltaZ = DotProduct(vMovement, mMatrix.GetZAxis());
-        float fAngle = atan2f(fDeltaX, fDeltaZ);
-        if (!IsAlert())
+        const PblVector3& vRight = mMatrix.GetXAxis();
+        const PblVector3& vFront = mMatrix.GetZAxis();
+        float fAngle = atan2f(DotProduct(vMovement, vRight), DotProduct(vMovement, vFront));
+        if (!(mAlertTimer > 0.0f))
         {
             static const float sLegMax = PblMath::fHalfPi * 0.8f;
             static const float sLegMin = -sLegMax;
@@ -8407,7 +8159,18 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
                 mLegAngleForward = 0;
                 iMove = 2;
             }
-            mLegAngle = Clamp(fAngle, sLegMin, sLegMax);
+            if (sLegMin > fAngle)
+            {
+                mLegAngle = sLegMin;
+            }
+            else if (fAngle > sLegMax)
+            {
+                mLegAngle = sLegMax;
+            }
+            else
+            {
+                mLegAngle = fAngle;
+            }
         }
         else
         {
@@ -8427,7 +8190,14 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
                     mLegAngleForward = 0;
                     iMove = 2;
                 }
-                fAngle = Clamp(fAngle, sLegMin, sLegMax);
+                if (sLegMin > fAngle)
+                {
+                    fAngle = sLegMin;
+                }
+                else if (fAngle > sLegMax)
+                {
+                    fAngle = sLegMax;
+                }
             }
             else if (mAimer.GetDirection().z * vMovement.z + vMovement.x * mAimer.GetDirection().x < 0.0f)
             {
@@ -8442,7 +8212,7 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
             mLegAngle = fAngle;
         }
 
-        const float fRun = mClass->mMaxSpeed * fDeltaTime * (mMoveAnim == MOVEANIM_RUN ? 0.71f : 0.78f);
+        float fRun = mClass->mMaxSpeed * fDeltaTime * (mMoveAnim == MOVEANIM_RUN ? 0.71f : 0.78f);
         if (fDistSq > fRun * fRun)
         {
             if (mLegAngleForward)
@@ -8458,10 +8228,10 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
     }
 
     const SoldierOrdnanceCollisionTable& table =
-        SoldierAnimatorClass::Instance()->GetSoldierOrdnanceCollisionTable(m_eSoldierAnimationMap);
+        SoldierAnimatorClass::Instance()->m_aOrdCollTable[m_eSoldierAnimationMap];
     const PblVector3& vHeadOffset = mClass->m_vCollisionHeadOffset;
     const PblVector3& vTorsoOffset = mClass->m_vCollisionTorsoOffset;
-    const float fScale = mClass->mCollisionRootScale;
+    float fScale = mClass->mCollisionRootScale;
     PblMatrix mBody = gMatrixIdentity;
     int iCrouch = 0;
     switch (mState)
@@ -8471,7 +8241,7 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
 
     case SoldierState::STAND:
     case SoldierState::SPRINT:
-        if (IsAlert() && mAimer.GetDirection().y != 0.0f)
+        if (mAlertTimer > 0.0f && mAimer.GetDirection().y != 0.0f)
         {
 
             int i = iMove + 4 + iCrouch;
@@ -8497,7 +8267,15 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
             static const float sYawMin = PblMath::fHalfPi * -0.8f;
             static const float sYawMax = PblMath::fHalfPi * 0.8f;
             int i = iMove + iCrouch;
-            float fYaw = Clamp(mLegAngle, sYawMin, sYawMax);
+            float fYaw = mLegAngle;
+            if (sYawMin > fYaw)
+            {
+                fYaw = sYawMin;
+            }
+            else if (fYaw > sYawMax)
+            {
+                fYaw = sYawMax;
+            }
             float fSin;
             float fCos;
             PblMath::SinCos(&fSin, &fCos, fYaw);
@@ -8593,11 +8371,6 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
 // SYNTHETIC: SWBF2 0x004fac1e
 // ?GetMatrix@EntitySoldier@@WCDE@BEABVPblMatrix@@XZ
 
-class PowerupItem
-{
-public:
-    static MemoryPool sMemoryPool;
-};
 
 namespace AIDebug
 {
@@ -8733,6 +8506,106 @@ void EntitySoldier::TriggerEnergyGainEffect()
     }
 }
 
+// FUNCTION: SWBF2 0x004e0090
+void EntitySoldier::TriggerBuffHealthEffect()
+{
+    if (mBuffHealthTimer > 0.0f && GetInvisibilityFactor() == 0.0f &&
+        (IsThreadActive() || GetObjectData(0) == COLL_ATTACHED))
+    {
+        if (mClass->mBuffHealthEffect && mBuffHealthEffectHandle == 0)
+        {
+            if (FLEffectClass* pEffectClass = FLEffect::Get(mClass->mBuffHealthEffect))
+            {
+                if (FLEffectObject* pEffect = pEffectClass->BuildEffect())
+                {
+                    pEffect->AttachEffectToObject(this, true);
+                    mBuffHealthEffectHandle = pEffect;
+                }
+            }
+        }
+    }
+    else if (mBuffHealthEffectHandle)
+    {
+        mBuffHealthEffectHandle->StopAndFinish();
+        mBuffHealthEffectHandle = NULL;
+    }
+}
+
+// FUNCTION: SWBF2 0x004e01d0
+void EntitySoldier::TriggerBuffOffenseEffect()
+{
+    if (mBuffOffenseTimer > 0.0f && GetInvisibilityFactor() == 0.0f &&
+        (IsThreadActive() || GetObjectData(0) == COLL_ATTACHED))
+    {
+        if (mClass->mBuffOffenseEffect && mBuffOffenseEffectHandle == 0)
+        {
+            if (FLEffectClass* pEffectClass = FLEffect::Get(mClass->mBuffOffenseEffect))
+            {
+                if (FLEffectObject* pEffect = pEffectClass->BuildEffect())
+                {
+                    pEffect->AttachEffectToObject(this, true);
+                    mBuffOffenseEffectHandle = pEffect;
+                }
+            }
+        }
+    }
+    else if (mBuffOffenseEffectHandle)
+    {
+        mBuffOffenseEffectHandle->StopAndFinish();
+        mBuffOffenseEffectHandle = NULL;
+    }
+}
+
+// FUNCTION: SWBF2 0x004e0310
+void EntitySoldier::TriggerBuffDefenseEffect()
+{
+    if (mBuffDefenseTimer > 0.0f && GetInvisibilityFactor() == 0.0f &&
+        (IsThreadActive() || GetObjectData(0) == COLL_ATTACHED))
+    {
+        if (mClass->mBuffDefenseEffect && mBuffDefenseEffectHandle == 0)
+        {
+            if (FLEffectClass* pEffectClass = FLEffect::Get(mClass->mBuffDefenseEffect))
+            {
+                if (FLEffectObject* pEffect = pEffectClass->BuildEffect())
+                {
+                    pEffect->AttachEffectToObject(this, true);
+                    mBuffDefenseEffectHandle = pEffect;
+                }
+            }
+        }
+    }
+    else if (mBuffDefenseEffectHandle)
+    {
+        mBuffDefenseEffectHandle->StopAndFinish();
+        mBuffDefenseEffectHandle = NULL;
+    }
+}
+
+// FUNCTION: SWBF2 0x004e0450
+void EntitySoldier::TriggerDebuffEffect()
+{
+    if (mDebuffDamageTimer > 0.0f && GetInvisibilityFactor() == 0.0f &&
+        (IsThreadActive() || GetObjectData(0) == COLL_ATTACHED))
+    {
+        if (mClass->mDebuffEffect && mDebuffEffectHandle == 0)
+        {
+            if (FLEffectClass* pEffectClass = FLEffect::Get(mClass->mDebuffEffect))
+            {
+                if (FLEffectObject* pEffect = pEffectClass->BuildEffect())
+                {
+                    pEffect->AttachEffectToObject(this, true);
+                    mDebuffEffectHandle = pEffect;
+                }
+            }
+        }
+    }
+    else if (mDebuffEffectHandle)
+    {
+        mDebuffEffectHandle->StopAndFinish();
+        mDebuffEffectHandle = NULL;
+    }
+}
+
 // FUNCTION: SWBF2 0x004e0590
 void EntitySoldier::ActivateSmolder(float fTimer, bool bVanishDeath, float fDamageRate, const DamageOwner& owner)
 {
@@ -8741,7 +8614,7 @@ void EntitySoldier::ActivateSmolder(float fTimer, bool bVanishDeath, float fDama
         mSmolderTimer = fTimer;
     }
     mSmolderVanishDeath = bVanishDeath;
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < kMaxSmolderEffects; ++i)
     {
         if (mSmolderEffectHandle[i])
         {
@@ -8862,7 +8735,7 @@ void EntitySoldier::TurnOffEffects()
         mInvincibleEffectHandle->StopAndFinish();
         mInvincibleEffectHandle = NULL;
     }
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < kMaxSmolderEffects; ++i)
     {
         if (mSmolderEffectHandle[i])
         {
@@ -8886,7 +8759,7 @@ void EntitySoldier::HealthChangeCallback(bool bArg, float fArg)
 void EntitySoldier::Kill()
 {
     mIsAlive = 0;
-    for (int iChannel = 0; iChannel < 2; ++iChannel)
+    for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
     {
         if (mWeaponIndex[iChannel] >= 0 && mWeapon[mWeaponIndex[iChannel]]->IsSelected())
         {
@@ -9227,7 +9100,7 @@ bool EntitySoldier::Roll()
         mVelocity += vRight * (fScale * fSide);
     }
 
-    if (FoleyFXSoldier* pFoley = static_cast<FoleyFXSoldier*>(GetFoleyFX()))
+    if (FoleyFXSoldier* pFoley = (FoleyFXSoldier*)GetFoleyFX())
     {
         mCurFoleySound = pFoley->mRoll;
         mLongFoleySound.Play(&mCurFoleySound, &mMatrix.GetTranslation(), &mVelocity, true);
@@ -9488,9 +9361,9 @@ bool EntitySoldier::ApplyDamage(const DamageDesc& damage, const PblVector3& vDir
     if (!Damageable::ApplyDamage(damage, vDir, vPos, iBodyPart, uFlags))
     {
         if (iBodyPart == 0 && mDamageOwner.mCharacter && mDamageOwner.mCharacter->IsPlayer() &&
-            static_cast<GameObject*>(mDamageOwner.mGameObject))
+            (GameObject*)mDamageOwner.mGameObject)
         {
-            if (GetAffiliationToMe(static_cast<GameObject*>(mDamageOwner.mGameObject)) < 0)
+            if (GetAffiliationToMe((GameObject*)mDamageOwner.mGameObject) < 0)
             {
                 AI::VOHelper::Play(AI::VOT_HeadshotKill, 0, 0, this, 0.0f);
             }
@@ -9653,7 +9526,7 @@ bool EntitySoldier::EnterControllable(Controllable* pControllable)
     }
     else
     {
-        for (int iChannel = 0; iChannel < 2; ++iChannel)
+        for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
         {
             if (mWeaponIndex[iChannel] >= 0 && mWeapon[mWeaponIndex[iChannel]])
             {
@@ -9692,7 +9565,7 @@ bool EntitySoldier::EnterControllable(Controllable* pControllable)
         }
         mActiveChannel = 0;
         mActiveIndex = mWeaponIndex[mActiveChannel];
-        for (int iChannel = 0; iChannel < 2; ++iChannel)
+        for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
         {
             if (mWeaponIndex[iChannel] >= 0 && mWeapon[mWeaponIndex[iChannel]])
             {
@@ -9754,8 +9627,8 @@ bool EntitySoldier::CyclePosition(bool bForward)
     for (;;)
     {
         if (it && (it->mPilotType == PILOT_VEHICLE || it->mPilotType == PILOT_VEHICLESELF) &&
-            !(pVehicle && pVehicle->GetEntity()->IsRtti(PassengerSlot::rttiHashPassengerSlot) &&
-              it->GetEntity()->IsRtti(PassengerSlot::rttiHashPassengerSlot)))
+            !(pVehicle && pVehicle->GetEntity()->IsRtti(PassengerSlot::GetRtti()) &&
+              it->GetEntity()->IsRtti(PassengerSlot::GetRtti())))
         {
             if (!it->GetPilot())
             {
@@ -9798,7 +9671,7 @@ bool EntitySoldier::CyclePosition(bool bForward)
         {
             SetupController();
         }
-        for (int iChannel = 0; iChannel < 2; ++iChannel)
+        for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
         {
             if (mWeaponIndex[iChannel] >= 0 && mWeapon[mWeaponIndex[iChannel]])
             {
@@ -9830,7 +9703,7 @@ bool EntitySoldier::CyclePosition(bool bForward)
         }
         mActiveChannel = 0;
         mActiveIndex = mWeaponIndex[mActiveChannel];
-        for (int iChannel = 0; iChannel < 2; ++iChannel)
+        for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
         {
             if (mWeaponIndex[iChannel] >= 0 && mWeapon[mWeaponIndex[iChannel]])
             {
@@ -9868,128 +9741,139 @@ bool EntitySoldier::CyclePosition(bool bForward)
 }
 
 // FUNCTION: SWBF2 0x004f1380
-bool EntitySoldier::ExitVehicle(bool bFillVacancy, bool bUpdateMatrix)
+bool EntitySoldier::ExitVehicle(bool bForce, bool bEject)
 {
-    Controllable* vacated = mCharacter->mVehicle;
-    if (!vacated)
+    Controllable* pVehicle = mCharacter->mVehicle;
+    if (!pVehicle)
     {
         return false;
     }
 
-    if (bUpdateMatrix)
+    if (bEject)
     {
-        GameObject* rootObj = vacated->GetGameObject();
-        const CollisionObject* collObj = rootObj->GetCollisionObject();
-        PblVector3 collCenter = collObj->GetCollisionCenter();
-        float collDist = collObj->GetCollisionRadius() + 0.68400007f;
-        PblVector3 ejectPoint[9];
-        ejectPoint[0].Set(0.0f, 1.0f, -collDist);
-        ejectPoint[1].Set(-collDist, 1.0f, 0.0f);
-        ejectPoint[2].Set(collDist, 1.0f, 0.0f);
-        ejectPoint[3].Set(-collDist * 0.7071f, 1.0f, -collDist * 0.7071f);
-        ejectPoint[4].Set(collDist * 0.7071f, 1.0f, -collDist * 0.7071f);
-        ejectPoint[5].Set(collDist * 0.7071f, 1.0f, collDist * 0.7071f);
-        ejectPoint[6].Set(-collDist * 0.7071f, 1.0f, collDist * 0.7071f);
-        ejectPoint[7].Set(0.0f, 1.0f, collDist);
-        ejectPoint[8].Set(0.0f, 1.0f, 0.0f);
-        PblMatrix rootMatrix = NormalMatrix(vacated->GetMatrix().GetZAxis(), rootObj->GetMatrix().GetYAxis(),
-                                            rootObj->GetMatrix().GetTranslation());
-        PblVector3 bestPoint = rootMatrix.GetTranslation();
-        const GameObject* ignoreObj = rootObj;
-        CollisionObject* hitObj;
+        GameObject* pObject = pVehicle->GetGameObject();
+        const CollisionObject* pCollision = pObject->GetCollisionObject();
+        PblVector3 vCenter = pCollision->GetCollisionCenter();
+
+        float fRadius = pCollision->GetCollisionRadius() + 0.68400007f;
+        float fDiag = fRadius * 0.7071f;
+        float fNegDiag = -fRadius * 0.7071f;
+        PblVector3 avPoint[9] = {
+            PblVector3(0.0f, 1.0f, -fRadius), PblVector3(-fRadius, 1.0f, 0.0f), PblVector3(fRadius, 1.0f, 0.0f),
+            PblVector3(fNegDiag, 1.0f, fNegDiag), PblVector3(fDiag, 1.0f, fNegDiag),  PblVector3(fDiag, 1.0f, fDiag),
+            PblVector3(fNegDiag, 1.0f, fDiag),  PblVector3(0.0f, 1.0f, fRadius),  PblVector3(0.0f, 1.0f, 0.0f)
+        };
+        PblMatrix mSeat = NormalMatrix(pVehicle->GetMatrix().GetZAxis(), pObject->GetMatrix().GetYAxis(),
+                                     pObject->GetMatrix().GetTranslation());
+        PblVector3 vExit = mSeat.GetTranslation();
+        const GameObject* apIgnore[1] = { pObject };
+        CollisionObject* pHit;
         for (int i = 0; i < 9; ++i)
         {
-            ejectPoint[i] = rootMatrix.ApplyTransform(ejectPoint[i]);
-            if (i != 8 && CollisionManager::RayHit(collCenter, ejectPoint[i], hitObj, 0, &ignoreObj, 1, 0x98, false) != 1.0f)
+            PblVector3 vWorld;
+            D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vWorld), reinterpret_cast<const D3DXVECTOR3*>(&avPoint[i]), reinterpret_cast<const D3DXMATRIX*>(&mSeat));
+            avPoint[i] = vWorld;
+            if (i != 8 && CollisionManager::RayHit(vCenter, avPoint[i], pHit, 0, apIgnore, 1, 0x98, false) != 1.0f)
             {
                 continue;
             }
 
-            PblVector3 start[5] = {
-                ejectPoint[i],
-                ejectPoint[i] + PblVector3(0.72f, 0.0f, 0.72f),
-                ejectPoint[i] + PblVector3(0.72f, 0.0f, -0.72f),
-                ejectPoint[i] + PblVector3(-0.72f, 0.0f, 0.72f),
-                ejectPoint[i] + PblVector3(-0.72f, 0.0f, -0.72f)
-            };
-            int highestY = -1;
+            const PblVector3& v = avPoint[i];
+            PblVector3 avFoot[5];
+            avFoot[0] = v;
+            avFoot[1] = PblVector3(v.x + 0.72f, v.y + 0.0f, v.z + 0.72f);
+            avFoot[2] = PblVector3(v.x + 0.72f, v.y + 0.0f, v.z - 0.72f);
+            avFoot[3] = PblVector3(v.x - 0.72f, v.y + 0.0f, v.z + 0.72f);
+            avFoot[4] = PblVector3(v.x - 0.72f, v.y + 0.0f, v.z - 0.72f);
+            int iBest = -1;
             for (int j = 0; j < 5; ++j)
             {
-                float dist = CollisionManager::RayHit(start[j], gVectorUnitY, 5.0f, hitObj, 0, 0, 0, 0x98, true);
-                start[j].AddY(dist * 5.0f - 0.1f);
-                dist = CollisionManager::RayHit(start[j], -gVectorUnitY, 15.0f, hitObj, 0, 0, 0, 0x98, true);
-                if (dist < 1.0f)
+                float fUp = CollisionManager::RayHit(avFoot[j], gVectorUnitY, 5.0f, pHit, 0, 0, 0, 0x98, true);
+                avFoot[j].y += fUp * 5.0f - 0.1f;
+                PblVector3 vDown(-gVectorUnitY.x, -gVectorUnitY.y, -gVectorUnitY.z);
+                float fDown = CollisionManager::RayHit(avFoot[j], vDown, 15.0f, pHit, 0, 0, 0, 0x98, true);
+                if (fDown < 1.0f)
                 {
-                    start[j].AddY(dist * -10.0f);
-                    if (highestY < 0 || start[j].y > start[highestY].y)
+                    avFoot[j].y = fDown * -10.0f + avFoot[j].y;
+                    if (iBest < 0 || avFoot[j].y > avFoot[iBest].y)
                     {
-                        highestY = j;
+                        iBest = j;
                     }
                 }
             }
-            if (highestY >= 0)
+            if (iBest >= 0)
             {
-                bestPoint = start[0];
-                bestPoint.y = start[highestY].y;
+                vExit = avFoot[0];
+                vExit.y = avFoot[iBest].y;
                 break;
             }
         }
-        SetMatrix(NormalMatrix(rootMatrix.GetZAxis(), gVectorUnitY, bestPoint));
+        SetMatrix(NormalMatrix(mSeat.GetZAxis(), gVectorUnitY, vExit));
     }
 
     mVelocity.SetAll(0.0f);
-    vacated->SetPilot(0);
+    pVehicle->SetPilot(0);
     mCharacter->SetVehicle(0);
-    if (IsPlayer() && vacated->GetGameObject())
+    if (mPlayerId >= 0 && pVehicle->GetGameObject())
     {
-        vacated->GetGameObject()->ReserveForPlayer(30.0f);
+        pVehicle->GetGameObject()->ReserveForPlayer(30.0f);
     }
 
-    if (bFillVacancy && !vacated->IsSelfPilotable())
+    if (bForce && !pVehicle->IsSelfPilotable())
     {
-        Controllable* movable = 0;
-        for (PblList<Controllable>::Itor itor(&vacated->mNode); itor; ++itor)
+        Controllable* pPassenger = 0;
+        for (PblList<Controllable>::Itor it(&pVehicle->mNode); it; ++it)
         {
-            Controllable* otherPilot = itor;
-            if (otherPilot->IsPilotable() && otherPilot->GetPilot() && !otherPilot->GetPilot()->IsPlayer())
+            Controllable* pSeat = it;
+            if ((pSeat->IsPilotable()) &&
+                pSeat->GetPilot() && pSeat->GetPilot()->mPlayerId < 0)
             {
-                movable = otherPilot;
+                pPassenger = pSeat;
             }
         }
-        if (movable)
+        if (pPassenger)
         {
-            Controllable* otherPilot = movable->GetPilot();
-            movable->SetPilot(0);
-            if (otherPilot->mCharacter)
+            Controllable* pPilot = pPassenger->GetPilot();
+            pPassenger->SetPilot(0);
+            if (pPilot->mCharacter)
             {
-                otherPilot->mCharacter->SetVehicle(vacated);
+                pPilot->mCharacter->SetVehicle(pVehicle);
             }
-            vacated->SetPilot(otherPilot);
+            pVehicle->SetPilot(pPilot);
         }
     }
 
     ClearControllable();
     Stand(false);
-    static const float EJECT_FALL_TIMER = 1.0f - 0.0001f;
-    mStateTimer = EJECT_FALL_TIMER;
+
+    static const float sFallingStartTimer = 1.0f - 0.0001f;
+    mStateTimer = sFallingStartTimer;
     mFlags = (unsigned char)((mFlags & ~flags_isGrounded) | flags_fallTimer);
 
-    if (vacated->GetGameObject())
+    if (pVehicle->GetGameObject())
     {
-        PblVector3 vVelocity = vacated->GetGameObject()->GetVelocity();
-        PblVector3 vEjectDir = GetPosition() - vacated->GetGameObject()->GetPosition();
-        PblVector3 vEjectVelocity = vVelocity * 0.85f;
-        if (SquaredLengthXZ(vEjectDir) > 0.01f)
+        PblVector3 vVelocity = pVehicle->GetGameObject()->GetVelocity();
+        const PblVector3& vFrom = pVehicle->GetGameObject()->GetPosition();
+        const PblVector3& vTo = GetPosition();
+        PblVector3 vAway(vTo.x - vFrom.x, vTo.y - vFrom.y, vTo.z - vFrom.z);
+        PblVector3 vNew(vVelocity.x * 0.85f, vVelocity.y * 0.85f, vVelocity.z * 0.85f);
+        if (vAway.x * vAway.x + vAway.z * vAway.z > 0.01f)
         {
-            vEjectDir.y = 0.0f;
-            vEjectVelocity += Normalize(vEjectDir) * 4.0f;
+            vAway.y = 0.0f;
+            D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vVelocity), reinterpret_cast<const D3DXVECTOR3*>(&vAway));
+            vNew.x += vVelocity.x * 4.0f;
+            vNew.y += vVelocity.y * 4.0f;
+            vNew.z += vVelocity.z * 4.0f;
         }
-        SetVelocity(vEjectVelocity);
+        SetVelocity(vNew);
     }
 
     if (mSoldierAnimator)
     {
-        mSoldierAnimator->Release(*this);
+        if (mSoldierAnimator->mOwner == this)
+        {
+            mSoldierAnimator->mOwner = 0;
+        }
         mSoldierAnimator = 0;
     }
     if (!mCtrl)
@@ -10011,7 +9895,6 @@ bool EntitySoldier::ExitVehicle(bool bFillVacancy, bool bUpdateMatrix)
     NetGame::AddLateFence(mPlayerId);
     return true;
 }
-
 
 // FUNCTION: SWBF2 0x004f2ec0
 void EntitySoldier::SetPilotInfo(const PblMatrix& mMatrixIn, const PblVector3& vVelocity,
@@ -10274,63 +10157,71 @@ void EntitySoldier::UpdateAcklayFoleyFX(const RedPose& pose, const PblMatrix& mW
 
     // GLOBAL: SWBF2 0x0079d070
     static const unsigned int kFootBone[6] = {
-        0xc08d2ca3u, 0xcdce0a7au, 0xc90f17cdu,
-        0x730bf271u, 0x7e48d4a8u, 0x7a89c91fu
+        0xc08d2ca3u /* "bone_l_finger1" */, 0xcdce0a7au /* "bone_l_finger2" */, 0xc90f17cdu /* "bone_l_finger3" */,
+        0x730bf271u /* "bone_r_finger1" */, 0x7e48d4a8u /* "bone_r_finger2" */, 0x7a89c91fu /* "bone_r_finger3" */
     };
-    const PblMatrix* footMats[6];
+    const PblMatrix* pBones[6];
     for (int i = 0; i < 6; ++i)
     {
-        footMats[i] = pose.Find(kFootBone[i]);
+        pBones[i] = pose.Find(kFootBone[i]);
     }
-    if (!footMats[0])
+    if (!pBones[0])
     {
         return;
     }
 
     for (int i = 0; i < 6; ++i)
     {
-        float* lastFootElevation = i == 0 ? &mLeftFootElevation
-                                  : i == 1 ? &mRightFootElevation
-                                  : &mAcklayData->mFeetElevation[i - 2];
-        float footElevation = footMats[i]->GetTranslation().GetY() - 2.5f;
-        PblMatrix footWorld = PblMatrix(reinterpret_cast<const _D3DXMATRIXA16*>(footMats[i])) * mWorld;
-        PblVector3 xAxis = footMats[i]->GetXAxis();
-        xAxis = Normalize(mWorld.ApplyRotation(xAxis));
-        PblVector3 footPos = footWorld.GetTranslation();
-        footPos += xAxis * 2.5f;
-        float waterHeight = -FLT_MAX;
-        bool checkWaterEffects = false;
-        const float fVelocitySquared = SquaredLength(GetVelocity());
-        if (fVelocitySquared > 4.5f)
+        float* pElevation = i == 0 ? &mLeftFootElevation
+                           : i == 1 ? &mRightFootElevation
+                           : &mAcklayData->mFeetElevation[i - 2];
+        const PblMatrix* pBone = pBones[i];
+        const float fElevation = pBone->m[3][1] - 2.5f;
+        const PblMatrix mBone = *pBone;
+        const PblVector3 vFoot = (mBone * mWorld).GetTranslation();
+
+        PblVector3 vBone = pBone->GetXAxis();
+        D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vBone), reinterpret_cast<const D3DXVECTOR3*>(&vBone), reinterpret_cast<const D3DXMATRIX*>(&mWorld));
+        PblVector3 vDir;
+        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vBone));
+        PblVector3 vWaterTest = vFoot;
+        vWaterTest += vDir * 2.5f;
+        float fWaterHeight = -FLT_MAX;
+        bool bWaterStep = false;
+        const PblVector3& vVelocity = GetVelocity();
+        if (vVelocity.x * vVelocity.x + vVelocity.y * vVelocity.y + vVelocity.z * vVelocity.z > 4.5f)
         {
-            if (RedWater::GetWaterHeight(footPos, waterHeight) && waterHeight > footWorld.GetTranslation().y - 2.5f)
+            if (RedWater::GetWaterHeight(vWaterTest, fWaterHeight) && fWaterHeight > vFoot.y - 2.5f)
             {
-                if (footWorld.GetTranslation().y - 1.0f > waterHeight)
+                if (vFoot.y - 1.0f > fWaterHeight)
                 {
-                    checkWaterEffects = true;
+                    bWaterStep = true;
                 }
             }
         }
 
-        const unsigned short footMask = static_cast<unsigned short>(0x100u << i);
-        if (footElevation - *lastFootElevation > 0.01f && footElevation > 0.1f)
+        const unsigned short uFootBit = (unsigned short)(0x100u << i);
+        if (fElevation - *pElevation > 0.01f && fElevation > 0.1f)
         {
-            if (!(mSoundState & footMask))
+            if (!(mSoundState & uFootBit))
             {
-                mSoundState |= footMask;
+                mSoundState |= uFootBit;
             }
         }
-        else if ((mSoundState & footMask) && *lastFootElevation - footElevation > 0.01f && footElevation < 0.0f)
+        else if ((mSoundState & uFootBit) && *pElevation - fElevation > 0.01f && fElevation < 0.0f)
         {
-            mSoundState &= ~footMask;
-            mAcklayData->mFootSound[i & 1].Play(&footWorld.GetTranslation(), &mVelocity, mSoundState != 0, true);
-            if ((!NetGame::IsEnabled() || (NetGame::OnClient() && netIsLocalTurn)) && checkWaterEffects)
+            mSoundState &= ~uFootBit;
+            mAcklayData->mFootSound[i & 1].Play(&vFoot, &mVelocity, mSoundState != 0, true);
+            if ((!NetGame::IsEnabled() || ((netEnabledNext && netClientActive) && netIsLocalTurn)) && bWaterStep)
             {
-                WaterEffect::AddDirectionalWaterEffect(mClass->mWakeWaterSplashEffect, footPos,
-                                                       Normalize(PblVector3(GetVelocity().x, 0.0f, GetVelocity().z)));
+                PblVector3 vHorizontal(GetVelocity().x, 0.0f, GetVelocity().z);
+                PblVector3 vNormal;
+                D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNormal), reinterpret_cast<const D3DXVECTOR3*>(&vHorizontal));
+                WaterEffect::AddDirectionalWaterEffect(mClass->mWakeWaterSplashEffect,
+                                                       vWaterTest, vNormal);
             }
         }
-        *lastFootElevation = footElevation;
+        *pElevation = fElevation;
     }
 }
 
@@ -10496,7 +10387,7 @@ void EntitySoldier::ApplyChoke(const PblVector3& vDir, float, SoldierAnimationBa
         }
         else
         {
-            mAnimationHash = 0x144ebf32;
+            mAnimationHash = 0x144ebf32 /* "human_choking" */;
         }
         mInputLockTime = 0.5f;
         m_uiInputLockMask = 7;
@@ -10511,7 +10402,3 @@ void EntitySoldier::ApplyChoke(const PblVector3& vDir, float, SoldierAnimationBa
 
 // GLOBAL: SWBF2 0x01e51dd7
 bool gShowSoldierPolyCount;
-
-// SYNTHETIC: SWBF2 0x00402d80
-// `dynamic initializer for 'g_SoldierPolyCount''
-RedCommandConsole g_SoldierPolyCount("SoldierPolyCount", MultiVar(&gShowSoldierPolyCount));

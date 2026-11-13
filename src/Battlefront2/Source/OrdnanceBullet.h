@@ -25,8 +25,16 @@ public:
     virtual unsigned int GetDerivedRtti() const;
     virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
-    virtual float GetVelocity();
-    virtual float GetRange();
+    // FUNCTION: SWBF2 0x005f8b60
+    virtual float GetVelocity() const
+    {
+        return mVelocity;
+    }
+    // FUNCTION: SWBF2 0x005f8b70
+    virtual float GetRange() const
+    {
+        return mVelocity * mLifeSpan;
+    }
 
     const RedModel* mModel;
     bool mStraightBullet;

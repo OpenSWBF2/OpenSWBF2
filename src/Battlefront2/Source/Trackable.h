@@ -14,7 +14,8 @@ class CameraTrackSetting
 public:
     CameraTrackSetting();
 
-    CameraTrackSetting(const CameraTrackSetting& other);
+    // SYNTHETIC: SWBF2 0x0049ccb0
+    // CameraTrackSetting::CameraTrackSetting(class CameraTrackSetting const &)
 
     bool SetProperty(unsigned int uProperty, const char* pszValue);
 

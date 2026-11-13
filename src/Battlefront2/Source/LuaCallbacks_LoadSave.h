@@ -5,6 +5,7 @@
 namespace Lua_Callbacks
 {
 
+void GetMissionWorld(char* pcWorld);
 int ScriptCB_GetLoginList(lua_State* L);
 int ScriptCB_IsCurProfileDirty(lua_State* L);
 int ScriptCB_IsProfileDirty(lua_State* L);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "PebbleFL/Common/PblMath.h"
 #include "SoldierAnimationData.h"
 
 class MemoryPool;
@@ -44,7 +45,12 @@ public:
 
     void SetupDynamicPose(ZephyrPoseDyn<32>& pose, float fTime) const;
 
-    void SetVelocity(float fVelocityX, float fVelocityZ);
+    // FUNCTION: SWBF2 0x00643650
+    void SetVelocity(float fVelocityX, float fVelocityZ)
+    {
+        m_iVelocityX = (int)Clamp(fVelocityX * 100.0f + 16383.0f + 0.5f, 0.0f, 32767.0f) - 16383;
+        m_iVelocityZ = (int)Clamp(fVelocityZ * 100.0f + 16383.0f + 0.5f, 0.0f, 32767.0f) - 16383;
+    }
 
     float GetVelocityX() const { return m_iVelocityX * 0.01f; }
     float GetVelocityZ() const { return m_iVelocityZ * 0.01f; }

@@ -72,7 +72,7 @@ WeaponDisguiseClass::~WeaponDisguiseClass()
 // FUNCTION: SWBF2 0x00683430
 void WeaponDisguiseClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0x8DA6FEC5)
+    if (uProperty == 0x8DA6FEC5 /* "TimeToChange" */)
     {
         return;
     }

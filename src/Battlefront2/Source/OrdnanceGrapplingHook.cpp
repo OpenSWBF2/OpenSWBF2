@@ -172,15 +172,12 @@ bool OrdnanceGrapplingHook::Update(float fDeltaTime)
     mDeltaTime = fDeltaTime;
     if (mCollBodyID >= 0 && mHitObject)
     {
-        mPosition = mHitObject->GetCollisionObject()->mCollisionModel->GetWorldMatrix(
+        mPosition = mHitObject->GetCollisionObject()->GetCollisionModel()->GetWorldMatrix(
             mCollBodyID, mHitObject->GetMatrix(), mHitObject->GetCollisionObject()->GetPose()).ApplyTransform(mCollOffset);
 
-        float fSpeed = PblMath::Sqrt(mVelocity.x * mVelocity.x + mVelocity.y * mVelocity.y +
-                             mVelocity.z * mVelocity.z);
+        float fSpeed = PblMath::Sqrt(SquaredLength(mVelocity));
         PblVector3 vDelta = mPosition - mFireWeapon->mAimer->mFirePos;
-        PblVector3 vDir;
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vDir), reinterpret_cast<const D3DXVECTOR3*>(&vDelta));
-        mVelocity = PblVector3(vDir.x * fSpeed, vDir.y * fSpeed, vDir.z * fSpeed);
+        mVelocity = Normalize(vDelta) * fSpeed;
     }
 
     EntitySoldier* pSoldier = NULL;
@@ -217,7 +214,7 @@ bool OrdnanceGrapplingHook::Update(float fDeltaTime)
         }
         pSoldier->AddSoftToCollisionManager();
         pSoldier->SetVelocity(gVectorZero);
-        static_cast<Controllable*>(pSoldier)->Stand();
+        ((Controllable*)pSoldier)->Stand();
         return false;
     }
 
@@ -300,7 +297,7 @@ OrdnanceGrapplingHookClass::OrdnanceGrapplingHookClass(OrdnanceGrapplingHookClas
 // FUNCTION: SWBF2 0x005fffe0
 void OrdnanceGrapplingHookClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty != 0x5F0CE10D)
+    if (uProperty != 0x5F0CE10D /* "SoldierAnimation" */)
     {
         OrdnanceBulletClass::SetProperty(uProperty, pszValue);
     }

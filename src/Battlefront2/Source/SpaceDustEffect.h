@@ -59,7 +59,7 @@ public:
 
     virtual ~SpaceDustEffect();
 
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual bool IsReflected();
     virtual void Init();
 

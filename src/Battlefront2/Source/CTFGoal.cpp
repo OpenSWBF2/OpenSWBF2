@@ -17,7 +17,7 @@ inline int GameObjectTeam(const GameObject* pObject)
 
 inline Character* ItemOwner(const GameObject* pItem)
 {
-    return static_cast<const FlagItem*>(pItem)->mOwner;
+    return ((const FlagItem*)pItem)->mOwner;
 }
 
 }
@@ -46,12 +46,12 @@ AI::CTFGoal::CTFGoal(unsigned char uTeam, float fWeight, const GoalTarget& targe
     : AIGoal(AIGOAL_CTFOFFENSE, uTeam, fWeight)
 {
     mCapturePos = target.mPos;
-    mFlag = static_cast<const GameObject*>(target.mGameObj);
-    if (!static_cast<const GameObject*>(mFlag))
+    mFlag = (const GameObject*)target.mGameObj;
+    if (!(const GameObject*)mFlag)
     {
         for (PblList<FlagItem>::Itor it = FlagItem::sList->Begin(); it; ++it)
         {
-            const GameObject* pFlag = reinterpret_cast<const GameObject*>(static_cast<FlagItem*>(it));
+            const GameObject* pFlag = reinterpret_cast<const GameObject*>((FlagItem*)it);
             if (GameObjectTeam(pFlag) != uTeam)
             {
                 mFlag = pFlag;
@@ -64,7 +64,7 @@ AI::CTFGoal::CTFGoal(unsigned char uTeam, float fWeight, const GoalTarget& targe
 // FUNCTION: SWBF2 0x00487d80
 void AI::CTFGoal::Assign(Character* pChr)
 {
-    if (!static_cast<const GameObject*>(mFlag) || !pChr || !pChr->GetControllable())
+    if (!(const GameObject*)mFlag || !pChr || !pChr->GetControllable())
     {
         return;
     }
@@ -73,7 +73,7 @@ void AI::CTFGoal::Assign(Character* pChr)
     if (pCtrl)
     {
         UnitGoalAgentInfo info(
-            CMD_CTFOFFENSE, reinterpret_cast<const FlagItem*>(static_cast<const GameObject*>(mFlag)), mCapturePos);
+            CMD_CTFOFFENSE, reinterpret_cast<const FlagItem*>((const GameObject*)mFlag), mCapturePos);
         pCtrl->ForceCommand(info);
     }
 }
@@ -88,7 +88,7 @@ void AI::CTFGoal::Update()
         {
             continue;
         }
-        const GameObject* pFlag = static_cast<const GameObject*>(mFlag);
+        const GameObject* pFlag = (const GameObject*)mFlag;
         if (!pFlag || ItemOwner(pFlag) != pChr)
         {
             continue;

@@ -14,11 +14,11 @@ bool SourceVirtual::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 {
     switch (uiPropertyID)
     {
-    case 0x94E4E309u:
+    case 0x94E4E309u: /* "priority" */
         chunk._pFile->Read8();
         SetPriority(chunk._pFile->ReadFloat());
         return true;
-    case 0xBA467EC4u:
+    case 0xBA467EC4u: /* "Bias" */
         chunk._pFile->Read8();
         SetBias(chunk._pFile->ReadFloat());
         return true;

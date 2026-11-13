@@ -60,20 +60,6 @@ public:
  
  
 
-class NetBigPacket : public NetPacket
-{
-public:
-    char mData2[1008];
-};
- 
-
-class NetSmallPacket : public NetPacket
-{
-public:
-    char mData2[112];
-};
- 
-
 const int MAX_BIG_PACKETS = 0x100;
 const int MAX_SMALL_PACKETS = 0x100;
 
@@ -227,7 +213,5 @@ void NetPktGroupClampFixed(float& f, float fMin, float fMax, int iBits);
 
 extern bool doHiRes;
 
-extern NetBigPacket netBigPackets[MAX_BIG_PACKETS];
-extern NetSmallPacket netSmallPackets[MAX_SMALL_PACKETS];
 extern NetPktGroup freeBigPackets;
 extern NetPktGroup freeSmallPackets;

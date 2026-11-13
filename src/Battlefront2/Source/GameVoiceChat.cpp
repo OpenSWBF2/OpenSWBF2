@@ -1,3 +1,5 @@
+#include <new>
+#include "GameMemory.h"
 #include "GameVoiceChat.h"
 #include "GameVoiceChatTransport.h"
 #include "GameVoiceChatNode.h"
@@ -8,10 +10,6 @@
 #include "NetGame.h"
 #include "SoundFL/source/sndthreadupdate.h"
 #include "Battlefront2/Platform/Pc/pcSpawnDisplay.h"
-
-// GLOBAL: SWBF2 0x01e56bc8
-
-int sVoiceChatHeap;
 
 namespace GameVoiceChat
 {
@@ -48,6 +46,15 @@ namespace GameVoiceChat
 }
 
 
+// SYNTHETIC: SWBF2 0x00403ea0
+// GameVoiceChat::`dynamic initializer for 'gTransport''
+// SYNTHETIC: SWBF2 0x00768ae0
+// GameVoiceChat::`dynamic atexit destructor for 'gTransport''
+
+// GLOBAL: SWBF2 0x01ec5fc0
+// GameVoiceChat::gTransport
+GameVoiceChat::Transport GameVoiceChat::gTransport;
+
 // SYNTHETIC: SWBF2 0x00403ec0
 // GameVoiceChat::`dynamic initializer for 'gEncoderStorage''
 
@@ -80,16 +87,94 @@ namespace VoiceChat
     void* Alloc(unsigned int uiSize); void Free(void* pBlock);
 }
 
-// FUNCTION: SWBF2 0x0053e390
-void* VoiceChat::Alloc(unsigned int uiSize)
-{
-    return RedAllocFromHeap(sVoiceChatHeap, uiSize, 0);
-}
+extern int netVoiceMode;
 
-// FUNCTION: SWBF2 0x0053e3b0
-void VoiceChat::Free(void* pBlock)
+namespace GameVoiceChat
 {
-    RedFreeToHeap(sVoiceChatHeap, pBlock, 0);
+
+// FUNCTION: SWBF2 0x0053c040
+bool Open(float fSeconds, bool bSoundWorking)
+{
+    gHeap = GameMemory::ApplicationHeap;
+    int iOldHeap = RedSetCurrentHeap(GameMemory::ApplicationHeap);
+
+    if (GameVoiceChat::gTransport.Open(0x32, 1))
+    {
+        if (VoiceChat::Node::OpenStatic(&GameVoiceChat::gTransport, fSeconds, 1000.0f, 1000.0f))
+        {
+            unsigned int uiNodes = (unsigned int)GameVoiceChat::GetNumNodes();
+            bool bAllOpen = true;
+
+            for (unsigned int i = 0; i < uiNodes; ++i)
+            {
+                GameVoiceChat::gEncoders[i] = new ((GameVoiceChat::Encoder*)GameVoiceChat::gEncoderStorage + i) GameVoiceChat::Encoder;
+                GameVoiceChat::gDecoders[i] = new ((GameVoiceChat::Decoder*)GameVoiceChat::gDecoderStorage + i) GameVoiceChat::Decoder;
+                GameVoiceChat::gNodes[i] = new ((GameVoiceChat::Node*)GameVoiceChat::gNodeStorage + i)
+                    GameVoiceChat::Node(GameVoiceChat::gEncoders[i],
+                                        GameVoiceChat::gDecoders[i]);
+            }
+
+            GameVoiceChat::gPlayerChange = true;
+
+            VoiceChat::Transport::Method cMethod(
+                (VoiceChat::Transport::Method::Type)(netVoiceMode ? netVoiceMode : 2), 0x32);
+            cMethod.SetNumRelayNodes(cMethod.CalculateOptimalRelayNodes(0x32));
+            GameVoiceChat::gTransport.SetMethod(cMethod, true);
+
+            if (!bSoundWorking)
+            {
+                RedSetCurrentHeap(iOldHeap);
+                return true;
+            }
+
+            unsigned int i;
+
+            for (i = 0; i < uiNodes; ++i)
+            {
+                if (!bAllOpen)
+                {
+                    break;
+                }
+                bAllOpen &= GameVoiceChat::gNodes[i]->Open(0xFF, 0xFF, 0x0C);
+            }
+
+            if (bAllOpen)
+            {
+                for (i = 0; i < uiNodes; ++i)
+                {
+                    GameVoiceChat::gNodes[i]->SetSendMask(GameVoiceChat::Transport::mask_TeamFriend, true, false);
+                    GameVoiceChat::gNodes[i]->SetReceiveMask(GameVoiceChat::Transport::mask_Everyone, true, false);
+                }
+                RedSetCurrentHeap(iOldHeap);
+                return true;
+            }
+
+            for (i = 0; i < uiNodes; ++i)
+            {
+                if (GameVoiceChat::gNodes[i]->IsOpen())
+                {
+                    GameVoiceChat::gNodes[i]->Close();
+                }
+            }
+
+            for (i = 0; i < uiNodes; ++i)
+            {
+                (GameVoiceChat::gEncoders[i])->~Encoder();
+
+                (GameVoiceChat::gDecoders[i])->~Decoder();
+
+                GameVoiceChat::gEncoders[i] = 0;
+                GameVoiceChat::gDecoders[i] = 0;
+                GameVoiceChat::gNodes[i] = 0;
+            }
+
+            VoiceChat::Node::CloseStatic();
+        }
+        GameVoiceChat::gTransport.Close();
+    }
+    RedSetCurrentHeap(iOldHeap);
+    return false;
+}
 }
 
 // FUNCTION: SWBF2 0x0053c370
@@ -112,7 +197,7 @@ void GameVoiceChat::Reset()
 void GameVoiceChat::Close()
 {
     unsigned int uiNodes = (unsigned int)GameVoiceChat::GetNumNodes();
-    int iOldHeap = RedSetCurrentHeap(sVoiceChatHeap);
+    int iOldHeap = RedSetCurrentHeap(gHeap);
 
     for (unsigned int i = 0; i < uiNodes; ++i)
     {
@@ -152,15 +237,6 @@ bool GameVoiceChat::IsSuspended()
 {
     return false;
 }
-
-// SYNTHETIC: SWBF2 0x00403ea0
-// GameVoiceChat::`dynamic initializer for 'gTransport''
-// SYNTHETIC: SWBF2 0x00768ae0
-// GameVoiceChat::`dynamic atexit destructor for 'gTransport''
-
-// GLOBAL: SWBF2 0x01ec5fc0
-// GameVoiceChat::gTransport
-GameVoiceChat::Transport GameVoiceChat::gTransport;
 
 // FUNCTION: SWBF2 0x0053c590
 GameVoiceChat::Transport* GameVoiceChat::GetTransport()
@@ -282,7 +358,7 @@ void GameVoiceChat::Update(float fDeltaTime)
             const int iLocal = NetGame::GetJoystickIndex(pNode->GetID());
             if (GameVoiceChat::gPlayerChange && iLocal >= 0 && abNotSelectingTeam[iLocal])
             {
-                static_cast<GameVoiceChat::Node*>(pNode)->Update();
+                ((GameVoiceChat::Node*)pNode)->Update();
             }
         }
     }

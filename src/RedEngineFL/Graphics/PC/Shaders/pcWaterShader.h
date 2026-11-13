@@ -28,10 +28,17 @@ public:
     // SYNTHETIC: SWBF2 0x007087b0
     // pcWaterShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x00709670
+    // pcWaterShader::GetID
+    // FUNCTION: SWBF2 0x007096a0
+    // pcWaterShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x00709600
+    // pcWaterShader::Bind
+    // FUNCTION: SWBF2 0x007096b0
+    // pcWaterShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcWaterShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
-    virtual void Bind();
 
     void SetBumpMap(RedTexture* pTex1, RedTextureTransform* pTransform1,
                     RedTexture* pTex2, RedTextureTransform* pTransform2, float fBlend);
@@ -43,17 +50,7 @@ public:
                          RedTexture* pTex2, RedTextureTransform* pTransform2, float fBlend);
 
 private:
-    virtual void _Read(PblFileChunk& chunk) const;
     virtual void _StaticInit() const;
-    virtual void InitFixedFunctionShaderDef() const;
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                                 const unsigned int* pParams,
-                                 unsigned int uiNumParams,
-                                 unsigned int uiMaterialFlags,
-                                 const RedColor& color0,
-                                 const RedColor& color1,
-                                 float fArg7) const;
-    virtual pcRedShaderDef* GetShaderDef() const;
 
 public:
     unsigned int GetState_Fixed(const RenderItem*) const;
@@ -93,28 +90,23 @@ public:
     RedTextureTransform m_specularMaskTransform2;
     float m_specularMaskBlend;
 
-    // GLOBAL: SWBF2 0x009c9e28
-    static unsigned int s_uiID;
-
-    // GLOBAL: SWBF2 0x009c9e2c
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9e38
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9e44
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9e50
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    static pcRedShaderDef s_shaderDef;
-
-    static pcWaterShader s_Factory;
-
-    static unsigned int s_uiRenderTypeHash;
-
-    static void SetFresnelMinMax(float fMin, float fMax);
+    // FUNCTION: SWBF2 0x00720500
+    static void SetFresnelMinMax(float fMin, float fMax)
+    {
+        if (fMax < 0.0f)
+        {
+            fMax = 0.0f;
+        }
+        else if (fMax > 1.0f)
+        {
+            fMax = 1.0f;
+        }
+        float fClampedMin = fMin < 0.0f ? 0.0f : (fMin > 1.0f ? 1.0f : fMin);
+        s_fresnelMinMax.r = 0.0f;
+        s_fresnelMinMax.g = 0.0f;
+        s_fresnelMinMax.b = fClampedMin;
+        s_fresnelMinMax.a = fMax;
+    }
     static void SetReflectionColor(RedColor color);
     static void SetRefractionColor(RedColor color);
     static void SetSpecularEnable(bool bEnable);
@@ -148,7 +140,6 @@ private:
                const RedColor& color0,
                const RedColor& color1,
                float fArg7);
-    void _InitPipelineFuncArray();
 };
  
  

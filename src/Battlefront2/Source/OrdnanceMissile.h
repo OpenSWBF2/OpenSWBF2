@@ -20,7 +20,11 @@ public:
     virtual unsigned int GetDerivedRtti() const;
     virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
-    virtual float GetVelocity();
+    // FUNCTION: SWBF2 0x006049a0
+    virtual float GetVelocity() const
+    {
+        return 3.0e8f;
+    }
 
     static PblHash rttiHashOrdnanceMissileClass;
     static const char rttiNameOrdnanceMissileClass[];

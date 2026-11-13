@@ -77,6 +77,14 @@ PblList<PathFinder::PathNode>* sClosedList;
 // GLOBAL: SWBF2 0x01eaeda8
 int sCost;
 
+namespace PathFinder
+{
+// GLOBAL: SWBF2 0x01eaedb0
+unsigned int _FindBarrierNameHash;
+// GLOBAL: SWBF2 0x01eaedac
+Obstacle* _FindBarrierRet;
+}
+
 // GLOBAL: SWBF2 0x01eaedb4
 PblHeap<PathFinder::PathNode*, float>* sOpenList;
 
@@ -102,7 +110,7 @@ const Obstacle* sIgnore[2];
 float sPerpLength;
 
 // GLOBAL: SWBF2 0x01fa8c44
-int sProhibit;
+ConnectivityGraph::ProhibitFlag sProhibit;
 
 // GLOBAL: SWBF2 0x01fa8c48
 int sIgnoreCnt;
@@ -115,8 +123,8 @@ float sRadiusVehicle;
 int gPathResultFailureCount = 1;
 
 // FUNCTION: SWBF2 0x0060ff20
-Obstacle::Obstacle(const PblMatrix& rMatrix, const PblVector4& rSize, int eProhibit,
-                   unsigned int uName)
+Obstacle::Obstacle(const PblMatrix& rMatrix, const PblVector4& rSize,
+                   ConnectivityGraph::ProhibitFlag eProhibit, unsigned int uName)
     : TreeGridObject(-1)
 {
     mNameHash = uName;
@@ -435,8 +443,8 @@ void PathFinder::Reset()
 }
 
 // FUNCTION: SWBF2 0x00610c70
-void PathFinder::AddObstacle(const PblMatrix& rMatrix, const PblVector4& rSize, int eProhibit,
-                             unsigned int uName)
+void PathFinder::AddObstacle(const PblMatrix& rMatrix, const PblVector4& rSize,
+                             ConnectivityGraph::ProhibitFlag eProhibit, unsigned int uName)
 {
     Obstacle* pObstacle = new Obstacle(rMatrix, rSize, eProhibit, uName);
     const PblVector3& rPos = rMatrix.GetTranslation();
@@ -483,11 +491,13 @@ void PathFinder::PlaceBarrier(Obstacle*& rpObstacle, const PblMatrix& rMatrix, c
     if (rpObstacle)
     {
         sObstacles->Remove(rpObstacle);
-        ::new (static_cast<void*>(rpObstacle)) Obstacle(rMatrix, rSize, ~32, uName);
+        ::new (static_cast<void*>(rpObstacle))
+            Obstacle(rMatrix, rSize, (ConnectivityGraph::ProhibitFlag)~ConnectivityGraph::CGT_FLAG_FLYER, uName);
     }
     else
     {
-        rpObstacle = new Obstacle(rMatrix, rSize, ~32, uName);
+        rpObstacle = new Obstacle(rMatrix, rSize,
+                                  (ConnectivityGraph::ProhibitFlag)~ConnectivityGraph::CGT_FLAG_FLYER, uName);
     }
     sObstacles->Add(rpObstacle, rpObstacle->GetBoundingCircleCenter(),
                     rpObstacle->GetBoundingCircleRadius() * 2.0f);
@@ -712,7 +722,7 @@ bool PathFinder::GenerateObstacleListCallback(const TreeGridObject* pObj, TreeGr
 
 // FUNCTION: SWBF2 0x006117f0
 bool PathFinder::FindClosestObstacleIntersection(const PblVector3& rSrc, const PblVector3& rDest,
-                                                 float fRadius, int eProhibit, const Obstacle** ppHit,
+                                                 float fRadius, ConnectivityGraph::ProhibitFlag eProhibit, const Obstacle** ppHit,
                                                  float* pDistSq, bool, const Obstacle** ppIgnore,
                                                  int iIgnoreCnt)
 {
@@ -924,7 +934,7 @@ void PathFinder::sExpandNode(PathFinder::PathNode* pParent, const PblVector3& rP
 
 // FUNCTION: SWBF2 0x006120a0
 void PathFinder::NewPathFind(const PblVector3& vStart, const PblVector3& vGoal, float fRadius,
-                             int eProhibit, const Obstacle** ppIgnore, int iIgnoreCnt)
+                             ConnectivityGraph::ProhibitFlag eProhibit, const Obstacle** ppIgnore, int iIgnoreCnt)
 {
     if (!IsPointValid(vGoal, fRadius, eProhibit, 0, ppIgnore, iIgnoreCnt))
     {
@@ -1076,9 +1086,48 @@ AIPath* PathFinder::GetPathResult()
     return pPath;
 }
 
-// FUNCTION: SWBF2 0x00438690
-bool AIDebug::PauseAfterPathFind()
+namespace PathFinder
 {
-    return false;
+bool FindBarrierCallback(const TreeGridObject* pObject, TreeGridCallbackData*, float&);
 }
+
+// FUNCTION: SWBF2 0x00612510
+bool PathFinder::FindBarrierCallback(const TreeGridObject* pObject, TreeGridCallbackData*, float&)
+{
+    const Obstacle* pObstacle = (const Obstacle*)pObject;
+    if (pObstacle->mNameHash == PathFinder::_FindBarrierNameHash)
+    {
+        PathFinder::_FindBarrierRet = const_cast<Obstacle*>(pObstacle);
+        return false;
+    }
+    return true;
+}
+
+namespace PathFinder
+{
+Obstacle* FindBarrierByName(unsigned int uName);
+}
+
+// FUNCTION: SWBF2 0x00612530
+Obstacle* PathFinder::FindBarrierByName(unsigned int uName)
+{
+    PathFinder::_FindBarrierNameHash = uName;
+    PathFinder::_FindBarrierRet = 0;
+    TreeGridCallbackData data;
+    sObstacles->CallbackOnRect(PblVector3((float)-WORLD_EXTENTS, 0.0f, (float)-WORLD_EXTENTS),
+                               PblVector3((float)WORLD_EXTENTS, 0.0f, (float)WORLD_EXTENTS),
+                               PathFinder::FindBarrierCallback, &data);
+    return PathFinder::_FindBarrierRet;
+}
+
+// TEMPLATE: SWBF2 0x006125b0
+// PblHeap<PathFinder::PathNode *,float>::Push
+template void PblHeap<PathFinder::PathNode*, float>::Push(PathFinder::PathNode*&, float);
+// TEMPLATE: SWBF2 0x00612610
+// PblHeap<PathFinder::PathNode *,float>::ReplaceLowest
+template void PblHeap<PathFinder::PathNode*, float>::ReplaceLowest(PathFinder::PathNode*&, float, int);
+// TEMPLATE: SWBF2 0x00612670
+// PblHeap<PathFinder::PathNode *,float>::Pop
+template void PblHeap<PathFinder::PathNode*, float>::Pop();
+
 #include <new>

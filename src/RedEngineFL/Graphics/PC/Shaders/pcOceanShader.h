@@ -27,25 +27,22 @@ public:
     // SYNTHETIC: SWBF2 0x0070be70
     // pcOceanShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x0070c290
+    // pcOceanShader::GetID
+    // FUNCTION: SWBF2 0x0070c2c0
+    // pcOceanShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x0070c250
+    // pcOceanShader::Bind
+    // FUNCTION: SWBF2 0x0070c2d0
+    // pcOceanShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcOceanShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
-    virtual void Bind();
     virtual unsigned int GetZPrepassState() const;
     virtual void RenderZPrepass(const RenderItem* pItem) const;
 
 private:
-    virtual void _Read(PblFileChunk& chunk) const;
     virtual void _StaticInit() const;
-    virtual void InitFixedFunctionShaderDef() const;
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                                 const unsigned int* pParams,
-                                 unsigned int uiNumParams,
-                                 unsigned int uiMaterialFlags,
-                                 const RedColor& color0,
-                                 const RedColor& color1,
-                                 float fArg7) const;
-    virtual pcRedShaderDef* GetShaderDef() const;
 
 public:
     unsigned int GetState_Fixed(const RenderItem*) const;
@@ -70,27 +67,6 @@ public:
     RedColorValue m_transmissiveColor;
     RedColorValue m_reflectionColor;
 
-    // GLOBAL: SWBF2 0x009ca258
-    static unsigned int s_uiID;
-
-    // GLOBAL: SWBF2 0x009ca25c
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca268
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca274
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca280
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    static pcOceanShader s_Factory;
-
-    static unsigned int s_uiRenderTypeHash;
-
-    static pcRedShaderDef s_shaderDef;
-
 private:
     pcOceanShader();
 
@@ -101,7 +77,6 @@ private:
                const RedColor& color0,
                const RedColor& color1,
                float fArg7);
-    void _InitPipelineFuncArray();
 };
  
  

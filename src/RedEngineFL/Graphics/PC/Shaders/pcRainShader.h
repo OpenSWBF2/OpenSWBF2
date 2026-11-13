@@ -25,23 +25,20 @@ public:
     // SYNTHETIC: SWBF2 0x00704db0
     // pcRainShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x00704f40
+    // pcRainShader::GetID
+    // FUNCTION: SWBF2 0x00704f70
+    // pcRainShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x00704f00
+    // pcRainShader::Bind
+    // FUNCTION: SWBF2 0x00704f80
+    // pcRainShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcRainShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
-    virtual void Bind();
 
 private:
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                                 const unsigned int* pParams,
-                                 unsigned int uiNumParams,
-                                 unsigned int uiMaterialFlags,
-                                 const RedColor& color0,
-                                 const RedColor& color1,
-                                 float fArg7) const;
-    virtual void _Read(PblFileChunk& chunk) const;
     virtual void _StaticInit() const;
-    virtual pcRedShaderDef* GetShaderDef() const;
-    virtual void InitFixedFunctionShaderDef() const;
 
 public:
 
@@ -62,27 +59,6 @@ public:
     float m_fLineWidth;
     float m_fMaxPixelWidth;
 
-    // GLOBAL: SWBF2 0x009c99f4
-    static unsigned int s_uiID;
-
-    // GLOBAL: SWBF2 0x009c99f8
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9a04
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9a10
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9a1c
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    static pcRainShader s_Factory;
-
-    static unsigned int s_uiRenderTypeHash;
-
-    static pcRedShaderDef s_shaderDef;
-
 private:
 
     pcRainShader();
@@ -95,7 +71,6 @@ private:
                const RedColor& color1,
                float fArg7);
 
-    void _InitPipelineFuncArray();
 };
  
  

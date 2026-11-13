@@ -135,7 +135,7 @@ namespace
 
     inline const CollisionObject* GetCollisionObject(const GameObject* pObj)
     {
-        return static_cast<const CollisionObject*>(pObj);
+        return (const CollisionObject*)pObj;
     }
 
     inline float GetMaxSpeed(const GameObject* pObj)
@@ -182,7 +182,7 @@ namespace
 
     inline AcklayData* GetAcklayData(const Entity* pEntity)
     {
-        return static_cast<const EntitySoldier*>(pEntity)->mAcklayData;
+        return ((const EntitySoldier*)pEntity)->mAcklayData;
     }
 
     inline const AttackHelper& GetAttackHelper(const UnitAgent* pAgent)
@@ -348,7 +348,7 @@ bool UnitAgent::AreNearbyUnitsInCombat()
                 if (AsEntity(pObj)->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier) &&
                     GetControllable(pObj) && GetControllable(pObj)->mCtrl &&
                     GetControllable(pObj)->mCtrl->IsRtti(UnitController::rttiHashUnitController) &&
-                    static_cast<const UnitController*>(GetControllable(pObj)->mCtrl)->IsInCombat())
+                    ((const UnitController*)GetControllable(pObj)->mCtrl)->IsInCombat())
                 {
                     ++iInCombat;
                 }
@@ -370,7 +370,7 @@ bool UnitAgent::ShouldAgentGetInNearbyVehicle(const GameObject* pVehicle) const
     {
         return false;
     }
-    if (!static_cast<const EntitySoldier*>(GetMe())->CanEnterVehicle(pVehicle))
+    if (!((const EntitySoldier*)GetMe())->CanEnterVehicle(pVehicle))
     {
         return false;
     }
@@ -417,7 +417,7 @@ bool UnitAgent::ShouldAgentGetInNearbyVehicle(const GameObject* pVehicle) const
 // FUNCTION: SWBF2 0x0065e280
 void UnitAgent::PlayDamageEventVO(AI::EventInfo* pEvent)
 {
-    AI::EventInfo_Damaged* pInfo = static_cast<AI::EventInfo_Damaged*>(pEvent);
+    AI::EventInfo_Damaged* pInfo = (AI::EventInfo_Damaged*)pEvent;
     GameObject* pMe = GetMe()->GetGameObject();
     const Character* pOwner = pInfo->mDamageOwner;
     if (pOwner->mTeamPtr->GetAffiliation(GetTeam(pMe)) > 0 && pOwner->GetControllable())
@@ -429,7 +429,7 @@ void UnitAgent::PlayDamageEventVO(AI::EventInfo* pEvent)
 // FUNCTION: SWBF2 0x0065e320
 int UnitAgent::DamagedEventPlayerCentricness(AI::EventInfo* pEvent)
 {
-    AI::EventInfo_Damaged* pInfo = static_cast<AI::EventInfo_Damaged*>(pEvent);
+    AI::EventInfo_Damaged* pInfo = (AI::EventInfo_Damaged*)pEvent;
     if (pInfo->mType != AI::EVT_Damaged)
     {
         return 0;
@@ -476,7 +476,7 @@ int UnitAgent::DamagedEventPlayerCentricness(AI::EventInfo* pEvent)
 // FUNCTION: SWBF2 0x0065e530
 int UnitAgent::HandleDamagedEvent(AI::EventInfo* pEvent)
 {
-    AI::EventInfo_Damaged* pInfo = static_cast<AI::EventInfo_Damaged*>(pEvent);
+    AI::EventInfo_Damaged* pInfo = (AI::EventInfo_Damaged*)pEvent;
     DamagedEventPlayerCentricness(pInfo);
     PlayDamageEventVO(pInfo);
 
@@ -567,11 +567,11 @@ int UnitAgent::HandleSquadCommandEvent(AI::EventInfo* pInfo)
     if (pInfo->mType == AI::EVT_SC_GetIntoVehicle)
     {
         int iVOHandle = -1;
-        if (static_cast<GameObject*>(pInfo->mGameObject)->mControllableList.GetFirst()->_pObject &&
-            static_cast<GameObject*>(pInfo->mGameObject)->mControllableList.GetFirst()->_pObject->mPlayerId >= 0)
+        if (((GameObject*)pInfo->mGameObject)->mControllableList.GetFirst()->_pObject &&
+            ((GameObject*)pInfo->mGameObject)->mControllableList.GetFirst()->_pObject->mPlayerId >= 0)
         {
             Controllable* pMe = GetMe();
-            GameObject* pVehicle = static_cast<GameObject*>(pInfo->mGameObject);
+            GameObject* pVehicle = (GameObject*)pInfo->mGameObject;
             iVOHandle = AI::VOHelper::Play(AI::VOT_SC_GetInResponse, pMe->GetGameObject(), 0, pVehicle,
                                            AIUtil::GetRandomFloat(0.5f, 1.2f) + GameLoop::GetMissionTime());
         }
@@ -595,7 +595,7 @@ int UnitAgent::HandleSquadCommandEvent(AI::EventInfo* pInfo)
 // FUNCTION: SWBF2 0x0065eab0
 int UnitAgent::Handle_Vision_CanSeeEnemy(AI::EventInfo* pInfo)
 {
-    GameObject* pEnemy = static_cast<GameObject*>(pInfo->mGameObject);
+    GameObject* pEnemy = (GameObject*)pInfo->mGameObject;
 
     if (GetMe()->GetControllableClass() &&
         !GetMe()->GetControllableClass()->DoesCombatInterrupt())
@@ -616,7 +616,7 @@ int UnitAgent::Handle_Vision_CanSeeEnemy(AI::EventInfo* pInfo)
         }
     }
 
-    const UnitController* pCtrl = static_cast<const UnitController*>(GetMe()->mCtrl);
+    const UnitController* pCtrl = (const UnitController*)GetMe()->mCtrl;
     if (!CombatUtil::EngageInCombat(pCtrl, pEnemy, false))
     {
         return 0;
@@ -655,7 +655,7 @@ int UnitAgent::Handle_Audible_CanHearEnemy(AI::EventInfo* pInfo)
         return AI::EVT_Ignored;
     }
 
-    if (CombatUtil::EngageInCombat(mCtrl, static_cast<GameObject*>(pInfo->mGameObject), false))
+    if (CombatUtil::EngageInCombat(mCtrl, (GameObject*)pInfo->mGameObject, false))
     {
         pInfo->mNextCmd = UnitCombatInfo(UnitCombatInfo::INVESTIGATE, PblHandle<const GameObject>(pInfo->mGameObject));
         GetMe()->GetGameObject()->HeardEnemy();
@@ -688,12 +688,12 @@ int UnitAgent::EventHandler(AI::EventInfo* pInfo)
     switch (pInfo->mType)
     {
     case AI::EVT_EmptyVehicle:
-        if (!ShouldAgentGetInNearbyVehicle(static_cast<GameObject*>(pInfo->mGameObject)))
+        if (!ShouldAgentGetInNearbyVehicle((GameObject*)pInfo->mGameObject))
         {
             return 0;
         }
         pInfo->mNextCmd = UnitBoardInfo(pInfo->mGameObject, -1);
-        ReserveManager::Reserve(static_cast<GameObject*>(pInfo->mGameObject), GetMe()->GetGameObject(), RT_BOARD);
+        ReserveManager::Reserve((GameObject*)pInfo->mGameObject, GetMe()->GetGameObject(), RT_BOARD);
         return 1;
 
     case AI::EVT_Grenade:
@@ -748,7 +748,7 @@ int UnitAgent::EventHandler(AI::EventInfo* pInfo)
         return 0;
 
     case AI::EVT_Path_PathResult:
-        GetLowLevel().ReceivePathResult(static_cast<AIPath*>(pInfo->mVoidPtr));
+        GetLowLevel().ReceivePathResult((AIPath*)pInfo->mVoidPtr);
         return 1;
 
     case AI::EVT_Path_DynamicCongraphChange:

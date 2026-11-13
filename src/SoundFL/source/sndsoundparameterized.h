@@ -146,7 +146,7 @@ inline SoundLayered::SoundLayer* __cdecl SoundParameterized::LayerCreate()
 // FUNCTION: SWBF2 0x00735cd0
 inline void __cdecl SoundParameterized::LayerDestroy(SoundLayer* pLayer)
 {
-    delete static_cast<Layer*>(pLayer);
+    delete (Layer*)pLayer;
 }
 
 

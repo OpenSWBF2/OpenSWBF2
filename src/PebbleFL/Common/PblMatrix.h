@@ -65,25 +65,14 @@ public:
 
     void Transpose3x3();
 
-    void Transpose4x4()
-    {
-        float t;
-        t = m[0][1]; m[0][1] = m[1][0]; m[1][0] = t;
-        t = m[0][2]; m[0][2] = m[2][0]; m[2][0] = t;
-        t = m[0][3]; m[0][3] = m[3][0]; m[3][0] = t;
-        t = m[1][2]; m[1][2] = m[2][1]; m[2][1] = t;
-        t = m[1][3]; m[1][3] = m[3][1]; m[3][1] = t;
-        t = m[2][3]; m[2][3] = m[3][2]; m[3][2] = t;
-    }
+    void Transpose4x4();
 
-    // FUNCTION: SWBF2 0x00410890
-    const PblVector3& GetTranslation() const { return *(const PblVector3*)&m[3][0]; }
+    const PblVector3& GetTranslation() const;
 
-    const PblVector3& GetXAxis() const { return *(const PblVector3*)&m[0][0]; }
-    const PblVector3& GetYAxis() const { return *(const PblVector3*)&m[1][0]; }
+    const PblVector3& GetXAxis() const;
+    const PblVector3& GetYAxis() const;
 
-    // FUNCTION: SWBF2 0x0040cb70
-    const PblVector3& GetZAxis() const { return *(const PblVector3*)&m[2][0]; }
+    const PblVector3& GetZAxis() const;
 
     void SetXAxis(const PblVector3& vAxis);
     void SetYAxis(const PblVector3& vAxis);
@@ -109,6 +98,28 @@ public:
 
 };
 
-#include "PebbleFL/pc/pcPblMatrix.h"
+#include "PebbleFL/pc/pcPblMatrix.inl"
+
+// FUNCTION: SWBF2 0x0043cd40
+inline PblMatrix DirectionMatrix(const PblVector3& vDirection, const PblVector3& vReferenceUp,
+                                 const PblVector3& vTranslation)
+{
+    PblVector3 vZAxis = Normalize(vDirection);
+    PblVector3 vXAxis = Normalize(CrossProduct(vReferenceUp, vDirection));
+    PblVector3 vYAxis = CrossProduct(vZAxis, vXAxis);
+    return PblMatrix(vXAxis, vYAxis, vZAxis, vTranslation);
+}
+
+// FUNCTION: SWBF2 0x0047a570
+inline PblMatrix NormalMatrix(const PblVector3& vDir, const PblVector3& vNormal, const PblVector3& vPos)
+{
+    PblVector3 vUp;
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vUp), reinterpret_cast<const D3DXVECTOR3*>(&vNormal));
+    PblVector3 vRight;
+    D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vRight), reinterpret_cast<const D3DXVECTOR3*>(&CrossProduct(vUp, vDir)));
+
+    PblMatrix mResult(vRight, vUp, CrossProduct(vRight, vUp), vPos);
+    return mResult;
+}
 
 extern PblMatrix gMatrixIdentity;

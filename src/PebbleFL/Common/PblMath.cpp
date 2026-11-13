@@ -3,6 +3,8 @@
 #include "PblQuaternion.h"
 #include "PblVector.h"
 
+#pragma init_seg(lib)
+
 // GLOBAL: SWBF2 0x00785af0
 // __xmm@3b490fdb3b490fdb3b490fdb3b490fdb
 
@@ -92,12 +94,6 @@ void PblMath::SinCos(float* pSin, float* pCos, float fAngle)
 
 
 
-// SYNTHETIC: SWBF2 0x00403f40
-// `dynamic initializer for 'sNegativeXRotation80''
-
-// GLOBAL: SWBF2 0x01ec60e0
-// sNegativeXRotation80
-PblQuaternion sNegativeXRotation80 = PblQuaternion(PblVector3(-1.0f, 0.0f, 0.0f), 1.3962634f);
 
 // SYNTHETIC: SWBF2 0x00407300
 // PblMath::`dynamic initializer for 'fOneOverHalfPi''

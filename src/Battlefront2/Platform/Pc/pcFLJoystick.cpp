@@ -68,6 +68,12 @@ BindDestination RawControllerInputs::sDefaultBindings[5][76] =
 #endif
 #include <dinput.h>
 
+// FUNCTION: SWBF2 0x00414990
+int __fastcall RawControllerInputs::IndexToRedKey(int iIndex)
+{
+    return RedKeyTo_BindID[iIndex];
+}
+
 // FUNCTION: SWBF2 0x004149a0
 unsigned short __cdecl RawInputToActionKey(unsigned short usRawInput)
 {
@@ -668,13 +674,12 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
 
     for (int iPort = 0; iPort < 10; iPort++)
     {
-        RedJoystick* pJoystick = _redJoystick[iPort];
-        if (!pJoystick)
+        if (!_redJoystick[iPort])
         {
             continue;
         }
 
-        const unsigned __int64 uiButtons = pJoystick->GetDownButtons();
+        const unsigned __int64 uiButtons = _redJoystick[iPort]->m_uiDownButtons;
         for (unsigned int i = 0; i < 48; i++)
         {
             if (uiButtons & ((unsigned __int64)1 << i))
@@ -687,10 +692,17 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
         float* pRaw = mRawInputFloat[iPort];
         for (int iAxis = 0; iAxis < 8; iAxis++)
         {
-            float fAxis = _redJoystick[iPort]->GetAxis(iAxis);
+            float fAxis = _redJoystick[iPort]->m_fAxis[iAxis];
             if (fabsf(fAxis) < 1.0f)
             {
-                fAxis = Clamp(fAxis, -1.0f, 1.0f);
+                if (fAxis < -1.0f)
+                {
+                    fAxis = -1.0f;
+                }
+                else if (fAxis > 1.0f)
+                {
+                    fAxis = 1.0f;
+                }
             }
             pRaw[48 + 2 * iAxis] = fAxis;
             pRaw[49 + 2 * iAxis] = -fAxis;
@@ -743,8 +755,8 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
         dX = dX / (double)fDeltaTime;
         dY = dY / (double)fDeltaTime;
 
-        if (GetMouseAssist() && (mMode == 1 || mMode == 2 || mMode == 4) &&
-            GameState::GetState() == 0x8FF60339 && !PauseMenu::GetPaused(0))
+        if (mMouseAssist[mMode] && (mMode == 1 || mMode == 2 || mMode == 4) &&
+            GameState::GetState() == 0x8FF60339 /* "mission" */ && !PauseMenu::GetPaused(0))
         {
             const double dThreshold = (mMode == 2) ? 1.0 : 1000.0;
 
@@ -895,7 +907,11 @@ void RawControllerInputs::ReadLatest(float fDeltaTime)
 
     if (_redMouse)
     {
-        m_pGuiInputs->SetMousePos(_redMouse->m_X, _redMouse->m_Y);
+        const int iMouseY = _redMouse->m_Y;
+        const int iMouseX = _redMouse->m_X;
+        MouseCoords& rCoords = m_pGuiInputs->mMouseCoords;
+        rCoords.mPosX = iMouseX;
+        rCoords.mPosY = iMouseY;
     }
 
     if (bAnyInput)
@@ -1131,8 +1147,8 @@ void RawControllerInputs::TeamOrderInputProcess()
 {
 
     const unsigned int auiOrders[8] = {
-        0x0e6cfcde, 0x0f6cfe71, 0x0c6cf9b8, 0x0d6cfb4b,
-        0x126d032a, 0x136d04bd, 0x106d0004, 0x116d0197
+        0x0e6cfcde /* "common.chat.0" */, 0x0f6cfe71 /* "common.chat.1" */, 0x0c6cf9b8 /* "common.chat.2" */, 0x0d6cfb4b /* "common.chat.3" */,
+        0x126d032a /* "common.chat.4" */, 0x136d04bd /* "common.chat.5" */, 0x106d0004 /* "common.chat.6" */, 0x116d0197 /* "common.chat.7" */
     };
 
     for (int i = 0; i < 8; i++)

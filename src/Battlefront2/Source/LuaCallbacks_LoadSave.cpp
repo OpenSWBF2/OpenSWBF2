@@ -153,7 +153,8 @@ int ScriptCB_GetLoginList(lua_State* L)
     {
         PlayerProfile::SetNumMemoryProfiles(1);
         unsigned short ausName[64];
-        FormatProfileName(ausName, 64, RedLocalizeDB::Find(0x3802F15B, false), 1);
+        const unsigned short* pusTemplate = RedLocalizeDB::Find(0x3802F15B /* "ifs.Profile.nametemplate" */, false);
+        FormatProfileName(ausName, 64, pusTemplate, 1);
         PlayerProfile::GetProfile(0)->InitProfile(ausName);
     }
 
@@ -190,7 +191,7 @@ int ScriptCB_GetLoginList(lua_State* L)
             bool bClash;
             do
             {
-                pProfile->SetTrueProfileName(RedLocalizeDB::Find(0x3802F15B, false));
+                pProfile->SetTrueProfileName(RedLocalizeDB::Find(0x3802F15B /* "ifs.Profile.nametemplate" */, false));
                 iUnique = SaveGameManager::GetUniqueFilename(pusName, 1, iUnique + 1, 16);
                 bClash = false;
                 for (int i = 0; i < 1; ++i)
@@ -986,7 +987,7 @@ int ScriptCB_TrimLoginName(lua_State* L)
 int ScriptCB_GetUniqueLoginName(lua_State* L)
 {
     lua_gettop(LuaHelper::mState);
-    const unsigned short* pusBase = RedLocalizeDB::Find(0x3802F15B, false);
+    const unsigned short* pusBase = RedLocalizeDB::Find(0x3802F15B /* "ifs.Profile.nametemplate" */, false);
     if (!pusBase)
     {
         lua_pushstring(LuaHelper::mState, "");
@@ -1543,19 +1544,6 @@ void InitLoadSave()
 
 }
 
-// FUNCTION: SWBF2 0x00631380
-void SaveFile::TimeToString(unsigned short* pusDest, int iYear, int iMonth, int iDay,
-                       int iHour, int iMinute, int iSecond, unsigned int uiOutLen)
-{
-    const unsigned int uStamp = iSecond + 60 * (iMinute + 60 *
-        (iHour + 24 * (iDay % 32 + 32 *
-        (iMonth + 13 * (iYear + iMonth / -13 - 100 * (iYear / 100))) - iHour / 24)
-        - iMinute / 60) - iSecond / 60);
-    char acStamp[12];
-    _snprintf(acStamp, 9, "%08x", uStamp);
-    PblUnicode::ustrncnv(pusDest, acStamp, uiOutLen);
-}
-
 // FUNCTION: SWBF2 0x0058a750
 static void* __cdecl _zlibAlloc(void*, unsigned int uCount, unsigned int uSize)
 {
@@ -1658,7 +1646,7 @@ namespace Lua_Callbacks
 {
 
 // FUNCTION: SWBF2 0x0058a9d0
-void __fastcall GetMissionWorld(char* pcWorld, int)
+void GetMissionWorld(char* pcWorld)
 {
     Lua_Callbacks::ScriptCB_LoadMissionSetup(LuaHelper::mState);
     *pcWorld = 0;

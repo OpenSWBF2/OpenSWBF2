@@ -77,11 +77,11 @@ bool FoleyFX::Read(PblFileChunk& chunk, unsigned int uChunkID)
 {
     switch (uChunkID)
     {
-    case 0x8d39bde6:
+    case 0x8d39bde6: /* "name" */
         chunk._pFile->Read8();
         mID = chunk._pFile->Read32();
         return true;
-    case 0xab3e0bff:
+    case 0xab3e0bff: /* "Class" */
         chunk._pFile->Read8();
         mClass = chunk._pFile->Read32();
         return true;
@@ -95,35 +95,35 @@ void FoleyFX::Load(PblFileChunk& chunk)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x41544144)
+        if (child._iId != CHUNK_ID('D', 'A', 'T', 'A'))
         {
             continue;
         }
 
         switch ((unsigned int)child._pFile->Read32())
         {
-        case 0xa1c9cbc5:
+        case 0xa1c9cbc5: /* "FoleyFXGroup" */
         {
             FoleyFXGroup* pGroup = new FoleyFXGroup;
             child = chunk.ReadNextChild();
             pGroup->Read(child);
             continue;
         }
-        case 0xd098618c:
+        case 0xd098618c: /* "FoleyFXSoldier" */
         {
             FoleyFX* pFX = new FoleyFXSoldier;
             child = chunk.ReadNextChild();
             pFX->ReadChunk(child);
             continue;
         }
-        case 0x5e9b9948:
+        case 0x5e9b9948: /* "FoleyFXWalker" */
         {
             FoleyFX* pFX = new FoleyFXWalker;
             child = chunk.ReadNextChild();
             pFX->ReadChunk(child);
             continue;
         }
-        case 0xfd545f86:
+        case 0xfd545f86: /* "FoleyFXOrdnance" */
         {
             FoleyFX* pFX = new FoleyFXImpact;
             child = chunk.ReadNextChild();

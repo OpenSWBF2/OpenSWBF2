@@ -1,8 +1,26 @@
-#include "pcLetterboxEffect.h"
+#include "Battlefront2/Source/LetterboxEffect.h"
+
+#include "RedEngineFL/Application/Renderable.h"
 #include "PebbleFL/Common/PblMath.h"
 
+// VTABLE: SWBF2 0x0079657c
+class LetterboxEffectRenderable : public Renderable
+{
+public:
+
+    LetterboxEffectRenderable()
+        : Renderable(RENDERABLE_SCREENEFFECT)
+    {
+    }
+
+    // SYNTHETIC: SWBF2 0x0041f950
+    // LetterboxEffectRenderable::`scalar deleting destructor'
+
+    virtual void Render(unsigned int value) const;
+};
+
 // FUNCTION: SWBF2 0x0041f980
-void LetterboxEffectRenderable::Render(int)
+void LetterboxEffectRenderable::Render(unsigned int) const
 {
 }
 

@@ -4,6 +4,7 @@
 
 #include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblVector.h"
+#include "GameObject.h"
 
 class Character;
 class Controllable;
@@ -14,6 +15,9 @@ class GameObject;
 class LockOnManager
 {
 public:
+    static const int kMaxManagers = 4;
+    static const int kMaxCommonTargets = 32;
+    static const int kMaxTargets = 64;
 
     void CalculateScreenCoordinates(Controllable* const pCtrl, RedCamera* const pCamera, const PblVector3& pPos,
                                     float& pScreenX, float& pScreenY, bool& pOffScreen, bool bAimRay) const;
@@ -130,7 +134,12 @@ public:
     LockOnManager(int iPlayerIndex);
 
     GameObject* GetLockedTarget() const;
-    void ForceNewTargetLock(GameObject* pObject);
+    // FUNCTION: SWBF2 0x00483540
+    void ForceNewTargetLock(GameObject* pObject)
+    {
+        mForceNewLock = 5;
+        mForceNewLockTarget = pObject;
+    }
     unsigned int GetTargetLockedChangedTurn() const;
     // FUNCTION: SWBF2 0x00483590
     static LockOnManager* GetByPlayerIndex(unsigned int uIndex) { return sLockOnManagers[uIndex]; }
@@ -210,7 +219,7 @@ public:
 
     int mPlayerIndex;
     Character* mPlayerCharacter;
-    Target mTargetPlayer[64];
+    Target mTargetPlayer[kMaxTargets];
     TargetHistory mTargetHistory;
     PblHandle<GameObject> mNewAttacker;
     unsigned int mNumNearestTargets;
@@ -233,7 +242,7 @@ public:
     float mLockDistFilter;
     float mLockDistSquareFilter;
     float mSafeZone;
-    TargetInfo mTargetPlayerInfo[64];
+    TargetInfo mTargetPlayerInfo[kMaxTargets];
     TargetInfo mTargetCommonInfo[32];
     int mTargetsAllowedFilter;
     bool mAutoLoseVisibilityCheck : 1;
@@ -249,13 +258,19 @@ public:
     const TargetInfo* GetCommonTargetInfo() const { return mTargetCommonInfo; }
     static const Target* GetCommonTargets() { return sTargetCommon; }
 
-    static Target sTargetCommon[32];
+    static Target sTargetCommon[kMaxCommonTargets];
 
-    static LockOnManager* sLockOnManagers[4];
+    static LockOnManager* sLockOnManagers[kMaxManagers];
     static unsigned int sNumLockOnManagers;
 
     static GameSound sTargetLockSound;
 };
+
+// FUNCTION: SWBF2 0x00483510
+inline GameObject* LockOnManager::GetLockedTarget() const
+{
+    return mLockedObj;
+}
 
  
  

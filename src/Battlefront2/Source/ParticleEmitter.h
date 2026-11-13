@@ -143,6 +143,7 @@ public:
     GameSoundControllable mAmbientSound;
     unsigned char mSoundStarted;
 
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
     static MemoryPool sMemoryPool;
 
     static void Cleanup();

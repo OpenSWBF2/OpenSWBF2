@@ -37,6 +37,15 @@ void EventClass::RegisterEventHandler(EventHandler& handler)
 {
 }
 
+void EventClass::UnregisterEventHandler(EventHandler& handler)
+{
+}
+
+EventClass* EventHandler::GetRegisteredClass() const
+{
+    return 0;
+}
+
 unsigned int EventClass::AddRef()
 {
     return 0;

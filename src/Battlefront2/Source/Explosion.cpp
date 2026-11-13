@@ -73,7 +73,7 @@ ExplosionClass::ExplosionClass(unsigned int uHash)
     memset(mEffects, 0, sizeof(mEffects));
     mDecalHash = 0;
     mWaterEffectHash = 0;
-    mShieldEffectHash = 0x6B369C5Fu;
+    mShieldEffectHash = 0x6B369C5Fu /* "com_sfx_watersplash_ord_lg" */;
     mNumChunks = 0;
 
     mChunkDescriptor.Init();
@@ -150,7 +150,7 @@ void ExplosionClass::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x45505954:
+        case CHUNK_ID('T', 'Y', 'P', 'E'):
         {
             const unsigned int uType = PblHash(child.ReadString(acBuffer, sizeof(acBuffer)));
             if (Find(uType))
@@ -160,10 +160,10 @@ void ExplosionClass::Read(PblFileChunk& chunk)
             pClass = pClass->Derive(uType);
             break;
         }
-        case 0x45534142:
+        case CHUNK_ID('B', 'A', 'S', 'E'):
             pClass = Find(PblHash(child.ReadString(acBuffer, sizeof(acBuffer))));
             break;
-        case 0x504F5250:
+        case CHUNK_ID('P', 'R', 'O', 'P'):
         {
             const unsigned int uProperty = child._pFile->Read32();
             char* pcValue = child.ReadString(acBuffer, sizeof(acBuffer));
@@ -180,23 +180,23 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x59e94c40:
-    case 0x47d0e794:
+    case 0x59e94c40: /* "Damage" */
+    case 0x47d0e794: /* "MaxDamage" */
         sscanf(pszValue, "%f", &mDamage.mBaseValue);
         break;
-    case 0x0bb94602:
+    case 0x0bb94602: /* "PersonScale" */
         sscanf(pszValue, "%f", &mDamage.mHealthScale[0]);
         break;
-    case 0x9aa17a49:
+    case 0x9aa17a49: /* "AnimalScale" */
         sscanf(pszValue, "%f", &mDamage.mHealthScale[1]);
         break;
-    case 0x338a07cd:
+    case 0x338a07cd: /* "DroidScale" */
         sscanf(pszValue, "%f", &mDamage.mHealthScale[2]);
         break;
-    case 0x6ccdc5ef:
+    case 0x6ccdc5ef: /* "VehicleScale" */
         sscanf(pszValue, "%f", &mDamage.mHealthScale[3]);
         break;
-    case 0xc37970cf:
+    case 0xc37970cf: /* "HealthScale" */
     {
         float fScale;
         sscanf(pszValue, "%f", &fScale);
@@ -205,7 +205,7 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mDamage.mHealthScale[2] = fScale;
         break;
     }
-    case 0xa0bb60ce:
+    case 0xa0bb60ce: /* "ArmorScale" */
     {
         float fScale;
         sscanf(pszValue, "%f", &fScale);
@@ -215,7 +215,7 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mDamage.mHealthScale[6] = fScale;
         break;
     }
-    case 0x02168f61:
+    case 0x02168f61: /* "BuildingScale" */
     {
         float fScale;
         sscanf(pszValue, "%f", &fScale);
@@ -224,52 +224,52 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mDamage.mHealthScale[6] = fScale;
         break;
     }
-    case 0xd0545c72:
+    case 0xd0545c72: /* "ShieldScale" */
         sscanf(pszValue, "%f", &mDamage.mShieldScale);
         break;
-    case 0xded40df6:
+    case 0xded40df6: /* "DamageRadiusInner" */
         sscanf(pszValue, "%f", &mDamageRadius[0]);
         break;
-    case 0xb68798a6:
-    case 0xa23b939d:
+    case 0xb68798a6: /* "DamageRadius" */
+    case 0xa23b939d: /* "DamageRadiusOuter" */
         sscanf(pszValue, "%f", &mDamageRadius[1]);
         break;
-    case 0xbd8bb2f5:
+    case 0xbd8bb2f5: /* "Shake" */
         sscanf(pszValue, "%f", &mShake);
         break;
-    case 0x4954490d:
+    case 0x4954490d: /* "ShakeRadiusInner" */
         sscanf(pszValue, "%f", &mShakeRadius[0]);
         break;
-    case 0xd634b283:
-    case 0x125399a6:
+    case 0xd634b283: /* "ShakeRadius" */
+    case 0x125399a6: /* "ShakeRadiusOuter" */
         sscanf(pszValue, "%f", &mShakeRadius[1]);
         break;
-    case 0x25b787e5:
+    case 0x25b787e5: /* "ShakeLength" */
         sscanf(pszValue, "%f", &mShakeLength);
         break;
-    case 0x876fffdd:
+    case 0x876fffdd: /* "Push" */
         sscanf(pszValue, "%f", &mPush);
         break;
-    case 0x96301ec5:
+    case 0x96301ec5: /* "PushRadiusInner" */
         sscanf(pszValue, "%f", &mPushRadius[0]);
         break;
-    case 0x19b5e2bb:
-    case 0x71262ebe:
+    case 0x19b5e2bb: /* "PushRadius" */
+    case 0x71262ebe: /* "PushRadiusOuter" */
         sscanf(pszValue, "%f", &mPushRadius[1]);
         break;
-    case 0x26d8bec1:
+    case 0x26d8bec1: /* "PushDeadOnly" */
         mPushDeadOnly = atoi(pszValue) != 0;
         break;
-    case 0x0be13b2f:
+    case 0x0be13b2f: /* "HurtOwner" */
         mDoDamageToOwner = atoi(pszValue) != 0;
         break;
-    case 0x6e6e8d54:
+    case 0x6e6e8d54: /* "Effect" */
         if (*pszValue && mNumEffects < 5)
         {
             mEffects[mNumEffects++] = FLEffect::Get(PblHash(pszValue));
         }
         break;
-    case 0xde15f6ae:
+    case 0xde15f6ae: /* "Decal" */
         if (*pszValue)
         {
             mDecalHash = PblHash(pszValue);
@@ -279,7 +279,7 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mDecalHash = 0;
         }
         break;
-    case 0x87733801:
+    case 0x87733801: /* "WaterEffect" */
         if (*pszValue)
         {
             mWaterEffectHash = PblHash(pszValue);
@@ -289,7 +289,7 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mWaterEffectHash = 0;
         }
         break;
-    case 0xddb924a1:
+    case 0xddb924a1: /* "ShieldEffect" */
         if (*pszValue)
         {
             mShieldEffectHash = PblHash(pszValue);
@@ -299,17 +299,17 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mShieldEffectHash = 0;
         }
         break;
-    case 0xf350b4e5:
+    case 0xf350b4e5: /* "SoundProperty" */
         mSound.SetID(pszValue, false, false);
         break;
-    case 0xf54f2869:
+    case 0xf54f2869: /* "NumChunks" */
     {
         unsigned short uValue;
         sscanf(pszValue, "%hu", &uValue);
         mNumChunks = (unsigned char)uValue;
         break;
     }
-    case 0xda328455:
+    case 0xda328455: /* "ChunkGeometryName" */
     {
         mChunkDescriptor.Init();
         mChunkDescriptor.mModel = GameModel::_HashTable.Find(PblHash(pszValue));
@@ -337,34 +337,34 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
         sCurrentTrail = 0;
         break;
     }
-    case 0x0a157be2:
+    case 0x0a157be2: /* "ChunkTerrainCollisions" */
     {
         unsigned short uValue;
         sscanf(pszValue, "%hu", &uValue);
         mChunkDescriptor.mMaxTerrainCollisions = (unsigned char)uValue;
         break;
     }
-    case 0x048f1226:
+    case 0x048f1226: /* "ChunkTerrainEffect" */
         mChunkDescriptor.mTerrainImpactEffect = PblHash(pszValue);
         break;
-    case 0xc8e32dc3:
+    case 0xc8e32dc3: /* "ChunkPhysics" */
     {
         const unsigned int uType = PblHash(pszValue);
         switch (uType)
         {
-        case 0x2648cd55:
-            mChunkDescriptor.mPhysicsType = 3;
+        case 0x2648cd55: /* "LEAF" */
+            mChunkDescriptor.mPhysicsType = PHYSICS_LEAF;
             break;
-        case 0xd290c23b:
-            mChunkDescriptor.mPhysicsType = 2;
+        case 0xd290c23b: /* "STATIC" */
+            mChunkDescriptor.mPhysicsType = PHYSICS_STATIC;
             break;
         default:
-            mChunkDescriptor.mPhysicsType = uType != 0xff79b33c;
+            mChunkDescriptor.mPhysicsType = uType != 0xff79b33c /* "FULL" */ ? PHYSICS_SIMPLE_RIGID : PHYSICS_FULL_RIGID;
             break;
         }
         break;
     }
-    case 0x166f6939:
+    case 0x166f6939: /* "ChunkOmega" */
     {
         float x, y, z;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -373,7 +373,7 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mChunkDescriptor.mOmega.z = z;
         break;
     }
-    case 0xd0259d88:
+    case 0xd0259d88: /* "ChunkGravity" */
     {
         float x, y, z;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -382,27 +382,27 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mChunkDescriptor.mGravity.z = z;
         break;
     }
-    case 0x94f0544b:
+    case 0x94f0544b: /* "ChunkTrailEffect" */
         if (sCurrentTrail <= 2u)
         {
             mChunkDescriptor.mTrailEffect[sCurrentTrail] = PblHash(pszValue);
             ++sCurrentTrail;
         }
         break;
-    case 0xd350c3de:
+    case 0xd350c3de: /* "ChunkSmokeEffect" */
         if (sCurrentSmoke <= 2u)
         {
             mChunkDescriptor.mSmokeEffect[sCurrentSmoke] = PblHash(pszValue);
             ++sCurrentSmoke;
         }
         break;
-    case 0x945d1d15:
+    case 0x945d1d15: /* "ChunkSpeed" */
         sscanf(pszValue, "%f %f", &mInitialChunkSpeedMin, &mInitialChunkSpeedMax);
         break;
-    case 0xcd61e401:
+    case 0xcd61e401: /* "ChunkStartDistance" */
         sscanf(pszValue, "%f", &mChunkStartDistance);
         break;
-    case 0x746ce73e:
+    case 0x746ce73e: /* "LightColor" */
     {
         int r, g, b, a;
         int iCount = sscanf(pszValue, "%d %d %d %d", &r, &g, &b, &a);
@@ -425,13 +425,13 @@ void ExplosionClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
     }
-    case 0x2776564d:
+    case 0x2776564d: /* "LightRadius" */
         sscanf(pszValue, "%f", &mLightRadius);
         break;
-    case 0x6370a66b:
+    case 0x6370a66b: /* "LightDuration" */
         sscanf(pszValue, "%f", &mLightDuration);
         break;
-    case 0x53a81b7f:
+    case 0x53a81b7f: /* "VisibleRadius" */
         sscanf(pszValue, "%f", &mVisibleRadius);
         break;
     }
@@ -536,7 +536,7 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
         FLEffectClass* pEffectClass = mEffects[iEffect];
         if (pEffectClass && pEffectClass->mType == 1)
         {
-            static_cast<const ParticleEmitterClass*>(pEffectClass)->mAmbientSound.Play(&aPos, 0, false, true);
+            ((const ParticleEmitterClass*)pEffectClass)->mAmbientSound.Play(&aPos, 0, false, true);
         }
     }
 
@@ -569,13 +569,7 @@ void ExplosionClass::CreateExplosion(const PblVector3& aPos, const DamageOwner& 
                 q._fY = fSinHalf * vAxis.y;
                 q._fZ = fSinHalf * vAxis.z;
                 q._fS = fCosHalf;
-                D3DXQUATERNION qNorm;
-                PblMatrix mRot;
-                D3DXMatrixRotationQuaternion(reinterpret_cast<D3DXMATRIX*>(&mRot), D3DXQuaternionNormalize(&qNorm, reinterpret_cast<const D3DXQUATERNION*>(&q)));
-                mRot.m[3][0] = aPos.x;
-                mRot.m[3][1] = aPos.y;
-                mRot.m[3][2] = aPos.z;
-                mRot.m[3][3] = 1.0f;
+                PblMatrix mRot(q, aPos);
                 mChunkDescriptor.mMatrix = mRot;
 
                 if (aFlying)

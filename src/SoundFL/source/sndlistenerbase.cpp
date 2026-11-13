@@ -63,7 +63,7 @@ ListenerBase* ListenerBase::GetClosestListener(const ::PblVector3* pPos,
 
     if (smActiveListeners > 1)
     {
-        for (unsigned int i = 0; i < 4; ++i)
+        for (unsigned int i = 0; i < Snd::EngineBase::kMaxListeners; ++i)
         {
             ListenerBase& rListener = EngineBase::smListeners[i];
             if (!(rListener.mFlags & flags_enabled))
@@ -85,7 +85,7 @@ ListenerBase* ListenerBase::GetClosestListener(const ::PblVector3* pPos,
 
     if (pClosest == 0)
     {
-        for (unsigned int i = 0; i < 4; ++i)
+        for (unsigned int i = 0; i < Snd::EngineBase::kMaxListeners; ++i)
         {
             ListenerBase& rListener = EngineBase::smListeners[i];
             if (rListener.mFlags & flags_enabled)

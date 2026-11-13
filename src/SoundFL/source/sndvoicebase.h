@@ -53,7 +53,7 @@ public:
 
     PblListSingle::Node mNode;
     VoiceVirtualManager* mManager;
-    Sample* mSample;
+    const Sample* mSample;
     unsigned char mFlags;
 };
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <string.h>
 
 #include "PebbleFL/Common/PblVector.h"
 
@@ -12,6 +13,7 @@ class ConnectivityGraph;
 class ConnectivityNode : public PblSphere
 {
 public:
+    static const int kMaxArcs = 8;
     ConnectivityNode();
     ~ConnectivityNode();
 
@@ -24,10 +26,32 @@ public:
     bool IsPointInside(const PblVector3& v) const;
 
     unsigned int mAllowTypes;
-    unsigned char mArcs[8];
+    unsigned char mArcs[kMaxArcs];
 
     unsigned char* mBranchingTable[5][4];
 };
+
+// FUNCTION: SWBF2 0x004804c0
+inline ConnectivityNode::ConnectivityNode()
+{
+    memset(mBranchingTable, 0, sizeof(mBranchingTable));
+}
+
+// FUNCTION: SWBF2 0x004804e0
+inline ConnectivityNode::~ConnectivityNode()
+{
+    for (int i = 0; i < 5; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            if (mBranchingTable[i][j])
+            {
+                delete[] mBranchingTable[i][j];
+                return;
+            }
+        }
+    }
+}
  
  
 

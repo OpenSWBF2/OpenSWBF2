@@ -11,6 +11,18 @@ class VariableSet
 {
 public:
 
+    int& GetInt(const char* name)
+    {
+        int*& val = int32Map_[name];
+        if (!val)
+        {
+            Buffer buf(0, sizeof(int));
+            ALLOC::Allocate(buf);
+            val = (int*)buf.data_;
+        }
+        return *val;
+    }
+
     static void* operator new(size_t uiSize, IAllocator& rAlloc)
     {
         Buffer buf(0, uiSize);
@@ -29,8 +41,6 @@ public:
         Buffer buf(0, sizeof(VariableSet));
         rAlloc.Deallocate(buf);
     }
-
-    int& GetInt(const char* pcName);
 
     void ResetAll()
     {
@@ -55,19 +65,6 @@ public:
     HashTable<float*, const char*, ALLOC> floatMap_;
     HashTable<bool*, const char*, ALLOC>  boolMap_;
 };
-
-template <class ALLOC>
-int& VariableSet<ALLOC>::GetInt(const char* pcName)
-{
-    int*& rpValue = int32Map_[pcName];
-    if (!rpValue)
-    {
-        Buffer buf(0, sizeof(int));
-        ALLOC::Allocate(buf);
-        rpValue = (int*)buf.data_;
-    }
-    return *rpValue;
-}
 
 class Globals
 {

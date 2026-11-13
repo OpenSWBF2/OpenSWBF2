@@ -40,7 +40,7 @@
 #include "RedEngineFL/Application/pc/pcFLRender.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Interface/RedFont.h"
-#include "RedEngineFL/Graphics/RedAmbientLight.h"
+#include "RedEngineFL/Graphics/RedLight.h"
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
 #include "RedEngineFL/input/pc/pcRedInputManager.h"
 #include "RedEngineFL/input/RedKeyboard.h"
@@ -118,34 +118,10 @@ namespace HUD
     }
 }
 
-// FUNCTION: SWBF2 0x005636b0
-void HUD::GameEvents::DisableAllForObjectiveDisplay(int iPlayer, bool bFlag)
-{
-    if (iPlayer < 0)
-    {
-        return;
-    }
 
-    HUD::GameEvents::PlayerEvents& events = HUD::GameEvents::gPlayerEvents[iPlayer];
-    HUD::GameEvents::PlayerData& data = HUD::GameEvents::gPlayerData[iPlayer];
-    HUD::GameEvents::DisablePlayerElements(events, data);
-    if (bFlag)
-    {
-        HUD::GameEvents::DisableTeamElements(events, data);
-    }
-    HUD::Event mapDisable(events.mapDisable, true);
-    mapDisable.Send();
-    data.mapMode = (HUD::ElementMap::Mode)3;
-    HUD::Event toolTipsDisable(events.disableToolTips, true);
-    toolTipsDisable.Send();
-    HUD::Event timerDisable(HUD::GameEvents::gObjectiveEvents.timerDisable, true);
-    timerDisable.Send();
-}
 
-namespace GameLoop
-{
-    bool GetCanSwitchSides();
-}
+    
+
 
 extern bool gAttractMode;
 
@@ -369,12 +345,12 @@ void SpawnDisplay::UpdateUnitCountText()
         switch (eReason)
         {
         case PlayerStats::TOO_MANY_UNITS:
-            PblUnicode::ustrlcat(text, RedLocalizeDB::Find(0xD3CD201E, false), 256);
+            PblUnicode::ustrlcat(text, RedLocalizeDB::Find(0xD3CD201E /* "game.spawndisplay.toomanyunits" */, false), 256);
             break;
         case PlayerStats::NOT_ENOUGH_POINTS:
         {
             int iPointsToUnlock = pClass->mPointsToUnlock;
-            PblUnicode::usnprintf(text, 255, RedLocalizeDB::Find(0x155AB074, false),
+            PblUnicode::usnprintf(text, 255, RedLocalizeDB::Find(0x155AB074 /* "game.spawndisplay.needmorepoints" */, false),
                                   iPointsToUnlock - Character::GetPlayerStats(mOwner).GetPoints(true));
             break;
         }
@@ -386,11 +362,11 @@ void SpawnDisplay::UpdateUnitCountText()
     int iMaxUnits = pTeam->GetClassMaxUnits(iIndex);
     if (iMaxUnits > Character::sCharacterLimit || pClass->mPointsToUnlock <= 0)
     {
-        PblUnicode::usnprintf(countText, 127, RedLocalizeDB::Find(0xECF8496F, false), iCurUnits);
+        PblUnicode::usnprintf(countText, 127, RedLocalizeDB::Find(0xECF8496F /* "game.spawndisplay.unitcount" */, false), iCurUnits);
     }
     else
     {
-        PblUnicode::usnprintf(countText, 127, RedLocalizeDB::Find(0xCB22A09F, false), iCurUnits,
+        PblUnicode::usnprintf(countText, 127, RedLocalizeDB::Find(0xCB22A09F /* "game.spawndisplay.unitcountwithmax" */, false), iCurUnits,
                               iMaxUnits);
     }
     PblUnicode::ustrlcat(text, countText, 256);
@@ -466,7 +442,7 @@ void SpawnDisplay::Show(Character* pCharacter)
     {
         if (CameraManager::sInstance->m_iNumCam == 1)
         {
-            if (Snd::Bus* pBus = Snd::Bus::FindByHashID(0xFA930D1C))
+            if (Snd::Bus* pBus = Snd::Bus::FindByHashID(0xFA930D1C /* "ingame_spawnducked" */))
             {
                 pBus->Fade(sInGameBusFadeTime, sInGameBusGain, -1.0f);
             }
@@ -626,7 +602,7 @@ void SpawnDisplay::Hide(Character* pCharacter)
     {
         if (CameraManager::sInstance->m_iNumCam == 1)
         {
-            if (Snd::Bus* pBus = Snd::Bus::FindByHashID(0xFA930D1C))
+            if (Snd::Bus* pBus = Snd::Bus::FindByHashID(0xFA930D1C /* "ingame_spawnducked" */))
             {
                 pBus->Fade(sInGameBusFadeTime, 1.0f, -1.0f);
             }
@@ -889,7 +865,6 @@ void SpawnDisplay::UpdateTimer()
     }
 
     float fTime;
-    bool bCountdown = false;
     if (NetGame::IsEnabled() && NetGame::IsClient())
     {
         int iTurnsElapsed = (int)(NetGame::GetTurnNumber() - mBaseTurn);
@@ -919,19 +894,25 @@ void SpawnDisplay::UpdateTimer()
                 }
             }
         }
-    }
-    else
-    {
-        SpawnManager* pManager = SpawnManager::Instance();
-        int iTeam = mOwner->mTeamNumber;
-        float fCycles = (float)(mOwner->GetSpawnCycle() - pManager->GetCycleIndex(iTeam)) - 1.0f;
-        fTime = pManager->GetCycleDelay(iTeam) * fCycles + pManager->GetCycleTimer(iTeam);
-        if (!(fCycles < 0.0f))
+        unsigned int uLiveHumans = mTeamNumber == 1 ? sNumLiveHumansTeam1 : sNumLiveHumansTeam2;
+        int iUnitCount = SpawnManager::Instance()->GetUnitCount(mTeamNumber);
+        if (NetGame::IsEnabled() && fTime < 0.0001f && uLiveHumans >= (unsigned int)iUnitCount)
         {
-            mBaseTurn = NetGame::GetTurnNumber();
-            mBaseCycleTime = fTime;
-            bCountdown = true;
+            unsigned short usText[256];
+            PblUnicode::usnprintf(usText, 255,
+                                  RedLocalizeDB::Find(PblHash("game.spawndisplay.numtospawn"), false),
+                                  NetGame::GetSpawnOrder(NetGame::GetLocalIndex(0)) + 1);
+            mTextSpawnTimer.SetText(usText, true);
         }
+        return;
+    }
+
+    SpawnManager* pManager = SpawnManager::Instance();
+    int iTeam = mOwner->mTeamNumber;
+    float fCycles = (float)(mOwner->GetSpawnCycle() - pManager->GetCycleIndex(iTeam)) - 1.0f;
+    fTime = pManager->GetCycleDelay(iTeam) * fCycles + pManager->GetCycleTimer(iTeam);
+    if (fCycles < 0.0f)
+    {
         if (NetGame::IsEnabled() &&
             (!NetGame::IsOneWorld() || NetGame::IsDedicated() || NetGame::GetLocalIndex(0) < 0))
         {
@@ -941,6 +922,30 @@ void SpawnDisplay::UpdateTimer()
         {
             return;
         }
+
+        unsigned int uLiveHumans = mTeamNumber == 1 ? sNumLiveHumansTeam1 : sNumLiveHumansTeam2;
+        int iUnitCount = SpawnManager::Instance()->GetUnitCount(mTeamNumber);
+        if (NetGame::IsEnabled() && fTime < 0.0001f && uLiveHumans >= (unsigned int)iUnitCount)
+        {
+            unsigned short usText[256];
+            PblUnicode::usnprintf(usText, 255,
+                                  RedLocalizeDB::Find(PblHash("game.spawndisplay.numtospawn"), false),
+                                  NetGame::GetSpawnOrder(NetGame::GetLocalIndex(0)) + 1);
+            mTextSpawnTimer.SetText(usText, true);
+        }
+        return;
+    }
+
+    mBaseTurn = NetGame::GetTurnNumber();
+    mBaseCycleTime = fTime;
+    if (NetGame::IsEnabled() &&
+        (!NetGame::IsOneWorld() || NetGame::IsDedicated() || NetGame::GetLocalIndex(0) < 0))
+    {
+        return;
+    }
+    if (!mTextSpawnTimer.IsEnabled())
+    {
+        return;
     }
 
     unsigned int uLiveHumans = mTeamNumber == 1 ? sNumLiveHumansTeam1 : sNumLiveHumansTeam2;
@@ -953,7 +958,7 @@ void SpawnDisplay::UpdateTimer()
                               NetGame::GetSpawnOrder(NetGame::GetLocalIndex(0)) + 1);
         mTextSpawnTimer.SetText(usText, true);
     }
-    else if (bCountdown)
+    else
     {
         char acText[32];
         _snprintf(acText, 32, "%d", (int)fTime + 1);
@@ -1269,17 +1274,17 @@ void SpawnDisplay::Initialize()
         {
         case Team::side_Alliance:
         case Team::side_HEROES:
-            uModel = 0x1BE6F06A;
+            uModel = 0x1BE6F06A /* "com_icon_alliance" */;
             break;
         case Team::side_CIS:
-            uModel = 0x073E0A94;
+            uModel = 0x073E0A94 /* "com_icon_CIS" */;
             break;
         case Team::side_Empire:
         case Team::side_VILLAINS:
-            uModel = 0xF5198C5A;
+            uModel = 0xF5198C5A /* "com_icon_imperial" */;
             break;
         case Team::side_Republic:
-            uModel = 0x86B9BD17;
+            uModel = 0x86B9BD17 /* "com_icon_republic" */;
             break;
         }
         m_pSideModel[i]->SetModel(uModel);
@@ -1320,7 +1325,7 @@ void SpawnDisplay::Initialize()
     }
 
     mTextReady.SetFont(RedFont::GAMEFONT_MEDIUM);
-    if (const unsigned short* pText = RedLocalizeDB::Find(0xE67D2442, false))
+    if (const unsigned short* pText = RedLocalizeDB::Find(0xE67D2442 /* "game.spawndisplay.launchin" */, false))
     {
         mTextReady.SetText(pText, true);
     }
@@ -1353,7 +1358,7 @@ void SpawnDisplay::Initialize()
     m_DroidekaElement.SetZOrder(0);
     m_DroidekaElement.SetScale(fScale);
 
-    mBackdropModel.SetModel(0x6472A227);
+    mBackdropModel.SetModel(0x6472A227 /* "shell_cube" */);
     mBackdropModel.SetDepth(0.009f);
     mBackdropModel.SetModelScale((float)RedInterfaceScreen::GetScreenWidth() / 800.0f * 1.25f);
     mBackdropModel.Enable(false);
@@ -1403,7 +1408,7 @@ void SpawnDisplay::SetupSlots()
     for (int i = 0; i < iCount; ++i)
     {
         GameObjectClass* pClass = pTeam->GetClassPtr(i);
-        if (pClass->IsRtti(GameObjectClass::rttiHashGameObjectClass))
+        if (pClass->IsRtti(GameObjectClass::GetRtti()))
         {
             UpdateObjectText(pClass, i);
             SetSlotInfo(pClass, i);
@@ -1453,7 +1458,7 @@ void SpawnDisplay::SetEntityElement(EntityClass* pClass)
         m_SoldierElement.SetClass(static_cast<EntitySoldierClass*>(pClass));
         m_pEntityElement = &m_SoldierElement;
     }
-    else if (pClass->IsRtti(EntityDroidekaClass::rttiHashEntityDroidekaClass))
+    else if (pClass->IsRtti(EntityDroidekaClass::GetRtti()))
     {
         m_DroidekaElement.SetClass(static_cast<EntityDroidekaClass*>(pClass));
         m_pEntityElement = &m_DroidekaElement;
@@ -1461,7 +1466,7 @@ void SpawnDisplay::SetEntityElement(EntityClass* pClass)
 
     if (m_pEntityElement)
     {
-        if (pClass->IsRtti(GameObjectClass::rttiHashGameObjectClass))
+        if (pClass->IsRtti(GameObjectClass::GetRtti()))
         {
             m_pEntityElement->SetModel(
                 const_cast<GameModel*>(static_cast<GameObjectClass*>(pClass)->GetModel()));

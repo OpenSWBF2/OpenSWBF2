@@ -1,5 +1,7 @@
 #pragma once
 
+#include <d3d9.h>
+
 class RedColor
 {
 public:
@@ -31,8 +33,8 @@ public:
     // FUNCTION: SWBF2 0x0041bbe0
     unsigned int GetARGB() const
     {
-        return ((unsigned int)a << 24) | ((unsigned int)r << 16) |
-               ((unsigned int)g << 8) | (unsigned int)b;
+        unsigned int argb = (static_cast<unsigned int>(a) << 8) | r;
+        return (((argb << 8) | g) << 8) | b;
     }
 
     operator unsigned int() const { return GetARGB(); }
@@ -77,6 +79,72 @@ inline const RedColor Interpolate(const RedColor& a, const RedColor& b, float t)
     result.r = (unsigned char)(int)(a.r * (1.0f - t) + b.r * t + 0.5f);
     result.a = (unsigned char)(int)(a.a * (1.0f - t) + b.a * t + 0.5f);
     return result;
+}
+
+class RedColorValue
+{
+public:
+
+    // FUNCTION: SWBF2 0x0048ebf0
+    RedColorValue() {}
+    explicit RedColorValue(float fValue) : r(fValue), g(fValue), b(fValue), a(fValue) {}
+    RedColorValue(float fR, float fG, float fB, float fA) : r(fR), g(fG), b(fB), a(fA) {}
+    RedColorValue(const RedColorValue& c) : r(c.r), g(c.g), b(c.b), a(c.a) {}
+    RedColorValue(const RedColorValue& color, float aA)
+        : r(color.r), g(color.g), b(color.b), a(color.a * aA) {}
+
+    RedColorValue(const RedColor& color);
+
+    RedColorValue operator+(const RedColorValue& color) const
+    {
+        return RedColorValue(r + color.r, g + color.g, b + color.b, a + color.a);
+    }
+
+    RedColorValue operator*(float scale) const
+    {
+        return RedColorValue(r * scale, g * scale, b * scale, a * scale);
+    }
+
+    const RedColorValue& operator*=(const RedColorValue& color)
+    {
+        r *= color.r;
+        g *= color.g;
+        b *= color.b;
+        a *= color.a;
+        return *this;
+    }
+
+    operator RedColor() const
+    {
+        return RedColor((unsigned char)(int)(r * 255.0f),
+                        (unsigned char)(int)(g * 255.0f),
+                        (unsigned char)(int)(b * 255.0f),
+                        (unsigned char)(int)(a * 255.0f));
+    }
+
+    operator D3DCOLORVALUE() const
+    {
+        return *reinterpret_cast<const D3DCOLORVALUE*>(this);
+    }
+
+    float r;
+    float g;
+    float b;
+    float a;
+
+    static RedColorValue WHITE;
+
+    static RedColorValue BLACK;
+};
+
+// FUNCTION: SWBF2 0x004bd900
+inline RedColorValue::RedColorValue(const RedColor& color)
+{
+    const float kInv255 = 1.0f / 255.0f;
+    r = color.r * kInv255;
+    g = color.g * kInv255;
+    b = color.b * kInv255;
+    a = color.a * kInv255;
 }
 
  

@@ -1,14 +1,8 @@
 #include "RedShadingState.h"
+#include "RedModel.h"
 
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
-class RedModel
-{
-public:
-    RedShadingState* CreateShadingState(unsigned int uiMaterialNameHash) const;
-
-    RedShadingState* CreateDefaultShadingState(unsigned int uiRenderTypeHash) const;
-};
 
 // SYNTHETIC: SWBF2 0x00408c20
 // `dynamic initializer for 'RedShadingPose::Entry::sMemoryPool''

@@ -19,12 +19,14 @@
 class PblMatrix;
 extern PblMatrix gMatrixIdentity;
 
-// SYNTHETIC: SWBF2 0x00407a70
-// `dynamic initializer for 'RedInterfaceScreen::sSQRT3''
+// SYNTHETIC: SWBF2 0x00407b60
+// `dynamic initializer for 'RedInterfaceScreen::s_screenFull''
+// SYNTHETIC: SWBF2 0x007698d0
+// `dynamic atexit destructor for 'RedInterfaceScreen::s_screenFull''
 
-// GLOBAL: SWBF2 0x0093e4d4
-// RedInterfaceScreen::sSQRT3
-float RedInterfaceScreen::sSQRT3 = (float)sqrt(3.0);
+// GLOBAL: SWBF2 0x0093e4a4
+// RedInterfaceScreen::s_screenFull
+RedInterfaceScreen RedInterfaceScreen::s_screenFull;
 
 // SYNTHETIC: SWBF2 0x00407aa0
 // `dynamic initializer for 'RedInterfaceScreen::s_directionalLight''
@@ -47,29 +49,27 @@ RedDirectionalLight RedInterfaceScreen::s_directionalLight[2];
 // RedInterfaceScreen::s_lightingState
 RedLightingState RedInterfaceScreen::s_lightingState;
 
-// SYNTHETIC: SWBF2 0x00407b60
-// `dynamic initializer for 'RedInterfaceScreen::s_screenFull''
-// SYNTHETIC: SWBF2 0x007698d0
-// `dynamic atexit destructor for 'RedInterfaceScreen::s_screenFull''
+// SYNTHETIC: SWBF2 0x00407a70
+// `dynamic initializer for 'RedInterfaceScreen::sSQRT3''
 
-// GLOBAL: SWBF2 0x0093e4a4
-// RedInterfaceScreen::s_screenFull
-RedInterfaceScreen RedInterfaceScreen::s_screenFull;
+// GLOBAL: SWBF2 0x0093e4d4
+// RedInterfaceScreen::sSQRT3
+float RedInterfaceScreen::sSQRT3 = (float)sqrt(3.0);
 
 const float RedInterfaceScreen::sfNear = 1.0f;
 const float RedInterfaceScreen::sfFar = 10000.0f;
-// SYNTHETIC: SWBF2 0x00407b80
-// `dynamic initializer for 'RedInterfaceScreen::sfHeight''
-
-// GLOBAL: SWBF2 0x0093e4d0
-// RedInterfaceScreen::sfHeight
-float RedInterfaceScreen::sfHeight = RedInterfaceScreen::sSQRT3 * 0.5f;
 // SYNTHETIC: SWBF2 0x00407ba0
 // `dynamic initializer for 'RedInterfaceScreen::sfWidth''
 
 // GLOBAL: SWBF2 0x0093e4e0
 // RedInterfaceScreen::sfWidth
 float RedInterfaceScreen::sfWidth = RedInterfaceScreen::sSQRT3 * (2.0f / 3.0f);
+// SYNTHETIC: SWBF2 0x00407b80
+// `dynamic initializer for 'RedInterfaceScreen::sfHeight''
+
+// GLOBAL: SWBF2 0x0093e4d0
+// RedInterfaceScreen::sfHeight
+float RedInterfaceScreen::sfHeight = RedInterfaceScreen::sSQRT3 * 0.5f;
 
 // GLOBAL: SWBF2 0x007dec90
 float gRedInterfaceTranslateX = 1.0f;
@@ -276,12 +276,12 @@ void RedInterfaceScreen::Render() const
     PblMatrix mScreen;
     PblMatrix mPerspective;
 
+    mPerspective.m[1][1] = gRedInterfaceScaleY * fUnitY;
     mPerspective.m[0][0] = gRedInterfaceScaleX * fUnitX;
     mPerspective.m[0][1] = 0.0f;
     mPerspective.m[0][2] = 0.0f;
     mPerspective.m[0][3] = 0.0f;
     mPerspective.m[1][0] = 0.0f;
-    mPerspective.m[1][1] = gRedInterfaceScaleY * fUnitY;
     mPerspective.m[1][2] = 0.0f;
     mPerspective.m[1][3] = 0.0f;
     mPerspective.m[2][0] = 0.0f;

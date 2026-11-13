@@ -28,9 +28,9 @@ public:
     virtual unsigned int GetDerivedRtti() const;
     virtual const char* GetDerivedRttiName() const;
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
-    virtual int GetVehicleType() const;
+    virtual GameObjectClass::VehicleType GetVehicleType() const;
 
-    int mVehicleType;
+    GameObjectClass::VehicleType mVehicleType;
 
     static PblHash rttiHashEntityRemoteTerminalClass;
     static const char rttiNameEntityRemoteTerminalClass[];
@@ -93,7 +93,19 @@ public:
     virtual void SetPilot(Controllable* pPilot);
     virtual bool UpdateIndirect(float fDeltaTime);
 
-    GameObject* GetRemoteGameObject();
+    // FUNCTION: SWBF2 0x0046db50
+    GameObject* GetRemoteGameObject()
+    {
+        if (!mRemoteGameObject)
+        {
+            EntityEx* pEntity = EntityEx::mIdMap.Find(mRemoteGameObjectHash);
+            if (pEntity)
+            {
+                mRemoteGameObject = pEntity->GetGameObject();
+            }
+        }
+        return mRemoteGameObject;
+    }
     // FUNCTION: SWBF2 0x004dcb30
     EntityRemoteTerminal* GetNextLinkedTerminal()
     {

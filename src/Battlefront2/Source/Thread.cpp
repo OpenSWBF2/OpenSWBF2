@@ -1,4 +1,5 @@
 #include "Thread.h"
+#include "FrameUpdate.h"
 #include "NetGame.h"
 
 extern ThreadGroup sHostFrameThreadList;
@@ -10,10 +11,6 @@ extern ThreadGroup* sFrameThreadList;
 extern ThreadGroup* sTurnThreadList;
 extern bool gThreadIsEven;
 
-namespace FrameUpdate
-{
-void Update();
-}
 
 static unsigned int sThreadActivationKey = 0;
 
@@ -263,6 +260,7 @@ void Thread::Reset()
     sClientFrameThreadList.Clear();
     sClientLocalTurnThreadList.Clear();
     sClientTurnThreadList.Clear();
+    sExecutingThread = sHostFrameThreadList.mThreads.End();
     sThreadActivationKey = 0;
 }
 

@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 
+#include "FirstPerson.h"
 #include "SoldierAnimationBank.h"
 #include "Thread.h"
 #include "Trackable.h"
@@ -51,21 +52,13 @@ enum PilotType
     PILOT_VEHICLESELF = 4
 };
 
-struct CamPathInfo
-{
-    PblVector3 Vec[6];
-    PblVector3 Slope[6];
-    PblVector3 Ore[6];
-    PblVector3 RSlope[6];
-    float Time[6];
-    unsigned int numPoints;
-};
  
  
 
 class ControllableClass
 {
 public:
+    static const int kMaxWeapons = 4;
     ControllableClass();
 
     ControllableClass(ControllableClass* pBase);
@@ -145,6 +138,8 @@ public:
 class Controllable : public Thread, public Trackable
 {
 public:
+    static const int kNumWeaponChannels = 2;
+    static const int kMaxWeapons = ControllableClass::kMaxWeapons;
 
     // VTABLE: SWBF2 0x00798c98
     class AIThread : public Thread
@@ -213,7 +208,7 @@ public:
     // FUNCTION: SWBF2 0x00478a40
     virtual EnergyMode GetEnergyMode() const
     {
-        return static_cast<EnergyMode>(0);
+        return (EnergyMode)0;
 
     }
     // FUNCTION: SWBF2 0x004774f0
@@ -440,7 +435,7 @@ public:
 
     // FUNCTION: SWBF2 0x00437540
     Character* GetCharacter() const { return mCharacter; }
-    Trigger mControlFire[2];
+    Trigger mControlFire[kNumWeaponChannels];
     Trigger mControlReload;
     Trigger mControlJump;
     Trigger mControlCrouch;
@@ -461,7 +456,7 @@ public:
     float mControlStrafe;
     float mControlTurn;
     float mControlPitch;
-    float mControlSwitch[2];
+    float mControlSwitch[kNumWeaponChannels];
     int mWpnChannel;
     AIThread mAIThread;
     PblList<Controllable>::Node mNode;

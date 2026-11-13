@@ -36,28 +36,6 @@ static pcFlareShader* s_pFlareShader;
 // GLOBAL: SWBF2 0x01f9ae4c
 static pcFlareShader* s_pFillShader;
 
-struct CompressedPosXY
-{
-    short x;
-    short y;
-    static void SetBoundingBox(const PblBox& box)
-    {
-        s_vMin = box.GetMin();
-        s_vScale = (box.GetMax() - box.GetMin()) / 65535.0f;
-        s_vScaleInv = PblVector3(1.0f / s_vScale.x, 1.0f / s_vScale.y, 1.0f / s_vScale.z);
-    }
-
-    static PblVector3 s_vMin;
-    static PblVector3 s_vScale;
-    static PblVector3 s_vScaleInv;
-};
-// GLOBAL: SWBF2 0x007f587c
-PblVector3 CompressedPosXY::s_vMin;
-// GLOBAL: SWBF2 0x007de288
-PblVector3 CompressedPosXY::s_vScale = { 1.0f / 65535.0f, 1.0f / 65535.0f, 1.0f / 65535.0f };
-// GLOBAL: SWBF2 0x007de294
-PblVector3 CompressedPosXY::s_vScaleInv = { 65535.0f, 65535.0f, 65535.0f };
-
 // GLOBAL: SWBF2 0x007eb728
 // s_boundingBox
 static PblBox s_boundingBox(-2200.0f, -2200.0f, -2200.0f, 2200.0f, 2200.0f, 2200.0f);
@@ -174,7 +152,7 @@ void LensFlareEffect::PlatformInit()
                                  D3DPOOL_DEFAULT, 0);
     s_intensityTex = new RedTexture(16, 16, D3DFMT_A8R8G8B8, 1, D3DUSAGE_RENDERTARGET,
                                     D3DPOOL_DEFAULT, 0);
-    s_pClearShader = pcRedShader::Create(0x5c6e1222, 3, 0, 0, 0x80000,
+    s_pClearShader = pcRedShader::Create(0x5c6e1222 /* "clear" */, 3, 0, 0, 0x80000,
                                          RedColor::WHITE, RedColor::BLACK, 32.0f);
 
     if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_UNCOMPRESSED)
@@ -278,7 +256,7 @@ void LensFlareEffect::PlatformCleanup()
 }
 
 // FUNCTION: SWBF2 0x0041c170
-void LensFlareEffect::Render(int value)
+void LensFlareEffect::Render(unsigned int value) const
 {
     if (value & 0x200000)
     {
@@ -310,7 +288,7 @@ static bool IsFlareVisible(const LensFlare* pFlare, unsigned int uiView, const P
         return false;
     }
 
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPosition), reinterpret_cast<const D3DXVECTOR3*>(&pFlare->m_mWorldMatrix.GetTranslation()), reinterpret_cast<const D3DXMATRIX*>(&mView));
+    vPosition = mView.ApplyTransform(pFlare->m_mWorldMatrix.GetTranslation());
     fSize = pFlare->GetSize();
 
     if (fNear > -vPosition.z || -vPosition.z > fFar)
@@ -673,7 +651,7 @@ void LensFlareEffect::LensFlareList::Render<FlareVertex, 642>() const
         RedRenderer::pcGetDevice()->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer);
         IDirect3DSurface9* pSampleSurface;
         ((IDirect3DTexture9*)s_sampleTex->m_pTexture)->GetSurfaceLevel(0, &pSampleSurface);
-        RedRenderer::pcGetDevice()->ColorFill(pSampleSurface, 0, 0);
+        RedRenderer::pcGetDevice()->ColorFill(pSampleSurface, 0, RedColor(0, 0, 0, 0));
         for (int i = 0; i < iNumFlares; i++)
         {
             RedRenderer::pcGetDevice()->StretchRect(pBackBuffer, &sourceRects[i], pSampleSurface,
@@ -908,7 +886,7 @@ void LensFlareEffect::LensFlareList::Render<FlareCompressedVertex, 37506>() cons
         RedRenderer::pcGetDevice()->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer);
         IDirect3DSurface9* pSampleSurface;
         ((IDirect3DTexture9*)s_sampleTex->m_pTexture)->GetSurfaceLevel(0, &pSampleSurface);
-        RedRenderer::pcGetDevice()->ColorFill(pSampleSurface, 0, 0);
+        RedRenderer::pcGetDevice()->ColorFill(pSampleSurface, 0, RedColor(0, 0, 0, 0));
         for (int i = 0; i < iNumFlares; i++)
         {
             RedRenderer::pcGetDevice()->StretchRect(pBackBuffer, &sourceRects[i], pSampleSurface,

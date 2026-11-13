@@ -28,7 +28,7 @@ namespace
         typedef const Entity*(__thiscall * EntityFn)(const GameObject*);
         typedef const PblVector3&(__thiscall * VelocityFn)(const Entity*);
         const Entity* pEntity = pTarget->GetEntity();
-        return static_cast<const EntityGeometry*>(pEntity)->GetVelocity();
+        return ((const EntityGeometry*)pEntity)->GetVelocity();
     }
 }
 
@@ -36,7 +36,7 @@ namespace
 void AttackPatterns::DoFlyDirect()
 {
     const EntityFlyerClass* pClass =
-        static_cast<const EntityFlyerClass*>(GetMe()->GetEntity()->GetEntityClass());
+        (const EntityFlyerClass*)GetMe()->GetEntity()->GetEntityClass();
 
     PblVector3 vPos = GetMe()->GetMatrix().GetTranslation();
     PblVector3 vTarget = GetAttackHelper()->GetLastSeenTargetPos();
@@ -77,7 +77,7 @@ void AttackPatterns::DoFlyDirect()
         if (fDistSq > (pClass->mMaxFlyerSpeed * 2.0f) * (pClass->mMaxFlyerSpeed * 2.0f))
         {
             const PblVector3& vVelocity =
-                static_cast<const EntityGeometry*>(GetAttackHelper()->GetTarget()->GetEntity())->GetVelocity();
+                ((const EntityGeometry*)GetAttackHelper()->GetTarget()->GetEntity())->GetVelocity();
             vDest = vVelocity + vTarget;
             vDest.y = Min(vDest.y, AIUtil::gMaxFlyHeight);
         }
@@ -104,7 +104,7 @@ void AttackPatterns::GeneratePath()
     PblVector3 vDir = AIUtil::GetSafeNormalXZ(vToTarget);
 
     const EntityFlyerClass* pClass =
-        static_cast<const EntityFlyerClass*>(GetMe()->GetEntity()->GetEntityClass());
+        (const EntityFlyerClass*)GetMe()->GetEntity()->GetEntityClass();
     // GLOBAL: SWBF2 0x01fac374
     static float fBack = Max(160.0f, pClass->mMaxFlyerSpeed * 4.0f);
     // GLOBAL: SWBF2 0x01fac36c
@@ -155,7 +155,7 @@ void AttackPatterns::DoFlyStrafe()
     }
 
     const EntityFlyerClass* pClass =
-        static_cast<const EntityFlyerClass*>(GetMe()->GetEntity()->GetEntityClass());
+        (const EntityFlyerClass*)GetMe()->GetEntity()->GetEntityClass();
     mOwner->GetLowLevel().SetMinControlSpeed(pClass->mMaxFlyerSpeed * 0.5f);
 }
 

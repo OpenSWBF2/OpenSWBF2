@@ -21,18 +21,18 @@
 // GLOBAL: SWBF2 0x0078bce0
 static const unsigned int VOTypeNames[48] =
 {
-    0x00000000, 0x2588f638, 0xe359b342, 0x0cb276ac,
-    0xee6df4fd, 0x2af268b3, 0xaaccc29a, 0x9ce7b15e,
-    0xc50f4599, 0xdeb06c63, 0xd988d8fd, 0xfdf0ecb5,
-    0x74bb501c, 0x78bb5668, 0x5ad79083, 0x5ed796cf,
-    0x0d430618, 0xce19d989, 0xcfd5c320, 0xdd1db480,
-    0xc0a42c15, 0xeaf65ff1, 0x49dfeb81, 0xaef2d88a,
-    0x421c2029, 0x1b8a0392, 0x37c344c8, 0x2ebba9e7,
-    0xfe5092df, 0x048b38ec, 0xd8a23783, 0x8bb82ce4,
-    0x027d1363, 0x5e739197, 0xde654ab1, 0x729931de,
-    0x3f4ec8e3, 0x15b693e4, 0xd0e42acc, 0x8435f5fe,
-    0x31b64121, 0x006b4d8e, 0x0ff77e53, 0x4460cdc4,
-    0x1d2f03ea, 0x03a34694, 0x7208dd19, 0x335a8bad,
+    0x00000000, 0x2588f638 /* "AcquiredTarget" */, 0xe359b342 /* "FriendlyFire" */, 0x0cb276ac,
+    0xee6df4fd /* "missileLocked" */, 0x2af268b3 /* "MissileIncoming" */, 0xaaccc29a /* "PathFollowWait" */, 0x9ce7b15e,
+    0xc50f4599 /* "kill" */, 0xdeb06c63 /* "HeadshotKill" */, 0xd988d8fd /* "Grenade" */, 0xfdf0ecb5 /* "RebelsShootDeadBody" */,
+    0x74bb501c /* "KillingSpree4" */, 0x78bb5668 /* "KillingSpree8" */, 0x5ad79083, 0x5ed796cf,
+    0x0d430618 /* "RepairStart" */, 0xce19d989 /* "RepairEnd" */, 0xcfd5c320 /* "GivePowerup" */, 0xdd1db480,
+    0xc0a42c15, 0xeaf65ff1, 0x49dfeb81 /* "SC_Follow" */, 0xaef2d88a /* "SC_FollowResponse" */,
+    0x421c2029 /* "SC_StopFollow" */, 0x1b8a0392 /* "SC_StopFollowResponse" */, 0x37c344c8 /* "SC_VehicleWaitUp" */, 0x2ebba9e7 /* "SC_VehicleWaitUpResponse" */,
+    0xfe5092df /* "SC_GetIn" */, 0x048b38ec /* "SC_GetInResponse" */, 0xd8a23783, 0x8bb82ce4 /* "SC_GetOut" */,
+    0x027d1363 /* "SC_GetOutResponse" */, 0x5e739197 /* "NotShootingCriticalHit" */, 0xde654ab1, 0x729931de /* "NearbyFriendlySlaughter" */,
+    0x3f4ec8e3 /* "NearbyEnemySlaughter" */, 0x15b693e4, 0xd0e42acc, 0x8435f5fe,
+    0x31b64121 /* "SpottedVO" */, 0x006b4d8e /* "NeedMedicVO" */, 0x0ff77e53 /* "NeedRepairVO" */, 0x4460cdc4 /* "NeedAmmoVO" */,
+    0x1d2f03ea /* "NeedPickupVO" */, 0x03a34694 /* "NeedBackupVO" */, 0x7208dd19 /* "AttackPositionVO" */, 0x335a8bad /* "DefendPositionVO" */,
 };
 
 namespace AI
@@ -66,33 +66,33 @@ void SetModifier(VOModifier& modifier, const char* pszWord, const char*)
 
     switch ((unsigned int)PblHash(pszWord))
     {
-    case 0xA4213C0A: modifier.mAboveBelowCover = VO_ABC_Above; break;
-    case 0x9253C0F2: modifier.mAboveBelowCover = VO_ABC_Below; break;
-    case 0xBACD0480: modifier.mAboveBelowCover = VO_ABC_Cover; break;
-    case 0x78E32DE5: modifier.mRightLeftBehind = VO_RLB_Right; break;
-    case 0x124AEC70: modifier.mRightLeftBehind = VO_RLB_Left; break;
-    case 0xDCED8A09: modifier.mRightLeftBehind = VO_RLB_Behind; break;
-    case 0xE5DAB718: modifier.mDistance = VO_D_ReallyNear; break;
-    case 0x54F3570F: modifier.mDistance = VO_D_Near; break;
-    case 0x1CDAD1EB: modifier.mDistance = VO_D_ReallyFar; break;
-    case 0xEAFD2812: modifier.mTargetHealth = VO_TH_Below25; break;
-    case 0x1EED85CA: modifier.mPlayerHealth = VO_PH_Below25; break;
-    case 0xEEDDAE45: modifier.mTargetType = VO_TT_IsFlyer; break;
-    case 0x5D847EDD: modifier.mTargetType = VO_TT_IsHover; break;
-    case 0x91668BB7: modifier.mTargetType = VO_TT_IsWalker; break;
-    case 0x710F3467: modifier.mTargetType = VO_TT_IsTurret; break;
-    case 0xB0C0E926: modifier.mTargetType = VO_TT_IsSniper; break;
-    case 0xB79BD865: modifier.mTargetType = VO_TT_IsRocket; break;
-    case 0x6B468289: modifier.mTargetType = VO_TT_IsHero; break;
-    case 0x76EB7F24: modifier.mMeInfo = VO_ME_InFlyer; break;
-    case 0x5968B570: modifier.mMeInfo = VO_ME_InHover; break;
-    case 0x1EE5DFFC: modifier.mMeInfo = VO_ME_InWalker; break;
-    case 0x1C993CF8: modifier.mMeInfo = VO_ME_InTurret; break;
-    case 0xE16E9E73: modifier.mMeInfo = VO_ME_IsZoomed; break;
-    case 0x3B183215: modifier.mMeInfo = VO_ME_IsProne; break;
-    case 0xABC74D1C: modifier.mAdrenaline = VO_ADR_Low; break;
-    case 0x33C5D9AD: modifier.mAdrenaline = VO_ADR_Medium; break;
-    case 0x8929FEF6: modifier.mAdrenaline = VO_ADR_High; break;
+    case 0xA4213C0A: /* "Above" */ modifier.mAboveBelowCover = VO_ABC_Above; break;
+    case 0x9253C0F2: /* "Below" */ modifier.mAboveBelowCover = VO_ABC_Below; break;
+    case 0xBACD0480: /* "Cover" */ modifier.mAboveBelowCover = VO_ABC_Cover; break;
+    case 0x78E32DE5: /* "Right" */ modifier.mRightLeftBehind = VO_RLB_Right; break;
+    case 0x124AEC70: /* "Left" */ modifier.mRightLeftBehind = VO_RLB_Left; break;
+    case 0xDCED8A09: /* "Behind" */ modifier.mRightLeftBehind = VO_RLB_Behind; break;
+    case 0xE5DAB718: /* "ReallyNear" */ modifier.mDistance = VO_D_ReallyNear; break;
+    case 0x54F3570F: /* "Near" */ modifier.mDistance = VO_D_Near; break;
+    case 0x1CDAD1EB: /* "ReallyFar" */ modifier.mDistance = VO_D_ReallyFar; break;
+    case 0xEAFD2812: /* "TargetHealthBelow25" */ modifier.mTargetHealth = VO_TH_Below25; break;
+    case 0x1EED85CA: /* "PlayerHealthBelow25" */ modifier.mPlayerHealth = VO_PH_Below25; break;
+    case 0xEEDDAE45: /* "IsFlyer" */ modifier.mTargetType = VO_TT_IsFlyer; break;
+    case 0x5D847EDD: /* "IsHover" */ modifier.mTargetType = VO_TT_IsHover; break;
+    case 0x91668BB7: /* "IsWalker" */ modifier.mTargetType = VO_TT_IsWalker; break;
+    case 0x710F3467: /* "IsTurret" */ modifier.mTargetType = VO_TT_IsTurret; break;
+    case 0xB0C0E926: /* "IsSniper" */ modifier.mTargetType = VO_TT_IsSniper; break;
+    case 0xB79BD865: /* "IsRocket" */ modifier.mTargetType = VO_TT_IsRocket; break;
+    case 0x6B468289: /* "IsHero" */ modifier.mTargetType = VO_TT_IsHero; break;
+    case 0x76EB7F24: /* "InFlyer" */ modifier.mMeInfo = VO_ME_InFlyer; break;
+    case 0x5968B570: /* "InHover" */ modifier.mMeInfo = VO_ME_InHover; break;
+    case 0x1EE5DFFC: /* "InWalker" */ modifier.mMeInfo = VO_ME_InWalker; break;
+    case 0x1C993CF8: /* "InTurret" */ modifier.mMeInfo = VO_ME_InTurret; break;
+    case 0xE16E9E73: /* "IsZoomed" */ modifier.mMeInfo = VO_ME_IsZoomed; break;
+    case 0x3B183215: /* "IsProne" */ modifier.mMeInfo = VO_ME_IsProne; break;
+    case 0xABC74D1C: /* "AdrenalineLow" */ modifier.mAdrenaline = VO_ADR_Low; break;
+    case 0x33C5D9AD: /* "AdrenalineMedium" */ modifier.mAdrenaline = VO_ADR_Medium; break;
+    case 0x8929FEF6: /* "AdrenalineHigh" */ modifier.mAdrenaline = VO_ADR_High; break;
     }
 }
 
@@ -103,13 +103,8 @@ void GetModifiers(const GameObject* pTarget, const PblVector3& vPos, VOModifier&
     const PblVector3& vTarget = mTarget.GetTranslation();
 
     const float fHeight = vPos.y - vTarget.y;
-    const float fX = vTarget.x - vPos.x;
-    const float fZ = vTarget.z - vPos.z;
-    float fDist = sqrtf(fZ * fZ + fX * fX);
-    if (!(fDist > 0.1f))
-    {
-        fDist = 0.1f;
-    }
+    float fDist = LengthXZ(vTarget - vPos);
+    fDist = Max(fDist, 0.1f);
     const float fSlope = fHeight / fDist;
     if (fHeight > 3.0f && fSlope > 0.25f)
     {
@@ -174,19 +169,19 @@ VOModifier GetModifiers(const GameObject* pTarget, const GameObject* pOther)
 
     switch (AIUtil::GetEntityType(pOther->GetEntity()))
     {
-    case AIUtil::ENTITY_WALKER:
-        modifiers.mTargetType = VO_TT_IsWalker;
-        break;
     case AIUtil::ENTITY_FLYER:
         modifiers.mTargetType = VO_TT_IsFlyer;
-        break;
-    case AIUtil::ENTITY_HOVER:
-        modifiers.mTargetType = VO_TT_IsHover;
         break;
     case AIUtil::ENTITY_TURRET:
     case AIUtil::ENTITY_BUILDING_ARMED:
     case AIUtil::ENTITY_REMOTE_TERMINAL:
         modifiers.mTargetType = VO_TT_IsTurret;
+        break;
+    case AIUtil::ENTITY_WALKER:
+        modifiers.mTargetType = VO_TT_IsWalker;
+        break;
+    case AIUtil::ENTITY_HOVER:
+        modifiers.mTargetType = VO_TT_IsHover;
         break;
     default:
         if (AIUtil::IsSniperGuy(pOther))
@@ -206,9 +201,23 @@ VOModifier GetModifiers(const GameObject* pTarget, const GameObject* pOther)
 
     switch (AIUtil::GetEntityType(pTarget->GetEntity()))
     {
+    case AIUtil::ENTITY_TURRET:
+    case AIUtil::ENTITY_BUILDING_ARMED:
+    case AIUtil::ENTITY_REMOTE_TERMINAL:
+        modifiers.mMeInfo = VO_ME_InTurret;
+        break;
+    case AIUtil::ENTITY_FLYER:
+        modifiers.mTargetType = VO_ME_InFlyer;
+        break;
+    case AIUtil::ENTITY_WALKER:
+        modifiers.mTargetType = VO_ME_InWalker;
+        break;
+    case AIUtil::ENTITY_HOVER:
+        modifiers.mTargetType = VO_ME_InHover;
+        break;
     case AIUtil::ENTITY_SOLDIER:
     {
-        EntitySoldier* pSoldier = static_cast<EntitySoldier*>(const_cast<Entity*>(pTarget->GetEntity()));
+        EntitySoldier* pSoldier = (EntitySoldier*)(const_cast<Entity*>(pTarget->GetEntity()));
         if (pSoldier->GetTargetInfo()->mIsAiming)
         {
             modifiers.mMeInfo = VO_ME_IsZoomed;
@@ -219,27 +228,13 @@ VOModifier GetModifiers(const GameObject* pTarget, const GameObject* pOther)
         }
         break;
     }
-    case AIUtil::ENTITY_WALKER:
-        modifiers.mTargetType = VO_ME_InWalker;
-        break;
-    case AIUtil::ENTITY_FLYER:
-        modifiers.mTargetType = VO_ME_InFlyer;
-        break;
-    case AIUtil::ENTITY_HOVER:
-        modifiers.mTargetType = VO_ME_InHover;
-        break;
-    case AIUtil::ENTITY_TURRET:
-    case AIUtil::ENTITY_BUILDING_ARMED:
-    case AIUtil::ENTITY_REMOTE_TERMINAL:
-        modifiers.mMeInfo = VO_ME_InTurret;
-        break;
     default:
         break;
     }
 
     if (pTarget->GetControllable() && pTarget->GetControllable()->mCharacter)
     {
-        switch (pTarget->GetControllable()->mCharacter->mAdrenaline.GetCurrentLevel())
+        switch (pTarget->GetControllable()->GetCharacter()->mAdrenaline.GetCurrentLevel())
         {
         case ADRENALINE_LOW:
             modifiers.mAdrenaline = VO_ADR_Low;
@@ -552,7 +547,8 @@ int Play(VOType eType, const GameObject* pSpeaker, const GameObject* pTarget,
     }
     if (pTarget)
     {
-        _Play(eType, pSpeaker, pTarget, GetModifiers(pTarget, pOther));
+        VOModifier modifiers = GetModifiers(pTarget, pOther);
+        _Play(eType, pSpeaker, pTarget, modifiers);
     }
     return -1;
 }
@@ -610,7 +606,7 @@ AI::VOType AI::VOHelper::TypeStrToEnum(const char* pszType)
     {
         if (hash == VOTypeNames[i])
         {
-            return static_cast<VOType>(i);
+            return (VOType)i;
         }
     }
     return VOT_NONE;

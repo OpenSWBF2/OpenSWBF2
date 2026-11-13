@@ -219,7 +219,7 @@ StreamPacket* StreamMixer::ConnectionGetPacket(unsigned int uiInput)
         StreamPacket* const pPacket = pIO->GetPacket();
         if (pPacket)
         {
-            if (pIO->GetDataLeft(pPacket->mBufferUsed))
+            if (pIO->GetDataLeft(pPacket->GetUsed()))
             {
                 return pIO->GetPacket();
             }
@@ -352,7 +352,7 @@ void StreamMixer::Update()
                 {
                     continue;
                 }
-                if (pPacket->mBufferUsed == 0)
+                if (pPacket->GetUsed() == 0)
                 {
                     UnlockPacket(uiInput, pPacket);
                     continue;
@@ -366,7 +366,7 @@ void StreamMixer::Update()
                 continue;
             }
 
-            const unsigned int uiBufferUsed = pPacket->mBufferUsed;
+            const unsigned int uiBufferUsed = pPacket->GetUsed();
             if (uiBufferUsed < sizeof(short))
             {
                 pPacket->Unlock();
@@ -400,7 +400,7 @@ void StreamMixer::Update()
             else
             {
                 uiFrames = uiBufferUsed / uiInFrameSize;
-                pData = (const short*)pPacket->mBuffer;
+                pData = (const short*)pPacket->GetBuffer();
                 pMix = mMixBuffer;
                 uiMixEnd = uiFrames;
             }
@@ -637,7 +637,7 @@ void StreamMixer::Update()
         {
             const unsigned int uiPos = StreamNode::mPlaybackPosition;
             int* pSum = mMixBuffer;
-            short* pOut = (short*)pOutPacket->mBuffer;
+            short* pOut = (short*)pOutPacket->GetBuffer();
             const unsigned int uiSamples = mMixBufferDataSize * mOutputChannels;
             if (mOutputGain == 0x7FFF)
             {

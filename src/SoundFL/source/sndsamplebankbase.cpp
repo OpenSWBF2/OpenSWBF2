@@ -190,7 +190,7 @@ bool SampleBankBase::LoadSamples(PblFileChunk& chunk, SampleBankBase const* pBas
 
     while (!chunk.IsDone() && uiRemaining)
     {
-        if ((unsigned int)chunk._pFile->Read32() != 0x96E382A7u)
+        if ((unsigned int)chunk._pFile->Read32() != 0x96E382A7u /* "Sample" */)
         {
             return false;
         }
@@ -209,22 +209,22 @@ bool SampleBankBase::LoadSamples(PblFileChunk& chunk, SampleBankBase const* pBas
         {
             switch (chunk._pFile->Read32())
             {
-            case 0x2FB31C01:
+            case 0x2FB31C01: /* "Frequency" */
                 uiFrequency = chunk._pFile->Read32();
                 break;
-            case 0x1D48FEEF:
+            case 0x1D48FEEF: /* "sizeSamples" */
                 uiLengthSamples = chunk._pFile->Read32();
                 break;
-            case 0x23A0D95C:
+            case 0x23A0D95C: /* "Size" */
                 uiSize = chunk._pFile->Read32();
                 break;
             case 0x2E789FB4:
                 bContinue = false;
                 break;
-            case 0x37386AE0:
+            case 0x37386AE0: /* "id" */
                 uiHashID = chunk._pFile->Read32();
                 break;
-            case 0x7D268157:
+            case 0x7D268157: /* "alias" */
             {
                 const unsigned int uiAliasHashID = chunk._pFile->Read32();
                 for (unsigned int i = 0; i < uiIndex; ++i)
@@ -331,15 +331,15 @@ SampleBankBase* __cdecl SampleBankBase::LoadBank(PblFileChunk& chunk, char const
         switch (child._iId)
         {
         case 0x5E262256u:
-        case 0x9A644D15u:
-            pBank = static_cast<SampleBank*>(LoadBank(child, pcName, bFirstOnly, uiBaseHashID));
+        case 0x9A644D15u: /* "SampleBank" */
+            pBank = (SampleBank*)LoadBank(child, pcName, bFirstOnly, uiBaseHashID);
             if (bFirstOnly)
             {
                 return pBank;
             }
             break;
 
-        case 0x0FB40705u:
+        case 0x0FB40705u: /* "info" */
         {
             unsigned int uiHashID = 0;
             unsigned int uiSize = 0;
@@ -352,26 +352,26 @@ SampleBankBase* __cdecl SampleBankBase::LoadBank(PblFileChunk& chunk, char const
             {
                 switch ((unsigned int)child._pFile->Read32())
                 {
-                case 0x8D39BDE6u:
+                case 0x8D39BDE6u: /* "name" */
                     uiHashID = child._pFile->Read32();
                     break;
-                case 0x694AAA0Bu:
+                case 0x694AAA0Bu: /* "template" */
                     bTemplate = child._pFile->Read32() == 1;
                     if (bTemplate)
                     {
                         uiSize = 0;
                     }
                     break;
-                case 0x23A0D95Cu:
+                case 0x23A0D95Cu: /* "Size" */
                     uiSize = child._pFile->Read32();
                     break;
-                case 0x98B889CEu:
+                case 0x98B889CEu: /* "numSamples" */
                     uiNumSamples = child._pFile->Read32();
                     break;
-                case 0xB99D8552u:
+                case 0xB99D8552u: /* "format" */
                     eFormat = (SampleInfo::Format)child._pFile->Read32();
                     break;
-                case 0x8EBF7143u:
+                case 0x8EBF7143u: /* "SampleInfo" */
                 {
                     SampleBankBase const* const pBase =
                         uiBaseHashID ? FindByHashID(uiBaseHashID) : 0;
@@ -412,7 +412,7 @@ SampleBankBase* __cdecl SampleBankBase::LoadBank(PblFileChunk& chunk, char const
             break;
         }
 
-        case 0xD872E2A5u:
+        case 0xD872E2A5u: /* "Data" */
             pBank->LoadData(child, pcName, puiOffsets);
             if (puiOffsets)
             {

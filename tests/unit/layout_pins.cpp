@@ -58,7 +58,7 @@
 #include "Battlefront2/Source/GameVoiceChatEncoder.h"
 #include "Battlefront2/Source/VoiceChatNode.h"
 #include "Battlefront2/Source/VoiceChatTransport.h"
-#include "Battlefront2/Source/NetAdminMd5.h"
+#include "GameSpyFL/md5.h"
 #include "Battlefront2/Source/NetAdmin.h"
 #include "Battlefront2/Source/ParticleEmitterObject.h"
 
@@ -163,10 +163,6 @@ static_assert(offsetof(FindGameData, mGalaxyLobbyPasswordData) == 0xb5, "find ga
 static_assert(sizeof(FindGameData::mGalaxyLobbyPasswordData) == 64, "find game data lobby password size");
 static_assert(sizeof(NetPacket) == 0x10, "net packet size");
 static_assert(offsetof(NetPacket, mData) == 0xc, "net packet data");
-static_assert(offsetof(NetBigPacket, mData2) == 0x10, "net big packet data");
-static_assert(offsetof(NetSmallPacket, mData2) == 0x10, "net small packet data");
-static_assert(sizeof(NetBigPacket) == 0x400, "net big packet size");
-static_assert(sizeof(NetSmallPacket) == 0x80, "net small packet size");
 static_assert(sizeof(NetComm::PktHeader) == 0x8, "net packet header size");
 static_assert(offsetof(NetComm::PktHeader, group) == 0x0, "net packet header group");
 static_assert(offsetof(NetComm::PktHeader, type) == 0x2, "net packet header type");

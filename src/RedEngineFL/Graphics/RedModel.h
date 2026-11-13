@@ -99,3 +99,52 @@ inline const RedModel* RedModel::Find(unsigned int uiName)
 {
     return _HashTable.Find(uiName);
 }
+
+inline const RedModel* RedModel::GetFirst()
+{
+    return PblHashTable<RedModel, 1024>::Itor(_HashTable);
+}
+
+// FUNCTION: SWBF2 0x00544950
+inline const RedModel* RedModel::GetLast()
+{
+    const RedModel* pLast = 0;
+    for (PblHashTable<RedModel, 1024>::Itor it(_HashTable); (RedModel*)it; ++it)
+    {
+        pLast = it;
+    }
+    return pLast;
+}
+
+// FUNCTION: SWBF2 0x005449c0
+inline const RedModel* RedModel::GetNext(const RedModel* const pModel)
+{
+    bool bFound = false;
+    PblHashTable<RedModel, 1024>::Itor it(_HashTable);
+    while ((RedModel*)it && !bFound)
+    {
+        bFound = (pModel == it);
+        ++it;
+    }
+    const RedModel* pNext = it;
+    if (!pNext)
+    {
+        pNext = PblHashTable<RedModel, 1024>::Itor(_HashTable);
+    }
+    return pNext;
+}
+
+// FUNCTION: SWBF2 0x00544a60
+inline const RedModel* RedModel::GetPrev(const RedModel* const pModel)
+{
+    const RedModel* pPrev = pModel;
+    for (PblHashTable<RedModel, 1024>::Itor it(_HashTable); (RedModel*)it; ++it)
+    {
+        if (pModel == it)
+        {
+            break;
+        }
+        pPrev = it;
+    }
+    return pPrev;
+}

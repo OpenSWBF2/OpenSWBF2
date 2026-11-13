@@ -48,9 +48,9 @@ void ScopeBlurEffect::PlatformReadConfigData(PblConfig::Data& data)
 void ScopeBlurEffect::PlatformInit()
 {
     m_pClearShader = (pcClearShader*)pcRedShader::Create(
-        0x5c6e1222, 0x403, 0, 0, 4, RedColor::WHITE, RedColor::BLACK, 32.0f);
+        0x5c6e1222 /* "clear" */, 0x403, 0, 0, 4, RedColor::WHITE, RedColor::BLACK, 32.0f);
     m_pFilterShader = (pcFilterCopyShader*)pcRedShader::Create(
-        0xfb9eb106, 0x202, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
+        0xfb9eb106 /* "FilterCopy" */, 0x202, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
     m_pBlurTexture = new RedTexture(256, 256, D3DFMT_A8R8G8B8, 1, D3DUSAGE_RENDERTARGET,
                                     D3DPOOL_DEFAULT, 0);
 }
@@ -72,7 +72,7 @@ void ScopeBlurEffect::PlatformCleanup()
 }
 
 // FUNCTION: SWBF2 0x00426910
-void ScopeBlurEffect::Render(int value)
+void ScopeBlurEffect::Render(unsigned int value) const
 {
     unsigned int uiViewport = FLRenderer::GetCurrentViewport();
     if ((unsigned int)value & 0x200000)
@@ -132,14 +132,14 @@ void ScopeBlurEffect::Render(int value)
     }
     else
     {
-        m_pClearShader->m_pTex = RedTexture::Find(0xDE020766);
+        m_pClearShader->m_pTex = RedTexture::Find(0xDE020766 /* "white" */);
         fU = 1.0f;
         color = RedColor::BLACK;
         fV = 1.0f;
         color.a = (unsigned char)(int)((float)m_alpha[uiViewport] * 0.6f);
     }
 
-    m_pClearShader->m_pAlphaMaskTex = RedTexture::Find(0xF745F270);
+    m_pClearShader->m_pAlphaMaskTex = RedTexture::Find(0xF745F270 /* "blurmask" */);
 
     pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x403, 32, 4, 0, false);
     BlurVertex* pVerts = (BlurVertex*)pPrimitive->BeginVertexData();

@@ -85,7 +85,19 @@ public:
  
 
 inline HUD::TransformNumberColor::Factory::Factory()
-    : HUD::Item::Factory(0x0d34920du)
+    : HUD::Item::Factory(0x0d34920du /* "TransformNumberColor" */)
 {
     mName = "TransformNumberColor";
+}
+
+// FUNCTION: SWBF2 0x00564990
+inline HUD::Item* HUD::TransformNumberColor::Factory::CreateItem(const char* const pName, ItemCallback pCallback,
+                                                                 void* const pUserData)
+{
+    HUD::Item* pItem = new TransformNumberColor(pName, pCallback, pUserData);
+    if (pItem)
+    {
+        return pItem->SetFactory(this);
+    }
+    return 0;
 }

@@ -20,7 +20,7 @@ public:
     // SYNTHETIC: SWBF2 0x006f0920
     // RedShape::`scalar deleting destructor'
 
-    virtual void Render(int value) = 0;
+    virtual void Render(unsigned int value) const = 0;
 
     void SetColor(RedColor color)
     {
@@ -50,7 +50,7 @@ public:
     // RedSphereShape::`scalar deleting destructor'
 
     // FUNCTION: SWBF2 0x006f2bb0
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
 };
 
 // VTABLE: SWBF2 0x00783e98
@@ -66,6 +66,6 @@ public:
     // RedTetrahedronShape::`scalar deleting destructor'
 
     // FUNCTION: SWBF2 0x006f2bc0
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
 };
    

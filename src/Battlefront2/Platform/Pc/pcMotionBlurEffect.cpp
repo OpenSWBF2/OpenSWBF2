@@ -25,7 +25,7 @@ static pcClearShader* s_pClearShader;
 void MotionBlurEffect::PlatformInit()
 {
     s_pClearShader = (pcClearShader*)pcRedShader::Create(
-        0x5c6e1222, 0x403, 0, 0, 4, RedColor::WHITE, RedColor::BLACK, 32.0f);
+        0x5c6e1222 /* "clear" */, 0x403, 0, 0, 4, RedColor::WHITE, RedColor::BLACK, 32.0f);
 }
 
 // FUNCTION: SWBF2 0x00423c00
@@ -83,7 +83,7 @@ void MotionBlurEffect::PlatformRender(unsigned int) const
     pPrimitive->EndVertexData();
 
     s_pClearShader->m_pTex = FLRenderer::pcGetPreviousFrameTexture();
-    s_pClearShader->m_pAlphaMaskTex = RedTexture::Find(0xF745F270);
+    s_pClearShader->m_pAlphaMaskTex = RedTexture::Find(0xF745F270 /* "blurmask" */);
 
     RedColor color;
     color.b = RedColor::WHITE.b;

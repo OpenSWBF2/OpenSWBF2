@@ -12,7 +12,7 @@ public:
 
     virtual ~ShadowEffect();
 
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Init();
     virtual void Cleanup();
     virtual void ReadConfig(PblConfig& config);

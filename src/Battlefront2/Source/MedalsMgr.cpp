@@ -355,3 +355,47 @@ void MedalsMgr::ClearAllMedalPoints()
         }
     }
 }
+
+// FUNCTION: SWBF2 0x005a3180
+int MedalsMgr::GetMedalLevel(int iCount)
+{
+    if (iCount >= 64)
+    {
+        return 3;
+    }
+    if (iCount >= 32)
+    {
+        return 2;
+    }
+    return iCount >= 4;
+}
+
+// FUNCTION: SWBF2 0x005a34e0
+int MedalsMgr::GetRankLevel(int iCount)
+{
+    if (iCount >= 300)
+    {
+        return 3;
+    }
+    if (iCount >= 100)
+    {
+        return 2;
+    }
+    return iCount >= 20;
+}
+
+// FUNCTION: SWBF2 0x005a3870
+short MedalsMgr::GetMedalsThisGame(int iType) const
+{
+    if (!mOwner || NetGame::IsEnabled())
+    {
+        return 0;
+    }
+    PlayerProfile::tProfile* pProfile = mOwner->GetProfile();
+    if (!pProfile)
+    {
+        return GetMedals(iType);
+    }
+    return GetMedals(iType) - pProfile->mGameOptions.mMedalsGathered[iType];
+}
+

@@ -85,6 +85,8 @@ public:
     unsigned short* GetIndexPointer() { return (unsigned short*)data; }
 };
 
+extern float* u8tof32_lut;
+
 class CollisionAABB
 {
 public:
@@ -94,7 +96,19 @@ public:
         Init(parent, compressed);
     }
 
-    void Init(const CollisionAABB& parent, const CompressedAABB& compressed);
+    // FUNCTION: SWBF2 0x004609e0
+    void Init(const CollisionAABB& parent, const CompressedAABB& compressed)
+    {
+        PblVector3 dim = parent.GetDim();
+        PblVector3 fltmin(u8tof32_lut[compressed.boxmin.x],
+                                u8tof32_lut[compressed.boxmin.y],
+                                u8tof32_lut[compressed.boxmin.z]);
+        PblVector3 fltmax(u8tof32_lut[compressed.boxmax.x],
+                                u8tof32_lut[compressed.boxmax.y],
+                                u8tof32_lut[compressed.boxmax.z]);
+        boxmin = parent.boxmin + dim * fltmin;
+        boxmax = parent.boxmin + dim * fltmax;
+    }
 
     void SetMin(const PblVector3& value) { boxmin = value; }
     void SetMax(const PblVector3& value) { boxmax = value; }
@@ -220,6 +234,8 @@ public:
         pVerts = &mVertices[iFirst];
     }
 
+    // TEMPLATE: SWBF2 0x004620a0
+    // PolyListContainer<100>::AddPolygon
     void AddPolygon(unsigned char uNumVerts, const PblVector3* pVerts)
     {
         if (mPolyCount == N)

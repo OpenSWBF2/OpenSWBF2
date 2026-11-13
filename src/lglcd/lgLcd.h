@@ -66,23 +66,50 @@ struct lgLcdInterface
                                  DWORD dwPriority);
 };
 
+extern "C" {
+// FUNCTION: SWBF2 0x004012a5 SYMBOL
+// _lgLcdInit@0
 DWORD WINAPI lgLcdInit();
+// FUNCTION: SWBF2 0x004013b5 SYMBOL
+// _lgLcdConnectA@4
 DWORD WINAPI lgLcdConnectA(lgLcdConnectContextA* pCtx);
+// FUNCTION: SWBF2 0x004013f3 SYMBOL
+// _lgLcdEnumerate@12
 DWORD WINAPI lgLcdEnumerate(int iConnection, int iIndex, lgLcdDeviceDesc* pDesc);
+// FUNCTION: SWBF2 0x0040141a SYMBOL
+// _lgLcdOpen@4
 DWORD WINAPI lgLcdOpen(lgLcdOpenContext* pCtx);
 
+// FUNCTION: SWBF2 0x00401458 SYMBOL
+// _lgLcdReadSoftButtons@8
 DWORD WINAPI lgLcdReadSoftButtons(int iDevice, DWORD* pdwButtons);
+// FUNCTION: SWBF2 0x0040147b SYMBOL
+// _lgLcdUpdateBitmap@12
 DWORD WINAPI lgLcdUpdateBitmap(int iDevice, void const* pBitmap, DWORD dwPriority);
 
+// FUNCTION: SWBF2 0x0040138e SYMBOL
+// _lgLcdDeInit@0
 DWORD WINAPI lgLcdDeInit();
+// FUNCTION: SWBF2 0x004013d4 SYMBOL
+// _lgLcdDisconnect@4
 DWORD WINAPI lgLcdDisconnect(int iConnection);
+// FUNCTION: SWBF2 0x00401439 SYMBOL
+// _lgLcdClose@4
 DWORD WINAPI lgLcdClose(int iDevice);
+// FUNCTION: SWBF2 0x004012d4 SYMBOL
+// _LinkLgLcdDLL
+BOOL LinkLgLcdDLL();
+// FUNCTION: SWBF2 0x0040136c SYMBOL
+// _UnlinkLgLcdDLL
+BOOL UnlinkLgLcdDLL();
+}
 
-BOOL sub_4012D4();
-BOOL sub_40136C();
-
-extern int dword_1E2FD04;
-extern lgLcdInterface* dword_1FAC3B0;
+// GLOBAL: SWBF2 0x01e2fd04
+// _g_lgLcdLibIsInitialized
+extern "C" int g_lgLcdLibIsInitialized;
+// GLOBAL: SWBF2 0x01fac3b0
+// _g_lgLcdLibLinkedRemoteInterface
+extern "C" lgLcdInterface* g_lgLcdLibLinkedRemoteInterface;
 extern HMODULE hLibModule;
 extern void* dword_1E2FBFC;
 

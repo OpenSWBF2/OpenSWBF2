@@ -18,6 +18,7 @@
 #include "LuaCallbacks_Options.h"
 #include "NetSetup.h"
 #include "NetGame.h"
+#include "NetDrag.h"
 #include "ShellLoop.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblUnicode.h"
@@ -26,18 +27,6 @@
 #include "RedEngineFL/Interface/RedFont.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "PebbleFL/Common/PblMath.h"
-
-extern bool mSafeMode;
-
-namespace PlayerProfile
-{
-
-// FUNCTION: SWBF2 0x0061d8f0
-void SetSafeMode()
-{
-    mSafeMode = true;
-}
-}
 
 // GLOBAL: SWBF2 0x01e3073c
 // gGamespyAutoName
@@ -171,10 +160,7 @@ namespace PlayerProfile
     void SetSafeMode();
 }
 void SetNetAwardsEnabled(int);
-namespace RedLocalizeDB
-{
-    void ForceLanguageID(int iLanguage);
-}
+
 
 
 
@@ -408,7 +394,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "DecompCONMinutes") == 0)
+        if (_stricmp(apcArgv[i] + 1, "DecompCONMinutes") == 0)
         {
             if (i + 1 < iArgc)
             {
@@ -422,7 +408,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "log") == 0)
+        if (_stricmp(apcArgv[i] + 1, "log") == 0)
         {
             if (i + 1 < iArgc)
             {
@@ -441,7 +427,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "seed") == 0)
+        if (_stricmp(apcArgv[i] + 1, "seed") == 0)
         {
             if (i + 1 < iArgc)
             {
@@ -451,19 +437,19 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "exitongameover") == 0)
+        if (_stricmp(apcArgv[i] + 1, "exitongameover") == 0)
         {
             gExitOnGameOver = true;
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "novictory") == 0)
+        if (_stricmp(apcArgv[i] + 1, "novictory") == 0)
         {
             gNoVictory = true;
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "digesttrace") == 0)
+        if (_stricmp(apcArgv[i] + 1, "digesttrace") == 0)
         {
             const char* pcValue = i + 1 < iArgc ? apcArgv[i + 1] : 0;
             char* pcEnd = 0;
@@ -480,25 +466,25 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "factorylog") == 0)
+        if (_stricmp(apcArgv[i] + 1, "factorylog") == 0)
         {
             gFactoryLog = true;
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "nofocuspause") == 0)
+        if (_stricmp(apcArgv[i] + 1, "nofocuspause") == 0)
         {
             gNoFocusPause = true;
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "allowuploads") == 0)
+        if (_stricmp(apcArgv[i] + 1, "allowuploads") == 0)
         {
             gAllowUploads = true;
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "logcmds") == 0)
+        if (_stricmp(apcArgv[i] + 1, "logcmds") == 0)
         {
             if (i + 1 < iArgc)
             {
@@ -507,7 +493,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "hangtimeout") == 0)
+        if (_stricmp(apcArgv[i] + 1, "hangtimeout") == 0)
         {
             if (i + 1 < iArgc)
             {
@@ -516,14 +502,14 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "hogaddrspace") == 0)
+        if (_stricmp(apcArgv[i] + 1, "hogaddrspace") == 0)
         {
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "simorder") == 0 || _stricmp(pcArg + 1, "allocator") == 0)
+        if (_stricmp(apcArgv[i] + 1, "simorder") == 0 || _stricmp(apcArgv[i] + 1, "allocator") == 0)
         {
-            LOG(LogCore, Warning, "-%s was removed, ignored", pcArg + 1);
+            LOG(LogCore, Warning, "-%s was removed, ignored", apcArgv[i] + 1);
             if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
             {
                 ++i;
@@ -531,16 +517,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "mipurge") == 0)
-        {
-            if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
-            {
-                ++i;
-            }
-            continue;
-        }
-
-        if (_stricmp(pcArg + 1, "heapcap") == 0)
+        if (_stricmp(apcArgv[i] + 1, "mipurge") == 0)
         {
             if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
             {
@@ -549,7 +526,16 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "perturbheap") == 0)
+        if (_stricmp(apcArgv[i] + 1, "heapcap") == 0)
+        {
+            if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
+            {
+                ++i;
+            }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "perturbheap") == 0)
         {
             if (i + 1 < iArgc && apcArgv[i + 1][0] != '-')
             {
@@ -565,7 +551,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "repeatmission") == 0)
+        if (_stricmp(apcArgv[i] + 1, "repeatmission") == 0)
         {
             if (i + 1 < iArgc && CommandLineRepeatCount(apcArgv[i + 1], (int)strlen(apcArgv[i + 1])) >= 0)
             {
@@ -575,19 +561,19 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "shellfirst") == 0)
+        if (_stricmp(apcArgv[i] + 1, "shellfirst") == 0)
         {
             NoteTestOnlyArg(2);
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "exitonmovieclose") == 0)
+        if (_stricmp(apcArgv[i] + 1, "exitonmovieclose") == 0)
         {
             NoteTestOnlyArg(3);
             continue;
         }
 
-        if (_stricmp(pcArg + 1, "crashtest") == 0)
+        if (_stricmp(apcArgv[i] + 1, "crashtest") == 0)
         {
             if (i + 1 < iArgc)
             {
@@ -596,7 +582,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
-        switch (PblHash(pcArg + 1))
+        switch (PblHash(apcArgv[i] + 1))
         {
         case DisplayCfg::kHashBorderless:
             DisplayCfg::SetFlag(DisplayCfg::gCliDisplay, DisplayCfg::kBorderless);
@@ -669,53 +655,53 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
                 LOG(LogCore, Warning, "-displayini needs a value, ignored");
             }
             break;
-        case 0x02049853:
+        case 0x02049853: /* "jitter" */
             dragEnabled = true;
             dragJitter = atoi(apcArgv[++i]);
             break;
-        case 0x03D17781:
+        case 0x03D17781: /* "adminpw" */
             strncpy(Destination, apcArgv[++i], 16);
             Destination[15] = '\0';
             break;
-        case 0x0451542B:
+        case 0x0451542B: /* "safemode" */
             PlayerProfile::SetSafeMode();
             GameMovie::sUseMovies = false;
             break;
-        case 0x0481D555:
-        case 0xA5CD594E:
+        case 0x0481D555: /* "showlegal" */
+        case 0xA5CD594E: /* "showintro" */
             ShellLoop::SetLegalShowtype(ShellLoop::eLEGALSCREENS_SHOW);
             break;
-        case 0x0652936B:
+        case 0x0652936B: /* "audiomixbuffer" */
             sscanf(apcArgv[++i], "%f", &GameSoundEngine::gSoftMixerBufferSizeMs);
             if (GameSoundEngine::gSoftMixerBufferSizeMs < 20.0f)
             {
                 GameSoundEngine::gSoftMixerBufferSizeMs = 20.0f;
             }
             break;
-        case 0x09C3E0FF:
+        case 0x09C3E0FF: /* "logfinalscore" */
             gLogFinalScore = true;
             break;
-        case 0x09CFDCF0:
+        case 0x09CFDCF0: /* "difficulty" */
             netDifficulty = atoi(apcArgv[++i]);
             break;
-        case 0x0BF7CB59:
+        case 0x0BF7CB59: /* "win" */
             pcWindowed = true;
             break;
-        case 0x0D3D814F:
+        case 0x0D3D814F: /* "noaim" */
             netAutoAim = false;
             break;
-        case 0x124E8FBB:
+        case 0x124E8FBB: /* "netHiRes" */
             netHiRes = true;
             break;
-        case 0x1503F968:
+        case 0x1503F968: /* "netUpdateSize" */
             netUpdateSize = atoi(apcArgv[++i]);
             break;
-        case 0x1D215C8F:
+        case 0x1D215C8F: /* "resolution" */
             pcWidth = atoi(apcArgv[++i]);
             pcHeight = atoi(apcArgv[++i]);
             break;
         case 0x1DEBAE35:
-        case 0xA563005A:
+        case 0xA563005A: /* "hrrespawnvalue" */
         {
             int iValue = atoi(apcArgv[++i]);
             netHeroRuleRespawnVal = iValue;
@@ -723,8 +709,8 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             Lua_Callbacks::gHeroRuleRespawnVal[1] = iValue;
             break;
         }
-        case 0x202DB217:
-        case 0xCD0D5437:
+        case 0x202DB217: /* "heroruleunlock" */
+        case 0xCD0D5437: /* "hrunlock" */
         {
             int iValue = atoi(apcArgv[++i]);
             netHeroRuleUnlock = iValue;
@@ -732,27 +718,27 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             Lua_Callbacks::gHeroRuleUnlock[1] = iValue;
             break;
         }
-        case 0x204F0D0D:
+        case 0x204F0D0D: /* "nojournal" */
             break;
-        case 0x2264B8ED:
+        case 0x2264B8ED: /* "oneworld" */
             netIsOneWorld = true;
             break;
-        case 0x26D94B4E:
+        case 0x26D94B4E: /* "multiworld" */
             netIsOneWorld = false;
             break;
         case 0x2E325FB4:
             SetNetAwardsEnabled(0);
             break;
-        case 0x31694A02:
+        case 0x31694A02: /* "nostartupmusic" */
             GameSoundEngine::DisableStartupMusic();
             break;
-        case 0x331843BC:
+        case 0x331843BC: /* "randomize" */
             autoNetRandomize = true;
             break;
-        case 0x351FC388:
+        case 0x351FC388: /* "PoolErrors" */
             gMemoryPoolErrors = true;
             break;
-        case 0x364B5F18:
+        case 0x364B5F18: /* "password" */
             strlcpy(gGamespyAutoPassStr, apcArgv[++i], sizeof(gGamespyAutoPassStr));
             if (gGamespyAutoPassStr[0])
             {
@@ -762,7 +748,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             }
             bNamed = true;
             break;
-        case 0x371E360D:
+        case 0x371E360D: /* "pregametime" */
         {
             int iSeconds = atoi(apcArgv[++i]);
             NetGame::SetMaxPreGameTime(iSeconds);
@@ -772,10 +758,10 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             }
             break;
         }
-        case 0x378F32DD:
+        case 0x378F32DD: /* "throttle" */
             netThrottle = atoi(apcArgv[++i]);
             break;
-        case 0x3A00D703:
+        case 0x3A00D703: /* "playerlimit" */
         {
             int iLimit = atoi(apcArgv[++i]);
             netPlayerLimit = iLimit;
@@ -783,14 +769,14 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             netDedicatedPlayerLimit = iLimit;
             break;
         }
-        case 0x3A224D98:
+        case 0x3A224D98: /* "spawn" */
             gSpawnInvicibility = atoi(apcArgv[++i]);
             break;
-        case 0x3C3F5C38:
+        case 0x3C3F5C38: /* "audionoenhance" */
             gCentreSpeakerEnhancement = false;
             break;
-        case 0x3EC8DA95:
-        case 0xD0CFBC35:
+        case 0x3EC8DA95: /* "herorulerespawn" */
+        case 0xD0CFBC35: /* "hrrespawn" */
         {
             int iValue = atoi(apcArgv[++i]);
             netHeroRuleRespawn = iValue;
@@ -799,34 +785,34 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             break;
         }
         case 0x3F0ECDEB:
-        case 0x77E5E744:
+        case 0x77E5E744: /* "nointro" */
         case 0xBBB3B003:
             ShellLoop::SetLegalShowtype(ShellLoop::eLEGALSCREENS_SKIP);
             break;
-        case 0x42EACCDD:
-        case 0x4EAE0006:
+        case 0x42EACCDD: /* "ShowAllServers" */
+        case 0x4EAE0006: /* "ShowAllSessions" */
             gShowAllSessions = true;
             break;
-        case 0x4424F79F:
+        case 0x4424F79F: /* "ai" */
             gAIOptionEnabled = true;
             break;
-        case 0x4674CAEE:
+        case 0x4674CAEE: /* "profile" */
             gProfileOptionEnabled = true;
             break;
-        case 0x4BE2EE33:
+        case 0x4BE2EE33: /* "nowaitlate" */
             netWaitLate = false;
             break;
-        case 0x4F0C4904:
+        case 0x4F0C4904: /* "gamename" */
             strlcpy(autoNetSession, apcArgv[++i], sizeof(autoNetSession));
             break;
-        case 0x56608010:
+        case 0x56608010: /* "lan" */
             autoNetLan = true;
             break;
-        case 0x593058CC:
+        case 0x593058CC: /* "record" */
             journalMode = 1;
             GameMovie::sUseMovies = false;
             break;
-        case 0x5D62BEB3:
+        case 0x5D62BEB3: /* "bootlagger" */
         {
             gBootLagger = true;
             int iPing = atoi(apcArgv[++i]);
@@ -836,14 +822,14 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             }
             break;
         }
-        case 0x6363D774:
+        case 0x6363D774: /* "firstperson" */
             GameLoop::EnableFirstPerson(true);
             break;
-        case 0x68F63ADB:
+        case 0x68F63ADB: /* "autoaim" */
             netAutoAim = true;
             break;
-        case 0x69F6C31E:
-        case 0xF546DAFE:
+        case 0x69F6C31E: /* "hrteam" */
+        case 0xF546DAFE: /* "heroruleteam" */
         {
             int iValue = atoi(apcArgv[++i]);
             netHeroRuleTeam = iValue;
@@ -851,60 +837,60 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             Lua_Callbacks::gHeroRuleTeam[1] = iValue;
             break;
         }
-        case 0x70EA3B55:
-            RedLocalizeDB::ForceLanguageID(atoi(apcArgv[++i]));
+        case 0x70EA3B55: /* "lang" */
+            RedLocalizeDB::ForceLanguageID(static_cast<eGAMELANGUAGE>(atoi(apcArgv[++i])));
             break;
-        case 0x718E7AD4:
+        case 0x718E7AD4: /* "nodrag" */
             dragEnabled = false;
             break;
-        case 0x75E8450E:
+        case 0x75E8450E: /* "norender" */
             g_bNoRender = true;
             GameMovie::sUseMovies = false;
             break;
-        case 0x7AC8BB2B:
+        case 0x7AC8BB2B: /* "fixedrate" */
             g_fFixedRate = (float)atof(apcArgv[++i]);
             break;
-        case 0x81BA46B8:
+        case 0x81BA46B8: /* "noai" */
             gNoAIRespawn = true;
             break;
-        case 0x8463E1A0:
+        case 0x8463E1A0: /* "install" */
             pcPostInstall = true;
             break;
-        case 0x8A8753C7:
+        case 0x8A8753C7: /* "email" */
             strlcpy(gGamespyAutoEmail, apcArgv[++i], sizeof(gGamespyAutoEmail));
             bNamed = true;
             break;
-        case 0x8CEAC9BD:
+        case 0x8CEAC9BD: /* "audiomaxchannels" */
             sscanf(apcArgv[++i], "%d", &GameSoundEngine::gMaxVoices);
             GameSoundEngine::gMaxVoices = Clamp(GameSoundEngine::gMaxVoices, 8, 32);
             break;
-        case 0x8D39BDE6:
+        case 0x8D39BDE6: /* "name" */
             strlcpy(gGamespyAutoName, apcArgv[++i], sizeof(gGamespyAutoName));
             bNamed = true;
             break;
-        case 0x8DE05C06:
-        case 0xE91814A3:
+        case 0x8DE05C06: /* "configdir" */
+        case 0xE91814A3: /* "recorddir" */
             ++i;
             break;
-        case 0x90B89FFA:
+        case 0x90B89FFA: /* "netplayers" */
             gAutoNetPlayers = atoi(apcArgv[++i]);
             break;
-        case 0x91739772:
+        case 0x91739772: /* "bandwidth" */
             dragEnabled = true;
             dragBandwidth = atoi(apcArgv[++i]);
             break;
-        case 0x98BF5C17:
+        case 0x98BF5C17: /* "gameslice" */
             gGameSlice = (float)atof(apcArgv[++i]);
             break;
-        case 0x99317EA6:
+        case 0x99317EA6: /* "sideselect" */
             netAutoAssignTeams = false;
             netAutoAssignTeamsOriginalSetting = false;
             break;
-        case 0x996359B2:
+        case 0x996359B2: /* "DisableAIAutoBalance" */
             AIDifficulty::gAutoBalanceEnabled = false;
             break;
-        case 0x99B7123E:
-        case 0xECD7701E:
+        case 0x99B7123E: /* "hrplayer" */
+        case 0xECD7701E: /* "heroruleplayer" */
         {
             int iValue = atoi(apcArgv[++i]);
             netHeroRulePlayer = iValue;
@@ -912,10 +898,10 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             Lua_Callbacks::gHeroRulePlayer[1] = iValue;
             break;
         }
-        case 0xA2FD7D0C:
+        case 0xA2FD7D0C: /* "team" */
             PlayerPrefs::gDefaultTeamNum = atoi(apcArgv[++i]);
             break;
-        case 0xA8C4C105:
+        case 0xA8C4C105: /* "heroes" */
         {
             bool bHeroes = atoi(apcArgv[++i]) != 0;
             netHeroesEnabled = bHeroes;
@@ -923,12 +909,12 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             Lua_Callbacks::gHeroesEnabled[1] = bHeroes;
             break;
         }
-        case 0xAAE0CCF9:
+        case 0xAAE0CCF9: /* "connect" */
             strlcpy(gGamespyAutoConnectAddr, apcArgv[++i], sizeof(gGamespyAutoConnectAddr));
             bNamed = true;
             break;
-        case 0xAC16C90C:
-        case 0xB418A0AC:
+        case 0xAC16C90C: /* "heroruleunlockvalue" */
+        case 0xB418A0AC: /* "hrunlockvalue" */
         {
             int iValue = atoi(apcArgv[++i]);
             netHeroRuleUnlockVal = iValue;
@@ -936,52 +922,52 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             Lua_Callbacks::gHeroRuleUnlockVal[1] = iValue;
             break;
         }
-        case 0xB08CEC40:
+        case 0xB08CEC40: /* "notvalues" */
             gUseValues = false;
             break;
-        case 0xB22236AE:
+        case 0xB22236AE: /* "tps" */
             netFPS = atoi(apcArgv[++i]);
             if (!netFPS)
             {
                 __debugbreak();
             }
             break;
-        case 0xBA0ECD59:
+        case 0xBA0ECD59: /* "crashed" */
             netCrashAddr = atoi(apcArgv[++i]);
             break;
-        case 0xBC494AFF:
+        case 0xBC494AFF: /* "nowait" */
             g_bNoWait = true;
             break;
         case 0xC01E4E25:
             gDisableLCD = true;
             break;
-        case 0xC11F80F6:
+        case 0xC11F80F6: /* "nonames" */
             netShowNames = false;
             break;
-        case 0xC16650C8:
+        case 0xC16650C8: /* "soundwarning" */
             gSoundWarningEnabled = true;
             break;
-        case 0xC23937B9:
+        case 0xC23937B9: /* "autonet" */
             autoNetEnabled = true;
             strlcpy(autoNetScript, apcArgv[++i], sizeof(autoNetScript));
             break;
-        case 0xC53B7844:
+        case 0xC53B7844: /* "loadspam" */
             gShowLoadSpam = true;
             break;
-        case 0xC707B50F:
+        case 0xC707B50F: /* "playercount" */
             autoNetPlayers = atoi(apcArgv[++i]);
             break;
-        case 0xCA15D036:
+        case 0xCA15D036: /* "skill" */
             PlayerPrefs::gDefaultDifficulty = Clamp(atoi(apcArgv[++i]), 1, 3);
             break;
-        case 0xCD154944:
+        case 0xCD154944: /* "noframelock" */
             netFrameLock = false;
             break;
-        case 0xCF8A43EC:
+        case 0xCF8A43EC: /* "playback" */
             GameMovie::sUseMovies = false;
             journalMode = 2;
             break;
-        case 0xD0BD1109:
+        case 0xD0BD1109: /* "audiosamplerate" */
         {
 
             static const int aiRates[9] = { 8000, 11025, 16000, 22050, 32000, 44100, 48000, 96000, 192000 };
@@ -1000,23 +986,23 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             GameSoundEngine::gSamplerate = aiRates[iBest];
             break;
         }
-        case 0xD43981B7:
+        case 0xD43981B7: /* "NoPoolErrors" */
             gMemoryPoolErrors = false;
             break;
-        case 0xD5C0B6F5:
+        case 0xD5C0B6F5: /* "spaceassaultscorelimit" */
             Lua_Callbacks::gSpaceAssaultScoreLimit[0] = Lua_Callbacks::gSpaceAssaultScoreLimit[1] = atoi(apcArgv[++i]);
             break;
-        case 0xDABA84C3:
+        case 0xDABA84C3: /* "nomovies" */
             GameMovie::sUseMovies = false;
             break;
-        case 0xDADFA856:
+        case 0xDADFA856: /* "voicemode" */
             netVoiceMode = atoi(apcArgv[++i]);
             break;
-        case 0xE0EBCA12:
+        case 0xE0EBCA12: /* "ppass" */
             strlcpy(gGamespyAutoPPass, apcArgv[++i], sizeof(gGamespyAutoPPass));
             bNamed = true;
             break;
-        case 0xE181E077:
+        case 0xE181E077: /* "bots" */
             netNumBots =
                 Lua_Callbacks::gASSNumBots[0] =
                 Lua_Callbacks::gASSNumBots[1] =
@@ -1035,27 +1021,27 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
                 Lua_Callbacks::gCONNumBots[2] =
                 Lua_Callbacks::gCONNumBots[3] = atoi(apcArgv[++i]);
             break;
-        case 0xE3D8AB51:
+        case 0xE3D8AB51: /* "framelock" */
             netFrameLock = true;
             break;
-        case 0xE51023BA:
+        case 0xE51023BA: /* "noteamdamage" */
             netTeamDamage = false;
             break;
-        case 0xE7347B1A:
+        case 0xE7347B1A: /* "loss" */
             dragEnabled = true;
             dragLoss = atoi(apcArgv[++i]);
             break;
-        case 0xF2FB8359:
+        case 0xF2FB8359: /* "latency" */
             dragEnabled = true;
             dragLatency = atoi(apcArgv[++i]);
             break;
-        case 0xF4553EF1:
+        case 0xF4553EF1: /* "nosound" */
             g_bNoSound = true;
             break;
-        case 0xF5DD1FBD:
+        case 0xF5DD1FBD: /* "fixedfunction" */
             pcForceFixedFunction = true;
             break;
-        case 0xF6976B61:
+        case 0xF6976B61: /* "nopregame" */
             gNoPregame = true;
             break;
         }

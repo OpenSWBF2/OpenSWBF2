@@ -45,14 +45,14 @@ public:
 
         SkyObjectClass(PblConfig& config);
 
-        virtual void Render(int value);
+        virtual void Render(unsigned int value) const;
 
         virtual bool Update(float fDeltaTime);
 
         void Spawn(int i);
 
         SkyObjectType mType;
-        RedModel* mModel;
+        const RedModel* mModel;
         float mVelocityX;
         float mVelocityVarianceX;
         float mVelocityY;

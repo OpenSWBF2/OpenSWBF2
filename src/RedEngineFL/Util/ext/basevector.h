@@ -58,6 +58,24 @@ public:
     // util::Vector<dx::NVStateID,util::BaseArray<dx::NVStateID,util::TNewArrayAlloc<dx::NVStateID> > >::~Vector<dx::NVStateID,util::BaseArray<dx::NVStateID,util::TNewArrayAlloc<dx::NVStateID> > >
 
 
+    // TEMPLATE: SWBF2 0x006ad580
+    // util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::SingletonAllocator<util::DefaultStaticAllocator> > > >::~Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::SingletonAllocator<util::DefaultStaticAllocator> > > >
+
+    // TEMPLATE: SWBF2 0x006ad5d0
+    // util::Vector<int *,util::BaseArray<int *,util::TypedArrayAllocator<int *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >::~Vector<int *,util::BaseArray<int *,util::TypedArrayAllocator<int *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >
+
+    // TEMPLATE: SWBF2 0x006ad620
+    // util::Vector<char const *,util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >::~Vector<char const *,util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >
+
+    // TEMPLATE: SWBF2 0x00715090
+    // util::Vector<float *,util::BaseArray<float *,util::TypedArrayAllocator<float *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >::~Vector<float *,util::BaseArray<float *,util::TypedArrayAllocator<float *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >
+
+    // TEMPLATE: SWBF2 0x007150e0
+    // util::Vector<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> > *,util::BaseArray<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> > *,util::TypedArrayAllocator<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> > *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >::~Vector<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> > *,util::BaseArray<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> > *,util::TypedArrayAllocator<util::VariableSet<util::SingletonAllocator<util::DefaultStaticAllocator> > *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >
+
+    // TEMPLATE: SWBF2 0x00715130
+    // util::Vector<bool *,util::BaseArray<bool *,util::TypedArrayAllocator<bool *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >::~Vector<bool *,util::BaseArray<bool *,util::TypedArrayAllocator<bool *,util::SingletonAllocator<util::DefaultStaticAllocator> > > >
+
     Vector(Vector const& rOther)
     {
         this->_elements = 0;

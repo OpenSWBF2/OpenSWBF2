@@ -8,8 +8,8 @@
 #include "RedEngineFL/Interface/RedInterfaceScreen.h"
 #include "RedEngineFL/Interface/RedTextElement.h"
 #include "PebbleFL/Common/PblVector.h"
+#include "PebbleFL/Common/PblMatrix.h"
 
-class PblMatrix;
 class RedSphereShape;
 class RedTetrahedronShape;
 
@@ -31,7 +31,7 @@ public:
         // SYNTHETIC: SWBF2 0x006f08f0
         // RedDebug::RedDebugRenderable::`scalar deleting destructor'
 
-        virtual void Render(int value);
+        virtual void Render(unsigned int value) const;
 
         // FUNCTION: SWBF2 0x006f2510
         void Init();
@@ -78,8 +78,24 @@ public:
     // FUNCTION: SWBF2 0x006f12a0
     static void DrawLine3D(PblVector3 v0, PblVector3 v1, RedColor color);
 
-    struct Radius;
-    struct SolidOBB;
+    struct Radius
+    {
+        Radius();
+
+        PblVector3 _vPos;
+        RedColor _color;
+        float _fRadius;
+        float _fHeight;
+    };
+
+    struct SolidOBB
+    {
+        SolidOBB();
+
+        PblBox _vBox;
+        PblMatrix _mBox;
+        RedColor _color;
+    };
 
 private:
 

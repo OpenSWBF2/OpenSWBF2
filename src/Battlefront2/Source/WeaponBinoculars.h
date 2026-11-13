@@ -3,6 +3,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 
 #include "Weapon.h"
+#include "PebbleFL/Common/PblRtti.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
 // VTABLE: SWBF2 0x007b0430
@@ -25,7 +26,7 @@ public:
 };
   
 
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 
 // VTABLE: SWBF2 0x007b0468
 class WeaponBinoculars : public Weapon
@@ -33,36 +34,16 @@ class WeaponBinoculars : public Weapon
 public:
     WeaponBinoculars(const WeaponBinocularsClass* pClass, const WeaponDesc& desc);
     virtual ~WeaponBinoculars();
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
+    // FUNCTION: SWBF2 0x0067e120
+    // WeaponBinoculars::IsRtti
+    // FUNCTION: SWBF2 0x0067e150
+    // WeaponBinoculars::GetDerivedRtti
+    // FUNCTION: SWBF2 0x0067e160
+    // WeaponBinoculars::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(WeaponBinoculars, Weapon)
 
-    static PblHash rttiHashWeaponBinoculars;
-    static const char rttiNameWeaponBinoculars[];
 };
   
-
-// FUNCTION: SWBF2 0x0067e120
-inline bool WeaponBinoculars::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashWeaponBinoculars == uRtti)
-    {
-        return true;
-    }
-    return Weapon::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x0067e150
-inline unsigned int WeaponBinoculars::GetDerivedRtti() const
-{
-    return rttiHashWeaponBinoculars;
-}
-
-// FUNCTION: SWBF2 0x0067e160
-inline const char* WeaponBinoculars::GetDerivedRttiName() const
-{
-    return rttiNameWeaponBinoculars;
-}
 
 // FUNCTION: SWBF2 0x0067e170
 inline bool WeaponBinocularsClass::IsRtti(unsigned int uRtti) const

@@ -85,7 +85,7 @@ public:
 
         virtual ~Renderable();
 
-        virtual void Render(int value);
+        virtual void Render(unsigned int value) const;
     };
 
     static RedParticleRenderer* currentCache;

@@ -41,9 +41,6 @@ bool sFindReplaceError;
 unsigned int FindReplaceMagicStrings_(const unsigned short* const pcSource,
                                       unsigned short* pcDest, unsigned int uiDestCount);
 
-// TEMPLATE: SWBF2 0x0045caf0
-// util::Min_<float>
-template const float& util::Min_<float>(const float&, const float&);
 
 // FUNCTION: SWBF2 0x006d72f0
 RedTextElement::RedTextElement()

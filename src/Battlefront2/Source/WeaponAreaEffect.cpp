@@ -739,7 +739,7 @@ void WeaponAreaEffect::ApplyEffectsToTarget(GameObject* pTarget, const PblVector
         case WeaponAreaEffectClass::EFFECT_CHOKE:
             if (pTarget->GetEntityType() == ENT_SOLDIER)
             {
-                static_cast<EntitySoldier*>(pTarget->GetEntity())
+                ((EntitySoldier*)pTarget->GetEntity())
                     ->ApplyChoke(vDir, fEffect, (SoldierAnimationBank::ANIMATION)_GetClass()->m_eSoldierAnimation);
             }
             break;
@@ -832,13 +832,13 @@ void WeaponAreaEffectClass::SetProperty(unsigned int uProperty, const char* pszV
 {
     switch (uProperty)
     {
-    case 0x32f380d1:
+    case 0x32f380d1: /* "FireType" */
         switch (PblHash(pszValue))
         {
-        case 0xadc649b8:
+        case 0xadc649b8: /* "Hold" */
             m_eFireType = FIRE_HOLD;
             break;
-        case 0xc0ca2371:
+        case 0xc0ca2371: /* "CHARGE" */
             m_eFireType = FIRE_CHARGE;
             break;
         default:
@@ -846,22 +846,22 @@ void WeaponAreaEffectClass::SetProperty(unsigned int uProperty, const char* pszV
             break;
         }
         break;
-    case 0x5c1fc8bc:
+    case 0x5c1fc8bc: /* "EffectType" */
         switch (PblHash(pszValue))
         {
-        case 0x812d107e:
+        case 0x812d107e: /* "Pull" */
             m_eEffectType = EFFECT_PULL;
             break;
-        case 0x533a03d7:
+        case 0x533a03d7: /* "Choke" */
             m_eEffectType = EFFECT_CHOKE;
             break;
-        case 0x3f40cd38:
+        case 0x3f40cd38: /* "Mindtrick" */
             m_eEffectType = EFFECT_MINDTRICK;
             break;
-        case 0xdd6cdf21:
+        case 0xdd6cdf21: /* "Stun" */
             m_eEffectType = EFFECT_STUN;
             break;
-        case 0x876fffdd:
+        case 0x876fffdd: /* "Push" */
             m_eEffectType = EFFECT_PUSH;
             break;
         default:
@@ -869,19 +869,19 @@ void WeaponAreaEffectClass::SetProperty(unsigned int uProperty, const char* pszV
             break;
         }
         break;
-    case 0xda78204c:
+    case 0xda78204c: /* "AreaType" */
         switch (PblHash(pszValue))
         {
-        case 0x3dff097f:
+        case 0x3dff097f: /* "Ray" */
             m_eAreaType = AREA_RAY;
             break;
-        case 0x3a6f2adb:
+        case 0x3a6f2adb: /* "Arc" */
             m_eAreaType = AREA_ARC;
             break;
-        case 0xad1ebfef:
+        case 0xad1ebfef: /* "Cylinder" */
             m_eAreaType = AREA_CYLINDER;
             break;
-        case 0xafd98518:
+        case 0xafd98518: /* "Sphere" */
             m_eAreaType = AREA_SPHERE;
             break;
         default:
@@ -889,50 +889,50 @@ void WeaponAreaEffectClass::SetProperty(unsigned int uProperty, const char* pszV
             break;
         }
         break;
-    case 0xc8388d9d:
+    case 0xc8388d9d: /* "InitialSalvoDelay" */
         sscanf(pszValue, "%f", &m_fInitialSalvoDelay);
         break;
-    case 0x2efc37e9:
+    case 0x2efc37e9: /* "AreaRange" */
         sscanf(pszValue, "%f", &m_fAreaRange);
         break;
-    case 0x3891df5a:
+    case 0x3891df5a: /* "AreaRadius" */
         sscanf(pszValue, "%f", &m_fAreaRadius);
         break;
-    case 0x894a0e77:
+    case 0x894a0e77: /* "AreaHeight" */
         sscanf(pszValue, "%f", &m_fAreaHeight);
         break;
-    case 0xa00a48cd:
+    case 0xa00a48cd: /* "MaxTargets" */
         sscanf(pszValue, "%d", &m_iMaxTargets);
         if (m_iMaxTargets > 4)
         {
             m_iMaxTargets = 4;
         }
         break;
-    case 0xd2ea8a45:
+    case 0xd2ea8a45: /* "EffectDamage" */
         sscanf(pszValue, "%f", &m_fDamage);
         break;
-    case 0x53a1abbd:
+    case 0x53a1abbd: /* "EffectStrength" */
         sscanf(pszValue, "%f", &m_fEffectStrength);
         break;
-    case 0x3b5eb7fa:
+    case 0x3b5eb7fa: /* "EffectFalloff" */
         sscanf(pszValue, "%f", &m_fEffectFalloff);
         break;
-    case 0x8909415b:
+    case 0x8909415b: /* "EnergyDrainRate" */
         sscanf(pszValue, "%f", &m_fEnergyDrainRate);
         break;
-    case 0x2668aef4:
+    case 0x2668aef4: /* "ChargeMaxTime" */
         sscanf(pszValue, "%f", &m_fChargeMaxTime);
         break;
-    case 0xd193ab6e:
+    case 0xd193ab6e: /* "ChargeMinStrength" */
         sscanf(pszValue, "%f", &m_fChargeMinStrength);
         break;
-    case 0x0ec601dc:
+    case 0x0ec601dc: /* "ThrustFactor" */
         sscanf(pszValue, "%f", &m_fThrustFactor);
         break;
-    case 0xe2e7efdf:
+    case 0xe2e7efdf: /* "TargetLock" */
         m_bTargetLock = atoi(pszValue) != 0;
         break;
-    case 0x5f0ce10d:
+    case 0x5f0ce10d: /* "SoldierAnimation" */
         m_eSoldierAnimation = SoldierAnimationBank::AddAnimation(pszValue);
         break;
     default:

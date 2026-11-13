@@ -10,6 +10,7 @@
 #include "Battlefront2/Source/NetSetup.h"
 #include "Battlefront2/Source/ShellLoop.h"
 #include "Battlefront2/Source/pcCrash.h"
+#include "RedEngineFL/Util/RedLocalizeDB.h"
 
 bool mSafeMode;
 bool pcWindowed;
@@ -86,16 +87,13 @@ void DisableStartupMusic()
 }
 }
 
-namespace GameLoop
-{
-bool _bFirstPersonEnabled;
-char mMissionScript[64];
+bool GameLoop::_bFirstPersonEnabled;
+char GameLoop::mMissionScript[64];
 
-void SetNextMission(char const* pcName)
+void GameLoop::SetNextMission(char const* pcName)
 {
     strncpy(mMissionScript, pcName, sizeof(mMissionScript) - 1);
     mMissionScript[sizeof(mMissionScript) - 1] = 0;
-}
 }
 
 namespace HUD
@@ -123,8 +121,16 @@ int gHeroRuleRespawnVal[4];
 
 namespace RedLocalizeDB
 {
-void ForceLanguageID(int)
+void ForceLanguageID(eGAMELANGUAGE)
 {
+}
+}
+
+namespace PlayerProfile
+{
+void SetSafeMode()
+{
+    mSafeMode = true;
 }
 }
 

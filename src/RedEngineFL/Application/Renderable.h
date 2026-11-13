@@ -4,6 +4,21 @@
 
 #include "Battlefront2/Source/Thread.h"
 
+enum RENDERABLE_PHASE
+{
+    RENDERABLE_SKY,
+    RENDERABLE_SKY_POSTWORLD,
+    RENDERABLE_PREWORLD,
+    RENDERABLE_POSTWORLD,
+    RENDERABLE_POSTSHADOW,
+    RENDERABLE_PRETRANSPARENT,
+    RENDERABLE_POSTTRANSPARENT,
+    RENDERABLE_PREFIRSTPERSON,
+    RENDERABLE_FIRSTPERSON,
+    RENDERABLE_SCREENEFFECT,
+    NUM_RENDERABLE_PHASES
+};
+
 // VTABLE: SWBF2 0x00772acc
 class Renderable
 {
@@ -11,7 +26,7 @@ public:
 
     Renderable();
 
-    Renderable(int iPhase);
+    Renderable(RENDERABLE_PHASE ePhase);
 
     virtual ~Renderable();
 
@@ -24,13 +39,13 @@ public:
 
     virtual bool IsActive();
 
-    virtual void Render(int value) = 0;
+    virtual void Render(unsigned int value) const = 0;
 
     virtual bool IsReflected();
 
     virtual bool HasReflection();
 
-    int _ePhase;
+    RENDERABLE_PHASE _ePhase;
 
     PblOrderedList<Renderable, int>::Node _RenderableNode;
 };

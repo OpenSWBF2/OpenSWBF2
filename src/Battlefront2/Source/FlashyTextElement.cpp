@@ -141,7 +141,7 @@ void FlashyTextElement::RenderUsingContext(const PblMatrix& mContext, const RedC
         }
 
         RedColor bgColor = color;
-        if (mHashMid != 0x83245ab6 && m_eStyle != TEXT_STYLE_SELECTED)
+        if (mHashMid != 0x83245ab6 /* "headerbuttonmid" */ && m_eStyle != TEXT_STYLE_SELECTED)
         {
             bgColor = RedColor(0x96, 0x96, 0x96, color.a);
         }
@@ -195,7 +195,7 @@ void FlashyTextElement::RenderUsingContext(const PblMatrix& mContext, const RedC
             fCursor = mTime / cStateTimes[FLASHY_STATE_CURSOR];
         }
         float fX = (fRight - fLeft) * fCursor + fLeft;
-        RenderBitmap(mContext, color, 0xe336320f, fX, fTop, (fBottom - fTop) + fX, fBottom);
+        RenderBitmap(mContext, color, 0xe336320f /* "Cursor" */, fX, fTop, (fBottom - fTop) + fX, fBottom);
     }
 
     if (mState >= FLASHY_STATE_EXPAND)

@@ -33,10 +33,9 @@ int gNumBots[4] = { -1, -1, 16, 16 };
 
 }
 
-namespace GameLoop
-{
-    extern bool mbHistoricalRules;
-}
+
+    
+
 
 extern bool netTeamDamage;
 extern bool netAutoAssignTeams;
@@ -112,8 +111,7 @@ bool gRandomizePlaylist;
 // GLOBAL: SWBF2 0x01e57948
 bool gIsDedicated;
 
-// GLOBAL: SWBF2 0x0078a294
-static const int netPlayersSupported[9] = { 3, 6, 9, 12, 19, 25, 38, 76, 153 };
+extern const int netPlayersSupported[9];
 
 }
 
@@ -135,51 +133,7 @@ static const int sLuaFunctionToEnum[5][21] = {
     { -1, -1, -1, 3, 0, 1, 13, -1, 8, 5, 7, 9, 10, 11, 12, -1, 6, -1, -1, -1, -1 }
 };
 
-// FUNCTION: SWBF2 0x0052b500
-int RawControllerInputs::GetFunctionForAnalog(int, int) { return 0; }
 
-namespace GameLoop
-{
-
-// FUNCTION: SWBF2 0x00533630
-void SetFunctionIdForButtonId(int iButton, int iFunction)
-{
-    RawControllerInputs* pInputs = FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport());
-    if (pInputs)
-    {
-        pInputs->mCurBindings[pInputs->GetInputMode()][iButton].mDest = iFunction;
-    }
-}
-}
-
-namespace GameLoop
-{
-
-// FUNCTION: SWBF2 0x00533660
-int GetFunctionIdForButtonId(int iButton)
-{
-    RawControllerInputs* pInputs = FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport());
-    if (pInputs)
-    {
-        return pInputs->mCurBindings[pInputs->GetInputMode()][iButton].mDest;
-    }
-    return -1;
-}
-}
-
-namespace GameLoop
-{
-
-// FUNCTION: SWBF2 0x00533690
-int GetFunctionIdForAnalog()
-{
-    if (RawControllerInputs* pInputs = FLInputManager::s_instance.GetPlayerJoystick(PauseMenu::GetPausingViewport()))
-    {
-        return pInputs->GetFunctionForAnalog(0, 0);
-    }
-    return 0;
-}
-}
 
 // FUNCTION: SWBF2 0x00597250
 int LuaButtonIndexToEnum(int iButton) { return iButton; }
@@ -246,6 +200,48 @@ int ScriptCB_IsSplitscreen(lua_State* L)
     return 1;
 }
 
+// FUNCTION: SWBF2 0x00596c40
+int ScriptCB_WasSplitscreen(lua_State*)
+{
+    int NumCameras = ShellLoop::mLastGameNumCameras;
+    if (NumCameras < 2)
+    {
+        LuaHelper::PushNil();
+    }
+    else
+    {
+        LuaHelper::PushInt(NumCameras);
+    }
+    return 1;
+}
+
+// FUNCTION: SWBF2 0x00596c80
+int ScriptCB_SetPlayerSide(lua_State*)
+{
+    int NumArgs = LuaHelper::GetTop();
+    if (NumArgs >= 1 && NumArgs <= 2 && lua_isnumber(LuaHelper::mState, 1))
+    {
+        int TheirTeam = LuaHelper::GetInt(1);
+        if (TheirTeam >= 1 && TheirTeam <= 2)
+        {
+            unsigned int Viewport = 0;
+            if (NumArgs == 2)
+            {
+                if (!LuaHelper::IsNumber(NumArgs))
+                {
+                    return 0;
+                }
+                Viewport = LuaHelper::GetInt(NumArgs);
+            }
+            if (Viewport < sizeof(PlayerPrefs::mAllUserPrefs) / sizeof(PlayerPrefs::mAllUserPrefs[0]))
+            {
+                PlayerPrefs::mAllUserPrefs[Viewport].mTeamNum = TheirTeam;
+            }
+        }
+    }
+    return 0;
+}
+
 // FUNCTION: SWBF2 0x00596d10
 int ScriptCB_SetDifficulty(lua_State* L)
 {
@@ -288,6 +284,20 @@ int ScriptCB_GetDifficulty(lua_State* L)
     return 1;
 }
 
+// FUNCTION: SWBF2 0x00596e30
+int ScriptCB_GetCTFCaptureLimit(lua_State*)
+{
+    lua_pushnumber(LuaHelper::mState, (float)gCTFScore[gCurRules]);
+    return 1;
+}
+
+// FUNCTION: SWBF2 0x00596e60
+int ScriptCB_GetHuntMaxTimeLimit(lua_State*)
+{
+    lua_pushnumber(LuaHelper::mState, (float)(60 * gHuntMaxTimeLimit[gCurRules]));
+    return 1;
+}
+
 // FUNCTION: SWBF2 0x00596ea0
 int ScriptCB_GetHuntScoreLimit(lua_State* L)
 {
@@ -302,6 +312,20 @@ int ScriptCB_ShowHuntScoreLimit(lua_State* L)
 {
     gHuntShowScoreLimit = (int)luaL_checknumber(LuaHelper::mState, 1);
     return 0;
+}
+
+// FUNCTION: SWBF2 0x00596f00
+int ScriptCB_GetCTFMaxTimeLimit(lua_State*)
+{
+    lua_pushnumber(LuaHelper::mState, (float)(60 * gCTFMaxTimeLimit[gCurRules]));
+    return 1;
+}
+
+// FUNCTION: SWBF2 0x00596f40
+int ScriptCB_GetAssaultScoreLimit(lua_State*)
+{
+    lua_pushnumber(LuaHelper::mState, (float)gSpaceAssaultScoreLimit[gCurRules]);
+    return 1;
 }
 
 // FUNCTION: SWBF2 0x00596f70
@@ -335,6 +359,40 @@ int ScriptCB_GetCONNumBots(lua_State* L)
     }
     LuaHelper::PushInt(v);
     return 1;
+}
+
+// FUNCTION: SWBF2 0x00597050
+int ScriptCB_GetCTFNumBots(lua_State*)
+{
+    int v = netNumBots;
+    if ((unsigned int)gCurRules <= eGAMERULES_METAGAME)
+    {
+        v = gCTFNumBots[gCurRules];
+    }
+    LuaHelper::PushInt(v);
+    return 1;
+}
+
+// FUNCTION: SWBF2 0x00597090
+int ScriptCB_GetASSNumBots(lua_State*)
+{
+    int v = netNumBots;
+    if ((unsigned int)gCurRules <= eGAMERULES_METAGAME)
+    {
+        v = gASSNumBots[gCurRules];
+    }
+    LuaHelper::PushInt(v);
+    return 1;
+}
+
+// FUNCTION: SWBF2 0x005970d0
+static int ScriptCB_SetNumBots(lua_State*)
+{
+    if (lua_isnumber(LuaHelper::mState, 1))
+    {
+        netNumBots = (int)luaL_checknumber(LuaHelper::mState, 1);
+    }
+    return 0;
 }
 
 // FUNCTION: SWBF2 0x00597780
@@ -604,7 +662,7 @@ int ScriptCB_IsHorizontalSplitScreen(lua_State* L)
 // FUNCTION: SWBF2 0x00597fa0
 int ScriptCB_SetHorizontalSplitScreen(lua_State* L)
 {
-    if (GameState::GetState() != 0x8ff60339 && lua_gettop(LuaHelper::mState) == 1)
+    if (GameState::GetState() != 0x8ff60339 /* "mission" */ && lua_gettop(LuaHelper::mState) == 1)
     {
         lua_toboolean(LuaHelper::mState, 1);
     }
@@ -1239,83 +1297,6 @@ int ScriptCB_SetNetHeroDefaults(lua_State* L)
     return 0;
 }
 
-// FUNCTION: SWBF2 0x00596c40
-int ScriptCB_WasSplitscreen(lua_State*)
-{
-    int NumCameras = ShellLoop::mLastGameNumCameras;
-    if (NumCameras < 2)
-    {
-        LuaHelper::PushNil();
-    }
-    else
-    {
-        LuaHelper::PushInt(NumCameras);
-    }
-    return 1;
-}
-
-// FUNCTION: SWBF2 0x00596e30
-int ScriptCB_GetCTFCaptureLimit(lua_State*)
-{
-    lua_pushnumber(LuaHelper::mState, (float)gCTFScore[gCurRules]);
-    return 1;
-}
-
-// FUNCTION: SWBF2 0x00596e60
-int ScriptCB_GetHuntMaxTimeLimit(lua_State*)
-{
-    lua_pushnumber(LuaHelper::mState, (float)(60 * gHuntMaxTimeLimit[gCurRules]));
-    return 1;
-}
-
-// FUNCTION: SWBF2 0x00596f00
-int ScriptCB_GetCTFMaxTimeLimit(lua_State*)
-{
-    lua_pushnumber(LuaHelper::mState, (float)(60 * gCTFMaxTimeLimit[gCurRules]));
-    return 1;
-}
-
-// FUNCTION: SWBF2 0x00596f40
-int ScriptCB_GetAssaultScoreLimit(lua_State*)
-{
-    lua_pushnumber(LuaHelper::mState, (float)gSpaceAssaultScoreLimit[gCurRules]);
-    return 1;
-}
-
-// FUNCTION: SWBF2 0x00597050
-int ScriptCB_GetCTFNumBots(lua_State*)
-{
-    int v = netNumBots;
-    if ((unsigned int)gCurRules <= eGAMERULES_METAGAME)
-    {
-        v = gCTFNumBots[gCurRules];
-    }
-    LuaHelper::PushInt(v);
-    return 1;
-}
-
-// FUNCTION: SWBF2 0x00597090
-int ScriptCB_GetASSNumBots(lua_State*)
-{
-    int v = netNumBots;
-    if ((unsigned int)gCurRules <= eGAMERULES_METAGAME)
-    {
-        v = gASSNumBots[gCurRules];
-    }
-    LuaHelper::PushInt(v);
-    return 1;
-}
-
-// FUNCTION: SWBF2 0x005970d0
-static int ScriptCB_SetNumBots(lua_State*)
-{
-    if (lua_isnumber(LuaHelper::mState, 1))
-    {
-        netNumBots = (int)luaL_checknumber(LuaHelper::mState, 1);
-    }
-    return 0;
-}
-
 // FUNCTION: SWBF2 0x005977c0
 int ScriptCB_SetAIDifficulty(lua_State*)
 {
@@ -1398,9 +1379,9 @@ int ScriptCB_GetFunctionIdForAnalogId(lua_State*)
     {
         return 0;
     }
-    luaL_checknumber(LuaHelper::mState, 1);
-    luaL_checknumber(LuaHelper::mState, 2);
-    lua_pushnumber(LuaHelper::mState, (float)GameLoop::GetFunctionIdForAnalog());
+    int analogStick = (int)luaL_checknumber(LuaHelper::mState, 1);
+    int controlMode = (int)luaL_checknumber(LuaHelper::mState, 2);
+    lua_pushnumber(LuaHelper::mState, (float)GameLoop::GetFunctionIdForAnalog(analogStick, controlMode));
     return 1;
 }
 
@@ -1462,33 +1443,6 @@ int ScriptCB_SetFunctionIdForButtonId(lua_State*)
         {
             pProfile->NoteBindingChange();
             pProfile->UpdateProfCRC();
-        }
-    }
-    return 0;
-}
-
-// FUNCTION: SWBF2 0x00596c80
-int ScriptCB_SetPlayerSide(lua_State*)
-{
-    int NumArgs = LuaHelper::GetTop();
-    if (NumArgs >= 1 && NumArgs <= 2 && lua_isnumber(LuaHelper::mState, 1))
-    {
-        int TheirTeam = LuaHelper::GetInt(1);
-        if (TheirTeam >= 1 && TheirTeam <= 2)
-        {
-            unsigned int Viewport = 0;
-            if (NumArgs == 2)
-            {
-                if (!LuaHelper::IsNumber(NumArgs))
-                {
-                    return 0;
-                }
-                Viewport = LuaHelper::GetInt(NumArgs);
-            }
-            if (Viewport < sizeof(PlayerPrefs::mAllUserPrefs) / sizeof(PlayerPrefs::mAllUserPrefs[0]))
-            {
-                PlayerPrefs::mAllUserPrefs[Viewport].mTeamNum = TheirTeam;
-            }
         }
     }
     return 0;
@@ -1680,7 +1634,7 @@ void _SetGameRules(eGAME_RULES eRules)
         break;
     case eGAMERULES_METAGAME:
         GameLoop::mbHistoricalRules = false;
-        GameLoop::mbMetagameRules = true;
+        GameLoop::SetMetagameRulesOn(true);
         GameLoop::SetCanSwitchSides(false);
         break;
     }
@@ -1955,7 +1909,7 @@ void Sha512Update(Sha512Context* ctx, const unsigned char* input, unsigned int s
     {
         return;
     }
-    unsigned int left = static_cast<unsigned int>(ctx->total[0]) & 127;
+    unsigned int left = (unsigned int)ctx->total[0] & 127;
     unsigned int fill = 128 - left;
     ctx->total[0] += size;
     if (ctx->total[0] < size)
@@ -1991,95 +1945,95 @@ void Sha512Finish(Sha512Context* ctx, unsigned char* output)
     unsigned __int64 high = (ctx->total[1] << 3) | (ctx->total[0] >> 61);
     unsigned __int64 low = ctx->total[0] << 3;
     unsigned char length[16];
-    length[0] = static_cast<unsigned char>(high >> 56);
-    length[1] = static_cast<unsigned char>(high >> 48);
-    length[2] = static_cast<unsigned char>(high >> 40);
-    length[3] = static_cast<unsigned char>(high >> 32);
-    length[4] = static_cast<unsigned char>(high >> 24);
-    length[5] = static_cast<unsigned char>(high >> 16);
-    length[6] = static_cast<unsigned char>(high >> 8);
-    length[7] = static_cast<unsigned char>(high >> 0);
-    length[8] = static_cast<unsigned char>(low >> 56);
-    length[9] = static_cast<unsigned char>(low >> 48);
-    length[10] = static_cast<unsigned char>(low >> 40);
-    length[11] = static_cast<unsigned char>(low >> 32);
-    length[12] = static_cast<unsigned char>(low >> 24);
-    length[13] = static_cast<unsigned char>(low >> 16);
-    length[14] = static_cast<unsigned char>(low >> 8);
-    length[15] = static_cast<unsigned char>(low >> 0);
+    length[0] = (unsigned char)(high >> 56);
+    length[1] = (unsigned char)(high >> 48);
+    length[2] = (unsigned char)(high >> 40);
+    length[3] = (unsigned char)(high >> 32);
+    length[4] = (unsigned char)(high >> 24);
+    length[5] = (unsigned char)(high >> 16);
+    length[6] = (unsigned char)(high >> 8);
+    length[7] = (unsigned char)(high >> 0);
+    length[8] = (unsigned char)(low >> 56);
+    length[9] = (unsigned char)(low >> 48);
+    length[10] = (unsigned char)(low >> 40);
+    length[11] = (unsigned char)(low >> 32);
+    length[12] = (unsigned char)(low >> 24);
+    length[13] = (unsigned char)(low >> 16);
+    length[14] = (unsigned char)(low >> 8);
+    length[15] = (unsigned char)(low >> 0);
 
-    unsigned int last = static_cast<unsigned int>(ctx->total[0]) & 127;
+    unsigned int last = (unsigned int)ctx->total[0] & 127;
     unsigned int padn = (last < 112) ? (112 - last) : (240 - last);
     Sha512Update(ctx, kSha512Padding, padn);
     Sha512Update(ctx, length, 16);
 
-    output[0] = static_cast<unsigned char>(ctx->state[0] >> 56);
-    output[1] = static_cast<unsigned char>(ctx->state[0] >> 48);
-    output[2] = static_cast<unsigned char>(ctx->state[0] >> 40);
-    output[3] = static_cast<unsigned char>(ctx->state[0] >> 32);
-    output[4] = static_cast<unsigned char>(ctx->state[0] >> 24);
-    output[5] = static_cast<unsigned char>(ctx->state[0] >> 16);
-    output[6] = static_cast<unsigned char>(ctx->state[0] >> 8);
-    output[7] = static_cast<unsigned char>(ctx->state[0] >> 0);
-    output[8] = static_cast<unsigned char>(ctx->state[1] >> 56);
-    output[9] = static_cast<unsigned char>(ctx->state[1] >> 48);
-    output[10] = static_cast<unsigned char>(ctx->state[1] >> 40);
-    output[11] = static_cast<unsigned char>(ctx->state[1] >> 32);
-    output[12] = static_cast<unsigned char>(ctx->state[1] >> 24);
-    output[13] = static_cast<unsigned char>(ctx->state[1] >> 16);
-    output[14] = static_cast<unsigned char>(ctx->state[1] >> 8);
-    output[15] = static_cast<unsigned char>(ctx->state[1] >> 0);
-    output[16] = static_cast<unsigned char>(ctx->state[2] >> 56);
-    output[17] = static_cast<unsigned char>(ctx->state[2] >> 48);
-    output[18] = static_cast<unsigned char>(ctx->state[2] >> 40);
-    output[19] = static_cast<unsigned char>(ctx->state[2] >> 32);
-    output[20] = static_cast<unsigned char>(ctx->state[2] >> 24);
-    output[21] = static_cast<unsigned char>(ctx->state[2] >> 16);
-    output[22] = static_cast<unsigned char>(ctx->state[2] >> 8);
-    output[23] = static_cast<unsigned char>(ctx->state[2] >> 0);
-    output[24] = static_cast<unsigned char>(ctx->state[3] >> 56);
-    output[25] = static_cast<unsigned char>(ctx->state[3] >> 48);
-    output[26] = static_cast<unsigned char>(ctx->state[3] >> 40);
-    output[27] = static_cast<unsigned char>(ctx->state[3] >> 32);
-    output[28] = static_cast<unsigned char>(ctx->state[3] >> 24);
-    output[29] = static_cast<unsigned char>(ctx->state[3] >> 16);
-    output[30] = static_cast<unsigned char>(ctx->state[3] >> 8);
-    output[31] = static_cast<unsigned char>(ctx->state[3] >> 0);
-    output[32] = static_cast<unsigned char>(ctx->state[4] >> 56);
-    output[33] = static_cast<unsigned char>(ctx->state[4] >> 48);
-    output[34] = static_cast<unsigned char>(ctx->state[4] >> 40);
-    output[35] = static_cast<unsigned char>(ctx->state[4] >> 32);
-    output[36] = static_cast<unsigned char>(ctx->state[4] >> 24);
-    output[37] = static_cast<unsigned char>(ctx->state[4] >> 16);
-    output[38] = static_cast<unsigned char>(ctx->state[4] >> 8);
-    output[39] = static_cast<unsigned char>(ctx->state[4] >> 0);
-    output[40] = static_cast<unsigned char>(ctx->state[5] >> 56);
-    output[41] = static_cast<unsigned char>(ctx->state[5] >> 48);
-    output[42] = static_cast<unsigned char>(ctx->state[5] >> 40);
-    output[43] = static_cast<unsigned char>(ctx->state[5] >> 32);
-    output[44] = static_cast<unsigned char>(ctx->state[5] >> 24);
-    output[45] = static_cast<unsigned char>(ctx->state[5] >> 16);
-    output[46] = static_cast<unsigned char>(ctx->state[5] >> 8);
-    output[47] = static_cast<unsigned char>(ctx->state[5] >> 0);
+    output[0] = (unsigned char)(ctx->state[0] >> 56);
+    output[1] = (unsigned char)(ctx->state[0] >> 48);
+    output[2] = (unsigned char)(ctx->state[0] >> 40);
+    output[3] = (unsigned char)(ctx->state[0] >> 32);
+    output[4] = (unsigned char)(ctx->state[0] >> 24);
+    output[5] = (unsigned char)(ctx->state[0] >> 16);
+    output[6] = (unsigned char)(ctx->state[0] >> 8);
+    output[7] = (unsigned char)(ctx->state[0] >> 0);
+    output[8] = (unsigned char)(ctx->state[1] >> 56);
+    output[9] = (unsigned char)(ctx->state[1] >> 48);
+    output[10] = (unsigned char)(ctx->state[1] >> 40);
+    output[11] = (unsigned char)(ctx->state[1] >> 32);
+    output[12] = (unsigned char)(ctx->state[1] >> 24);
+    output[13] = (unsigned char)(ctx->state[1] >> 16);
+    output[14] = (unsigned char)(ctx->state[1] >> 8);
+    output[15] = (unsigned char)(ctx->state[1] >> 0);
+    output[16] = (unsigned char)(ctx->state[2] >> 56);
+    output[17] = (unsigned char)(ctx->state[2] >> 48);
+    output[18] = (unsigned char)(ctx->state[2] >> 40);
+    output[19] = (unsigned char)(ctx->state[2] >> 32);
+    output[20] = (unsigned char)(ctx->state[2] >> 24);
+    output[21] = (unsigned char)(ctx->state[2] >> 16);
+    output[22] = (unsigned char)(ctx->state[2] >> 8);
+    output[23] = (unsigned char)(ctx->state[2] >> 0);
+    output[24] = (unsigned char)(ctx->state[3] >> 56);
+    output[25] = (unsigned char)(ctx->state[3] >> 48);
+    output[26] = (unsigned char)(ctx->state[3] >> 40);
+    output[27] = (unsigned char)(ctx->state[3] >> 32);
+    output[28] = (unsigned char)(ctx->state[3] >> 24);
+    output[29] = (unsigned char)(ctx->state[3] >> 16);
+    output[30] = (unsigned char)(ctx->state[3] >> 8);
+    output[31] = (unsigned char)(ctx->state[3] >> 0);
+    output[32] = (unsigned char)(ctx->state[4] >> 56);
+    output[33] = (unsigned char)(ctx->state[4] >> 48);
+    output[34] = (unsigned char)(ctx->state[4] >> 40);
+    output[35] = (unsigned char)(ctx->state[4] >> 32);
+    output[36] = (unsigned char)(ctx->state[4] >> 24);
+    output[37] = (unsigned char)(ctx->state[4] >> 16);
+    output[38] = (unsigned char)(ctx->state[4] >> 8);
+    output[39] = (unsigned char)(ctx->state[4] >> 0);
+    output[40] = (unsigned char)(ctx->state[5] >> 56);
+    output[41] = (unsigned char)(ctx->state[5] >> 48);
+    output[42] = (unsigned char)(ctx->state[5] >> 40);
+    output[43] = (unsigned char)(ctx->state[5] >> 32);
+    output[44] = (unsigned char)(ctx->state[5] >> 24);
+    output[45] = (unsigned char)(ctx->state[5] >> 16);
+    output[46] = (unsigned char)(ctx->state[5] >> 8);
+    output[47] = (unsigned char)(ctx->state[5] >> 0);
 
     if (ctx->mode == 0)
     {
-        output[48] = static_cast<unsigned char>(ctx->state[6] >> 56);
-        output[49] = static_cast<unsigned char>(ctx->state[6] >> 48);
-        output[50] = static_cast<unsigned char>(ctx->state[6] >> 40);
-        output[51] = static_cast<unsigned char>(ctx->state[6] >> 32);
-        output[52] = static_cast<unsigned char>(ctx->state[6] >> 24);
-        output[53] = static_cast<unsigned char>(ctx->state[6] >> 16);
-        output[54] = static_cast<unsigned char>(ctx->state[6] >> 8);
-        output[55] = static_cast<unsigned char>(ctx->state[6] >> 0);
-        output[56] = static_cast<unsigned char>(ctx->state[7] >> 56);
-        output[57] = static_cast<unsigned char>(ctx->state[7] >> 48);
-        output[58] = static_cast<unsigned char>(ctx->state[7] >> 40);
-        output[59] = static_cast<unsigned char>(ctx->state[7] >> 32);
-        output[60] = static_cast<unsigned char>(ctx->state[7] >> 24);
-        output[61] = static_cast<unsigned char>(ctx->state[7] >> 16);
-        output[62] = static_cast<unsigned char>(ctx->state[7] >> 8);
-        output[63] = static_cast<unsigned char>(ctx->state[7] >> 0);
+        output[48] = (unsigned char)(ctx->state[6] >> 56);
+        output[49] = (unsigned char)(ctx->state[6] >> 48);
+        output[50] = (unsigned char)(ctx->state[6] >> 40);
+        output[51] = (unsigned char)(ctx->state[6] >> 32);
+        output[52] = (unsigned char)(ctx->state[6] >> 24);
+        output[53] = (unsigned char)(ctx->state[6] >> 16);
+        output[54] = (unsigned char)(ctx->state[6] >> 8);
+        output[55] = (unsigned char)(ctx->state[6] >> 0);
+        output[56] = (unsigned char)(ctx->state[7] >> 56);
+        output[57] = (unsigned char)(ctx->state[7] >> 48);
+        output[58] = (unsigned char)(ctx->state[7] >> 40);
+        output[59] = (unsigned char)(ctx->state[7] >> 32);
+        output[60] = (unsigned char)(ctx->state[7] >> 24);
+        output[61] = (unsigned char)(ctx->state[7] >> 16);
+        output[62] = (unsigned char)(ctx->state[7] >> 8);
+        output[63] = (unsigned char)(ctx->state[7] >> 0);
     }
 }
 

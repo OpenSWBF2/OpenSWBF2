@@ -201,7 +201,6 @@ enum ListenerType
 class IGalaxyListener
 {
 public:
-    // FUNCTION: SWBF2 0x0052f4d0
     virtual ~IGalaxyListener() {}
 };
 
@@ -237,6 +236,9 @@ public:
 class IFriendListListener : public GalaxyTypeAwareListener<FRIEND_LIST_RETRIEVE>
 {
 public:
+    // SYNTHETIC: SWBF2 0x0052f4d0
+    // galaxy::api::IFriendListListener::~IFriendListListener
+
     virtual void OnFriendListRetrieveSuccess() = 0;
     virtual void OnFriendListRetrieveFailure(int failureReason) = 0;
 };
@@ -244,6 +246,9 @@ public:
 class IGameJoinRequestedListener : public GalaxyTypeAwareListener<GAME_JOIN_REQUESTED>
 {
 public:
+    // SYNTHETIC: SWBF2 0x0052f560
+    // galaxy::api::IGameJoinRequestedListener::~IGameJoinRequestedListener
+
     virtual void OnGameJoinRequested(GalaxyID userID, const char* connectionString) = 0;
 };
 

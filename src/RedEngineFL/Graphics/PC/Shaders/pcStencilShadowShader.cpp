@@ -12,6 +12,8 @@
 #include "RedEngineFL/Graphics/RedOmniLight.h"
 #include "RedEngineFL/Graphics/RedSpotLight.h"
 
+#pragma init_seg(lib)
+
 // GLOBAL: SWBF2 0x00784e30
 // __xmm@3dcccccd3f4ccccd3e4ccccd3f4ccccd
 // GLOBAL: SWBF2 0x00784e40
@@ -23,10 +25,20 @@
 
 void __cdecl PblTraceP(const char* Format, ...);
 
+// GLOBAL: SWBF2 0x009c9c8c
+// pcStencilShadowShader::s_uiID
 unsigned int pcStencilShadowShader::s_uiID;
+// GLOBAL: SWBF2 0x009c9c90
+// pcStencilShadowShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcStencilShadowShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9c9c
+// pcStencilShadowShader::BeginFuncArray
 pcRedShader::BeginFuncT pcStencilShadowShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9ca8
+// pcStencilShadowShader::EndFuncArray
 pcRedShader::EndFuncT pcStencilShadowShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9cb4
+// pcStencilShadowShader::RenderFuncArray
 pcRedShader::RenderFuncT pcStencilShadowShader::RenderFuncArray[MAX_PIPELINES];
 pcRedVertexFormat* pcStencilShadowShader::s_pSkinnedInputFormat[4];
 unsigned int pcStencilShadowShader::s_uiStencilMask = 0xff;
@@ -219,12 +231,6 @@ void pcStencilShadowShader::Begin_Prog1(unsigned int, unsigned int uiPass) const
     RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 0);
 }
 
-// FUNCTION: SWBF2 0x00707310
-void pcStencilShadowShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x00707330
 void pcStencilShadowShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -235,28 +241,10 @@ void pcStencilShadowShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x00707350
-unsigned int pcStencilShadowShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x00707370
 RenderPhaseT pcStencilShadowShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return s_bDebugShadowVolumes ? RENDERPHASE_TRANSPARENT : RENDERPHASE_SHADOW;
-}
-
-// FUNCTION: SWBF2 0x00707390
-unsigned int pcStencilShadowShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x007073a0
-pcRedShaderDef* pcStencilShadowShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x007073b0
@@ -401,7 +389,7 @@ void pcStencilShadowShader::Render_Prog1(const RenderItem* pItem, unsigned int u
     {
         if (uiPass == 0)
         {
-            for (int i = 0; pItem->pLightingState->pDirectionalLights[i] && i < 2;)
+            for (int i = 0; pItem->pLightingState->pDirectionalLights[i] && i < RedLight::kMaxDirectionalLights;)
             {
                 const RedDirectionalLight* pLight = pItem->pLightingState->pDirectionalLights[i++];
                 if (!pLight->IsShadowCaster())
@@ -483,7 +471,7 @@ void pcStencilShadowShader::Render_Prog1(const RenderItem* pItem, unsigned int u
     }
     else
     {
-        for (int i = 0; pItem->pLightingState->pDirectionalLights[i] && i < 2;)
+        for (int i = 0; pItem->pLightingState->pDirectionalLights[i] && i < RedLight::kMaxDirectionalLights;)
         {
             const RedDirectionalLight* pLight = pItem->pLightingState->pDirectionalLights[i++];
             if (!pLight->IsShadowCaster())
@@ -548,22 +536,22 @@ void pcStencilShadowShader::_Init(unsigned int uiFlags,
 void pcStencilShadowShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcStencilShadowShader::GetState_Fixed);
+        (GetStateFuncT)(&pcStencilShadowShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcStencilShadowShader::Begin_Fixed);
+        (BeginFuncT)(&pcStencilShadowShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcStencilShadowShader::End_Fixed);
+        (EndFuncT)(&pcStencilShadowShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcStencilShadowShader::Render_Fixed);
+        (RenderFuncT)(&pcStencilShadowShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcStencilShadowShader::GetState_Prog1);
+        (GetStateFuncT)(&pcStencilShadowShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcStencilShadowShader::Begin_Prog1);
+        (BeginFuncT)(&pcStencilShadowShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcStencilShadowShader::End_Prog1);
+        (EndFuncT)(&pcStencilShadowShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcStencilShadowShader::Render_Prog1);
+        (RenderFuncT)(&pcStencilShadowShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x00707dd0
@@ -572,7 +560,7 @@ void pcStencilShadowShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -611,18 +599,24 @@ void pcStencilShadowShader::_StaticInit() const
 
 // SYNTHETIC: SWBF2 0x00409ea0
 // `dynamic initializer for 'pcStencilShadowShader::s_uiRenderTypeHash''
+// GLOBAL: SWBF2 0x009c9d14
+// pcStencilShadowShader::s_uiRenderTypeHash
 unsigned int pcStencilShadowShader::s_uiRenderTypeHash = PblHash("StencilShadow");
 
 // SYNTHETIC: SWBF2 0x00409e60
 // `dynamic initializer for 'pcStencilShadowShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769e10
 // `dynamic atexit destructor for 'pcStencilShadowShader::s_Factory''
+// GLOBAL: SWBF2 0x009c9d18
+// pcStencilShadowShader::s_Factory
 pcStencilShadowShader pcStencilShadowShader::s_Factory;
 
 // SYNTHETIC: SWBF2 0x00409e80
 // `dynamic initializer for 'pcStencilShadowShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769e30
 // `dynamic atexit destructor for 'pcStencilShadowShader::s_shaderDef''
+// GLOBAL: SWBF2 0x009c9ce0
+// pcStencilShadowShader::s_shaderDef
 pcRedShaderDef pcStencilShadowShader::s_shaderDef("stencilshadow_shader.xml");
 
 // SYNTHETIC: SWBF2 0x00409ee0

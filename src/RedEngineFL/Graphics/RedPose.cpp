@@ -5,10 +5,6 @@
 #include "Zephyr/Source/ZephyrPoseStatic.h"
 #include "Zephyr/Source/ZephyrSkeletonShared.h"
 
-class PblMatrix;
-extern PblMatrix gMatrixIdentity;
-#define _IdentityMatrix (gMatrixIdentity)
-
 // FUNCTION: SWBF2 0x006ddc70
 void RedPose::BindToSkeleton(RedSkeleton const* pSkeleton) const
 {
@@ -33,7 +29,7 @@ void RedPose::GetSkinMatrices(PblMatrix* pMatrices, unsigned char const* pIndice
     {
         unsigned int uiBone = pIndices[i];
         PblMatrix const& rBone = _GetBoneMatrix(uiBone);
-        if (&rBone != &_IdentityMatrix)
+        if (&rBone != &gMatrixIdentity)
         {
             pMatrices[i] = m_pSkeleton->m_amDefaultPoseInv[uiBone] * rBone;
         }
@@ -48,7 +44,7 @@ void RedPose::GetSkinMatrices(PblMatrix* pMatrices, unsigned char const* pIndice
 PblMatrix const& RedPose::_GetBoneMatrix(int iBone) const
 {
     PblMatrix const* pMatrix = Find(m_pSkeleton->m_auiNameHash[iBone]);
-    return pMatrix ? *pMatrix : _IdentityMatrix;
+    return pMatrix ? *pMatrix : gMatrixIdentity;
 }
 
 // TEMPLATE: SWBF2 0x006ddb30

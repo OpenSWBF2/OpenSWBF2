@@ -542,14 +542,12 @@ PblVector3 CollisionModel::GetTargetPoint(const PblVector3& vPos, const PblVecto
 
         PblMatrix world = mBody[i]->GetWorldMatrix(matrix, pPose);
         PblVector3 vTo(world.m[3][0] - vPos.x, world.m[3][1] - vPos.y, world.m[3][2] - vPos.z);
-        PblVector3 vNorm;
-        D3DXVec3Normalize((D3DXVECTOR3*)&vNorm, (const D3DXVECTOR3*)&vTo);
-        vTo = vNorm;
-        float fDot = vDir.y * vTo.y + vDir.x * vTo.x + vDir.z * vTo.z;
+        vTo = Normalize(vTo);
+        float fDot = DotProduct(vDir, vTo);
         if (fDot > fBest)
         {
-            vPoint = world.GetTranslation();
             fBest = fDot;
+            vPoint = world.GetTranslation();
         }
     }
     return vPoint;

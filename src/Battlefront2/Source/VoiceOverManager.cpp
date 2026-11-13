@@ -238,7 +238,7 @@ void VoiceOverManager::PlayVoiceOver(unsigned int uSoundID, int iTeamMask)
     sound.SetID(uSoundID, false, false);
     const int iLocalIndex = NetGame::GetLocalIndex(0);
     Character* pPlayer = Character::GetPtr(iLocalIndex);
-    if (pPlayer && pPlayer->mPlayerId == iLocalIndex && (iTeamMask & (1 << pPlayer->mTeamNumber)))
+    if (pPlayer && pPlayer->GetPlayerId() == iLocalIndex && (iTeamMask & (1 << pPlayer->mTeamNumber)))
     {
         sound.Play(0, 0, pPlayer->mTeamNumber, true);
     }

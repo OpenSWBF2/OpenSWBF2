@@ -42,8 +42,6 @@
 #include "StatIconDisplay.h"
 #include "Tracker.h"
 #include "VehicleSpawn.h"
-#include "Battlefront2/Platform/Pc/pcGrassPatch.h"
-#include "Battlefront2/Platform/Pc/pcLeafPatch.h"
 #include "RedEngineFL/Application/pc/pcRedShadowProxy.h"
 #include "RedEngineFL/Application/RedTerrain.h"
 #include "RedEngineFL/Graphics/PC/pcRedShader.h"
@@ -103,9 +101,9 @@ CaptureDisplay::~CaptureDisplay()
 // FUNCTION: SWBF2 0x0044fbb0
 void CaptureDisplay::Init()
 {
-    mFlagTop.SetTexture(0x621cb6df);
-    mFlagBottom.SetTexture(0x621cb6df);
-    mFlagLocked.SetTexture(0x7f0688e4);
+    mFlagTop.SetTexture(0x621cb6df /* "hud_flag_timer" */);
+    mFlagBottom.SetTexture(0x621cb6df /* "hud_flag_timer" */);
+    mFlagLocked.SetTexture(0x7f0688e4 /* "hud_notallowed" */);
     mVisible = false;
 }
 
@@ -196,7 +194,7 @@ bool CaptureDisplay::Update(float fDeltaTime)
     for (CommandPostItor itor = CommandPostManager::Instance()->GetItor(); itor; ++itor)
     {
         CommandPost* pPost = *itor;
-        if (!CommandPost::HoldMaskHasPlayer(pPost->mHoldPlayerMask, pChr->mPlayerId))
+        if (!CommandPost::HoldMaskHasPlayer(pPost->GetHoldPlayerMask(), pChr->mPlayerId))
         {
             continue;
         }
@@ -205,19 +203,19 @@ bool CaptureDisplay::Update(float fDeltaTime)
         ToolTipType eTip = (iPostTeam == pChr->mTeamNumber) ? TTT_ApproachSelfCP : TTT_ApproachEnemyCP;
         if (iPostTeam == 0)
         {
-            int iBiasTeam = pPost->mBiasTeam;
+            int iBiasTeam = pPost->GetBiasTeam();
             int iOtherTeam = 0;
-            if (pPost->mHoldTeam < 0)
+            if (pPost->GetHoldTeam() < 0)
             {
                 for (iOtherTeam = 1; iOtherTeam < 8; ++iOtherTeam)
                 {
-                    if (iOtherTeam != iBiasTeam && pPost->mHoldCount[iOtherTeam] > 0)
+                    if (iOtherTeam != iBiasTeam && pPost->GetHoldCount(iOtherTeam) > 0)
                     {
                         break;
                     }
                 }
             }
-            UpdateCapture(pPost->mBiasTeam, iOtherTeam, pPost->GetCaptureRatio());
+            UpdateCapture(pPost->GetBiasTeam(), iOtherTeam, pPost->GetCaptureRatio());
         }
         else if (iPostTeam != pChr->mTeamNumber)
         {

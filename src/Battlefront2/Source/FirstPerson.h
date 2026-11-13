@@ -11,6 +11,16 @@
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "PebbleFL/Common/PblVector.h"
 
+struct CamPathInfo
+{
+    PblVector3 Vec[6];
+    PblVector3 Slope[6];
+    PblVector3 Ore[6];
+    PblVector3 RSlope[6];
+    float Time[6];
+    unsigned int numPoints;
+};
+
 class Aimer;
 class Controllable;
 class RedModel;
@@ -96,68 +106,6 @@ public:
  
  
 
-// VTABLE: SWBF2 0x0079eb80
-class FirstPersonRenderable : public Renderable
-{
-public:
-
-    void SetAnimAndTransition(SOLDIERANIMATION aAnim, SOLDIERANIMATION aTrans, float aTime);
-    FirstPersonRenderable(unsigned int uCameraId, const ZephyrSkeletonShared* pShared);
-    virtual ~FirstPersonRenderable();
-
-    virtual void Activate(int value);
-    virtual void Deactivate();
-
-    virtual void Render(int value);
-
-    void SetInitialPlayerId(int iPlayerId);
-    void UpdateAimer(const PblMatrix& mMatrix);
-    void SetAnimation(const ZephyrAnim* pAnim, bool bLoop);
-    void SetSoldierState(int iState);
-
-    void ClearFiringState();
-    void UpdateSoldier(const RedModel* pModel, Controllable* pOwner, Aimer* pAimer);
-    void UpdateCockpit(const RedModel* pModel, Controllable* pOwner, Aimer* pAimer);
-    void UpdateDroideka(const RedModel* pModel, Controllable* pOwner, Aimer* pAimer);
-    void UpdateSoldierAimer(const PblMatrix& mMatrix);
-    void UpdateDroidekaAimer(const PblMatrix& mMatrix);
-    void UpdateCockpitAimer(const PblMatrix& mMatrix);
-    void RenderSoldier(unsigned int uFlags) const;
-
-    void RenderCockpit(unsigned int uFlags) const;
-    void RenderDroideka(unsigned int uFlags) const;
-
-protected:
-    bool IsOwnerAiming() const;
-
-public:
-    ZephyrSkeleton<32> mZephyrSkeleton;
-    ZephyrPoseStatic<32> mZephyrPoseStatic;
-    ZephyrPoseDyn<32> mZephyrPoseDynamic;
-    float mBlendFactor;
-    PblMatrix mModelMatrix;
-    PblMatrix mWeaponMatrix;
-    float mAnimPlaySpeed;
-    unsigned int mEntitySoldierState;
-    Aimer* mAimer;
-    const RedModel* mObjectModel;
-    Weapon* mCurrentWeapon;
-    WEAPONCLASS mWeaponClass;
-    SOLDIERANIMATION mSoldierState;
-    eViewObjectType mObjectType;
-    Controllable* mOwner;
-    bool mUpdatedSoldierAimer;
-    float fTransitionTimer;
-    float fTransitionTimerMax;
-    SOLDIERANIMATION mTransitionAnim;
-    bool mBlendHandsDown;
-    float mShadowVal;
-    PblQuaternion mCockpitRotation;
-    PblVector3 mCockpitTrans;
-    unsigned int mCameraId;
-    bool bReadyToRender;
-    bool bStreamingModel;
-};
  
  
  

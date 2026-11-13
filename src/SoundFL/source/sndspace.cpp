@@ -9,14 +9,14 @@
 namespace Snd
 {
 
-// SYNTHETIC: SWBF2 0x0040b640
-// `dynamic initializer for 'Snd::Space::smDefaultSpace''
-// SYNTHETIC: SWBF2 0x0076a1b0
-// `dynamic atexit destructor for 'Snd::Space::smDefaultSpace''
+// SYNTHETIC: SWBF2 0x0040b6b0
+// `dynamic initializer for 'Snd::Space::smFreeList''
+// SYNTHETIC: SWBF2 0x0076a1d0
+// `dynamic atexit destructor for 'Snd::Space::smFreeList''
 
-// GLOBAL: SWBF2 0x009d83c8
-// Space::smDefaultSpace
-Space Space::smDefaultSpace;
+// GLOBAL: SWBF2 0x007e3400
+// Space::smFreeList
+FreeList Space::smFreeList(sizeof(Space), 1, true, 8);
 
 // SYNTHETIC: SWBF2 0x0040b6d0
 // `dynamic initializer for 'Snd::Space::smSpaceList''
@@ -27,6 +27,15 @@ Space Space::smDefaultSpace;
 // Space::smSpaceList
 PblListSingle Space::smSpaceList;
 
+// SYNTHETIC: SWBF2 0x0040b640
+// `dynamic initializer for 'Snd::Space::smDefaultSpace''
+// SYNTHETIC: SWBF2 0x0076a1b0
+// `dynamic atexit destructor for 'Snd::Space::smDefaultSpace''
+
+// GLOBAL: SWBF2 0x009d83c8
+// Space::smDefaultSpace
+Space Space::smDefaultSpace;
+
 // SYNTHETIC: SWBF2 0x0040b690
 // `dynamic initializer for 'Snd::Space::Connected::smFreeList''
 // SYNTHETIC: SWBF2 0x0076a1c0
@@ -36,19 +45,10 @@ PblListSingle Space::smSpaceList;
 // Space::Connected::smFreeList
 FreeList Space::Connected::smFreeList(8, 1, true, 8);
 
-// SYNTHETIC: SWBF2 0x0040b6b0
-// `dynamic initializer for 'Snd::Space::smFreeList''
-// SYNTHETIC: SWBF2 0x0076a1d0
-// `dynamic atexit destructor for 'Snd::Space::smFreeList''
-
-// GLOBAL: SWBF2 0x007e3400
-// Space::smFreeList
-FreeList Space::smFreeList(sizeof(Space), 1, true, 8);
-
 // FUNCTION: SWBF2 0x00733a70
 bool Space::Open()
 {
-    smDefaultSpace.mHashID = 0x933B5BDEu;
+    smDefaultSpace.mHashID = 0x933B5BDEu /* "Default" */;
     smDefaultSpace.mPriority = -1.0f;
     return true;
 }
@@ -63,7 +63,7 @@ Space* __cdecl Space::GetSpace(const ::PblVector3& rPos)
          pNode = pNode->mNext)
     {
 
-        Space* const pSpace = static_cast<Space*>(pNode->GetObjectA(&smSpaceList, offsetof(Space, mNode)));
+        Space* const pSpace = (Space*)pNode->GetObjectA(&smSpaceList, offsetof(Space, mNode));
 
         if (pSpace->mPriority > pBest->mPriority)
         {
@@ -95,7 +95,7 @@ bool Space::IsPointInside(const ::PblVector3& rPoint, float fRadius) const
          pNode != mList.GetTerminator();
          pNode = pNode->GetNext())
     {
-        const PblRegion* const pRegion = static_cast<const Space::Region*>(
+        const PblRegion* const pRegion = (const Space::Region*)(
             pNode->GetObjectA(&mList, offsetof(Space::Region, mSpaceNode)));
 
         ::PblVector3 vDelta;
@@ -256,7 +256,7 @@ Space* __cdecl Space::Find(unsigned int uiHashID)
     for (PblListSingle::Node* pNode = smSpaceList.mHead.mNext;
          pNode != &smSpaceList.mHead; pNode = pNode->mNext)
     {
-        Space* const pSpace = static_cast<Space*>(pNode->GetObjectA(&smSpaceList, offsetof(Space, mNode)));
+        Space* const pSpace = (Space*)pNode->GetObjectA(&smSpaceList, offsetof(Space, mNode));
         if (pSpace->mHashID == uiHashID)
         {
             return pSpace;
@@ -302,25 +302,25 @@ void Space::Read(PblFileChunk& chunk)
         const unsigned int uiID = child._pFile->Read32();
         switch (uiID)
         {
-        case 0x94E4E309u:
+        case 0x94E4E309u: /* "priority" */
             child._pFile->Read8();
             mPriority = child._pFile->ReadFloat();
             break;
-        case 0x8D39BDE6u:
+        case 0x8D39BDE6u: /* "name" */
             child._pFile->Read8();
             mHashID = child._pFile->Read32();
             break;
-        case 0xABD36816u:
+        case 0xABD36816u: /* "I3DL2ReverbPreset" */
             child._pFile->Read8();
             SetReverbPreset(I3DL2ReverbPreset::Find(child._pFile->Read32()));
             break;
-        case 0x148F0D58u:
+        case 0x148F0D58u: /* "ConnectedList" */
         {
             PblFileChunk list = chunk.ReadNextChild();
             while (!list.IsDone())
             {
                 PblFileChunk entry = list.ReadNextChild();
-                if (entry._pFile->Read32() != 0x3553E285u)
+                if (entry._pFile->Read32() != 0x3553E285u /* "Space" */)
                 {
                     continue;
                 }

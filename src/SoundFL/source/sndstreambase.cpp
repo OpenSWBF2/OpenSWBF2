@@ -183,7 +183,7 @@ bool StreamBase::LoadSegments(PblFileChunk& chunk, Segment* pSegments,
             break;
         }
 
-        if (chunk._pFile->Read32() == 0x96E382A7u)
+        if (chunk._pFile->Read32() == 0x96E382A7u /* "Sample" */)
         {
             unsigned int uiHashID = 0;
             unsigned int uiFrequency = 0;
@@ -202,19 +202,19 @@ bool StreamBase::LoadSegments(PblFileChunk& chunk, Segment* pSegments,
                 case 0x2E789FB4u:
                     bContinue = false;
                     break;
-                case 0x23A0D95Cu:
+                case 0x23A0D95Cu: /* "Size" */
                     uiLength = chunk._pFile->Read32();
                     break;
-                case 0x1D48FEEFu:
+                case 0x1D48FEEFu: /* "sizeSamples" */
                     uiLengthSamples = chunk._pFile->Read32();
                     break;
-                case 0x2FB31C01u:
+                case 0x2FB31C01u: /* "Frequency" */
                     uiFrequency = chunk._pFile->Read32();
                     break;
-                case 0x37386AE0u:
+                case 0x37386AE0u: /* "id" */
                     uiHashID = chunk._pFile->Read32();
                     break;
-                case 0x7D268157u:
+                case 0x7D268157u: /* "alias" */
                 {
                     const unsigned int uiAliasID = chunk._pFile->Read32();
                     const Segment* pSegment = pSegments;
@@ -231,7 +231,7 @@ bool StreamBase::LoadSegments(PblFileChunk& chunk, Segment* pSegments,
                     bAlias = true;
                     break;
                 }
-                case 0x809608B6u:
+                case 0x809608B6u: /* "padding" */
                     uiPadding = chunk._pFile->Read32();
                     break;
                 }
@@ -274,7 +274,7 @@ bool StreamBase::Open(PblFileChunk& chunk, unsigned int uiHashID, const char* pc
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x5F6F6D65u:
+        case 0x5F6F6D65u: /* "Stream" */
         case 0x5BB97F21u:
             if (Open(child, uiHashID, pcFileName, pfnIdle, pIdleData, bNoPadding))
             {
@@ -282,7 +282,7 @@ bool StreamBase::Open(PblFileChunk& chunk, unsigned int uiHashID, const char* pc
             }
             break;
 
-        case 0x0FB40705u:
+        case 0x0FB40705u: /* "info" */
         {
             unsigned int uiName = 0;
             unsigned int uiNumSegments = 0;
@@ -298,35 +298,35 @@ bool StreamBase::Open(PblFileChunk& chunk, unsigned int uiHashID, const char* pc
             {
                 switch ((unsigned int)child._pFile->Read32())
                 {
-                case 0x23A0D95Cu:
+                case 0x23A0D95Cu: /* "Size" */
                     child._pFile->Read32();
                     break;
-                case 0x182FD58Du:
+                case 0x182FD58Du: /* "channelInterleave" */
                     uiChannelInterleave = child._pFile->Read32();
                     break;
-                case 0x40FBDEBDu:
+                case 0x40FBDEBDu: /* "NumSegments" */
                     uiNumSegments = child._pFile->Read32();
                     break;
-                case 0x740FDB0Cu:
+                case 0x740FDB0Cu: /* "substreamInterleave" */
                     uiSubstreamInterleave = child._pFile->Read32();
                     break;
-                case 0x7816084Bu:
+                case 0x7816084Bu: /* "numChannels" */
                     uiNumChannels = child._pFile->Read32();
                     break;
-                case 0x8D39BDE6u:
+                case 0x8D39BDE6u: /* "name" */
                     uiName = child._pFile->Read32();
                     if (uiName != uiHashID && uiHashID)
                     {
                         return false;
                     }
                     break;
-                case 0x7AAF1A1Cu:
+                case 0x7AAF1A1Cu: /* "numSubstreams" */
                     uiNumSubstreams = child._pFile->Read32();
                     break;
-                case 0xB99D8552u:
+                case 0xB99D8552u: /* "format" */
                     uiFormat = child._pFile->Read32();
                     break;
-                case 0xB969BE96u:
+                case 0xB969BE96u: /* "SegmentInfo" */
                     pInfo = Info::Find(uiName, this, true);
                     if (pInfo)
                     {
@@ -365,7 +365,7 @@ bool StreamBase::Open(PblFileChunk& chunk, unsigned int uiHashID, const char* pc
             break;
         }
 
-        case 0xD872E2A5u:
+        case 0xD872E2A5u: /* "Data" */
             if (bInfo)
             {
                 const int iPos = child._pFile->Tell();

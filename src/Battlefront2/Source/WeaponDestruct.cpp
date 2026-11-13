@@ -84,13 +84,13 @@ void WeaponDestructClass::SetProperty(unsigned int uProperty, const char* pszVal
 {
     switch (uProperty)
     {
-    case 0x2819FFA0:
+    case 0x2819FFA0: /* "MaxPressedTime" */
         sscanf(pszValue, "%f", &mMaxPressedTime);
         break;
-    case 0x4C5AA5AA:
+    case 0x4C5AA5AA: /* "SelfDestructSoundPitch" */
         sscanf(pszValue, "%f", &mChargeSoundPitch);
         break;
-    case 0xCA0C1378:
+    case 0xCA0C1378: /* "ExplosionClass" */
         mExplosionClass = ExplosionClass::Find(PblHash(pszValue));
         break;
     default:
@@ -178,7 +178,7 @@ void WeaponDestruct::EnterCharge()
 // FUNCTION: SWBF2 0x00681c00
 bool WeaponDestruct::UpdateCharge(float fDeltaTime)
 {
-    if (mOwner->GetGameObject()->IsRtti(EntityDroid::rttiHashEntityDroid))
+    if (mOwner->GetGameObject()->IsRtti(EntityDroid::GetRtti()))
     {
         ((EntityDroid*)mOwner->GetGameObject())->FreezeMovement();
     }
@@ -259,7 +259,7 @@ void WeaponDestruct::ExitFire()
         ((WeaponDestructClass*)mClass)->mExplosionClass->CreateExplosion(
             mOwner->GetGameObject()->GetCollisionObject()->GetCollisionCenter(), owner, false, COLL_UNKNOWN);
     }
-    if (mOwner->GetGameObject()->IsRtti(EntityDroid::rttiHashEntityDroid))
+    if (mOwner->GetGameObject()->IsRtti(EntityDroid::GetRtti()))
     {
         ((EntityDroid*)mOwner->GetGameObject())->KillDelay(1.0f);
     }

@@ -13,10 +13,11 @@
 #include <new>
 
 extern bool netIsLocalTurn;
-namespace GameLoop
-{
-extern float sClientDeltaTime;
-}
+#include "GameLoop.h"
+
+
+
+
 
 namespace CombatUtil
 {
@@ -84,7 +85,7 @@ bool WeaponLaser::IsBusy() const
 void WeaponLaser::EnterFire()
 {
     Weapon::EnterFire();
-    const WeaponLaserClass* pClass = static_cast<const WeaponLaserClass*>(mClass);
+    const WeaponLaserClass* pClass = (const WeaponLaserClass*)mClass;
     mStateTimer = 0.0f;
     mStateLimit = pClass->mShotDelay;
     mSalvoTimer = pClass->mSalvoTime;
@@ -107,26 +108,25 @@ bool WeaponLaser::UpdateFire(float fDeltaTime)
         float fStep = mSalvoTimer;
         if (fStep <= 0.0f)
         {
-            const float fLimit = mStateLimit;
-            float fWait = fLimit - mStateTimer;
+            float fWait = mStateLimit - mStateTimer;
             if (fWait > fRemaining)
             {
                 fWait = fRemaining;
             }
             fRemaining -= fWait;
             mStateTimer += fWait;
-            if (!(mStateTimer >= fLimit) || mClass->mTriggerSingle || !CheckFire() || CheckReload() || CheckEmpty())
+            if (!(mStateTimer >= mStateLimit) || mClass->mTriggerSingle || !CheckFire() || CheckReload() || CheckEmpty())
             {
                 mSoundControl.Stop(true);
                 break;
             }
             mStateTimer -= mStateLimit;
-            if (static_cast<const WeaponLaserClass*>(mClass)->mShotDelay > 0.0f)
+            if (((const WeaponLaserClass*)mClass)->mShotDelay > 0.0f)
             {
                 Weapon::ExitFire();
                 Weapon::EnterFire();
             }
-            mSalvoTimer = static_cast<const WeaponLaserClass*>(mClass)->mSalvoTime;
+            mSalvoTimer = ((const WeaponLaserClass*)mClass)->mSalvoTime;
         }
         else
         {
@@ -140,7 +140,7 @@ bool WeaponLaser::UpdateFire(float fDeltaTime)
                 if (mAimer->WeaponShouldFire())
                 {
                     Fire(fStep);
-                    const float fShare = fStep / static_cast<const WeaponLaserClass*>(mClass)->mSalvoTime;
+                    const float fShare = fStep / ((const WeaponLaserClass*)mClass)->mSalvoTime;
                     m_pAmmoCounter->ExpendRounds(mClass->mRoundsPerShot * fShare);
                     m_pEnergyBar->SpendEnergy(mClass->mHeatPerShot * fShare);
                 }
@@ -185,7 +185,7 @@ bool WeaponLaser::Fire(float fTime)
     OrdnanceDesc desc;
     desc.mPosition = mAimer->mFirePos;
     desc.mDirection = mAimer->mDirection;
-    desc.mStrength = fTime / static_cast<const WeaponLaserClass*>(mClass)->mSalvoTime;
+    desc.mStrength = fTime / ((const WeaponLaserClass*)mClass)->mSalvoTime;
     desc.mOwner = mOwner->GetGameObject();
     desc.mDamageOwner.mCharacter = mOwner->mCharacter;
     desc.mDamageOwner.mGameObject = PblHandle<GameObject>(mOwner->GetGameObject());
@@ -193,7 +193,7 @@ bool WeaponLaser::Fire(float fTime)
     desc.mDamageOwner.mTeam = mOwner->GetGameObject()->GetTeam();
     desc.mDamageOwner.mClass = mOwner->GetGameObject()->GetEntityClass();
     desc.mDamageOwner.mWeapon = mClass;
-    desc.mTarget = const_cast<GameObject*>(static_cast<const GameObject*>(mTarget));
+    desc.mTarget = const_cast<GameObject*>((const GameObject*)mTarget);
     desc.mBodyID = mTargetBodyID;
 
     bool bFlash = true;
@@ -217,7 +217,7 @@ bool WeaponLaser::Fire(float fTime)
         mClass->CreateMuzzleFlash(mFirePointMatrix);
     }
     mClass->mOrdnanceClass->Build(desc);
-    CombatUtil::SendDamageEvent(mOwner, static_cast<const GameObject*>(mTarget), mTrigger);
+    CombatUtil::SendDamageEvent(mOwner, (const GameObject*)mTarget, mTrigger);
     return true;
 }
 
@@ -225,7 +225,7 @@ bool WeaponLaser::Fire(float fTime)
 void WeaponLaser::EnterEmpty()
 {
     Weapon::EnterEmpty();
-    mStateLimit = static_cast<const WeaponLaserClass*>(mClass)->mShotDelay;
+    mStateLimit = ((const WeaponLaserClass*)mClass)->mShotDelay;
 }
 
 // SYNTHETIC: SWBF2 0x004071d0
@@ -274,11 +274,11 @@ void WeaponLaserClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x4225631D:
+    case 0x4225631D: /* "SalvoTime" */
         sscanf(pszValue, "%f", &mSalvoTime);
         break;
 
-    case 0xD9356908:
+    case 0xD9356908: /* "ShotDelay" */
         sscanf(pszValue, "%f", &mShotDelay);
         break;
 

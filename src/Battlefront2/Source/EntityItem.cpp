@@ -8,6 +8,7 @@
 #include "EntityItem.h"
 #include "Character.h"
 #include "CollisionBody.h"
+#include "CollisionManager.h"
 #include "CollisionModel.h"
 #include "CollisionPrimitive.h"
 #include "FLEffect.h"
@@ -109,32 +110,32 @@ void EntityItemClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x7C7C544B:
+    case 0x7C7C544B: /* "LifeSpan" */
     {
         sscanf(pszValue, "%f", &mLifeSpan);
             break;
     }
-    case 0x039975BE:
+    case 0x039975BE: /* "NoLifeSpanDisplay" */
     {
         mNoLifeSpanDisplay = atoi(pszValue) != 0;
             break;
     }
-    case 0xC28F0C96:
+    case 0xC28F0C96: /* "CollisionSound" */
     {
         mCollisionSound.SetID(pszValue, false, false);
             break;
     }
-    case 0xEDC6251A:
+    case 0xEDC6251A: /* "CollisionOtherSound" */
     {
         mCollisionSound.SetID(pszValue, false, false);
             break;
     }
-    case 0x2297E47D:
+    case 0x2297E47D: /* "CollisionWaterSound" */
     {
         mCollisionWaterSound.SetID(pszValue, false, false);
             break;
     }
-    case 0x7E71E2C6:
+    case 0x7E71E2C6: /* "TrailEffect" */
     {
         if (*pszValue)
         {
@@ -146,27 +147,27 @@ void EntityItemClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
             break;
     }
-    case 0xD209FF45:
+    case 0xD209FF45: /* "Gravity" */
     {
         sscanf(pszValue, "%f", &mGravity);
             break;
     }
-    case 0x678DE338:
+    case 0x678DE338: /* "Rebound" */
     {
         sscanf(pszValue, "%f", &mRebound);
             break;
     }
-    case 0xA51BE2BB:
+    case 0xA51BE2BB: /* "Friction" */
     {
         sscanf(pszValue, "%f", &mFriction);
             break;
     }
-    case 0xE369687E:
+    case 0xE369687E: /* "LightOdf" */
     {
         m_uiLightOdfNameHash = PblHash(pszValue);
             break;
     }
-    case 0x746CE73E:
+    case 0x746CE73E: /* "LightColor" */
     {
         int r, g, b, a;
         int iCount = sscanf(pszValue, "%d %d %d %d", &r, &g, &b, &a);
@@ -191,14 +192,14 @@ void EntityItemClass::SetProperty(unsigned int uProperty, const char* pszValue)
         m_colorLight = color;
             break;
     }
-    case 0x2776564D:
+    case 0x2776564D: /* "LightRadius" */
     {
         sscanf(pszValue, "%f", &m_fRadiusLight);
             break;
     }
-    case 0x47C86B4A:
+    case 0x47C86B4A: /* "GeometryName" */
     {
-        GameObjectClass::SetProperty(0x47C86B4A, pszValue);
+        GameObjectClass::SetProperty(0x47C86B4A /* "GeometryName" */, pszValue);
         if (mCollisionModel.GetNumBodies() == 0 && mModel)
         {
             const PblBox& box = mModel->_mModel->_TotalBoundingBox;
@@ -239,12 +240,7 @@ PblHash EntityItem::rttiHashEntityItem("EntityItem");
 // EntityItem::rttiNameEntityItem
 const char EntityItem::rttiNameEntityItem[] = "EntityItem";
 
-class CollisionManager
-{
-public:
-    static bool AddItemBody(CollisionObject* pObject);
-    static bool DeactivateItem(CollisionObject* pObject);
-};
+
 
 // FUNCTION: SWBF2 0x004cc260
 Entity* EntityItemClass::Build(const EntityDesc& desc)
@@ -269,7 +265,7 @@ EntityItem::EntityItem(EntityItemClass* pClass, const EntityDesc& desc)
     , mOwner(0)
     , m_pLight(0)
 {
-    static_cast<RedSceneObject&>(*this).Activate();
+    ((RedSceneObject&)(*this)).Activate();
 
     if (!NetGame::IsEnabled() || NetGame::IsClient())
     {
@@ -286,14 +282,11 @@ EntityItem::EntityItem(EntityItemClass* pClass, const EntityDesc& desc)
             }
             PblMatrix matrix = gMatrixIdentity;
             matrix.SetTranslation(mMatrix.GetTranslation());
-            if (m_pLight->_fBeamLength > 0.0f)
+            if (m_pLight->IsCone())
             {
-                matrix[0] = gVectorUnitX;
-                matrix.m[0][3] = 0.0f;
-                matrix[1] = -gVectorUnitZ;
-                matrix.m[1][3] = 0.0f;
-                matrix[2] = gVectorUnitY;
-                matrix.m[2][3] = 0.0f;
+                matrix.SetXAxis(gVectorUnitX);
+                matrix.SetYAxis(-gVectorUnitZ);
+                matrix.SetZAxis(gVectorUnitY);
             }
             m_pLight->SetMatrix(matrix);
             m_pLight->TurnOn();
@@ -381,7 +374,7 @@ bool EntityItem::Update(float fDeltaTime)
             mVelocity.y += fHalfDrop;
             SetPosition(mVelocity * fDeltaTime + GetPosition());
             mVelocity.y += fHalfDrop;
-            if (!(NetGame::IsEnabled() && NetGame::IsClient()) && mMatrix.m[3][1] < -1000.0f)
+            if (!(NetGame::IsEnabled() && (netEnabledNext && netClientActive)) && mMatrix.m[3][1] < -1000.0f)
             {
                 Kill();
                 return false;
@@ -392,7 +385,7 @@ bool EntityItem::Update(float fDeltaTime)
         {
             return true;
         }
-        if (!(NetGame::IsClient() && netIsLocalTurn))
+        if (!((netEnabledNext && netClientActive) && netIsLocalTurn))
         {
             if (!NetGame::IsHost() || !NetGame::IsOneWorld() || netIsLateTurn)
             {
@@ -406,7 +399,7 @@ bool EntityItem::Update(float fDeltaTime)
         gameObjectInterpolator.SetNext(mNetUniqueId, mStationary ? 0 : &mMatrix);
         return true;
     }
-    if (NetGame::IsEnabled() && NetGame::IsClient())
+    if (NetGame::IsEnabled() && (netEnabledNext && netClientActive))
     {
         return true;
     }

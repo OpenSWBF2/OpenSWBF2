@@ -4,7 +4,10 @@
 
 #include <stdlib.h>
 
+#include "GameSpyFL/md5.h"
+
 #include "Character.h"
+#include "PlayerStats.h"
 #include "CommandLine.h"
 #include "Controllable.h"
 #include "GameLoop.h"
@@ -17,7 +20,6 @@
 #include "NetSetup.h"
 #include "NetAdmin.h"
 #include "NetAdminIdText.h"
-#include "NetAdminMd5.h"
 #include "NetWire.h"
 #include "SpawnManager.h"
 #include "Team.h"
@@ -42,7 +44,6 @@ public:
 };
 
 extern char adminPlayerIdText[32];
-
 // GLOBAL: SWBF2 0x01ecb270
 Admin adminDests[3];
 // GLOBAL: SWBF2 0x01e57a04
@@ -111,7 +112,7 @@ void __fastcall HeartBeat(const unsigned __int64* pPeer)
 }
 
 // FUNCTION: SWBF2 0x005b1630
-int __fastcall FindAdminSource(int iDest)
+int FindAdminSource(int iDest)
 {
     const unsigned __int64 peer = GetAdminPeer(iDest);
     if (!peer)
@@ -168,7 +169,7 @@ extern int adminBandwidth;
 void WriteString(NetPktGroup& pGroup, const char* pText, unsigned int uCapacity);
 
 // FUNCTION: SWBF2 0x005b1920
-void __fastcall SendAdminMessage(char* pcMessage)
+void SendAdminMessage(char* pcMessage)
 {
     const float fNow = NetComm::GetTime();
     for (int i = 0; i < 3; ++i)
@@ -377,7 +378,10 @@ void NetAdmin::Create(bool  )
     }
 
     JournalString(Destination, sizeof(Destination));
-    memset(admins, 0, sizeof(admins));
+    for (int i = 0; i < 64; ++i)
+    {
+        admins[i] = false;
+    }
     if (NetGame::GetLocalIndex(0) >= 0)
     {
         admins[0] = true;
@@ -494,26 +498,21 @@ bool GetCommand(char* pcToken, AdminCommand& cmd, bool& bNo)
     return false;
 }
 
-void __fastcall SendAdminMessage(char* pcMessage);
-namespace GameLoop
-{
-extern bool sQuitRequested;
-}
-namespace GameLoop
-{
-extern unsigned int sQuitTurn;
-}
+void SendAdminMessage(char* pcMessage);
+
+
+
+
+
+
 
 // FUNCTION: SWBF2 0x005aedb0
 void NetAdmin::RemovePlayer(int iPlayer)
 {
     admins[iPlayer] = false;
-    if (GameLoop::sQuitRequested)
+    if (GameLoop::IsQuitRequested())
     {
-        if (!NetGame::GetTurnNumber() || NetGame::GetTurnNumber() >= GameLoop::sQuitTurn)
-        {
-            return;
-        }
+        return;
     }
 
     char acBuffer[64];
@@ -726,13 +725,6 @@ bool GetNetAwardsEnabled();
 void SetNetAwardsEnabled(int);
 void AddAutoNetMission(char const* pcArg, int iA, int iB);
 
-class PlayerStats
-{
-public:
-    int GetPoints() const;
-    int GetKills(int iTeam, int iStat) const;
-    int GetDeaths(int iTeam, int iStat) const;
-};
 
 // FUNCTION: SWBF2 0x005b12a0
 static bool IsMatch(char* pcMatch, unsigned short* pusLine)

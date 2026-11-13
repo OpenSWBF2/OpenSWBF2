@@ -29,36 +29,37 @@ void FishParticle::Render(unsigned char, float, unsigned int)
     float fSize = mType.mSize * 0.5f;
     mTimeOffCamera = 0.0f;
 
-    PblVector3 vDir = mMatrix.GetInverseFast().ApplyRotation(mBaseMatrix.GetZAxis());
+    PblVector3 vDir;
+    D3DXVec3TransformNormal((D3DXVECTOR3*)&vDir, (const D3DXVECTOR3*)mBaseMatrix.m[2],
+                            (const D3DXMATRIX*)&mMatrix.GetInverseFast());
 
     const PblVector3 vRight(1.0f, 0.0f, 0.0f);
     const PblVector3 vUp(0.0f, 1.0f, 0.0f);
     const PblVector3 vAt(0.0f, 0.0f, 1.0f);
     float fHalf = fSize * 0.5f;
-    float fSegment = fSize * 0.666f;
-    float fFin = fSize * 0.1f;
 
     PblVector3 vertices[12];
-    vertices[0] = fSize * vDir + fHalf * vUp;
+    vertices[0] = vDir * fSize + vUp * fHalf;
     for (int i = 1; i < 3; i++)
     {
-        vertices[i] = vertices[i - 1] - fSegment * vDir;
+        vertices[i] = vertices[i - 1] - vDir * (fSize * 0.666f);
     }
-    vertices[3] = fHalf * vUp - fSize * vAt;
+    vertices[3] = vUp * fHalf - vAt * fSize;
 
     for (int i = 0; i < 4; i++)
     {
         vertices[i + 4] = vertices[i];
         vertices[i + 4].y = 0.0f;
     }
+    float fFin = fSize * 0.1f;
     for (int i = 5; i < 7; i++)
     {
-        vertices[i] += fFin * vRight;
+        vertices[i] += vRight * fFin;
     }
 
     for (int i = 0; i < 4; i++)
     {
-        vertices[i + 8] = vertices[i] - fSize * vUp;
+        vertices[i + 8] = vertices[i] - vUp * fSize;
     }
 
     TexCoord texCoords[12] = {

@@ -23,6 +23,32 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "pcSunFlare.h"
 
+// VTABLE: SWBF2 0x0079661c
+class SkyFogRenderable : public Renderable
+{
+public:
+
+    SkyFogRenderable()
+        : Renderable(RENDERABLE_PRETRANSPARENT), m_pPrimitive(0), m_pShader(0)
+    {
+    }
+
+    virtual ~SkyFogRenderable();
+
+    // SYNTHETIC: SWBF2 0x00428920
+    // SkyFogRenderable::`scalar deleting destructor'
+
+    virtual void Render(unsigned int value) const;
+
+    void Init();
+
+    void Cleanup();
+
+private:
+    pcRedPrimitive* m_pPrimitive;
+    pcRedShader* m_pShader;
+};
+
 // SYNTHETIC: SWBF2 0x004020e0
 // `dynamic initializer for 's_SkyFogPlane''
 // SYNTHETIC: SWBF2 0x00766cf0
@@ -48,9 +74,9 @@ SkyFogRenderable::~SkyFogRenderable()
 // FUNCTION: SWBF2 0x00428690
 void SkyFogRenderable::Init()
 {
-    m_pShader = pcRedShader::Create(0x890EFA1E, 0x202, 0, 0, 0,
+    m_pShader = pcRedShader::Create(0x890EFA1E /* "SkyFog" */, 0x202, 0, 0, 0,
                                     RedColor::WHITE, RedColor::BLACK, 32.0f);
-    static_cast<pcSkyFogShader*>(m_pShader)->SetTexture(
+    ((pcSkyFogShader*)m_pShader)->SetTexture(
         RedRenderer::pcGetBuffer(PC_BUFFER_SKY));
 
     m_pPrimitive = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x202, 0x14, 4,
@@ -98,7 +124,7 @@ void SkyDome::Init()
 extern PblMatrix gMatrixIdentity;
 
 // FUNCTION: SWBF2 0x004288f0
-void SkyFogRenderable::Render(int)
+void SkyFogRenderable::Render(unsigned int) const
 {
     RedRenderer::pcRenderPrimitive(m_pPrimitive, m_pShader,
                                    gMatrixIdentity,
@@ -108,8 +134,13 @@ void SkyFogRenderable::Render(int)
 
 
 
+int SkyDome::Build()
+{
+    return 1;
+}
+
 // FUNCTION: SWBF2 0x00428970
-void SkyDome::Render(int value)
+void SkyDome::Render(unsigned int value) const
 {
     const unsigned int uiFlags = (unsigned int)value;
 
@@ -128,7 +159,7 @@ void SkyDome::Render(int value)
 
         for (int i = 0; i < mNumDomeModels; ++i)
         {
-            DomeModel& rDome = mDomeModels[i];
+            const DomeModel& rDome = mDomeModels[i];
             if (!rDome.mModel)
             {
                 continue;
@@ -154,7 +185,7 @@ void SkyDome::Render(int value)
 
             for (int j = 0; j < rDome.mNumEffectData; ++j)
             {
-                EffectData& rData = rDome.mEffectData[j];
+                const EffectData& rData = rDome.mEffectData[j];
                 ParticleEmitterObject* pEffect = rData.effect;
                 if (!pEffect)
                 {

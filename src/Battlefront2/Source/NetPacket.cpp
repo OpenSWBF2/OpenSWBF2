@@ -3,16 +3,30 @@
 #include "NetPacket.h"
 #include "NetComm.h"
 #include "NetGame.h"
+#include "NetDrag.h"
 #include "pcCrash.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "RedEngineFL/Util/RedLog.h"
 
-class NetDrag
+class NetBigPacket : public NetPacket
 {
 public:
-    static void Send(NetPacket* pPacket, int iDest);
-    static void FreePackets();
+    char mData2[1008];
 };
+ 
+
+class NetSmallPacket : public NetPacket
+{
+public:
+    char mData2[112];
+};
+
+static_assert(offsetof(NetBigPacket, mData2) == 0x10, "net big packet data");
+static_assert(offsetof(NetSmallPacket, mData2) == 0x10, "net small packet data");
+static_assert(sizeof(NetBigPacket) == 0x400, "net big packet size");
+static_assert(sizeof(NetSmallPacket) == 0x80, "net small packet size");
+ 
+
 
 extern NetPktGroup bandwidthQueue[3];
 extern NetPktGroup lossQueue;

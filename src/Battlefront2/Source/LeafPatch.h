@@ -149,9 +149,12 @@ public:
 
     virtual void Render(unsigned char ucViewport, float fDist, unsigned int uiFlags);
     virtual void SetProperty(unsigned int uProperty, const char* pszValue);
-    virtual void DeactivateLeaf();
-    virtual const PblVector3& GetPosition() const;
-    virtual const PblMatrix& GetMatrix() const;
+    // FUNCTION: SWBF2 0x0056cef0
+    virtual void DeactivateLeaf() { --mNumFallingLeaves; }
+    // FUNCTION: SWBF2 0x0056cf00
+    virtual const PblVector3& GetPosition() const { return mMatrix.GetTranslation(); }
+    // FUNCTION: SWBF2 0x0056cf10
+    virtual const PblMatrix& GetMatrix() const { return mMatrix; }
     virtual bool RayTest(const PblVector3& vStart, const PblVector3& vDir, float fMaxT);
     virtual float RayHit(const PblVector3& vStart, const PblVector3& vDir, float fMaxT,
                          PblVector3* pNormal, int* pMaterial, bool bUnused);

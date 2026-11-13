@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "Entity.h"
+#include "PebbleFL/Common/PblRtti.h"
 #include "Thread.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Util/RedSceneObject.h"
@@ -43,7 +44,7 @@ public:
     static void Reset();
     static PblHashTable<EntityHologramClass, 32> sHologramClassTable;
 
-    RedModel* m_pHoloModel;
+    const RedModel* m_pHoloModel;
     RedColor m_color;
     float m_fVisibleDistance;
     float m_fHeight;
@@ -89,6 +90,14 @@ public:
 class EntityHologram : public EntityEx, public RedSceneObject
 {
 public:
+    // FUNCTION: SWBF2 0x004be1b0
+    // EntityHologram::IsRtti
+    // FUNCTION: SWBF2 0x004be1e0
+    // EntityHologram::GetDerivedRtti
+    // FUNCTION: SWBF2 0x004be1f0
+    // EntityHologram::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(EntityHologram, EntityEx)
+
 
     // VTABLE: SWBF2 0x0079b7d8
     class MyThread : public Thread
@@ -105,9 +114,6 @@ public:
 
     EntityHologram(EntityHologramClass* pClass, const EntityDesc& desc);
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
     virtual ~EntityHologram();
 protected:
     virtual void Init();
@@ -136,7 +142,7 @@ public:
     RedColor m_color;
     LightBeam* m_pLightBeam;
     RedOmniLight* m_apOmniLight[1];
-    RedModel* m_pHoloModel;
+    const RedModel* m_pHoloModel;
     float m_fRotateTimer;
     float m_fPopTimer;
     float m_fAspect;
@@ -152,8 +158,6 @@ public:
     int m_iTeam;
     MyThread _Thread;
 
-    static PblHash rttiHashEntityHologram;
-    static const char rttiNameEntityHologram[];
 };
  
  
@@ -169,28 +173,6 @@ public:
  
  
  
-
-// FUNCTION: SWBF2 0x004be1b0
-inline bool EntityHologram::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashEntityHologram == uRtti)
-    {
-        return true;
-    }
-    return EntityEx::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x004be1e0
-inline unsigned int EntityHologram::GetDerivedRtti() const
-{
-    return rttiHashEntityHologram;
-}
-
-// FUNCTION: SWBF2 0x004be1f0
-inline const char* EntityHologram::GetDerivedRttiName() const
-{
-    return rttiNameEntityHologram;
-}
 
 // FUNCTION: SWBF2 0x004be220
 inline bool EntityHologramClass::IsRtti(unsigned int uRtti) const

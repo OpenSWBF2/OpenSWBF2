@@ -19,7 +19,7 @@ GameMusic::~GameMusic()
 // FUNCTION: SWBF2 0x00534ec0
 void GameMusic::Play()
 {
-    if (GameLoop::IsGameOver() && GameState::GetState() == 0x11E1FC01)
+    if (GameLoop::IsGameOver() && GameState::GetState() == 0x11E1FC01 /* "shell" */)
     {
         return;
     }

@@ -35,7 +35,7 @@ public:
     static bool Contains(const CLASS* pClass);
     static void Reset();
 
-    static CLASS* FindNetIndex(int iNetIndex);
+    static CLASS* FindNetIndex(unsigned int iNetIndex);
     unsigned int GetId() const;
     unsigned int GetNetIndex() const { return mNetIndex; }
 
@@ -98,12 +98,40 @@ Factory<TYPE, CLASS, DESC>::Factory(CLASS* pParent, unsigned int uHash)
     sList.AddLast(&mNode, this);
 }
 
+// TEMPLATE: SWBF2 0x00446c00
+// Factory<Entity,EntityClass,EntityDesc>::Find
+// TEMPLATE: SWBF2 0x00446d40
+// Factory<Ordnance,ExplosionClass,OrdnanceDesc>::Find
+// TEMPLATE: SWBF2 0x0049e180
+// Factory<Weapon,WeaponClass,WeaponDesc>::Find
+// TEMPLATE: SWBF2 0x005f7140
+// Factory<Ordnance,OrdnanceClass,OrdnanceDesc>::Find
 template <class TYPE, class CLASS, class DESC>
 inline CLASS* Factory<TYPE, CLASS, DESC>::Find(unsigned int uHash)
 {
     for (typename PblList<Factory<TYPE, CLASS, DESC> >::Itor it(sList.GetFirst()); it; ++it)
     {
         if (it->mId == uHash)
+        {
+            return (CLASS*)(&*it);
+        }
+    }
+    return 0;
+}
+
+// TEMPLATE: SWBF2 0x005d36b0
+// Factory<Entity,EntityClass,EntityDesc>::FindNetIndex
+// TEMPLATE: SWBF2 0x005d3740
+// Factory<Ordnance,OrdnanceClass,OrdnanceDesc>::FindNetIndex
+// TEMPLATE: SWBF2 0x005d37a0
+// Factory<Weapon,WeaponClass,WeaponDesc>::FindNetIndex
+template <class TYPE, class CLASS, class DESC>
+CLASS* Factory<TYPE, CLASS, DESC>::FindNetIndex(unsigned int index)
+{
+    typedef Factory<TYPE, CLASS, DESC> FactoryType;
+    for (typename PblList<FactoryType>::Itor it(sList.GetFirst()); it; ++it)
+    {
+        if (it->mNetIndex == index)
         {
             return static_cast<CLASS*>(&*it);
         }

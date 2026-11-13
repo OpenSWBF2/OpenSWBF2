@@ -8,7 +8,7 @@ HUD::ElementGroupPlayer::Factory::Factory(unsigned int uHashID)
     mEventPlayerIndex.Init("EventPlayerIndex", mProperties, Property::type_Event);
 }
 
-static const unsigned int kEventPlayerIndexHash = 0x3c80f682;
+static const unsigned int kEventPlayerIndexHash = 0x3c80f682 /* "EventPlayerIndex" */;
 
 // FUNCTION: SWBF2 0x0054f710
 bool HUD::ElementGroupPlayer::SetProperty(const unsigned int uHashID, const void* pValue)

@@ -17,7 +17,7 @@
 #include "SoldierAnimationBank.h"
 #include "Tracker.h"
 #include "Weapon.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "CollisionManager.h"
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
@@ -33,6 +33,8 @@
 // __xmm@3e4ccccd3e4ccccd3e4ccccd3e4ccccd
 
 extern bool netFrameLock;
+
+class FirstPersonRenderable;
 
 namespace FirstPerson
 {
@@ -78,14 +80,12 @@ unsigned int GetViewportCount();
 unsigned int GetCurrentViewport();
 }
 
-namespace GameLoop
-{
-    extern float sDeltaTime;
-}
-namespace GameLoop
-{
-    extern float sClientDeltaTime;
-}
+
+    
+
+
+    
+
 
 
 
@@ -200,11 +200,68 @@ WEAPONCLASS _GetWeaponClassFromWeapon(const Weapon* pWeapon)
     return TOOL;
 }
 
-// FUNCTION: SWBF2 0x0051ecb0
-PblMatrix CameraManager::GetChaseCameraTransform(int iCam)
+// VTABLE: SWBF2 0x0079eb80
+class FirstPersonRenderable : public Renderable
 {
-    return mChaseCamera[iCam]->GetMatrix();
-}
+public:
+
+    void SetAnimAndTransition(SOLDIERANIMATION aAnim, SOLDIERANIMATION aTrans, float aTime);
+    FirstPersonRenderable(unsigned int uCameraId, const ZephyrSkeletonShared* pShared);
+    virtual ~FirstPersonRenderable();
+
+    virtual void Activate(int value);
+    virtual void Deactivate();
+
+    virtual void Render(unsigned int value) const;
+
+    void SetInitialPlayerId(int iPlayerId);
+    void UpdateAimer(const PblMatrix& mMatrix);
+    void SetAnimation(const ZephyrAnim* pAnim, bool bLoop);
+    void SetSoldierState(int iState);
+
+    void ClearFiringState();
+    void UpdateSoldier(const RedModel* pModel, Controllable* pOwner, Aimer* pAimer);
+    void UpdateCockpit(const RedModel* pModel, Controllable* pOwner, Aimer* pAimer);
+    void UpdateDroideka(const RedModel* pModel, Controllable* pOwner, Aimer* pAimer);
+    void UpdateSoldierAimer(const PblMatrix& mMatrix);
+    void UpdateDroidekaAimer(const PblMatrix& mMatrix);
+    void UpdateCockpitAimer(const PblMatrix& mMatrix);
+    void RenderSoldier(unsigned int uFlags) const;
+
+    void RenderCockpit(unsigned int uFlags) const;
+    void RenderDroideka(unsigned int uFlags) const;
+
+protected:
+    bool IsOwnerAiming() const;
+
+public:
+    ZephyrSkeleton<32> mZephyrSkeleton;
+    ZephyrPoseStatic<32> mZephyrPoseStatic;
+    ZephyrPoseDyn<32> mZephyrPoseDynamic;
+    float mBlendFactor;
+    PblMatrix mModelMatrix;
+    PblMatrix mWeaponMatrix;
+    float mAnimPlaySpeed;
+    unsigned int mEntitySoldierState;
+    Aimer* mAimer;
+    const RedModel* mObjectModel;
+    Weapon* mCurrentWeapon;
+    WEAPONCLASS mWeaponClass;
+    SOLDIERANIMATION mSoldierState;
+    eViewObjectType mObjectType;
+    Controllable* mOwner;
+    bool mUpdatedSoldierAimer;
+    float fTransitionTimer;
+    float fTransitionTimerMax;
+    SOLDIERANIMATION mTransitionAnim;
+    bool mBlendHandsDown;
+    float mShadowVal;
+    PblQuaternion mCockpitRotation;
+    PblVector3 mCockpitTrans;
+    unsigned int mCameraId;
+    bool bReadyToRender;
+    bool bStreamingModel;
+};
 
 // FUNCTION: SWBF2 0x0051eda0
 void FirstPersonRenderable::SetInitialPlayerId(int iPlayerId)
@@ -279,7 +336,7 @@ void FirstPersonRenderable::UpdateSoldierAimer(const PblMatrix& mMatrix)
     mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     RedPose kPose;
     kPose.ConvertFromZephyrPose(mZephyrPoseStatic);
-    const PblMatrix* pBone = kPose.Find(0x8629b159);
+    const PblMatrix* pBone = kPose.Find(0x8629b159 /* "hp_camera" */);
 
     PblMatrix mOffset = gMatrixIdentity;
     mOffset.RotateY(3.0f);
@@ -336,7 +393,7 @@ void FirstPersonRenderable::UpdateDroidekaAimer(const PblMatrix& mMatrix)
     mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity);
     RedPose kPose;
     kPose.ConvertFromZephyrPose(mZephyrPoseStatic);
-    const PblMatrix* pBone = kPose.Find(0x8629b159);
+    const PblMatrix* pBone = kPose.Find(0x8629b159 /* "hp_camera" */);
 
     PblMatrix mOffset = gMatrixIdentity;
     mOffset.RotateY(3.2f);
@@ -357,7 +414,7 @@ void FirstPersonRenderable::UpdateDroidekaAimer(const PblMatrix& mMatrix)
     PblMatrix mBone = *pBone;
     mModelMatrix = (mOffset * mBone) * mRotation;
 
-    const PblMatrix* pWeaponBone = kPose.Find(0x2b960099);
+    const PblMatrix* pWeaponBone = kPose.Find(0x2b960099 /* "hp_weapons" */);
     Weapon* pWeapon = mOwner->GetWeaponPtr(mOwner->GetActiveWeaponChannel());
     if (pWeaponBone && pWeapon)
     {
@@ -423,7 +480,7 @@ void FirstPersonRenderable::UpdateCockpitAimer(const PblMatrix& mMatrix)
     if (mOwner->GetEntity()->GetGameObject()->GetEntityType() == ENT_WALKER)
     {
         const RedPose* pPose = mOwner->GetEntity()->GetGameObject()->GetPose();
-        const PblMatrix* pBone = pPose->Find(0x16E27226);
+        const PblMatrix* pBone = pPose->Find(0x16E27226 /* "bone_root" */);
         if (mCockpitTrans.x == -66.6f && mCockpitTrans.y == 66.6f && mCockpitTrans.z == -66.6f)
         {
             mCockpitTrans = pBone->GetTranslation();
@@ -437,7 +494,7 @@ void FirstPersonRenderable::UpdateCockpitAimer(const PblMatrix& mMatrix)
 
 // FUNCTION: SWBF2 0x0051f750
 FirstPersonRenderable::FirstPersonRenderable(unsigned int uCameraId, const ZephyrSkeletonShared* pShared)
-    : Renderable(8)
+    : Renderable(RENDERABLE_FIRSTPERSON)
 {
     mObjectType = TYPE_NONE;
     mObjectModel = 0;
@@ -482,7 +539,7 @@ void FirstPersonRenderable::Activate(int value)
     }
 
     bReadyToRender = false;
-    PblMatrix mCamera = CameraManager::sInstance->mChaseCamera[mCameraId]->GetMatrix();
+    PblMatrix mCamera = CameraManager::sInstance->GetChaseCameraTransform(mCameraId);
     mCockpitRotation = PblQuaternion(mCamera);
     mCockpitTrans = PblVector3(-66.6f, 66.6f, -66.6f);
     Renderable::Activate(value);
@@ -696,7 +753,7 @@ void FirstPersonRenderable::UpdateSoldier(const RedModel* pModel, Controllable* 
     else if (bTransition && fTransitionTimerMax > fTransitionTimer)
     {
         eAnim = mTransitionAnim;
-        fTransitionTimer += GameLoop::sDeltaTime;
+        fTransitionTimer += GameLoop::GetDeltaTime();
     }
 
     if (mBlendHandsDown && bReadyToRender)
@@ -740,7 +797,7 @@ void FirstPersonRenderable::UpdateCockpit(const RedModel* pModel, Controllable* 
         return;
     }
 
-    PblMatrix mCamera = CameraManager::sInstance->mChaseCamera[mCameraId]->GetMatrix();
+    PblMatrix mCamera = CameraManager::sInstance->GetChaseCameraTransform(mCameraId);
     if (!bReadyToRender)
     {
         pOwner->GetTrackable()->SetupCameraTrackMatrix(mCamera, 0.0f);
@@ -944,7 +1001,7 @@ void FirstPersonRenderable::RenderSoldier(unsigned int uFlags) const
             GameObject* pObject = mOwner->GetGameObject();
             if (pObject && pObject->IsRtti(EntitySoldier::rttiHashEntitySoldier))
             {
-                unsigned char ucInvisibility = static_cast<EntitySoldier*>(pObject)->GetInvisibilityAlpha();
+                unsigned char ucInvisibility = ((EntitySoldier*)pObject)->GetInvisibilityAlpha();
                 if (ucInvisibility)
                 {
                     unsigned char ucCloak = 0xff;
@@ -958,12 +1015,12 @@ void FirstPersonRenderable::RenderSoldier(unsigned int uFlags) const
                     }
                     pShadingPose = &shadingPose;
                     shadingPose.BindToModel(mObjectModel);
-                    if (RedShadingState* pState = shadingPose.CreateDefaultShadingState(0x4cc5882a))
+                    if (RedShadingState* pState = shadingPose.CreateDefaultShadingState(0x4cc5882a /* "refraction" */))
                     {
                         RedColor color = RedColor::WHITE;
                         color.a = ucCloak;
-                        pState->GetColorParam(0xbc6f8a5e) = color;
-                        pState->GetIntParam(0x7802a19a) = 1;
+                        pState->GetColorParam(0xbc6f8a5e /* "refraction_color" */) = color;
+                        pState->GetIntParam(0x7802a19a /* "REFRACTIVE" */) = 1;
                     }
                 }
             }
@@ -984,7 +1041,7 @@ void FirstPersonRenderable::RenderSoldier(unsigned int uFlags) const
 }
 
 // FUNCTION: SWBF2 0x00520de0
-void FirstPersonRenderable::Render(int value)
+void FirstPersonRenderable::Render(unsigned int value) const
 {
     const unsigned int uFlags = (unsigned int)value;
     if (!FirstPerson::IsActive(mCameraId) || CameraManager::sInstance->IsFreeLook(mCameraId))
@@ -1220,14 +1277,20 @@ void FirstPersonCameraManager::Update(PblMatrix& rMatrix)
     mCurrCamTime -= GameLoop::GetDeltaTime();
     if (mCurrCamPt != -1)
     {
-        float fT = Min(1.0f, 1.0f - mCurrCamTime / mCamTime[mCurrCamPt]);
+        float fT = 1.0f - mCurrCamTime / mCamTime[mCurrCamPt];
+        if (fT > 1.0f)
+        {
+            fT = 1.0f;
+        }
         if (mIsReturning)
         {
-            rMatrix.SetTranslation(rMatrix.GetTranslation() + rMatrix.ApplyRotation(mLinVec * (1.0f - fT)));
+            PblVector3 vLin(mLinVec.x * (1.0f - fT), mLinVec.y * (1.0f - fT), mLinVec.z * (1.0f - fT));
+            rMatrix.SetTranslation(rMatrix.GetTranslation() + rMatrix.ApplyRotation(vLin));
         }
         else
         {
-            rMatrix.SetTranslation(rMatrix.GetTranslation() + rMatrix.ApplyRotation(mHermPos[mCurrCamPt].getValue(fT)));
+            const PblHermiteVector3& rHerm = mHermPos[mCurrCamPt];
+            rMatrix.SetTranslation(rMatrix.GetTranslation() + rMatrix.ApplyRotation(fT * (fT * (rHerm._b + fT * rHerm._a) + rHerm._c) + rHerm._d));
             mCurRotVec = mHermRot[mCurrCamPt].getValue(fT);
             mCameraPos = rMatrix.GetTranslation();
 

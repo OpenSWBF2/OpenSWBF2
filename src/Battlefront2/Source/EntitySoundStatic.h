@@ -34,6 +34,7 @@ public:
 class EntitySoundStatic : public EntitySound, public Thread
 {
 public:
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
     EntitySoundStatic(EntitySoundStaticClass* pClass, const EntityDesc& desc);
 
     virtual bool IsRtti(unsigned int uRtti) const;
@@ -55,6 +56,23 @@ public:
 
     GameSoundControllable mSound;
     GameSound mSoundProperties;
+};
+
+// VTABLE: SWBF2 0x0079fbf0
+class SoundStaticRegionFactory : public RedRegionFactory
+{
+public:
+    SoundStaticRegionFactory() : RedRegionFactory("soundstatic") {}
+
+    // SYNTHETIC: SWBF2 0x005393a0
+    // SoundStaticRegionFactory::`scalar deleting destructor'
+
+    // FUNCTION: SWBF2 0x00539330
+    virtual void* CreateRegion(RedRegionDesc& desc, const char* pcName) const
+    {
+        EntitySoundStaticClass soundClass(0xEDE52A96);
+        return EntitySoundClass::CreateSoundFromRegion(desc, pcName, GetPrefix(), soundClass);
+    }
 };
  
  

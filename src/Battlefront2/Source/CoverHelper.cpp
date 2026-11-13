@@ -4,6 +4,7 @@
 #include "AIUtil.h"
 #include "AttackHelper.h"
 #include "Character.h"
+#include "EntitySoldier.h"
 #include "CombatUtil.h"
 #include "Controllable.h"
 #include "Entity.h"
@@ -31,11 +32,6 @@ namespace
     }
 }
 
-class EntitySoldier
-{
-public:
-    static PblHash rttiHashEntitySoldier;
-};
 
 // FUNCTION: SWBF2 0x00486ac0
 CoverHelper::CoverHelper(UnitAgent* pOwner)
@@ -73,7 +69,7 @@ void CoverHelper::ExitState()
 // FUNCTION: SWBF2 0x00486b00
 bool CoverHelper::CheckForHintAndInit(CoverType eType, const GameObject* pTarget)
 {
-    if (!GetMe()->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
+    if (!GetMe()->GetEntity()->IsRtti(EntitySoldier::GetRtti()))
     {
         return false;
     }
@@ -401,7 +397,7 @@ const CoverHint* CoverHelper::SelectHint(int iCount, const BaseHint** ppHints) c
     while (iCount > 0)
     {
         int i = AIUtil::GetRandomInt(0, iCount - 1);
-        const CoverHint* pHint = static_cast<const CoverHint*>(ppHints[i]);
+        const CoverHint* pHint = (const CoverHint*)ppHints[i];
         if (AIUtil::IsHintAvailable(pMe, pHint))
         {
             float fScore = IsHintSuitable(pHint);

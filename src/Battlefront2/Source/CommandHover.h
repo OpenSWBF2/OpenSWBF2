@@ -93,11 +93,7 @@ inline bool CommandHover::IsRtti(unsigned int uRtti) const
     {
         return true;
     }
-    return EntityHover::rttiHashEntityHover == uRtti ||
-           GameObject::rttiHashGameObject == uRtti ||
-           EntityGeometry::rttiHashEntityGeometry == uRtti ||
-           EntityEx::rttiHashEntityEx == uRtti ||
-           Entity::rttiHashEntity == uRtti;
+    return EntityHover::IsRtti(uRtti);
 }
 
 // FUNCTION: SWBF2 0x00478ec0

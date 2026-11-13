@@ -49,8 +49,8 @@
 #include "SoldierAnimatorLowRes.h"
 #include "SoldierAnimationData.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
-#include "RedEngineFL/Application/pc/pcRedTerrain.h"
 #include "NetGame.h"
+#include "NetSetup.h"
 #include "PebbleFL/Common/PblMath.h"
 
 void __cdecl printf_wrapper(const char*, ...);
@@ -72,71 +72,100 @@ namespace PblUnicode
 }
 unsigned int __cdecl ConvertUnicodeSkippingWide(char* pDest, const unsigned short* pSrc, unsigned int uiCount);
 
-// FUNCTION: SWBF2 0x0052a9b0
-int FLInputManager::CountControllers() const
-{
-    int iConnected = 0;
-    for (unsigned char i = 0; i < RedInputManager::GetNumJoystickPorts(); ++i)
-    {
-        if (RedInputManager::GetJoystick(i)->m_connected)
-        {
-            ++iConnected;
-        }
-    }
-    if (iConnected < 1)
-    {
-        return 1;
-    }
-    return iConnected;
-}
-
-
 // FUNCTION: SWBF2 0x005805e0
-int __fastcall GetScreenTransitionType(const char* pcName, void*)
+static ScreenTransition::TransitionType GetScreenTransitionType(const char* pcName)
 {
     if (pcName)
     {
         switch ((unsigned int)PblHash(pcName))
         {
-        case 0x6bfbd198u: return 1;
-        case 0xf16d8413u: return 2;
-        case 0x02ba7498u: return 3;
-        case 0xec70b044u: return 4;
-        case 0x027fdd70u: return 5;
-        case 0xf497cc4cu: return 6;
-        case 0xca020c79u: return 7;
+        case 0x6bfbd198u: /* "BLUR" */ return ScreenTransition::BLUR;
+        case 0xf16d8413u: /* "FADE" */ return ScreenTransition::FADE;
+        case 0x02ba7498u: /* "SWIPE_LR" */ return ScreenTransition::SWIPE_LR;
+        case 0xec70b044u: /* "SWIPE_RL" */ return ScreenTransition::SWIPE_RL;
+        case 0x027fdd70u: /* "SWIPE_TB" */ return ScreenTransition::SWIPE_TB;
+        case 0xf497cc4cu: /* "SWIPE_BT" */ return ScreenTransition::SWIPE_BT;
+        case 0xca020c79u: /* "SWIPE_RAND" */ return ScreenTransition::SWIPE_RAND;
         }
     }
-    return 2;
+    return ScreenTransition::FADE;
 }
 extern bool gDemoMode;
 extern bool gAttractMode;
 
-namespace GameLoop
+
+    
+
+// VTABLE: SWBF2 0x007a4958
+class DrawAllBeamBetween : public Renderable
 {
-    extern bool sShowStats;
-}
+public:
+    DrawAllBeamBetween() : Renderable(RENDERABLE_POSTTRANSPARENT), mCount(0)
+    {
+        Activate(-1);
+    }
+    struct Desc
+    {
+        PblVector3 mPos1;
+        PblVector3 mPos2;
+        unsigned int mTexture;
+        float mWidth;
+        RedColor mColor;
+        float mShift;
+        float mRepetitions;
+    };
+
+    // SYNTHETIC: SWBF2 0x0057fff0
+    // DrawAllBeamBetween::`scalar deleting destructor'
+
+    virtual void Render(unsigned int value) const;
+
+    bool Add(const PblVector3& vPos1, const PblVector3& vPos2, const char* pcTexture, float fWidth,
+             RedColor color, float fShift, float fRepetitions);
+
+    Desc mArray[64];
+    mutable unsigned int mCount;
+};
+
+
+
+
+// VTABLE: SWBF2 0x007a4978
+class DrawAllParticleAt : public Renderable
+{
+public:
+    DrawAllParticleAt() : Renderable(RENDERABLE_POSTTRANSPARENT), mCount(0)
+    {
+        Activate(0);
+    }
+    struct Desc
+    {
+        PblVector3 mPos;
+        unsigned int mTexture;
+        float mWidth;
+        RedColor mColor;
+        float mRotation;
+    };
+
+    // SYNTHETIC: SWBF2 0x00580350
+    // DrawAllParticleAt::`scalar deleting destructor'
+
+    virtual void Render(unsigned int value) const;
+
+    bool Add(const PblVector3& vPos, const char* pcTexture, float fWidth, RedColor color, float fRotation);
+
+    Desc mArray[128];
+    mutable unsigned int mCount;
+};
+
+
+
+
+extern DrawAllBeamBetween* sDrawAllBeamBetween;
+extern DrawAllParticleAt* sDrawAllParticleAt;
+
 extern bool gDrawFlyerShadows;
 extern HWND hGlobalWnd;
-
-class NetSetup
-{
-public:
-    static char* GetGameVersion();
-    static char const* GetAutoNetScript();
-    static bool IsAutoNetLan();
-    static char const* GetAutoNetName();
-    static int GetAutoNetPlayerCount();
-    static void SetupAutoNetMissions();
-
-    static void RequestQuit(unsigned int uiReason);
-};
-
-class NetSetupP
-{
-public:
-    static void UpdateScreen();
-};
 
 // GLOBAL: SWBF2 0x007e69e0
 // sCallbacks
@@ -197,11 +226,11 @@ int BeginScreenTransition(lua_State*)
         const float fInTime = LuaHelper::GetFloat(2);
         const float fHoldTime = LuaHelper::GetFloat(3);
         const float fOutTime = LuaHelper::GetFloat(4);
-        const int iInType = GetScreenTransitionType(LuaHelper::GetString(5), 0);
-        const int iOutType = GetScreenTransitionType(LuaHelper::GetString(6), 0);
+        const ScreenTransition::TransitionType eInType = GetScreenTransitionType(LuaHelper::GetString(5));
+        const ScreenTransition::TransitionType eOutType = GetScreenTransitionType(LuaHelper::GetString(6));
         ScreenTransition::sInstance->BeginTransition(
             uScreen, fInTime, fHoldTime, fOutTime,
-            (ScreenTransition::TransitionType)iInType, (ScreenTransition::TransitionType)iOutType, 0, 0);
+            eInType, eOutType, 0, 0);
     }
     return 0;
 }
@@ -301,8 +330,8 @@ static const CallbackEntryT sCallbacks[91] =
     { "BeginScreenTransition", BeginScreenTransition },
 };
 
-static const unsigned int SHELL_STATE = 0x11e1fc01;
-static const unsigned int MISSION_STATE = 0x8ff60339;
+static const unsigned int SHELL_STATE = 0x11e1fc01 /* "shell" */;
+static const unsigned int MISSION_STATE = 0x8ff60339 /* "mission" */;
 
 // GLOBAL: SWBF2 0x01e57610
 char sTempReturnString[256];
@@ -352,14 +381,13 @@ DrawAllBeamBetween* sDrawAllBeamBetween;
 // GLOBAL: SWBF2 0x01f9c2e8
 DrawAllParticleAt* sDrawAllParticleAt;
 
-namespace GameLoop
-{
+
 // GLOBAL: SWBF2 0x007e6688
-int mLastGameWinner = -1;
+int GameLoop::mLastGameWinner = -1;
 
 // GLOBAL: SWBF2 0x01e56014
-int mMetagameSide[4];
-}
+int GameLoop::mMetagameSide[4];
+
 
 namespace Lua_Callbacks
 {
@@ -1700,12 +1728,12 @@ int ScriptCB_MetagameSetBonus(lua_State*)
 int ScriptCB_MetagameSetSide(lua_State*)
 {
     const char* pcSide = LuaHelper::GetString(2);
-    __int64 iIndex = (__int64)luaL_checknumber(LuaHelper::mState, 1);
-    if (iIndex != (int)iIndex || !PblInBounds(GameLoop::mMetagameSide, (int)iIndex))
+    const int iIndex = LuaHelper::GetInt(1);
+    if (!PblInBounds(GameLoop::mMetagameSide, iIndex))
     {
         return 0;
     }
-    GameLoop::SetMetagameSide((int)iIndex, Team::TranslateTeamName(pcSide));
+    GameLoop::SetMetagameSide(iIndex, Team::TranslateTeamName(pcSide));
     return 0;
 }
 
@@ -1733,7 +1761,7 @@ inline RedParticleRenderer::TexCoords WholeTexture()
 }
 
 // FUNCTION: SWBF2 0x0057fbb0
-void DrawAllBeamBetween::Render(int)
+void DrawAllBeamBetween::Render(unsigned int) const
 {
     for (unsigned int i = 0; i < mCount; ++i)
     {
@@ -1744,15 +1772,14 @@ void DrawAllBeamBetween::Render(int)
         const float fMinZ = vPos2.z > vPos1.z ? vPos1.z : vPos2.z;
         const float fMinY = vPos2.y > vPos1.y ? vPos1.y : vPos2.y;
         const float fMinX = vPos2.x > vPos1.x ? vPos1.x : vPos2.x;
+        const float fMaxZ = vPos1.z > vPos2.z ? vPos1.z : vPos2.z;
+        const float fMaxY = vPos1.y > vPos2.y ? vPos1.y : vPos2.y;
+        const float fMaxX = vPos1.x > vPos2.x ? vPos1.x : vPos2.x;
         float fRadius = desc.mWidth * 2.0f;
         PblVector3 vMin;
         vMin.x = fMinX - fRadius;
         vMin.y = fMinY - fRadius;
         vMin.z = fMinZ - fRadius;
-
-        const float fMaxZ = vPos1.z > vPos2.z ? vPos1.z : vPos2.z;
-        const float fMaxY = vPos1.y > vPos2.y ? vPos1.y : vPos2.y;
-        const float fMaxX = vPos1.x > vPos2.x ? vPos1.x : vPos2.x;
         PblVector3 vMax;
         vMax.x = fRadius + fMaxX;
         vMax.y = fRadius + fMaxY;
@@ -1865,7 +1892,7 @@ int DrawBeamBetween(lua_State*)
 }
 
 // FUNCTION: SWBF2 0x005801b0
-void DrawAllParticleAt::Render(int)
+void DrawAllParticleAt::Render(unsigned int) const
 {
     RedParticleRenderer::TexCoords tcWhole;
     tcWhole.u0 = 0;

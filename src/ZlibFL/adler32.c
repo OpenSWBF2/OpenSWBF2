@@ -35,8 +35,6 @@
 #  define MOD(a) a %= BASE
 #endif
 
-// LIBRARY: SWBF2 0x0066bbc0
-// adler32
 uLong ZEXPORT adler32(adler, buf, len)
     uLong adler;
     const Bytef *buf;

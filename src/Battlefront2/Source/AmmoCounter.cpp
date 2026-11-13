@@ -21,7 +21,7 @@ MemoryPool AmmoCounter::sMemoryPool("AmmoCounter", sizeof(AmmoCounter));
 // FUNCTION: SWBF2 0x00443680
 bool AmmoCounterClass::SetProperty(unsigned int uiHash, const char* pcValue)
 {
-    if (uiHash != 0x7bff9ec9)
+    if (uiHash != 0x7bff9ec9 /* "RoundsPerClip" */)
     {
         return false;
     }

@@ -48,7 +48,7 @@ public:
 class EntityFormationFactory : public GamePathFactory
 {
 public:
-    EntityFormationFactory() : GamePathFactory(0xB7B616EC) {}
+    EntityFormationFactory() : GamePathFactory(0xB7B616EC /* "type_EntityFormation" */) {}
 
     // SYNTHETIC: SWBF2 0x005394e0
     // EntityFormationFactory::`scalar deleting destructor'

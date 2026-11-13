@@ -42,9 +42,9 @@ void BlurEffect::PlatformInit()
     m_constantBlend = 0.25f;
     m_downSizeFactor = 0.25f;
     m_pFilterShader = (pcFilterCopyShader*)pcRedShader::Create(
-        0xfb9eb106, 0x202, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
+        0xfb9eb106 /* "FilterCopy" */, 0x202, 0, 0, 0, RedColor::WHITE, RedColor::BLACK, 32.0f);
     m_pClearShader = (pcClearShader*)pcRedShader::Create(
-        0x5c6e1222, 0x203, 0, 0, 4, RedColor::WHITE, RedColor::BLACK, 32.0f);
+        0x5c6e1222 /* "clear" */, 0x203, 0, 0, 4, RedColor::WHITE, RedColor::BLACK, 32.0f);
 }
 
 // FUNCTION: SWBF2 0x0040f810
@@ -66,17 +66,17 @@ void BlurEffect::PlatformCleanup()
 void BlurEffect::PlatformReadConfigData(PblConfig::Data& data)
 {
     const unsigned int uiId = data.GetId();
-    if (uiId > 0x7E6C7187u)
+    if (uiId > 0x7E6C7187u /* "DownSizeFactor" */)
     {
         return;
     }
-    if (uiId != 0x7E6C7187u)
+    if (uiId != 0x7E6C7187u /* "DownSizeFactor" */)
     {
-        if (uiId == 0x055CEA38u)
+        if (uiId == 0x055CEA38u /* "MinMaxDepth" */)
         {
             (void)data.GetFloatArg(0);
         }
-        else if (uiId == 0x7E1194B8u)
+        else if (uiId == 0x7E1194B8u /* "ConstantBlend" */)
         {
             m_constantBlend = data.GetFloatArg(0);
         }
@@ -88,7 +88,7 @@ void BlurEffect::PlatformReadConfigData(PblConfig::Data& data)
 }
 
 // FUNCTION: SWBF2 0x0040f8d0
-void BlurEffect::Render(int value)
+void BlurEffect::Render(unsigned int value) const
 {
     if ((unsigned int)value & 0x200000)
     {

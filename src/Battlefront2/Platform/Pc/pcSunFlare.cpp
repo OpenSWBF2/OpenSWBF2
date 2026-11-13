@@ -30,8 +30,6 @@ float GetNearSceneFadeStart();
 float GetFarSceneRange();
 }
 
-RedColor ReadColor(const PblConfig::Data& data);
-
 // GLOBAL: SWBF2 0x01e2fd4c
 SunFlareEffect* SunFlareEffect::s_pInstance;
 
@@ -45,6 +43,25 @@ void SunFlareEffect::Create()
     }
 }
 
+// VTABLE: SWBF2 0x007969e4
+class SunSkyRenderable : public Renderable
+{
+public:
+    SunSkyRenderable()
+        : Renderable(RENDERABLE_SKY_POSTWORLD)
+    {
+    }
+
+    virtual ~SunSkyRenderable()
+    {
+    }
+
+    // SYNTHETIC: SWBF2 0x0042d220
+    // SunSkyRenderable::`scalar deleting destructor'
+
+    virtual void Render(unsigned int value) const;
+};
+
 // SYNTHETIC: SWBF2 0x00402120
 // `dynamic initializer for 's_SunSkyRenderable''
 // SYNTHETIC: SWBF2 0x00766d00
@@ -55,9 +72,9 @@ void SunFlareEffect::Create()
 SunSkyRenderable s_SunSkyRenderable;
 
 // GLOBAL: SWBF2 0x01e2fd54
-static RedTexture* s_sampleTex;
+RedTexture* s_sampleTex;
 // GLOBAL: SWBF2 0x01e2fd50
-static RedTexture* s_intensityTex;
+RedTexture* s_intensityTex;
 // GLOBAL: SWBF2 0x01f9af38
 static pcClearShader* s_pClearShader;
 // GLOBAL: SWBF2 0x01f9af34
@@ -126,7 +143,7 @@ void SunFlareEffect::Init()
     s_intensityTex = new RedTexture(2, 2, D3DFMT_A8R8G8B8, 1, D3DUSAGE_RENDERTARGET,
                                     D3DPOOL_DEFAULT, 0);
     s_pClearShader = (pcClearShader*)pcRedShader::Create(
-        0x5c6e1222, 0x203, 0, 0, 0x80000, RedColor::WHITE, RedColor::BLACK, 32.0f);
+        0x5c6e1222 /* "clear" */, 0x203, 0, 0, 0x80000, RedColor::WHITE, RedColor::BLACK, 32.0f);
 
     if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_UNCOMPRESSED)
     {
@@ -206,12 +223,23 @@ void SunFlareEffect::Destroy()
 }
 
 // FUNCTION: SWBF2 0x0042d200
-void SunSkyRenderable::Render(int value)
+void SunSkyRenderable::Render(unsigned int value) const
 {
     if (SunFlareEffect::s_pInstance)
     {
         SunFlareEffect::s_pInstance->RenderSky(value);
     }
+}
+
+// FUNCTION: SWBF2 0x0042d250
+RedColor ReadColor(const PblConfig::Data& data)
+{
+    RedColor color;
+    color.r = data.GetUint8Arg(0);
+    color.g = data.GetUint8Arg(1);
+    color.b = data.GetUint8Arg(2);
+    color.a = data.GetNumArgs() > 3 ? data.GetUint8Arg(3) : (unsigned char)0xff;
+    return color;
 }
 
 // FUNCTION: SWBF2 0x0042d2f0
@@ -223,16 +251,16 @@ FLEffectClass* SunFlareEffect::BuildClass(PblConfig& config) const
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x3D7E6258u:
+        case 0x3D7E6258u: /* "Color" */
             pFlare->SetColor(ReadColor(data));
             break;
-        case 0x23A0D95Cu:
+        case 0x23A0D95Cu: /* "Size" */
             pFlare->SetSize(data.GetFloatArg(0));
             break;
-        case 0x4D609778u:
+        case 0x4D609778u: /* "FlareOutSize" */
             pFlare->SetFlareOutSize(data.GetFloatArg(0));
             break;
-        case 0x9EBE759Fu:
+        case 0x9EBE759Fu: /* "HaloInnerRing" */
         {
             RedColor color;
             color.r = data.GetUint8Arg(1);
@@ -242,7 +270,7 @@ FLEffectClass* SunFlareEffect::BuildClass(PblConfig& config) const
             pFlare->SetHaloInnerRing(data.GetFloatArg(0), color);
             break;
         }
-        case 0x5671AC28u:
+        case 0x5671AC28u: /* "HaloMiddleRing" */
         {
             RedColor color;
             color.r = data.GetUint8Arg(1);
@@ -252,7 +280,7 @@ FLEffectClass* SunFlareEffect::BuildClass(PblConfig& config) const
             pFlare->SetHaloMiddleRing(data.GetFloatArg(0), color);
             break;
         }
-        case 0x59B407CEu:
+        case 0x59B407CEu: /* "HaloOutterRing" */
         {
             RedColor color;
             color.r = data.GetUint8Arg(1);
@@ -262,7 +290,7 @@ FLEffectClass* SunFlareEffect::BuildClass(PblConfig& config) const
             pFlare->SetHaloOutterRing(data.GetFloatArg(0), color);
             break;
         }
-        case 0xB9BAA468u:
+        case 0xB9BAA468u: /* "SpikeColor" */
         {
             RedColor color;
             color.r = data.GetUint8Arg(0);
@@ -272,10 +300,10 @@ FLEffectClass* SunFlareEffect::BuildClass(PblConfig& config) const
             pFlare->SetSpikeColor(color);
             break;
         }
-        case 0xACAAECACu:
+        case 0xACAAECACu: /* "SpikeSize" */
             pFlare->SetSpikeSize(data.GetFloatArg(0));
             break;
-        case 0xAD544418u:
+        case 0xAD544418u: /* "Angle" */
         {
             float fPitch = data.GetFloatArg(0) * 0.017453292f;
             float fYaw = data.GetNumArgs() > 1 ? data.GetFloatArg(1) * 0.017453292f : 0.0f;
@@ -290,10 +318,10 @@ FLEffectClass* SunFlareEffect::BuildClass(PblConfig& config) const
             }
             break;
         }
-        case 0xE3C8D91Eu:
+        case 0xE3C8D91Eu: /* "EnableFlare" */
             pFlare->SetFlareEnable(data.GetInt32Arg(0) != 0);
             break;
-        case 0xE453BE48u:
+        case 0xE453BE48u: /* "NumFlareOuts" */
             pFlare->SetNumFlareOuts(data.GetInt32Arg(0));
             break;
         }
@@ -342,7 +370,7 @@ void SunFlareEffect::Cleanup()
 }
 
 // FUNCTION: SWBF2 0x0042def0
-void SunFlareEffect::Render(int value)
+void SunFlareEffect::Render(unsigned int value) const
 {
     if (value & 0x200000)
     {
@@ -522,11 +550,6 @@ float SunFlare::GetDistance()
         fDistance = 2000.0f;
     }
     return fDistance;
-}
-
-// FUNCTION: SWBF2 0x0042e960
-void sub_42E960()
-{
 }
 
 // FUNCTION: SWBF2 0x0042e740
@@ -929,7 +952,7 @@ void EmitRing(VERTEX*& pVertices, const PblVector3& vPosition, float fAngle,
     float fSin, fCos;
     PblMath::SinCos(&fSin, &fCos, fAngle);
     PblVector3 tempPos = vPosition + PblVector3(fCos * fInnerRadius, fSin * fInnerRadius, 0.0f);
-    pVertices->pos.SetPos(tempPos);
+    pVertices->pos.SetPos(tempPos.x, tempPos.y, tempPos.z);
     ++pVertices;
     for (int i = 0; i <= iSegments; ++i)
     {
@@ -939,22 +962,22 @@ void EmitRing(VERTEX*& pVertices, const PblVector3& vPosition, float fAngle,
             vPosition + PblVector3(fCos * fMiddleRadius, fSin * fMiddleRadius, 0.0f),
             vPosition + PblVector3(fCos * fOuterRadius, fSin * fOuterRadius, 0.0f)
         };
-        pVertices[0].pos.SetPos(vSegPos[0]);
+        pVertices[0].pos.SetPos(vSegPos[0].x, vSegPos[0].y, vSegPos[0].z);
         pVertices[0].uv.SetUV(fU, fV);
         pVertices[0].color = innerColor;
-        pVertices[1].pos.SetPos(vSegPos[1]);
+        pVertices[1].pos.SetPos(vSegPos[1].x, vSegPos[1].y, vSegPos[1].z);
         pVertices[1].uv.SetUV(fU, fV);
         pVertices[1].color = middleColor;
         if (i == 0)
         {
-            pVertices[2 * iSegments + 2].pos.SetPos(vSegPos[1]);
+            pVertices[2 * iSegments + 2].pos.SetPos(vSegPos[1].x, vSegPos[1].y, vSegPos[1].z);
             pVertices[2 * iSegments + 2].uv.SetUV(fU, fV);
             pVertices[2 * iSegments + 2].color = middleColor;
         }
-        pVertices[2 * iSegments + 3].pos.SetPos(vSegPos[1]);
+        pVertices[2 * iSegments + 3].pos.SetPos(vSegPos[1].x, vSegPos[1].y, vSegPos[1].z);
         pVertices[2 * iSegments + 3].uv.SetUV(fU, fV);
         pVertices[2 * iSegments + 3].color = middleColor;
-        pVertices[2 * iSegments + 4].pos.SetPos(vSegPos[2]);
+        pVertices[2 * iSegments + 4].pos.SetPos(vSegPos[2].x, vSegPos[2].y, vSegPos[2].z);
         pVertices[2 * iSegments + 4].uv.SetUV(fU, fV);
         pVertices[2 * iSegments + 4].color = outerColor;
         pVertices += 2;
@@ -962,7 +985,7 @@ void EmitRing(VERTEX*& pVertices, const PblVector3& vPosition, float fAngle,
     pVertices += 2 * iSegments + 3;
     PblMath::SinCos(&fSin, &fCos, fAngle);
     tempPos = vPosition + PblVector3(fCos * fOuterRadius, fSin * fOuterRadius, 0.0f);
-    pVertices->pos.SetPos(tempPos);
+    pVertices->pos.SetPos(tempPos.x, tempPos.y, tempPos.z);
     ++pVertices;
 }
 

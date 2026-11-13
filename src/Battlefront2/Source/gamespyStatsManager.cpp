@@ -1,4 +1,5 @@
 #include <string.h>
+#include <unordered_set>
 #include <vector>
 #include <new>
 #include "GameMemory.h"
@@ -7,6 +8,7 @@
 #include <string.h>
 #include "GameLoop.h"
 #include "LuaCallbacks_IFace.h"
+#include "StatsManager.h"
 #include "PebbleFL/Common/PblUnicode.h"
 
 namespace StatsManager
@@ -84,7 +86,7 @@ namespace StatsManager
 {
 
 // FUNCTION: SWBF2 0x005308f0
-bool FindServicePlayerID()
+bool FindServicePlayerID(const char*, int, unsigned __int64&)
 {
     return false;
 }
@@ -104,7 +106,7 @@ namespace StatsManager
 {
 
 // FUNCTION: SWBF2 0x00530910
-bool ResetPlayer()
+bool ResetPlayer(unsigned __int64&)
 {
     return false;
 }
@@ -122,64 +124,54 @@ void StatsManager::BeginMatch()
     strlcpy((char*)sStatsMatchData, GameLoop::mMissionScript, sizeof(sStatsMatchData));
 }
 
-namespace std
-{
-__declspec(noreturn) void __cdecl _Xbad_alloc();
-__declspec(noreturn) void __cdecl _Xlength_error(const char*);
-}
-
-struct StatsLeaderboardNode
-{
-    StatsLeaderboardNode* _Next;
-    StatsLeaderboardNode* _Prev;
-    void* mPayloadFirst;
-    void* mPayloadSecond;
-};
-
-struct StatsLeaderboardBucketVector
-{
-    void** mFirst;
-    void** mLast;
-    void** mEnd;
-};
-
-struct StatsLeaderboardContainer
-{
-
-    StatsLeaderboardContainer();
-    ~StatsLeaderboardContainer();
-
-    StatsLeaderboardNode* mListHead;
-    unsigned int mListSize;
-    StatsLeaderboardBucketVector mBuckets;
-    unsigned int mBucketMask;
-    unsigned int mBucketCount;
-    float mMaxLoadFactor;
-};
- 
-
 // SYNTHETIC: SWBF2 0x00403c20
 // `dynamic initializer for 'sStatsLeaderboard''
 // SYNTHETIC: SWBF2 0x00768910
 // `dynamic atexit destructor for 'sStatsLeaderboard''
 
+// TEMPLATE: SWBF2 0x00530920
+// std::_Hash<std::_Uset_traits<unsigned __int64,std::_Uhash_compare<unsigned __int64,std::hash<unsigned __int64>,std::equal_to<unsigned __int64> >,std::allocator<unsigned __int64>,0> >::_Hash<std::_Uset_traits<unsigned __int64,std::_Uhash_compare<unsigned __int64,std::hash<unsigned __int64>,std::equal_to<unsigned __int64> >,std::allocator<unsigned __int64>,0> >
+
+// TEMPLATE: SWBF2 0x005309e0
+// std::list<unsigned __int64,std::allocator<unsigned __int64> >::~list<unsigned __int64,std::allocator<unsigned __int64> >
+
+// TEMPLATE: SWBF2 0x00530a00
+// std::list<unsigned __int64,std::allocator<unsigned __int64> >::clear
+
+// TEMPLATE: SWBF2 0x00530a90
+// std::vector<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0>,std::_Wrap_alloc<std::allocator<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> > > >::_Destroy
+
+// TEMPLATE: SWBF2 0x00530aa0
+// std::_Wrap_alloc<std::allocator<std::_List_node<unsigned __int64,void *> > >::_Wrap_alloc<std::allocator<std::_List_node<unsigned __int64,void *> > >
+
+// TEMPLATE: SWBF2 0x00530ab0
+// std::vector<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0>,std::_Wrap_alloc<std::allocator<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> > > >::_Insert_n
+
+// TEMPLATE: SWBF2 0x00530c70
+// std::_Wrap_alloc<std::_Wrap_alloc<std::allocator<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> > > >::_Wrap_alloc<std::_Wrap_alloc<std::allocator<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> > > >
+
+// TEMPLATE: SWBF2 0x00530c80
+// std::vector<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0>,std::_Wrap_alloc<std::allocator<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> > > >::_Grow_to
+
+// TEMPLATE: SWBF2 0x00530cc0
+// std::_List_alloc<0,std::_List_base_types<unsigned __int64,std::allocator<unsigned __int64> > >::_Buynode0
+
+// TEMPLATE: SWBF2 0x00530cf0
+// std::_Wrap_alloc<std::allocator<std::_List_node<unsigned __int64,void *> > >::destroy<std::_List_node<unsigned __int64,void *> *>
+
+// TEMPLATE: SWBF2 0x00530d00
+// std::fill<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> *,std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> >
+
+// TEMPLATE: SWBF2 0x00530d40
+// std::_Uninit_fill_n<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> *,unsigned int,std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0>,std::_Wrap_alloc<std::allocator<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> > >,std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> >
+
+// TEMPLATE: SWBF2 0x00530d70
+// std::_Uninit_move<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> *,std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> *,std::_Wrap_alloc<std::allocator<std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> > >,std::_List_unchecked_const_iterator<std::_List_val<std::_List_simple_types<unsigned __int64> >,std::_Iterator_base0> >
+
 // GLOBAL: SWBF2 0x01ec0c20
 // sStatsLeaderboard
-StatsLeaderboardContainer sStatsLeaderboard;
+std::unordered_set<unsigned __int64> sStatsLeaderboard;
 
-void ClearStatsLeaderboardList();
-StatsLeaderboardContainer::~StatsLeaderboardContainer()
-{
-    if (mBuckets.mFirst)
-    {
-        ::operator delete(mBuckets.mFirst);
-        mBuckets.mFirst = 0;
-        mBuckets.mLast = 0;
-        mBuckets.mEnd = 0;
-    }
-    ClearStatsLeaderboardList();
-    ::operator delete(mListHead);
-}
 namespace StatsManager
 {
 
@@ -193,203 +185,6 @@ bool sStatsRequestBusy;
 // GLOBAL: SWBF2 0x01e55fc0
 unsigned char sStatsMatchData[0x40];
 
-// FUNCTION: SWBF2 0x00530cc0
-StatsLeaderboardNode* AllocateStatsLeaderboardHead()
-{
-    StatsLeaderboardNode* pNode = (StatsLeaderboardNode*)
-        ::operator new(sizeof(StatsLeaderboardNode));
-    if (!pNode)
-    {
-        std::_Xbad_alloc();
-    }
-
-    pNode->_Next = pNode;
-    StatsLeaderboardNode** ppPrev = &pNode->_Prev;
-    if (ppPrev)
-    {
-        *ppPrev = pNode;
-    }
-
-    return pNode;
-}
-
-// FUNCTION: SWBF2 0x00530c80
-unsigned int GrowStatsBucketCapacity(const StatsLeaderboardBucketVector* pThis, unsigned int uiCount)
-{
-    unsigned int uiCapacity =
-        (unsigned int)(pThis->mEnd - pThis->mFirst);
-
-    if (0x3FFFFFFFu - uiCapacity / 2 < uiCapacity)
-    {
-        uiCapacity = 0;
-    }
-    else
-    {
-        uiCapacity += uiCapacity / 2;
-    }
-
-    if (uiCapacity < uiCount)
-    {
-        uiCapacity = uiCount;
-    }
-
-    return uiCapacity;
-}
-
-// FUNCTION: SWBF2 0x00530d00
-void FillStatsBucketRange(void** ppFirst, void** ppLast, void* const* ppVal)
-{
-    for (; ppFirst < ppLast; ++ppFirst)
-    {
-        *ppFirst = *ppVal;
-    }
-}
-
-// FUNCTION: SWBF2 0x00530d40
-void FillStatsBucketCount(void** ppDest, unsigned int uiCount, void* const* ppVal)
-{
-    for (; uiCount != 0; uiCount--)
-    {
-        if (ppDest)
-        {
-            *ppDest = *ppVal;
-        }
-        ppDest++;
-    }
-}
-
-// FUNCTION: SWBF2 0x00530d70
-void** CopyStatsBucketRange(void** ppFirst, void** ppLast, void** ppDest)
-{
-    for (; ppFirst != ppLast; ++ppFirst, ++ppDest)
-    {
-        if (ppDest)
-        {
-            *ppDest = *ppFirst;
-        }
-    }
-
-    return ppDest;
-}
-
-// FUNCTION: SWBF2 0x00530ab0
-void InsertStatsLeaderboardBuckets(StatsLeaderboardBucketVector* pThis, void*** pppResult,
-                       void** ppWhere, void**  , void* const* ppVal)
-{
-    const unsigned int uiOff = (unsigned int)(ppWhere - pThis->mFirst);
-
-    if ((unsigned int)(pThis->mEnd - pThis->mLast) < 0x10u)
-    {
-
-        const unsigned int uiSize =
-            (unsigned int)(pThis->mLast - pThis->mFirst);
-        if (0x3FFFFFFFu - uiSize < 0x10u)
-        {
-            std::_Xlength_error("vector<T> too long");
-        }
-
-        const unsigned int uiCapacity = GrowStatsBucketCapacity(pThis, uiSize + 0x10);
-
-        void** ppNew = 0;
-        if (uiCapacity != 0)
-        {
-            if (uiCapacity > 0x3FFFFFFFu)
-            {
-                std::_Xbad_alloc();
-            }
-            ppNew = (void**)::operator new(uiCapacity * 4);
-            if (!ppNew)
-            {
-                std::_Xbad_alloc();
-            }
-        }
-
-        FillStatsBucketCount(ppNew + uiOff, 0x10, ppVal);
-        CopyStatsBucketRange(pThis->mFirst, ppWhere, ppNew);
-        CopyStatsBucketRange(ppWhere, pThis->mLast, ppNew + uiOff + 0x10);
-
-        const unsigned int uiNewSize = uiSize + 0x10;
-        if (pThis->mFirst)
-        {
-            ::operator delete(pThis->mFirst);
-        }
-
-        pThis->mFirst = ppNew;
-        pThis->mEnd = ppNew + uiCapacity;
-        pThis->mLast = ppNew + uiNewSize;
-    }
-    else
-    {
-        void** ppOldEnd = pThis->mLast;
-
-        void* pVal = *ppVal;
-
-        if ((unsigned int)(ppOldEnd - ppWhere) < 0x10u)
-        {
-
-            CopyStatsBucketRange(ppWhere, ppOldEnd, ppWhere + 0x10);
-            FillStatsBucketCount(ppOldEnd, 0x10 - (unsigned int)(ppOldEnd - ppWhere), &pVal);
-            pThis->mLast += 0x10;
-            FillStatsBucketRange(ppWhere, pThis->mLast - 0x10, &pVal);
-        }
-        else
-        {
-
-            pThis->mLast =
-                CopyStatsBucketRange(ppOldEnd - 0x10, ppOldEnd, ppOldEnd);
-
-            void** ppSrc = ppOldEnd - 0x10;
-            while (ppWhere != ppSrc)
-            {
-                ppSrc--;
-                ppSrc[0x10] = ppSrc[0];
-            }
-
-            FillStatsBucketRange(ppWhere, ppWhere + 0x10, &pVal);
-        }
-    }
-
-    *pppResult = pThis->mFirst + uiOff;
-}
-
-// FUNCTION: SWBF2 0x00530a00
-void ClearStatsLeaderboardList()
-{
-    StatsLeaderboardNode* pHead = sStatsLeaderboard.mListHead;
-    StatsLeaderboardNode* pNode = pHead->_Next;
-
-    pHead->_Next = pHead;
-    sStatsLeaderboard.mListHead->_Prev = sStatsLeaderboard.mListHead;
-    sStatsLeaderboard.mListSize = 0;
-
-    while (pNode != sStatsLeaderboard.mListHead)
-    {
-        StatsLeaderboardNode* pNext = pNode->_Next;
-        ::operator delete(pNode);
-        pNode = pNext;
-    }
-}
-
-// FUNCTION: SWBF2 0x00530920
-StatsLeaderboardContainer::StatsLeaderboardContainer()
-{
-    mListHead = 0;
-    mListSize = 0;
-    mListHead = AllocateStatsLeaderboardHead();
-
-    mBuckets.mFirst = 0;
-    mBuckets.mEnd = 0;
-    mBuckets.mLast = 0;
-    mMaxLoadFactor = 1.0f;
-
-    void* pHead = mListHead;
-    void** ppResult;
-    InsertStatsLeaderboardBuckets(&mBuckets, &ppResult, 0, 0, &pHead);
-
-    mBucketMask = 7;
-    mBucketCount = 8;
-}
-
 namespace StatsManager
 {
 
@@ -399,17 +194,7 @@ void Init()
     StatsManager::m_state = 1;
     sStatsRequestBusy = false;
 
-    ClearStatsLeaderboardList();
-
-    void* pHead = sStatsLeaderboard.mListHead;
-    sStatsLeaderboard.mBuckets.mLast = sStatsLeaderboard.mBuckets.mFirst;
-
-    void** ppResult;
-    InsertStatsLeaderboardBuckets(&sStatsLeaderboard.mBuckets, &ppResult,
-               sStatsLeaderboard.mBuckets.mFirst, &pHead, &pHead);
-
-    sStatsLeaderboard.mBucketMask = 7;
-    sStatsLeaderboard.mBucketCount = 8;
+    sStatsLeaderboard.clear();
     memset(sStatsMatchData, 0, 0x40);
 }
 }
@@ -432,17 +217,7 @@ void Stop()
     }
     sStatsRequestBusy = false;
 
-    ClearStatsLeaderboardList();
-
-    void* pHead = sStatsLeaderboard.mListHead;
-    sStatsLeaderboard.mBuckets.mLast = sStatsLeaderboard.mBuckets.mFirst;
-
-    void** ppResult;
-    InsertStatsLeaderboardBuckets(&sStatsLeaderboard.mBuckets, &ppResult,
-               sStatsLeaderboard.mBuckets.mFirst, &pHead, &pHead);
-
-    sStatsLeaderboard.mBucketMask = 7;
-    sStatsLeaderboard.mBucketCount = 8;
+    sStatsLeaderboard.clear();
     if (StatsManager::m_state == 1)
     {
         StatsManager::Init();
@@ -483,17 +258,7 @@ void Cleanup()
     StatsManager::m_state = 1;
     sStatsRequestBusy = false;
 
-    ClearStatsLeaderboardList();
-
-    void* pHead = sStatsLeaderboard.mListHead;
-    sStatsLeaderboard.mBuckets.mLast = sStatsLeaderboard.mBuckets.mFirst;
-
-    void** ppResult;
-    InsertStatsLeaderboardBuckets(&sStatsLeaderboard.mBuckets, &ppResult,
-               sStatsLeaderboard.mBuckets.mFirst, &pHead, &pHead);
-
-    sStatsLeaderboard.mBucketMask = 7;
-    sStatsLeaderboard.mBucketCount = 8;
+    sStatsLeaderboard.clear();
 
     if (sStatsHeapAllocated)
     {
@@ -526,33 +291,16 @@ void Cleanup()
     }
 }
 }
-// FUNCTION: SWBF2 0x00530a90
-void __stdcall IgnoreStatsBucketArguments(int, int) {}
-
-// FUNCTION: SWBF2 0x00530aa0
-void* __fastcall ReturnStatsBucketPointer(void* pThis) { return pThis; }
-
-// FUNCTION: SWBF2 0x00530c70
-void* __fastcall ReturnStatsVectorPointer(void* pThis) { return pThis; }
-
-// FUNCTION: SWBF2 0x00530cf0
-void __stdcall IgnoreStatsVectorArgument(int) {}
-
-// FUNCTION: SWBF2 0x00530a70
-void __stdcall IgnoreStatsListArguments(int, int)
-{
-}
-
-// FUNCTION: SWBF2 0x00530a80
-void* __fastcall ReturnStatsListPointer(void* pThis)
-{
-    return pThis;
-}
-
 // SYNTHETIC: SWBF2 0x00403c50
 // `dynamic initializer for 'sStatsScratchBytes''
 // SYNTHETIC: SWBF2 0x007689a0
 // `dynamic atexit destructor for 'sStatsScratchBytes''
+
+// TEMPLATE: SWBF2 0x00530a70
+// std::vector<unsigned char,std::allocator<unsigned char> >::_Destroy
+
+// TEMPLATE: SWBF2 0x00530a80
+// std::_Wrap_alloc<std::allocator<unsigned char> >::_Wrap_alloc<std::allocator<unsigned char> >
 
 // GLOBAL: SWBF2 0x01ec0c14
 // sStatsScratchBytes

@@ -15,7 +15,7 @@
 #include "FirstPerson.h"
 #include "Tracker.h"
 #include "NetGame.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "CameraManager.h"
 #include "ChaseCamera.h"
 #include "CollisionManager.h"
@@ -118,8 +118,7 @@ bool EntityCarrier::Update(float fDeltaTime)
         }
 
         PblMatrix matrix = mMatrix;
-        PblVector3 position;
-        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&position), reinterpret_cast<const D3DXVECTOR3*>(&mCargoArray[i].mOffset), reinterpret_cast<const D3DXMATRIX*>(&matrix));
+        PblVector3 position = matrix.ApplyTransform(mCargoArray[i].mOffset);
         matrix.SetTranslation(position);
         pObject->SetMatrix(matrix);
         pObject->SetVelocity(mVelocity);
@@ -137,7 +136,7 @@ namespace
         const GameModel* pModel = pFlyer->mModel;
         PblVector3 center;
         D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&center), reinterpret_cast<const D3DXVECTOR3*>(&pModel->_mModel->_BoundingSphere.GetCenter()), reinterpret_cast<const D3DXMATRIX*>(&matrix));
-        CollisionObject* pCollision = static_cast<CollisionObject*>(pFlyer);
+        CollisionObject* pCollision = (CollisionObject*)pFlyer;
         pCollision->SetCollisionCenter(center);
         pCollision->RecalculateAABB();
     }
@@ -169,55 +168,6 @@ void EntityFlyer::SetMatrix(const PblMatrix& mMatrix)
 Trackable* EntityFlyer::GetTrackable()
 {
     return this;
-}
-
-// FUNCTION: SWBF2 0x004779a0
-unsigned int EntityFlyer::GetAllegiance()
-{
-    const Character* pCharacter = mCharacter;
-    return pCharacter ? pCharacter->mTeamNumber : 0;
-}
-
-// FUNCTION: SWBF2 0x004779c0
-bool EntityFlyer::CanJoinSquadron() const
-{
-    return !EntitySquadron::InSquadron() && GetFollowingPath();
-}
-
-// FUNCTION: SWBF2 0x00477b00
-int EntityFlyerClass::GetVehicleType() const
-{
-    return mVehicleType;
-}
-
-// FUNCTION: SWBF2 0x00477b10
-int EntityFlyerClass::GetWeaponCount() const
-{
-    return mWeaponCount;
-}
-
-// FUNCTION: SWBF2 0x00477b20
-const WeaponClass* EntityFlyerClass::GetWeaponClass(int iIndex) const
-{
-    return mWeaponClass[iIndex];
-}
-
-// FUNCTION: SWBF2 0x00477b40
-float EntityFlyerClass::GetTimeRequiredToEject() const
-{
-    return mTimeRequiredToEject;
-}
-
-// FUNCTION: SWBF2 0x00477b50
-float EntityFlyerClass::GetReboardTime() const
-{
-    return mTimeTilReboard;
-}
-
-// FUNCTION: SWBF2 0x00477b60
-const ControllableClass* EntityFlyerClass::GetControllableClass() const
-{
-    return this ? static_cast<const ControllableClass*>(this) : 0;
 }
 
 // SYNTHETIC: SWBF2 0x00402960
@@ -274,7 +224,7 @@ bool EntityCarrier::AttachCargo(int, GameObject* pGameObject)
     EntityCarrierClass* pClass = GetClass();
     mCargoArray[0].mOffset = pClass->mCargoInfo[0].mOffset - pGameObject->GetAttachOffset();
     mCargoArray[0].mObject = pGameObject;
-    mCargoArray[0].mObject->mParent = static_cast<CollisionObject*>(this);
+    mCargoArray[0].mObject->mParent = (CollisionObject*)this;
 
     UpdateLandedHeight();
 
@@ -345,17 +295,6 @@ EntityCarrierClass::~EntityCarrierClass()
 {
 }
 
-// SYNTHETIC: SWBF2 0x004780b0
-// CommandFlyerClass::`scalar deleting destructor'
-
-// FUNCTION: SWBF2 0x00478160
-CommandFlyerClass::~CommandFlyerClass()
-{
-}
-
-// SYNTHETIC: SWBF2 0x004785f1
-// ??_ECommandFlyerClass@@WBAKA@AEPAXI@Z
-
 // FUNCTION: SWBF2 0x00497610
 EntityCarrierClass::EntityCarrierClass(EntityCarrierClass* pSrc, unsigned int uHash)
     : EntityFlyerClass(pSrc, uHash)
@@ -369,11 +308,11 @@ void EntityCarrierClass::SetProperty(unsigned int uProperty, const char* pszValu
 {
     switch (uProperty)
     {
-    case 0x759C8F54u:
+    case 0x759C8F54u: /* "PickupSound" */
         mSoundCargoPickup.SetID(pszValue, true, false);
         break;
 
-    case 0x3E2C4DA4u:
+    case 0x3E2C4DA4u: /* "CargoNodeName" */
         mCargoInfo[mCargoCount].mHash = PblTEMPHash(pszValue);
 
         if (mModel)
@@ -396,7 +335,7 @@ void EntityCarrierClass::SetProperty(unsigned int uProperty, const char* pszValu
         }
         break;
 
-    case 0x8897DB28u:
+    case 0x8897DB28u: /* "DropoffSound" */
         mSoundCargoDropoff.SetID(pszValue, true, false);
         break;
 
@@ -404,7 +343,7 @@ void EntityCarrierClass::SetProperty(unsigned int uProperty, const char* pszValu
         EntityFlyerClass::SetProperty(uProperty, pszValue);
         break;
 
-    case 0x910A89FCu:
+    case 0x910A89FCu: /* "CargoNodeOffset" */
     {
         float x, y, z;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -439,9 +378,9 @@ Entity* EntityCarrierClass::Build(const EntityDesc& desc)
     EntityCarrier* pCarrier = new EntityCarrier(this, desc);
     if (pCarrier)
     {
-        (static_cast<CollisionObject*>(pCarrier))->AddRigidToCollisionManager();
+        ((CollisionObject*)pCarrier)->AddRigidToCollisionManager();
         pCarrier->ActivatePhysics();
-        static_cast<EntityGeometry*>(pCarrier)->BuildEffects();
+        ((EntityGeometry*)pCarrier)->BuildEffects();
     }
     return (Entity*)pCarrier;
 }

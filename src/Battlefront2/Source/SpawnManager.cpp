@@ -1,9 +1,11 @@
 #include "SpawnManager.h"
+#include "FriendBuddyList.h"
 
 #include <float.h>
 
 #include "AIGoalManager.h"
 #include "Character.h"
+#include "EntitySoldier.h"
 #include "CommandPost.h"
 #include "CommandPostManager.h"
 #include "Controllable.h"
@@ -18,7 +20,6 @@
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 
-class EntitySoldier { public: static MemoryPool sMemoryPool; };
 
 // GLOBAL: SWBF2 0x01eafb34
 SpawnManager* SpawnManager::sInstance;
@@ -74,13 +75,9 @@ extern bool gAttractMode;
 
 namespace PlayerPrefs
 {
-int __fastcall FindByPlayerId(int iPlayer);
+int FindByPlayerId(int iPlayer);
 }
 
-namespace FriendBuddyList
-{
-bool __fastcall IsFriendBuddy(int iLocalIndex, int iPlayerId);
-}
 
 namespace PblUnicode
 {
@@ -99,19 +96,6 @@ static inline int GetTeam(const GameObject* pObject)
 static inline int GetAllyCount(const CommandPost* pPost)
 {
     return pPost->mAllyCount;
-}
-
-// FUNCTION: SWBF2 0x0061c490
-int __fastcall PlayerPrefs::FindByPlayerId(int iPlayer)
-{
-    for (unsigned int i = 0; i < 1; ++i)
-    {
-        if ((&PlayerPrefs::mAllUserPrefs[0].mPlayerId)[i * 11] == iPlayer)
-        {
-            return i;
-        }
-    }
-    return -1;
 }
 
 // FUNCTION: SWBF2 0x0064e000
@@ -233,26 +217,13 @@ void SpawnManager::SetupSoldierMemoryPool()
     }
 }
 
-// FUNCTION: SWBF2 0x005b41d0
-int Team::FindSide(Side eSide)
-{
-    for (int i = 0; i < 8; i++)
-    {
-        if (sTeams[i]->GetSide() == eSide)
-        {
-            return i;
-        }
-    }
-    return -1;
-}
-
 // FUNCTION: SWBF2 0x0064e510
 void SpawnManager::InitialUpdate()
 {
     if (NetGame::IsEnabled() && NetGame::IsClient() && !NetGame::IsOneWorld())
     {
         SpawnManager* pHost = sHostInstance;
-        for (unsigned int i = 0; i < 8; ++i)
+        for (unsigned int i = 0; i < Team::kMaxTeams; ++i)
         {
             mMaxUnitCount[i] = pHost->mMaxUnitCount[i];
             mCycleDelay[i] = pHost->mCycleDelay[i];
@@ -262,7 +233,7 @@ void SpawnManager::InitialUpdate()
 
     Character::CreateAll(GetTotalCharacterCount());
 
-    for (unsigned int i = 0; i < 8; ++i)
+    for (unsigned int i = 0; i < Team::kMaxTeams; ++i)
     {
         mCycleTimer[i] = mCycleDelay[i];
         if (gAttractMode || !NetGame::IsEnabled())
@@ -314,7 +285,7 @@ void SpawnManager::InitialUpdate()
             int iSlot = PlayerPrefs::FindByPlayerId(i);
             if (iSlot >= 0)
             {
-                iTeam = Team::FindSide(static_cast<Team::Side>(GameLoop::GetMetagameSide(iSlot)));
+                iTeam = Team::FindSide((Team::Side)GameLoop::GetMetagameSide(iSlot));
             }
             AddPlayerCharacter(iTeam, i);
         }
@@ -333,7 +304,7 @@ void SpawnManager::InitialUpdate()
         }
     }
 
-    for (int iTeam = 1; iTeam < 8; ++iTeam)
+    for (int iTeam = 1; iTeam < Team::kMaxTeams; ++iTeam)
     {
         for (int i = mCurrentUnitCount[iTeam]; i < mMaxUnitCount[iTeam]; ++i)
         {
@@ -362,7 +333,7 @@ bool SpawnManager::Update(float fDeltaTime)
     mAllyUnitCount = mAllyUnitCount < mMaxUnitCount[3] ? mAllyUnitCount : mMaxUnitCount[3];
 
     bool bPreGame = NetGame::IsPreGame();
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < Team::kMaxTeams; ++i)
     {
         mCycleTimer[i] -= fDeltaTime;
         if (mCycleTimer[i] <= 0.0f)
@@ -395,7 +366,7 @@ bool SpawnManager::Update(float fDeltaTime)
 // FUNCTION: SWBF2 0x0064eba0
 CommandPost* SpawnManager::RequestSpawnPoint(CommandPost* pPost, Character* pChr)
 {
-    if (pChr->mPlayerId >= 0)
+    if (pChr->GetPlayerId() >= 0)
     {
         return Request(pPost, pChr->mTeamNumber);
     }
@@ -456,12 +427,6 @@ CommandPost* SpawnManager::GetRandomSpawnPoint(int iTeam)
         return 0;
     }
     return posts[PblRandom::GetSim().GetInt() % iCount];
-}
-
-// FUNCTION: SWBF2 0x005b4210
-void Team::OverrideMaxReinforcements(int iTeam, int iMax)
-{
-    sTeamMaxReinforcementsOverride[iTeam] = iMax;
 }
 
 // FUNCTION: SWBF2 0x0064e120

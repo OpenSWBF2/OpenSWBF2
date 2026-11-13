@@ -7,22 +7,25 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcRedVertexFormat.h"
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
+// GLOBAL: SWBF2 0x009ca0dc
+// pcPreReflectionShader::s_uiID
 unsigned int pcPreReflectionShader::s_uiID;
+// GLOBAL: SWBF2 0x009ca0e0
+// pcPreReflectionShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcPreReflectionShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca0ec
+// pcPreReflectionShader::BeginFuncArray
 pcRedShader::BeginFuncT pcPreReflectionShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca0f8
+// pcPreReflectionShader::EndFuncArray
 pcRedShader::EndFuncT pcPreReflectionShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca104
+// pcPreReflectionShader::RenderFuncArray
 pcRedShader::RenderFuncT pcPreReflectionShader::RenderFuncArray[MAX_PIPELINES];
-
-// SYNTHETIC: SWBF2 0x0040a0b0
-// `dynamic initializer for 'pcPreReflectionShader::s_shaderDef''
-// SYNTHETIC: SWBF2 0x00769ec0
-// `dynamic atexit destructor for 'pcPreReflectionShader::s_shaderDef''
-
-// GLOBAL: SWBF2 0x009ca11c
-// pcPreReflectionShader::s_shaderDef
-pcRedShaderDef pcPreReflectionShader::s_shaderDef("prereflection_shader.xml");
 
 // FUNCTION: SWBF2 0x0070afc0
 pcPreReflectionShader::pcPreReflectionShader()
@@ -70,12 +73,6 @@ void pcPreReflectionShader::Begin_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetRenderState(D3DRS_COLORWRITEENABLE, 0);
 }
 
-// FUNCTION: SWBF2 0x0070b1c0
-void pcPreReflectionShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x0070b1e0
 void pcPreReflectionShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -86,28 +83,10 @@ void pcPreReflectionShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x0070b200
-unsigned int pcPreReflectionShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x0070b220
 RenderPhaseT pcPreReflectionShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_OPAQUE;
-}
-
-// FUNCTION: SWBF2 0x0070b230
-unsigned int pcPreReflectionShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x0070b240
-pcRedShaderDef* pcPreReflectionShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x0070b250
@@ -178,22 +157,22 @@ void pcPreReflectionShader::_Init(unsigned int uiFlags,
 void pcPreReflectionShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcPreReflectionShader::GetState_Fixed);
+        (GetStateFuncT)(&pcPreReflectionShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcPreReflectionShader::Begin_Fixed);
+        (BeginFuncT)(&pcPreReflectionShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcPreReflectionShader::End_Fixed);
+        (EndFuncT)(&pcPreReflectionShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcPreReflectionShader::Render_Fixed);
+        (RenderFuncT)(&pcPreReflectionShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcPreReflectionShader::GetState_Prog1);
+        (GetStateFuncT)(&pcPreReflectionShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcPreReflectionShader::Begin_Prog1);
+        (BeginFuncT)(&pcPreReflectionShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcPreReflectionShader::End_Prog1);
+        (EndFuncT)(&pcPreReflectionShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcPreReflectionShader::Render_Prog1);
+        (RenderFuncT)(&pcPreReflectionShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x0070b3f0
@@ -202,7 +181,7 @@ void pcPreReflectionShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -250,6 +229,15 @@ unsigned int pcPreReflectionShader::s_uiRenderTypeHash = PblHash("PreReflection"
 // GLOBAL: SWBF2 0x009ca148
 // pcPreReflectionShader::s_Factory
 pcPreReflectionShader pcPreReflectionShader::s_Factory;
+
+// SYNTHETIC: SWBF2 0x0040a0b0
+// `dynamic initializer for 'pcPreReflectionShader::s_shaderDef''
+// SYNTHETIC: SWBF2 0x00769ec0
+// `dynamic atexit destructor for 'pcPreReflectionShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009ca11c
+// pcPreReflectionShader::s_shaderDef
+pcRedShaderDef pcPreReflectionShader::s_shaderDef("prereflection_shader.xml");
 
 // GLOBAL: SWBF2 0x009ca110
 unsigned int g_pcPreReflectionShader;

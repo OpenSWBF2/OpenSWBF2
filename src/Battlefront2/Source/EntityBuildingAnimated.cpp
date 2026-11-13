@@ -101,18 +101,18 @@ void EntityBuildingAnimatedClass::SetProperty(unsigned int uProperty, const char
 {
     switch (uProperty)
     {
-    case 0x98557a5e:
+    case 0x98557a5e: /* "AnimationName" */
         InitAnimations(pszValue);
         break;
 
-    case 0x297bc6eb:
+    case 0x297bc6eb: /* "IdleAnimation" */
         if (mAnimObj)
         {
             mAnimations[0] = (ZephyrAnim*)mAnimObj->FindAnimation(pszValue);
         }
         break;
 
-    case 0x5fac58b5:
+    case 0x5fac58b5: /* "DeathAnimation" */
     {
         RedAnimation* pAnimObj = mAnimObj;
         if (pAnimObj)
@@ -122,7 +122,7 @@ void EntityBuildingAnimatedClass::SetProperty(unsigned int uProperty, const char
         break;
     }
 
-    case 0x3e4e9ba0:
+    case 0x3e4e9ba0: /* "EnableDeathExplosions" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
@@ -130,7 +130,7 @@ void EntityBuildingAnimatedClass::SetProperty(unsigned int uProperty, const char
         break;
     }
 
-    case 0xf138015c:
+    case 0xf138015c: /* "DeathEffect" */
         for (int i = 0; i < 5; i++)
         {
             if (!mDeathEffectHash[i])
@@ -190,7 +190,7 @@ Entity* EntityBuildingAnimatedClass::Build(const EntityDesc& desc)
     EntityBuildingAnimated* pBuilding = new EntityBuildingAnimated(this, desc);
     if (pBuilding)
     {
-        static_cast<CollisionObject*>(pBuilding)->AddStaticToCollisionManager();
+        ((CollisionObject*)pBuilding)->AddStaticToCollisionManager();
         pBuilding->ActivatePhysics();
     }
     return (Entity*)pBuilding;
@@ -426,13 +426,13 @@ void EntityBuildingAnimated::Render(unsigned char uFlags, float fDist, unsigned 
             switch (PblRandom::GetGlobalInt() % 3)
             {
             case 0:
-                pEffectClass = FLEffect::Get(0x02bb1fe0);
+                pEffectClass = FLEffect::Get(0x02bb1fe0 /* "Explosion" */);
                 break;
             case 1:
-                pEffectClass = FLEffect::Get(0xe07f39b5);
+                pEffectClass = FLEffect::Get(0xe07f39b5 /* "med_explosion" */);
                 break;
             case 2:
-                pEffectClass = FLEffect::Get(0x9db69ee4);
+                pEffectClass = FLEffect::Get(0x9db69ee4 /* "small_explosion" */);
                 break;
             }
             if (pEffectClass)

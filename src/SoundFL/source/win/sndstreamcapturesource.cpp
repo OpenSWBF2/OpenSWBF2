@@ -311,11 +311,11 @@ void StreamCaptureSource::UpdateObject()
                     mPackets
                     + mReadPacketIndex;
 
-                if (pPacket->mRefCount > 0)
+                if (pPacket->IsLocked())
                 {
                     break;
                 }
-                if (pPacket->mBufferUsed != 0)
+                if (pPacket->GetUsed() != 0)
                 {
                     break;
                 }
@@ -421,10 +421,10 @@ void StreamCaptureSource::UpdateObject()
                         const unsigned int uiPos =
                             mPlaybackPosition;
 
-                        pPacket->mBufferUsed = mPacketSize;
-                        pPacket->mFlags = (unsigned short)
-                            (pPacket->mFlags & 0xFFFCu);
-                        pPacket->mPos = uiPos;
+                        pPacket->SetUsed(mPacketSize);
+                        pPacket->SetDiscontinuity(false);
+                        pPacket->SetLast(false);
+                        pPacket->SetPosition(uiPos);
                         mOutputPacket.Reset();
 
                         mPlaybackPosition =

@@ -21,7 +21,7 @@ public:
     // SYNTHETIC: SWBF2 0x006fbf60
     // pcShadowQuadRenderable::`scalar deleting destructor'
 
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
 
     pcShadowQuadRenderable();
 

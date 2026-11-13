@@ -2,10 +2,20 @@
 
 #include <stddef.h>
 
-class PblVector3;
+#include "PebbleFL/Common/PblVector.h"
 
 namespace Snd
 {
+
+struct GainMatrix
+{
+    float frontLeft;
+    float frontRight;
+    float rearLeft;
+    float rearRight;
+    float reverb;
+};
+
 namespace Globals
 {
 

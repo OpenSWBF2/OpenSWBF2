@@ -192,14 +192,14 @@ void CollisionBodyPrimitive::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             child.ReadString(acBaseName, 128);
             iNumPrims = child._pFile->Read32();
             break;
-        case 0x544E5250:
+        case CHUNK_ID('P', 'R', 'N', 'T'):
             child.ReadString(acParentName, 128);
             break;
-        case 0x4D524658:
+        case CHUNK_ID('X', 'F', 'R', 'M'):
             matrix.m[0][0] = child._pFile->ReadFloat();
             matrix.m[0][1] = child._pFile->ReadFloat();
             matrix.m[0][2] = child._pFile->ReadFloat();
@@ -217,7 +217,7 @@ void CollisionBodyPrimitive::Read(PblFileChunk& chunk)
             matrix.m[3][2] = child._pFile->ReadFloat();
             matrix.m[3][3] = 1.0f;
             break;
-        case 0x41544144:
+        case CHUNK_ID('D', 'A', 'T', 'A'):
         {
             int iType = child._pFile->Read32();
             float f0 = child._pFile->ReadFloat();
@@ -256,10 +256,10 @@ void CollisionBodyPrimitive::Read(PblFileChunk& chunk)
             ++iPrim;
             break;
         }
-        case 0x454D414E:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
             child.ReadString(acName, 128);
             break;
-        case 0x4B53414D:
+        case CHUNK_ID('M', 'A', 'S', 'K'):
             ucMask = child._pFile->Read8();
             break;
         }
@@ -292,7 +292,7 @@ PblMatrix CollisionBodyPrimitive::GetMomentOfInertia() const
         float fWidth2 = mPrimitive.mWidth * mPrimitive.mWidth;
         inertia.m[0][0] = (fHeight2 + fDepth2) * 0.33333f;
         inertia.m[2][2] = (fWidth2 + fHeight2) * 0.33333f;
-        inertia.m[1][1] = (fWidth2 + fDepth2) * 0.33333f;
+        inertia.SetYAxis(0.0f, (fWidth2 + fDepth2) * 0.33333f, 0.0f, 0.0f);
         break;
     }
     case CollisionPrimitive::AXIS_ALIGNED_CYLINDER:
@@ -301,14 +301,14 @@ PblMatrix CollisionBodyPrimitive::GetMomentOfInertia() const
         float fXX = mPrimitive.mHeight * 0.08333f * mPrimitive.mHeight + mPrimitive.mRadius * 0.25f * mPrimitive.mRadius;
         inertia.m[0][0] = fXX;
         inertia.m[2][2] = fXX;
-        inertia.m[1][1] = mPrimitive.mRadius * 0.5f * mPrimitive.mRadius;
+        inertia.SetYAxis(0.0f, mPrimitive.mRadius * 0.5f * mPrimitive.mRadius, 0.0f, 0.0f);
         break;
     }
     default:
     {
         float fSphere = mPrimitive.mRadius * 0.4f * mPrimitive.mRadius;
         inertia.m[0][0] = fSphere;
-        inertia.m[1][1] = fSphere;
+        inertia.SetYAxis(0.0f, fSphere, 0.0f, 0.0f);
         inertia.m[2][2] = fSphere;
         break;
     }
@@ -316,9 +316,6 @@ PblMatrix CollisionBodyPrimitive::GetMomentOfInertia() const
     inertia.m[0][1] = 0.0f;
     inertia.m[0][2] = 0.0f;
     inertia.m[0][3] = 0.0f;
-    inertia.m[1][0] = 0.0f;
-    inertia.m[1][2] = 0.0f;
-    inertia.m[1][3] = 0.0f;
     inertia.m[2][0] = 0.0f;
     inertia.m[2][1] = 0.0f;
     inertia.m[2][3] = 0.0f;

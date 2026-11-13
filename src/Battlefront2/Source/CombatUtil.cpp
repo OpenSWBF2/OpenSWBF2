@@ -15,7 +15,7 @@
 #include "OrdnanceShell.h"
 #include "OrdnanceSticky.h"
 #include "WeaponMelee.h"
-#include "WeaponMeleeInstance.h"
+#include "WeaponMelee.h"
 
 #include <math.h>
 
@@ -45,7 +45,7 @@
 #include "WeaponGrenade.h"
 #include "WeaponMeleeThrow.h"
 #include "WeaponRemote.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMath.h"
@@ -110,7 +110,7 @@ namespace
 
     inline const PblVector3& GetPosition(const GameObject* pObj)
     {
-        return static_cast<const CollisionObject*>(pObj)->GetPosition();
+        return ((const CollisionObject*)pObj)->GetPosition();
     }
 
     inline int GetHealthType(const GameObject* pObj)
@@ -156,7 +156,7 @@ namespace
 
     inline const Damageable* GetDamageable(const GameObject* pObj)
     {
-        return static_cast<const Damageable*>(pObj);
+        return (const Damageable*)pObj;
     }
 
     bool IsTargetable(const GameObject* pObj)
@@ -166,7 +166,7 @@ namespace
 
     inline int GetFlyerState(const GameObject* pObj)
     {
-        return static_cast<const EntityFlyer*>(pObj)->mState;
+        return ((const EntityFlyer*)pObj)->mState;
     }
 
     inline bool EntityIsRtti(const GameObject* pObj, unsigned int uRtti)
@@ -239,7 +239,7 @@ float CombatUtil::sGetWpnMaxRange(const Controllable* pMe, const WeaponClass* pC
     {
         if (!pMe->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier) &&
             !pMe->GetEntity()->IsRtti(EntityDroideka::rttiHashEntityDroideka) &&
-            !pMe->GetEntity()->IsRtti(EntityDroid::rttiHashEntityDroid))
+            !pMe->GetEntity()->IsRtti(EntityDroid::GetRtti()))
         {
             fRange *= 2.0f;
         }
@@ -516,7 +516,7 @@ float CombatUtil::sCalcDamagePerSecond(Controllable* pMe, const WeaponClass* pCl
     {
         return sCalcDamagePerSecond_Grenade(owner, (const WeaponGrenadeClass*)pClass, pTarget);
     }
-    if (pWeapon->IsRtti(WeaponMeleeThrowClass::rttiHashWeaponMeleeThrowClass))
+    if (pWeapon->IsRtti(WeaponMeleeThrowClass::GetRtti()))
     {
         return sCalcDamagePerSecond_MeleeThrow(owner, (const WeaponMeleeThrowClass*)pClass, pTarget);
     }
@@ -578,12 +578,11 @@ float CombatUtil::CalcDamagePerSecond(Controllable* pMe, const WeaponClass* pCla
     {
         pTop = pTop->mNextCharge;
     }
-    float fResult = fDamagePerSecond;
     if (pTop != pBot)
     {
-        fResult = (sCalcDamagePerSecond(pMe, pTop, pTarget) + fDamagePerSecond) * 0.5f;
+        fDamagePerSecond = (sCalcDamagePerSecond(pMe, pTop, pTarget) + fDamagePerSecond) * 0.5f;
     }
-    return fResult;
+    return fDamagePerSecond;
 }
 
 // FUNCTION: SWBF2 0x0046e7c0
@@ -657,7 +656,7 @@ bool CombatUtil::sCauseDamage(Controllable* pMe, const Weapon* pWpn, const Weapo
     if (pMe->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover) ||
         pMe->GetEntity()->IsRtti(EntityWalker::rttiHashEntityWalker) ||
         pMe->GetEntity()->IsRtti(EntityBuildingArmed::rttiHashEntityBuildingArmed) ||
-        pMe->GetEntity()->IsRtti(MountedTurret::rttiHashMountedTurret))
+        pMe->GetEntity()->IsRtti(MountedTurret::GetRtti()))
     {
         if (fDamagePerSecond > 0.0f && GetDamageable(pTarget)->mCurHealth < 1.0e16f)
         {
@@ -677,7 +676,7 @@ bool CombatUtil::sCauseDamage(Controllable* pMe, const Weapon* pWpn, const Weapo
     }
     if (!bSlowFlyer && !pTarget->GetEntity()->IsRtti(EntityHover::rttiHashEntityHover) &&
         !pTarget->GetEntity()->IsRtti(EntityWalker::rttiHashEntityWalker) &&
-        !(pTarget->mIsTargetable && pTarget->GetEntity()->IsRtti(EntityBuilding::rttiHashEntityBuilding)))
+        !(pTarget->mIsTargetable && pTarget->GetEntity()->IsRtti(EntityBuilding::GetRtti())))
     {
         return false;
     }
@@ -1778,7 +1777,7 @@ bool CombatUtil::CanTurretFaceDisturbance(const Controllable* pMe, const Mounted
     vDelta.x = vPos.x - vTurret.x;
     vDelta.y = vPos.y - vTurret.y;
     vDelta.z = vPos.z - vTurret.z;
-    PblVector3 vLocal = AIUtil::UnrotateVector(static_cast<const EntityGeometry&>(*pObj).GetMatrix(), vDelta);
+    PblVector3 vLocal = AIUtil::UnrotateVector(((const EntityGeometry&)(*pObj)).GetMatrix(), vDelta);
     float fYaw = atan2f(vLocal.x, vLocal.z);
     if (fYaw >= pClass->mMinYaw && pClass->mMaxYaw >= fYaw)
     {
@@ -1794,18 +1793,18 @@ bool CombatUtil::CanTurretFaceDisturbance(const Controllable* pMe, const Mounted
 // FUNCTION: SWBF2 0x00470680
 bool CombatUtil::CanFaceDisturbance(const GameObject* pObj, const PblVector3& vPos)
 {
-    if (pObj->IsRtti(EntityRemoteTerminal::rttiHashEntityRemoteTerminal))
+    if (pObj->IsRtti(EntityRemoteTerminal::GetRtti()))
     {
         pObj = reinterpret_cast<EntityRemoteTerminal*>(const_cast<GameObject*>(pObj))->GetRemoteGameObject();
     }
-    if (!pObj->IsRtti(EntityBuildingArmed::rttiHashEntityBuildingArmed))
+    if (!pObj->IsRtti(EntityBuildingArmed::GetRtti()))
     {
         return false;
     }
 
-    const EntityBuildingArmed* pBuilding = static_cast<const EntityBuildingArmed*>(pObj);
+    const EntityBuildingArmed* pBuilding = (const EntityBuildingArmed*)pObj;
     const EntityBuildingArmedClass* pClass =
-        static_cast<const EntityBuildingArmedClass*>(pBuilding->GetEntityClass());
+        (const EntityBuildingArmedClass*)pBuilding->GetEntityClass();
     for (int i = 0; i < 8; ++i)
     {
         const MountedTurretClass* pTurretClass = pClass->GetTurretClass(i);
@@ -1853,7 +1852,7 @@ void SendDamageEvent(const Controllable* pOwner, const GameObject* pTarget, cons
         {
             pRider = pRider->mCharacter->GetControllable();
         }
-        UnitController* pCtrl = static_cast<UnitController*>(pRider->mCtrl);
+        UnitController* pCtrl = (UnitController*)pRider->mCtrl;
         if (pCtrl && pRider->mPlayerId < 0)
         {
             AI::EventInfo_Damaged info(pOwner->mCharacter, true, pOwner->GetMatrix().GetTranslation(), 0.0f, false);

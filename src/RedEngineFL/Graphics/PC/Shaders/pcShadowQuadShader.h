@@ -25,28 +25,25 @@ public:
     // SYNTHETIC: SWBF2 0x00708070
     // pcShadowQuadShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x00708250
+    // pcShadowQuadShader::GetID
+    // FUNCTION: SWBF2 0x00708280
+    // pcShadowQuadShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x00708200
+    // pcShadowQuadShader::Bind
+    // FUNCTION: SWBF2 0x00708290
+    // pcShadowQuadShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcShadowQuadShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
     virtual RedShadingState* CreateShadingState() const;
-    virtual void Bind();
 
 private:
-    virtual void _Read(PblFileChunk& chunk) const;
 
     virtual void _StaticInit() const;
 
-    virtual void InitFixedFunctionShaderDef() const;
 
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                                 const unsigned int* pParams,
-                                 unsigned int uiNumParams,
-                                 unsigned int uiMaterialFlags,
-                                 const RedColor& color0,
-                                 const RedColor& color1,
-                                 float fArg7) const;
 
-    virtual pcRedShaderDef* GetShaderDef() const;
 
 public:
 
@@ -61,27 +58,6 @@ public:
 
     pcRedVertexFormat* m_pVertexInputFormat;
 
-    // GLOBAL: SWBF2 0x009c9d80
-    static unsigned int s_uiID;
-
-    // GLOBAL: SWBF2 0x009c9d84
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9d90
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9d9c
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c9da8
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    static unsigned int s_uiRenderTypeHash;
-
-    static pcRedShaderDef s_shaderDef;
-
-    static pcShadowQuadShader s_Factory;
-
 private:
 
     pcShadowQuadShader();
@@ -94,7 +70,6 @@ private:
                const RedColor& color1,
                float fArg7);
 
-    void _InitPipelineFuncArray();
 public:
     static unsigned int s_uiStencilMask;
 };

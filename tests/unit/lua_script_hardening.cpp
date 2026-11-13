@@ -368,7 +368,7 @@ TEST_CASE("lua stream and ui indices are bounded" * doctest::test_suite("regress
     CHECK(HardenHas(sPages, "if (!pTextElement)"));
     CHECK(HardenHas(HardenBody(sMain, "int ScriptCB_IndexMultipageText(lua_State*"), "pTextElement && i < 300"));
     CHECK(HardenHas(HardenBody(sMain, "int ScriptCB_MetagameSetSide(lua_State*"),
-                    "iIndex != (int)iIndex || !PblInBounds(GameLoop::mMetagameSide, (int)iIndex)"));
+                    "if (!PblInBounds(GameLoop::mMetagameSide, iIndex))"));
 
     const std::string sIFace = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_IFace.cpp");
     const char* apcBindings[2] = { "int ScriptCB_SetBinding(lua_State*", "int ScriptCB_GetActionFromIdx(lua_State*" };

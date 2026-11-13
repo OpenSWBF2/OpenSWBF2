@@ -205,9 +205,9 @@ bool SoftOutput::SetOutputBufferSize(float fBufferMs, bool bRestart, bool bEffec
     }
 
     unsigned char* pBuffer = (unsigned char*)mMixBuffer;
-    mMixerInfo.mMixersPackets[0].mBuffer = pBuffer;
+    mMixerInfo.mMixersPackets[0].SetBuffer(pBuffer);
     pBuffer += uiPacketSize;
-    mMixerInfo.mMixersPackets[1].mBuffer = pBuffer;
+    mMixerInfo.mMixersPackets[1].SetBuffer(pBuffer);
     pBuffer += uiPacketSize;
 
     mMixer.SetPackets(uiPacketSize, mMixerInfo.mMixersPackets, 2);
@@ -235,16 +235,16 @@ bool SoftOutput::SetOutputBufferSize(float fBufferMs, bool bRestart, bool bEffec
 
     if (mEffectsEnabled)
     {
-        mDMOPackets[0].mBuffer = pSlice;
+        mDMOPackets[0].SetBuffer(pSlice);
         pSlice += uiPacketSize;
-        mDMOPackets[1].mBuffer = pSlice;
+        mDMOPackets[1].SetBuffer(pSlice);
         pSlice += uiPacketSize;
         mDMO.SetPackets(uiPacketSize, mDMOPackets, 2);
     }
 
-    mMixerOutputInfo.mMixersPackets[0].mBuffer = pSlice;
+    mMixerOutputInfo.mMixersPackets[0].SetBuffer(pSlice);
     pSlice += uiPacketSize;
-    mMixerOutputInfo.mMixersPackets[1].mBuffer = pSlice;
+    mMixerOutputInfo.mMixersPackets[1].SetBuffer(pSlice);
     pSlice += uiPacketSize;
 
     mMixerOutput.SetPackets(uiPacketSize, mMixerOutputInfo.mMixersPackets, 2);
@@ -398,7 +398,8 @@ StreamPacket* SoftOutput::PostOutputMixFlusher::GetPacket(unsigned int  )
         mSoftOutput->mDMO.StreamNode::Play(true);
         mSoftOutput->mSplitter.StreamNode::Play(true);
         mSoftOutput->mMixer.StreamNode::Play(true);
-        pPacket->mFlags = (unsigned short)((pPacket->mFlags & ~1u) | 2u);
+        pPacket->SetDiscontinuity(true);
+        pPacket->SetLast(false);
         return pPacket;
     }
     return 0;

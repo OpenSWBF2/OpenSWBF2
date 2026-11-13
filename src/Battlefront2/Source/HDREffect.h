@@ -26,7 +26,7 @@ public:
     // SYNTHETIC: SWBF2 0x00542330
     // HDREffect::`scalar deleting destructor'
 
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual bool IsReflected();
     virtual void Init();
     virtual void Cleanup();

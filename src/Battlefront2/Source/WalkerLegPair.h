@@ -15,7 +15,18 @@ class NetPktGroup;
 struct WalkerLegPairInfo
 {
 
-    WalkerLegPairInfo();
+    // FUNCTION: SWBF2 0x004ff6d0
+    WalkerLegPairInfo()
+    {
+        for (int i = 0; i < 2; ++i)
+        {
+            mFootIndices[i] = -1;
+            mFootCollisionBody[i] = -1;
+            mLegJoints[i] = -1;
+            mLegMasks[i].SetAll();
+            mLegTopMasks[i].SetAll();
+        }
+    }
 
     int mFootIndices[2];
     int mFootCollisionBody[2];

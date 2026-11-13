@@ -266,7 +266,7 @@ bool Controller::GetCrouchedForVis() const
     if (mOwner->GetGameObject() &&
         mOwner->GetGameObject()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
     {
-        SoldierState::SoldierState eState = static_cast<EntitySoldier*>(mOwner->GetGameObject())->mState;
+        SoldierState::SoldierState eState = ((EntitySoldier*)mOwner->GetGameObject())->mState;
         if (eState == SoldierState::CROUCH || eState == SoldierState::PRONE)
         {
             return true;
@@ -289,7 +289,7 @@ float Controller::GetInvisibilityVisFactor() const
     {
         return 1.0f;
     }
-    float fVis = 1.0f - static_cast<EntitySoldier*>(mOwner->GetGameObject())->GetInvisibilityFactor();
+    float fVis = 1.0f - ((EntitySoldier*)mOwner->GetGameObject())->GetInvisibilityFactor();
     return Clamp(fVis, 0.0f, 1.0f);
 }
 

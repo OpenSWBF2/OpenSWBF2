@@ -142,7 +142,7 @@ void ThreadUpdate::Exit()
     while (pNode != &mUpdateList.mHead)
     {
 
-        RemoveObject(static_cast<Object*>(pNode->GetObjectA(&mUpdateList, offsetof(Object, mNode))));
+        RemoveObject((Object*)pNode->GetObjectA(&mUpdateList, offsetof(Object, mNode)));
         pNode = mUpdateList.mHead.GetNext();
     }
 }
@@ -213,7 +213,7 @@ void __cdecl ThreadUpdate::UpdateObjects(void* pArg)
             iObjects = 0;
             for (PblListSingle::Itor it(pThis->mUpdateList); it.GetNode() != pThis->mUpdateList.GetTerminator(); ++it)
             {
-                Object* pObject = static_cast<Object*>(it.GetNode()->GetObjectA(&pThis->mUpdateList, offsetof(Object, mNode)));
+                Object* pObject = (Object*)it.GetNode()->GetObjectA(&pThis->mUpdateList, offsetof(Object, mNode));
                 if (!pObject->mDestructing)
                 {
                     pObject->UpdateObject();

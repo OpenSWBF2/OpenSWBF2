@@ -54,29 +54,29 @@ EntityPathFollowerClass::EntityPathFollowerClass()
 
 // GLOBAL: SWBF2 0x00789380
 const ODFPropertySet::ODFProperty EntityPathFollowerClass::sPropertySet[15] = {
-    { 0x91032dcb, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mSpeed) },
-    { 0x1a2fabca, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mTurnSpeed) },
-    { 0xab9db3f4, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mAcceleration) },
-    { 0x2d976c37, ODFPropertySet::type_Float,
+    { 0x91032dcb /* "PathFollowerSpeed" */, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mSpeed) },
+    { 0x1a2fabca /* "PathFollowerTurnSpeed" */, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mTurnSpeed) },
+    { 0xab9db3f4 /* "PathFollowerAcceleration" */, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mAcceleration) },
+    { 0x2d976c37 /* "PathFollowerRollAcceleration" */, ODFPropertySet::type_Float,
       offsetof(EntityPathFollowerClass, mPathRollValues) + 0x00 },
-    { 0x732ff7d1, ODFPropertySet::type_Float,
+    { 0x732ff7d1 /* "PathFollowerRollLookAhead" */, ODFPropertySet::type_Float,
       offsetof(EntityPathFollowerClass, mPathRollValues) + 0x04 },
-    { 0x93425352, ODFPropertySet::type_Float,
+    { 0x93425352 /* "PathFollowerRollTolerance" */, ODFPropertySet::type_Float,
       offsetof(EntityPathFollowerClass, mPathRollValues) + 0x08 },
-    { 0xb1354466, ODFPropertySet::type_Float,
+    { 0xb1354466 /* "PathFollowerRollSpeed" */, ODFPropertySet::type_Float,
       offsetof(EntityPathFollowerClass, mPathRollValues) + 0x0c },
-    { 0x60900c05, ODFPropertySet::type_Float,
+    { 0x60900c05 /* "PathFollowerRollAccelerationLag" */, ODFPropertySet::type_Float,
       offsetof(EntityPathFollowerClass, mPathRollValues) + 0x10 },
-    { 0xacf747f3, ODFPropertySet::type_Float,
+    { 0xacf747f3 /* "PathFollowerRollTurnFactor" */, ODFPropertySet::type_Float,
       offsetof(EntityPathFollowerClass, mPathRollValues) + 0x14 },
-    { 0xe217bc71, ODFPropertySet::type_Float,
+    { 0xe217bc71 /* "PathFollowerRollSpeedFactor" */, ODFPropertySet::type_Float,
       offsetof(EntityPathFollowerClass, mPathRollValues) + 0x18 },
-    { 0x4453dc0a, ODFPropertySet::type_Float,
+    { 0x4453dc0a /* "PathFollowerRollDampening" */, ODFPropertySet::type_Float,
       offsetof(EntityPathFollowerClass, mPathRollValues) + 0x1c },
-    { 0x9f528aec, ODFPropertySet::type_UInt32, offsetof(EntityPathFollowerClass, mBranchPaths) },
-    { 0x9eececc5, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mBranchRange) },
-    { 0x886f9fe5, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mCosMaxAngle) },
-    { 0xe103ce94, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mMinBranchDist) },
+    { 0x9f528aec /* "PathFollowerBranchPaths" */, ODFPropertySet::type_UInt32, offsetof(EntityPathFollowerClass, mBranchPaths) },
+    { 0x9eececc5 /* "PathFollowerBranchRange" */, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mBranchRange) },
+    { 0x886f9fe5 /* "PathFollowerBranchMaxAngle" */, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mCosMaxAngle) },
+    { 0xe103ce94 /* "PathFollowerMinBranchDist" */, ODFPropertySet::type_Float, offsetof(EntityPathFollowerClass, mMinBranchDist) },
 };
 
 // FUNCTION: SWBF2 0x004d7990
@@ -84,17 +84,17 @@ bool EntityPathFollowerClass::SetProperty(unsigned int uProperty, const char* ps
 {
     switch (uProperty)
     {
-    case 0x995f7d3c:
+    case 0x995f7d3c: /* "PathFollowerClass_CTF" */
         mEntityClassID_CTF = PblHash(pszValue);
         return true;
-    case 0xc5cf2a8d:
+    case 0xc5cf2a8d: /* "PathFollowerFlyerVsFlyer" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
         mbFlyerVsFlyer = iValue != 0;
         return true;
     }
-    case 0xff158b18:
+    case 0xff158b18: /* "PathFollowerClass" */
         mEntityClassID = PblHash(pszValue);
         return true;
     }
@@ -104,19 +104,19 @@ bool EntityPathFollowerClass::SetProperty(unsigned int uProperty, const char* ps
     {
         switch (uProperty)
         {
-        case 0x2d976c37:
+        case 0x2d976c37: /* "PathFollowerRollAcceleration" */
             mPathRollValues.mRollAcceleration *= 0.017453292f;
             return true;
-        case 0x93425352:
+        case 0x93425352: /* "PathFollowerRollTolerance" */
             mPathRollValues.mRollTolerance *= 0.017453292f;
             return true;
-        case 0x60900c05:
+        case 0x60900c05: /* "PathFollowerRollAccelerationLag" */
             mPathRollValues.mRollAccelResp = 1.0f / mPathRollValues.mRollAccelResp;
             return true;
-        case 0x886f9fe5:
+        case 0x886f9fe5: /* "PathFollowerBranchMaxAngle" */
             mCosMaxAngle = PblMath::Cos(mCosMaxAngle * 0.017453292f);
             return true;
-        case 0xab9db3f4:
+        case 0xab9db3f4: /* "PathFollowerAcceleration" */
             mAcceleration = mAcceleration != 0.0f ? 1.0f / mAcceleration : 0.0001f;
             return true;
         }
@@ -211,18 +211,6 @@ EntityPathFollower::~EntityPathFollower()
     {
         GetList()->Remove(this);
     }
-}
-
-// FUNCTION: SWBF2 0x004d2700
-unsigned int EntityPathFollower::GetAllegiance()
-{
-    return 0;
-}
-
-// FUNCTION: SWBF2 0x00477670
-bool EntityPathFollower::CanJoinSquadron() const
-{
-    return !InSquadron();
 }
 
 // FUNCTION: SWBF2 0x004d2970
@@ -409,7 +397,7 @@ void EntityPathFollower::DelayPath(BranchParams& params, float fDistance)
 // FUNCTION: SWBF2 0x004d3390
 bool EntityPathFollower::IsFlyerPlayerCentric(BranchParams& params)
 {
-    if (FlagItem::sFlagGameplayType == 2 || FlagItem::sFlagGameplayType == 3)
+    if (FlagItem::sFlagGameplayType == FlagItem::FLAG_GAMEPLAY_1FLAG || FlagItem::sFlagGameplayType == FlagItem::FLAG_GAMEPLAY_2FLAG)
     {
         return false;
     }
@@ -460,7 +448,7 @@ unsigned int EntityPathFollower::CreateSquadronForFlyby(BranchParams& params)
     {
         return 0;
     }
-    if (!static_cast<Trackable*>(pPlayerControllable)->GetGameObject()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
+    if (!((Trackable*)pPlayerControllable)->GetGameObject()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
     {
         return 0;
     }
@@ -484,7 +472,7 @@ unsigned int EntityPathFollower::CreateSquadronForFlyby(BranchParams& params)
     {
         return 0;
     }
-    int iPlayerTeam = static_cast<Trackable*>(pPlayerControllable)->GetGameObject()->GetTeam();
+    int iPlayerTeam = ((Trackable*)pPlayerControllable)->GetGameObject()->GetTeam();
     if (GetAllegiance() == (unsigned int)iPlayerTeam && (PblRandom::GetGlobalInt() & 3))
     {
         return 0;
@@ -493,7 +481,7 @@ unsigned int EntityPathFollower::CreateSquadronForFlyby(BranchParams& params)
     unsigned int uCount = 0;
     unsigned int uSquadronSize = (int)PblRandom::GetGlobalFloatRange(4.5f, 3.0f);
     bool bSameDirection = ((PblRandom::GetGlobalInt() >> 1) & 1) != 0;
-    float fRadius = static_cast<CollisionObject*>(params.mGameObject)->GetCollisionRadius() * 6.0f;
+    float fRadius = ((CollisionObject*)params.mGameObject)->GetCollisionRadius() * 6.0f;
     float fSide = bSameDirection ? 4.0f : -3.0f;
 
     const PblMatrix& mUp = pPlayerControllable->GetMatrix();
@@ -513,7 +501,7 @@ unsigned int EntityPathFollower::CreateSquadronForFlyby(BranchParams& params)
     int iTries = 0;
     GameObject* pFound;
     while (CollisionManager::GetObjectsInRange(vStart, fRadius, &pFound, 1,
-                                               static_cast<Trackable*>(pPlayerControllable)->GetGameObject(), 0))
+                                               ((Trackable*)pPlayerControllable)->GetGameObject(), 0))
     {
         ++iTries;
         const PblMatrix& mUp2 = pPlayerControllable->GetMatrix();
@@ -546,10 +534,10 @@ unsigned int EntityPathFollower::CreateSquadronForFlyby(BranchParams& params)
         PblVector3 vPos = vStart + vEntry * fSlotOffset;
         PblMatrix& matrix = params.mMatrix;
         matrix.SetTranslation(vPos);
-        static_cast<CollisionObject*>(params.mGameObject)->mLastPosition = vPos;
+        ((CollisionObject*)params.mGameObject)->mLastPosition = vPos;
         if (params.mGameObject->IsRtti(EntityFlyer::rttiHashEntityFlyer))
         {
-            static_cast<EntityFlyer*>(params.mGameObject)->TurnOffContrailEffects();
+            ((EntityFlyer*)params.mGameObject)->TurnOffContrailEffects();
         }
 
         PblVector3 vDir = bSameDirection ? vForward : -vForward;
@@ -782,7 +770,7 @@ bool EntityPathFollower::Branch(BranchParams& params, const PblVector3* const pP
     PathStart start;
     if (InSquadron())
     {
-        EntityPathFollower* pLeader = static_cast<EntityPathFollower*>(GetSquadronLeader());
+        EntityPathFollower* pLeader = (EntityPathFollower*)GetSquadronLeader();
         if (pLeader && !IsSquadronLeader() && pLeader->mPath == mPath &&
             mIndex * mDirection >= pLeader->mIndex * pLeader->mDirection)
         {
@@ -793,7 +781,7 @@ bool EntityPathFollower::Branch(BranchParams& params, const PblVector3* const pP
     bool bHasFlag = IsCarryingFlagRef(params.mGameObject);
     if (InSquadron() && !IsSquadronLeader())
     {
-        const EntityPathFollower* pLeader = static_cast<const EntityPathFollower*>(GetSquadronLeader());
+        const EntityPathFollower* pLeader = (const EntityPathFollower*)GetSquadronLeader();
         start.mAttrib.mVectorDist.z = 0.0f;
         start.mAttrib.mVectorDist.y = 0.0f;
         start.mAttrib.mVectorDist.x = 0.0f;
@@ -964,7 +952,7 @@ bool EntityPathFollower::GetPointIsSet(unsigned char uIndex) const
 // FUNCTION: SWBF2 0x004d66b0
 void EntityPathFollower::RemoveFromSquadron()
 {
-    mSpeed = static_cast<const EntityPathFollowerClass*>(GetEntitySquadronClass())->mSpeed;
+    mSpeed = ((const EntityPathFollowerClass*)GetEntitySquadronClass())->mSpeed;
     EntitySquadron::RemoveFromSquadron();
 }
 
@@ -979,7 +967,7 @@ namespace
 
     const PblMatrix& GetFlagMatrix(const FlagItem* pFlag)
     {
-        return static_cast<const CollisionObject*>(pFlag)->GetMatrix();
+        return ((const CollisionObject*)pFlag)->GetMatrix();
     }
 }
 
@@ -999,18 +987,17 @@ bool EntityPathFollower::Update(BranchParams& params, float fElapsed, PblVector3
         RemovePathRef(params.mPathClass);
         mSetPoints = 0;
         ResetStateVars();
-        BranchParams leader = static_cast<EntityPathFollower*>(GetSquadronLeader())->GetBranchParams();
-        const PblMatrix& lead = leader.mMatrix;
+        BranchParams leader = ((EntityPathFollower*)GetSquadronLeader())->GetBranchParams();
         float fSlot = (float)GetFormationSlot();
-        PblVector3 vPos = lead.GetTranslation() + lead.GetXAxis() * fSlot * 15.0f;
+        PblVector3 vPos = leader.mMatrix.GetTranslation() + leader.mMatrix.GetXAxis() * fSlot * 15.0f;
         PblMatrix& matrix = params.mMatrix;
         matrix.SetTranslation(vPos);
-        static_cast<CollisionObject&>(*params.mGameObject).mLastPosition = vPos;
-        matrix[2] = lead[2];
+        params.mGameObject->mLastPosition = vPos;
+        matrix[2] = leader.mMatrix[2];
         matrix.m[2][3] = 0.0f;
         if (params.mGameObject->IsRtti(EntityFlyer::rttiHashEntityFlyer))
         {
-            static_cast<EntityFlyer*>(params.mGameObject)->TurnOffContrailEffects();
+            ((EntityFlyer*)params.mGameObject)->TurnOffContrailEffects();
         }
         bForceBranch = true;
         mbTeleportNow = false;
@@ -1048,7 +1035,7 @@ bool EntityPathFollower::Update(BranchParams& params, float fElapsed, PblVector3
     mPathSpline.CalculatePoint(mT, vPoint);
     PblVector3 vTangent;
     mPathSpline.CalculateFirstDerivative(mT, vTangent);
-    float fLength = sqrtf(vTangent.x * vTangent.x + vTangent.y * vTangent.y + vTangent.z * vTangent.z);
+    float fLength = PblMath::Sqrt(vTangent.x * vTangent.x + vTangent.y * vTangent.y + vTangent.z * vTangent.z);
 
     float fSpeed = params.mWorldSpeed;
     if (mbQueuePoint || mbGoMinSpeed)
@@ -1110,7 +1097,7 @@ bool EntityPathFollower::Update(BranchParams& params, float fElapsed, PblVector3
     params.mMatrix.m[2][3] = 0.0f;
 
     PblVector3 vTarget = vPoint;
-    UpdateSquadron(params.mPathClass, *pRotation, fElapsed, vPosition, vTarget);
+    UpdateSquadron(params.mPathClass, PblMatrix(*pRotation), fElapsed, vPosition, vTarget);
     if (mStrafeTimer > 0.0f)
     {
         const PblVector3& vRight = params.mMatrix.GetXAxis();
@@ -1243,7 +1230,7 @@ void EntityPathFollower::UpdateSquadron(const EntityPathFollowerClass* const pCl
         return;
     }
 
-    EntityPathFollower* pLeader = static_cast<EntityPathFollower*>(GetSquadronLeader());
+    EntityPathFollower* pLeader = (EntityPathFollower*)GetSquadronLeader();
     float fFactor;
     if (mPath == pLeader->mPath)
     {
@@ -1582,7 +1569,7 @@ bool EntityPathFollower::SavePoints(const PblVector3* const pPosition, BranchPar
         {
             BranchParams params = GetBranchParams();
             vDirection = params.mGameObject
-                             ? static_cast<CollisionObject*>(params.mGameObject)->GetMatrix().GetZAxis()
+                             ? ((CollisionObject*)params.mGameObject)->GetMatrix().GetZAxis()
                              : params.mMatrix.GetZAxis();
         }
         PblVector3 vZero = CalculateZeroPoint(GetPoint(1), vDirection, GetPoint(2));
@@ -1911,10 +1898,4 @@ bool EntityPathFollower::RayTestSpline(const PblVector3& p0, const PblVector3& p
         vLast = vPoint;
     }
     return true;
-}
-
-// FUNCTION: SWBF2 0x004fc6d0
-int __fastcall ReturnEdxValue(int, int value)
-{
-    return value;
 }

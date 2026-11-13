@@ -20,7 +20,7 @@ float Source2D3D::CalculatePitch(const Source3D* pSource3D) const
 bool Source2D3D::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 {
     bool bResult = true;
-    if (uiPropertyID != 0x1A8B16B5u)
+    if (uiPropertyID != 0x1A8B16B5u /* "Mode3D" */)
     {
         bResult = Source::Read(chunk, uiPropertyID);
         if (!bResult)

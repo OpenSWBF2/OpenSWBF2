@@ -4,6 +4,7 @@
 static_assert(sizeof(sin(1.0f)) == 4, "float math overloads");
 
 #include "snddsp.h"
+#include "sndglobals.h"
 
 namespace Snd
 {
@@ -25,14 +26,7 @@ void HighLowPassFilter::Process16(const short* const pIn, unsigned int uiNumSamp
             output += state.a3 * state.mInDelay[1];
             output -= state.b1 * state.mOutDelay[0];
             output -= state.b2 * state.mOutDelay[1];
-            if (output < -1.0f)
-            {
-                output = -1.0f;
-            }
-            else if (output > 1.0f)
-            {
-                output = 1.0f;
-            }
+            output = Snd::Clamp(output, -1.0f, 1.0f);
             pOut[sample] = (short)(int)(output * 32767.0f);
             state.mInDelay[1] = state.mInDelay[0];
             state.mInDelay[0] = input;

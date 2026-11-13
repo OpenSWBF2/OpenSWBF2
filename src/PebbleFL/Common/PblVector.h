@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <float.h>
 #include <d3dx9math.h>
 #include "PblMath.h"
 #include <cmath>
@@ -14,38 +15,17 @@ public:
     // FUNCTION: SWBF2 0x0040c9a0
     PblVector3() {}
 
-    // FUNCTION: SWBF2 0x0040c9b0
-    PblVector3(float fX, float fY, float fZ)
-    {
-        x = fX;
-        y = fY;
-        z = fZ;
-    }
+    PblVector3(float fX, float fY, float fZ);
 
-    // FUNCTION: SWBF2 0x0040c9e0
-    PblVector3(const PblVector3& v)
-    {
-        *this = v;
-    }
+    PblVector3(const PblVector3& v);
 
     PblVector3(const D3DXVECTOR3* pVector);
 
-    // FUNCTION: SWBF2 0x0043ec00
-    void SetAll(float fValue)
-    {
-        x = y = z = fValue;
-    }
+    void SetAll(float fValue);
 
-    // FUNCTION: SWBF2 0x00480480
-    bool operator!=(const PblVector3& v) const
-    {
-        return x != v.x || y != v.y || z != v.z;
-    }
+    bool operator!=(const PblVector3& v) const;
 
-    bool operator==(const PblVector3& v) const
-    {
-        return x == v.x && y == v.y && z == v.z;
-    }
+    bool operator==(const PblVector3& v) const;
 
     const PblVector3& operator+=(const PblVector3& rhs);
     const PblVector3& operator-=(const PblVector3& rhs);
@@ -63,6 +43,10 @@ public:
     float GetZ() const;
 
     void Set(float fX, float fY, float fZ);
+    void SetX(float fVal);
+    void SetY(float fVal);
+    void SetZ(float fVal);
+    void Reset();
 
     void AddX(float value);
     void AddY(float value);
@@ -93,15 +77,11 @@ const float SquaredLengthXZ(const PblVector3& vVector);
 const PblVector3 CrossProduct(const PblVector3& lhs, const PblVector3& rhs);
 const PblVector3 Normalize(const PblVector3& vVector);
 const PblVector3 RotateY(const PblVector3& vVector, float fAngle);
+const PblVector3 RotateZ(const PblVector3& vVector, float fAngle);
 
 
 
-inline const PblVector3 Interpolate(const PblVector3& v0, const PblVector3& v1, float fT)
-{
-    PblVector3 v;
-    D3DXVec3Lerp(&v, &v0, &v1, fT);
-    return v;
-}
+const PblVector3 Interpolate(const PblVector3& v0, const PblVector3& v1, float fT);
 
 extern PblVector3 gVectorUnitX;
 extern PblVector3 gVectorUnitY;
@@ -111,25 +91,22 @@ class PblVector4 : public D3DXVECTOR4
 {
 public:
 
-    // FUNCTION: SWBF2 0x00463a30
-    PblVector4() {}
-    PblVector4(float fX, float fY, float fZ, float fW) : D3DXVECTOR4(fX, fY, fZ, fW) {}
+    PblVector4();
+    PblVector4(float fX, float fY, float fZ, float fW);
     explicit PblVector4(float fValue);
 
 
     operator const PblVector3&() const;
 
-    void Set(float fX, float fY, float fZ, float fW)
-    {
-        x = fX;
-        y = fY;
-        z = fZ;
-        w = fW;
-    }
+    void Set(float fX, float fY, float fZ, float fW);
+    void SetX(float fVal);
+    void SetY(float fVal);
+    void SetZ(float fVal);
+    void SetW(float fVal);
 
 };
 
-#include "PebbleFL/pc/pcPblVector.h"
+#include "PebbleFL/pc/pcPblVector.inl"
 
 class PblSphere : public PblVector4
 {
@@ -220,18 +197,37 @@ public:
 {
 }
 
-    void Set(const PblVector3& vMin, const PblVector3& vMax) { _vMin = vMin; _vMax = vMax; }
     void SetMin(const PblVector3& rv) { _vMin = rv; }
     void SetMax(const PblVector3& rv) { _vMax = rv; }
+    void SetMin(float fX, float fY, float fZ) { _vMin.Set(fX, fY, fZ); }
+    void SetMax(float fX, float fY, float fZ) { _vMax.Set(fX, fY, fZ); }
+
+    void Set(const PblVector3& vMin, const PblVector3& vMax) { _vMin = vMin; _vMax = vMax; }
+
+    void SetEmpty()
+    {
+        SetMin(FLT_MAX, FLT_MAX, FLT_MAX);
+        SetMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+    }
 
     // FUNCTION: SWBF2 0x0040c980
     const PblVector3& GetMin() const { return _vMin; }
     // FUNCTION: SWBF2 0x0040c990
     const PblVector3& GetMax() const { return _vMax; }
 
+    bool ContainsPoint(const PblVector3& point) const
+    {
+        return point.x >= _vMin.x && point.x <= _vMax.x &&
+               point.y >= _vMin.y && point.y <= _vMax.y &&
+               point.z >= _vMin.z && point.z <= _vMax.z;
+    }
+
     PblVector3 _vMin;
     PblVector3 _vMax;
 };
+
+// SYNTHETIC: SWBF2 0x004615e0
+// PblBox::PblBox(class PblBox const &)
 
  
  

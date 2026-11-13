@@ -1,6 +1,9 @@
 #include <string.h>
 #include <d3dx9math.h>
 #include "PowerupStation.h"
+#include "EntityFlyer.h"
+#include "EntityHover.h"
+#include "EntityWalker.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -112,100 +115,100 @@ void PowerupStationClass::SetProperty(unsigned int uProperty, const char* pszVal
     float f;
     switch (uProperty)
     {
-    case 0x299acaba:
+    case 0x299acaba: /* "PowerupDelay" */
         sscanf(pszValue, "%f", &mPowerupDelay);
         break;
-    case 0xf33b41df:
+    case 0xf33b41df: /* "SoldierHealth" */
         sscanf(pszValue, "%f", &f);
         mAddHealth[HEALTH_TYPE_PERSON] = f;
         mAddHealth[HEALTH_TYPE_DROID] = f;
         break;
-    case 0xf51ad206:
+    case 0xf51ad206: /* "PersonHealth" */
         sscanf(pszValue, "%f", &mAddHealth[HEALTH_TYPE_PERSON]);
         break;
-    case 0x60d746d7:
+    case 0x60d746d7: /* "AnimalHealth" */
         sscanf(pszValue, "%f", &mAddHealth[HEALTH_TYPE_ANIMAL]);
         break;
-    case 0x9622c73b:
+    case 0x9622c73b: /* "DroidHealth" */
         sscanf(pszValue, "%f", &mAddHealth[HEALTH_TYPE_DROID]);
         break;
-    case 0x14e381c9:
+    case 0x14e381c9: /* "VehicleHealth" */
         sscanf(pszValue, "%f", &mAddHealth[HEALTH_TYPE_VEHICLE]);
         break;
-    case 0xa6c59e9f:
+    case 0xa6c59e9f: /* "BuildingHealth" */
         sscanf(pszValue, "%f", &mAddHealth[HEALTH_TYPE_BUILDING]);
         break;
-    case 0xc3da529f:
+    case 0xc3da529f: /* "SoldierAmmo" */
         sscanf(pszValue, "%f", &f);
         mAddAmmo[HEALTH_TYPE_PERSON] = f;
         mAddAmmo[HEALTH_TYPE_DROID] = f;
         break;
-    case 0x738f412e:
+    case 0x738f412e: /* "PersonAmmo" */
         sscanf(pszValue, "%f", &mAddAmmo[HEALTH_TYPE_PERSON]);
         break;
-    case 0xbfe8e397:
+    case 0xbfe8e397: /* "AnimalAmmo" */
         sscanf(pszValue, "%f", &mAddAmmo[HEALTH_TYPE_ANIMAL]);
         break;
-    case 0x0fda4dbb:
+    case 0x0fda4dbb: /* "DroidAmmo" */
         sscanf(pszValue, "%f", &mAddAmmo[HEALTH_TYPE_DROID]);
         break;
-    case 0xe728d955:
+    case 0xe728d955: /* "VehicleAmmo" */
         sscanf(pszValue, "%f", &mAddAmmo[HEALTH_TYPE_VEHICLE]);
         break;
-    case 0xa25f865f:
+    case 0xa25f865f: /* "BuildingAmmo" */
         sscanf(pszValue, "%f", &mAddAmmo[HEALTH_TYPE_BUILDING]);
         break;
-    case 0x0adc5145:
+    case 0x0adc5145: /* "SoldierEnergy" */
         sscanf(pszValue, "%f", &f);
         mAddEnergy[HEALTH_TYPE_PERSON] = f;
         mAddEnergy[HEALTH_TYPE_DROID] = f;
         break;
-    case 0x84622134:
+    case 0x84622134: /* "PersonEnergy" */
         sscanf(pszValue, "%f", &mAddEnergy[HEALTH_TYPE_PERSON]);
         break;
-    case 0xfb0507ad:
+    case 0xfb0507ad: /* "AnimalEnergy" */
         sscanf(pszValue, "%f", &mAddEnergy[HEALTH_TYPE_ANIMAL]);
         break;
-    case 0x3fe43479:
+    case 0x3fe43479: /* "DroidEnergy" */
         sscanf(pszValue, "%f", &mAddEnergy[HEALTH_TYPE_DROID]);
         break;
-    case 0x56238a9b:
+    case 0x56238a9b: /* "VehicleEnergy" */
         sscanf(pszValue, "%f", &mAddEnergy[HEALTH_TYPE_VEHICLE]);
         break;
-    case 0xda2c3905:
+    case 0xda2c3905: /* "BuildingEnergy" */
         sscanf(pszValue, "%f", &mAddEnergy[HEALTH_TYPE_BUILDING]);
         break;
-    case 0x70b204af:
+    case 0x70b204af: /* "BuffOffenseTimer" */
         sscanf(pszValue, "%f", &mBuffOffenseTimer);
         break;
-    case 0xce532e64:
+    case 0xce532e64: /* "BuffOffenseMult" */
         sscanf(pszValue, "%f", &mBuffOffenseMult);
         break;
-    case 0x7705fcc1:
+    case 0x7705fcc1: /* "BuffDefenseTimer" */
         sscanf(pszValue, "%f", &mBuffDefenseTimer);
         break;
-    case 0xb25fb62e:
+    case 0xb25fb62e: /* "BuffDefenseMult" */
         sscanf(pszValue, "%f", &mBuffDefenseMult);
         break;
-    case 0x460b143b:
+    case 0x460b143b: /* "BuffHealthTimer" */
         sscanf(pszValue, "%f", &mBuffHealthTimer);
         break;
-    case 0xb6639618:
+    case 0xb6639618: /* "BuffHealthRate" */
         sscanf(pszValue, "%f", &mBuffHealthRate);
         break;
-    case 0x805b51e7:
+    case 0x805b51e7: /* "DebuffDamageTimer" */
         sscanf(pszValue, "%f", &mDebuffDamageTimer);
         break;
-    case 0x9834a7b4:
+    case 0x9834a7b4: /* "DebuffDamageRate" */
         sscanf(pszValue, "%f", &mDebuffDamageRate);
         break;
-    case 0xede68c8b:
+    case 0xede68c8b: /* "IdleRotateSpeed" */
         sscanf(pszValue, "%f", &mIdleRotateSpeed);
         break;
-    case 0x044894ab:
+    case 0x044894ab: /* "IdleWaitTime" */
         sscanf(pszValue, "%f", &mIdleWaitTime);
         break;
-    case 0x1b5b62ea:
+    case 0x1b5b62ea: /* "IdleWobbleNode" */
     {
         mIdleWobbleHash = PblTEMPHash(pszValue);
         RedPose pose;
@@ -217,16 +220,16 @@ void PowerupStationClass::SetProperty(unsigned int uProperty, const char* pszVal
         }
         break;
     }
-    case 0x1c1b9c83:
+    case 0x1c1b9c83: /* "IdleWobbleLeftFoot" */
         mIdleWobbleLeftFootHash = PblTEMPHash(pszValue);
         break;
-    case 0x6eefb998:
+    case 0x6eefb998: /* "IdleWobbleRightFoot" */
         mIdleWobbleRightFootHash = PblTEMPHash(pszValue);
         break;
-    case 0x19e0afd9:
+    case 0x19e0afd9: /* "IdleWobbleFactor" */
         sscanf(pszValue, "%f", &mIdleWobbleFactor);
         break;
-    case 0x2c70cf18:
+    case 0x2c70cf18: /* "ActiveRotateNode" */
         for (int i = 0; i < 4; i++)
         {
             if (mActiveRotateHash[i] == 0)
@@ -236,13 +239,13 @@ void PowerupStationClass::SetProperty(unsigned int uProperty, const char* pszVal
             }
         }
         break;
-    case 0x18275a73:
+    case 0x18275a73: /* "ActiveSpinNode" */
         mActiveSpinHash = PblTEMPHash(pszValue);
         break;
-    case 0xa2a034ea:
+    case 0xa2a034ea: /* "PowerupSound" */
         mPowerupSound.SetID(pszValue, false, false);
         break;
-    case 0x65a920ba:
+    case 0x65a920ba: /* "AmbientSound" */
         mAmbientSound.SetID(pszValue, false, false);
         break;
     default:
@@ -263,7 +266,7 @@ Entity* PowerupStationClass::Build(const EntityDesc& desc)
     PowerupStation* pStation = new PowerupStation(this, desc);
     if (pStation)
     {
-        static_cast<CollisionObject*>(pStation)->AddStaticToCollisionManager();
+        ((CollisionObject*)pStation)->AddStaticToCollisionManager();
         if (!NetGame::IsEnabled() || !NetGame::IsClient())
         {
             ((EntityGeometry*)pStation)->BuildEffects();
@@ -352,7 +355,7 @@ void PowerupStation::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x0DBA4CB3:
+    case 0x0DBA4CB3: /* "Radius" */
     {
         float fRadius = 0.0f;
         sscanf(pszValue, "%f", &fRadius);
@@ -362,7 +365,7 @@ void PowerupStation::SetProperty(unsigned int uProperty, const char* pszValue)
             desc.mType = PblRegion::type_invalid;
             desc.mMatrix = GetMatrix();
             desc.mNameId = mId;
-            desc.mTypeId = 0xAFD98518;
+            desc.mTypeId = 0xAFD98518 /* "Sphere" */;
             desc.mSize.w = fRadius;
             if (!mEffectRegion)
             {
@@ -371,7 +374,7 @@ void PowerupStation::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
     }
-    case 0xA4F267B8:
+    case 0xA4F267B8: /* "EffectRegion" */
         mEffectRegion = RedRegion::Find(PblHash(pszValue));
         break;
     default:
@@ -425,23 +428,6 @@ static PblMatrix PblMatrix_FromQuaternion(const PblQuaternion& q, const PblVecto
     m.m[3][3] = 1.0f;
     return m;
 }
-
-class EntityHover
-{
-public:
-    static PblHash rttiHashEntityHover;
-};
-class EntityWalker
-{
-public:
-    static PblHash rttiHashEntityWalker;
-};
-class EntityFlyer
-{
-public:
-    static PblHash rttiHashEntityFlyer;
-};
-
 
 
 // FUNCTION: SWBF2 0x006249a0
@@ -506,8 +492,8 @@ bool PowerupStation::Update(float fDeltaTime)
                 if (pCharacter && pObject->GetControllable() &&
                     pObject->GetControllable()->mCharacter == pCharacter)
                 {
-                    if (pObject->IsRtti(EntityHover::rttiHashEntityHover) ||
-                        pObject->IsRtti(EntityWalker::rttiHashEntityWalker) ||
+                    if (pObject->IsRtti(EntityHover::GetRtti()) ||
+                        pObject->IsRtti(EntityWalker::GetRtti()) ||
                         pObject->IsRtti(EntityFlyer::rttiHashEntityFlyer))
                     {
                         ToolTipsDisplay::sInstance->ShowTip(TTT_ApproachVehicleGonk, 0);
@@ -664,7 +650,7 @@ bool PowerupStation::Update(float fDeltaTime)
             PblQuaternion q = PblQuaternion(*pMatrix);
             if ((float)fabs((double)fAngle) > 0.0001f)
             {
-                q = q * PblQuaternion(gVectorUnitX, fAngle);
+                q *= PblQuaternion(gVectorUnitX, fAngle);
             }
             *pMatrix = PblMatrix(q, vNodePos);
         }
@@ -673,6 +659,7 @@ bool PowerupStation::Update(float fDeltaTime)
         {
             return true;
         }
+        {
         const PblMatrix* pNode = mPose.Find(mClass->mActiveSpinHash);
         if (!pNode || iNumProcedural >= 5)
         {
@@ -709,9 +696,10 @@ bool PowerupStation::Update(float fDeltaTime)
         PblQuaternion q = PblQuaternion(*pMatrix);
         if ((float)fabs((double)fAngle) > 0.0001f)
         {
-            q = q * PblQuaternion(gVectorUnitZ, fAngle);
+            q *= PblQuaternion(gVectorUnitZ, fAngle);
         }
         *pMatrix = PblMatrix(q, vNodePos);
+        }
         return true;
     }
 
@@ -730,7 +718,7 @@ bool PowerupStation::Update(float fDeltaTime)
         float fAngle = (float)mRotateDir * mClass->mIdleRotateSpeed * fDeltaTime;
         if ((float)fabs((double)fAngle) > 0.0001f)
         {
-            q = q * PblQuaternion(gVectorUnitY, fAngle);
+            q *= PblQuaternion(gVectorUnitY, fAngle);
         }
         mRenderMatrix = PblMatrix(q, vPos);
 
@@ -744,7 +732,7 @@ bool PowerupStation::Update(float fDeltaTime)
                 q = PblQuaternion(*pWobbleMatrix);
                 if ((float)fabs((double)fWobble) > 0.0001f)
                 {
-                    q = q * PblQuaternion(gVectorUnitZ, fWobble);
+                    q *= PblQuaternion(gVectorUnitZ, fWobble);
                 }
                 *pWobbleMatrix = PblMatrix(q, vPos);
             }

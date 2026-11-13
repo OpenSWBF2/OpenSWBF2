@@ -41,13 +41,13 @@ void RedWater::UpdateEventCache()
 class WaterRenderable : public Renderable
 {
 public:
-    WaterRenderable() : Renderable(5) {}
+    WaterRenderable() : Renderable(RENDERABLE_PRETRANSPARENT) {}
     virtual ~WaterRenderable() {}
 
     // SYNTHETIC: SWBF2 0x006ce0e0
     // WaterRenderable::`scalar deleting destructor'
 
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual bool IsReflected();
     virtual bool HasReflection();
 };
@@ -56,13 +56,13 @@ public:
 class UnderWaterRenderable : public Renderable
 {
 public:
-    UnderWaterRenderable() : Renderable(9) {}
+    UnderWaterRenderable() : Renderable(RENDERABLE_SCREENEFFECT) {}
     virtual ~UnderWaterRenderable() {}
 
     // SYNTHETIC: SWBF2 0x006ce0b0
     // UnderWaterRenderable::`scalar deleting destructor'
 
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual bool IsReflected();
 };
 
@@ -845,7 +845,7 @@ void RedWater::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             m_waterMapSize = child._pFile->Read32();
             m_patchesPerCell = child._pFile->Read32();
             m_metersPerPatch = child._pFile->ReadFloat();
@@ -856,12 +856,12 @@ void RedWater::Read(PblFileChunk& chunk)
             m_cellsPerPatch = 1.0f / (float)m_patchesPerCell;
             break;
 
-        case 0x50414D57:
+        case CHUNK_ID('W', 'M', 'A', 'P'):
             m_waterMap = new unsigned char[m_waterMapSize * m_waterMapSize / m_patchesPerCell];
             child._pFile->ReadData(m_waterMap, m_waterMapSize * m_waterMapSize / m_patchesPerCell);
             break;
 
-        case 0x5259414C:
+        case CHUNK_ID('L', 'A', 'Y', 'R'):
             if (!bReadLayer)
             {
                 char acName[256];
@@ -880,7 +880,7 @@ void RedWater::Read(PblFileChunk& chunk)
             }
             break;
 
-        case 0x54415043:
+        case CHUNK_ID('C', 'P', 'A', 'T'):
             for (unsigned int z = 0; z < m_waterMapSize; ++z)
             {
                 for (unsigned int x = 0; x < m_waterMapSize; ++x)
@@ -943,24 +943,24 @@ void RedWater::ReadConfig(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x13901A72:
+        case 0x13901A72: /* "windspeed" */
             m_windSpeed = data.GetFloatArg(0);
             break;
-        case 0x12E39AF3:
+        case 0x12E39AF3: /* "OscillationEnable" */
             RedWater::m_oscillationEnable = data.GetUint32Arg(0) != 0;
             break;
         case 0x009036EB:
             m_divisionsPerPatchX = data.GetUint32Arg(0);
             m_divisionsPerPatchZ = data.GetUint32Arg(1);
             break;
-        case 0x32741C32:
+        case 0x32741C32: /* "Velocity" */
             m_velocityU = data.GetFloatArg(0);
             m_velocityV = data.GetFloatArg(1);
             break;
-        case 0x35A83D43:
+        case 0x35A83D43: /* "MainTexture" */
             m_uiTextureHash = PblHash(data.GetStringArg(0));
             break;
-        case 0x415E2B30:
+        case 0x415E2B30: /* "winddirection" */
         {
             float fX = data.GetFloatArg(0);
             float fZ = data.GetFloatArg(1);
@@ -969,32 +969,32 @@ void RedWater::ReadConfig(PblConfig& config)
             m_windDirectionZ = data.GetFloatArg(1) / fLength;
             break;
         }
-        case 0x56E7ACB7:
+        case 0x56E7ACB7: /* "FoamTexture" */
             RedWater::m_uiFoamTextureHash = PblHash(data.GetStringArg(0));
             break;
-        case 0x713A7CC9:
+        case 0x713A7CC9: /* "TILE" */
             m_tilesU = data.GetFloatArg(0);
             m_tilesV = data.GetFloatArg(1);
             break;
-        case 0x807B1583:
+        case 0x807B1583: /* "LODDecimation" */
             RedWater::m_highResLowResRatio = data.GetUint32Arg(0);
             break;
         case 0xA015E2FF:
             m_waterMode = data.GetUint32Arg(0) ? WATER_MODE_ICE : WATER_MODE_NORMAL;
             break;
-        case 0xA01D9243:
+        case 0xA01D9243: /* "DisableLowRes" */
             mRenderLowResFlag = false;
             break;
-        case 0xA69C431A:
+        case 0xA69C431A: /* "OceanEnable" */
             m_waterMode = data.GetUint32Arg(0) ? WATER_MODE_OCEAN : WATER_MODE_NORMAL;
             break;
-        case 0xD25EF90A:
+        case 0xD25EF90A: /* "PhillipsConstant" */
             m_phillipsConstant = data.GetFloatArg(0);
             break;
-        case 0xD4DDEC5F:
+        case 0xD4DDEC5F: /* "SpecularEnable" */
             RedWater::m_specularEnable = data.GetUint32Arg(0) != 0;
             break;
-        case 0xDCB91B88:
+        case 0xDCB91B88: /* "FoamTile" */
             RedWater::m_foamTilesU = data.GetFloatArg(0);
             RedWater::m_foamTilesV = data.GetFloatArg(1);
             break;
@@ -1041,13 +1041,13 @@ void RedWater::Render(unsigned int uiView)
 }
 
 // FUNCTION: SWBF2 0x006d04a0
-void UnderWaterRenderable::Render(int value)
+void UnderWaterRenderable::Render(unsigned int value) const
 {
     RedWater::RenderUnderWaterView(value);
 }
 
 // FUNCTION: SWBF2 0x006d04c0
-void WaterRenderable::Render(int value)
+void WaterRenderable::Render(unsigned int value) const
 {
     RedWater::Render(value);
 }
@@ -1094,19 +1094,11 @@ void RedWater::RenderUnderWaterView(unsigned int uiView)
         PblVector3(-1.0f, -1.0f, 0.0f), PblVector3(-1.0f, 1.0f, 0.0f),
         PblVector3(1.0f, 1.0f, 0.0f), PblVector3(1.0f, -1.0f, 0.0f)};
 
-    PblVector3 vWorldCorners[4];
-    D3DXVec3TransformCoord((D3DXVECTOR3*)&vWorldCorners[0],
-                           (const D3DXVECTOR3*)&PblVector3(-fHalfWidth, -fHalfHeight, -fNear),
-                           (const D3DXMATRIX*)&mCamera);
-    D3DXVec3TransformCoord((D3DXVECTOR3*)&vWorldCorners[1],
-                           (const D3DXVECTOR3*)&PblVector3(-fHalfWidth, fHalfHeight, -fNear),
-                           (const D3DXMATRIX*)&mCamera);
-    D3DXVec3TransformCoord((D3DXVECTOR3*)&vWorldCorners[2],
-                           (const D3DXVECTOR3*)&PblVector3(fHalfWidth, fHalfHeight, -fNear),
-                           (const D3DXMATRIX*)&mCamera);
-    D3DXVec3TransformCoord((D3DXVECTOR3*)&vWorldCorners[3],
-                           (const D3DXVECTOR3*)&PblVector3(fHalfWidth, -fHalfHeight, -fNear),
-                           (const D3DXMATRIX*)&mCamera);
+    PblVector3 vWorldCorners[4] = {
+        mCamera.ApplyTransform(PblVector3(-fHalfWidth, -fHalfHeight, -fNear)),
+        mCamera.ApplyTransform(PblVector3(-fHalfWidth, fHalfHeight, -fNear)),
+        mCamera.ApplyTransform(PblVector3(fHalfWidth, fHalfHeight, -fNear)),
+        mCamera.ApplyTransform(PblVector3(fHalfWidth, -fHalfHeight, -fNear))};
 
     PblVector3 vVerts[5];
     int iNumVerts = 0;

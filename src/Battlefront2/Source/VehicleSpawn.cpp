@@ -83,13 +83,13 @@ Entity* VehicleSpawnClass::Build(const EntityDesc& desc)
 
 // GLOBAL: SWBF2 0x0078bc40
 static const unsigned int sSideLabel[Team::side_MAX + 1][3] = {
-    { 0x8cdb433e, 0x8cdb433e, 0x8cdb433e },
-    { 0x6a183212, 0xdd29eddc, 0x2a456b61 },
-    { 0x7e58741b, 0x54d2fc8b, 0x07b77f06 },
-    { 0x494a707f, 0x24f75004, 0x61c30279 },
-    { 0x477791dc, 0xa2c909c6, 0x9e973303 },
-    { 0xd118d857, 0xd92c6ca7, 0xcaa92a12 },
-    { 0xfcc25b7b, 0xe2c47a79, 0x9836edac },
+    { 0x8cdb433e /* "ClassNeutral" */, 0x8cdb433e /* "ClassNeutral" */, 0x8cdb433e /* "ClassNeutral" */ },
+    { 0x6a183212, 0xdd29eddc /* "ClassAllATK" */, 0x2a456b61 /* "ClassAllDEF" */ },
+    { 0x7e58741b, 0x54d2fc8b /* "ClassImpATK" */, 0x07b77f06 /* "ClassImpDEF" */ },
+    { 0x494a707f, 0x24f75004 /* "ClassRepATK" */, 0x61c30279 /* "ClassRepDEF" */ },
+    { 0x477791dc, 0xa2c909c6 /* "ClassCISATK" */, 0x9e973303 /* "ClassCISDEF" */ },
+    { 0xd118d857 /* "ClassLocals" */, 0xd92c6ca7 /* "ClassLocATK" */, 0xcaa92a12 /* "ClassLocDEF" */ },
+    { 0xfcc25b7b, 0xe2c47a79 /* "ClassHisATK" */, 0x9836edac /* "ClassHisDEF" */ },
     { 0, 0, 0 },
     { 0, 0, 0 },
 };
@@ -142,25 +142,25 @@ void VehicleSpawn::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x4e99b371:
+    case 0x4e99b371: /* "SpawnTime" */
         sscanf(pszValue, "%f", &mSpawnTime);
         return;
-    case 0x1c098b3c:
+    case 0x1c098b3c: /* "DecayTime" */
         sscanf(pszValue, "%f", &mDecayTime);
         return;
-    case 0x447c6db0:
+    case 0x447c6db0: /* "ControlZone" */
         mCommandPost = CommandPostManager::Instance()->FindPost(pszValue);
         if (mCommandPost)
         {
             mSpawnTeam = GetTeam(mCommandPost->GetGameObject());
         }
         return;
-    case 0x88923ff7:
+    case 0x88923ff7: /* "SpawnCount" */
         VehicleTracker::AddMemoryPoolCount(-mSpawnCount);
         mSpawnCount = atoi(pszValue);
         VehicleTracker::AddMemoryPoolCount(mSpawnCount);
         return;
-    case 0xa2fd7d0c:
+    case 0xa2fd7d0c: /* "team" */
         mSpawnTeam = atoi(pszValue);
         return;
     }
@@ -182,12 +182,12 @@ void VehicleSpawn::SetProperty(unsigned int uProperty, const char* pszValue)
             {
                 if (pSpawnClass->IsRtti(EntityFlyerClass::rttiHashEntityFlyerClass))
                 {
-                    mFlyerClass[iTeam] = static_cast<EntityFlyerClass*>(mSpawnClass[iTeam]);
+                    mFlyerClass[iTeam] = (EntityFlyerClass*)mSpawnClass[iTeam];
                     mUseCarrier[iTeam] = false;
                 }
                 else if (pTeam->GetCarrierPtr())
                 {
-                    mFlyerClass[iTeam] = static_cast<EntityFlyerClass*>(pTeam->GetCarrierPtr());
+                    mFlyerClass[iTeam] = (EntityFlyerClass*)pTeam->GetCarrierPtr();
                     mUseCarrier[iTeam] = true;
                 }
             }
@@ -221,9 +221,9 @@ static inline const Controllable* GetPilot(const Controllable* pControllable)
 // FUNCTION: SWBF2 0x0066ecf0
 void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
 {
-    if (static_cast<GameObject*>(mCarrier))
+    if ((GameObject*)mCarrier)
     {
-        EntityCarrier* pCarrier = reinterpret_cast<EntityCarrier*>(static_cast<GameObject*>(mCarrier));
+        EntityCarrier* pCarrier = reinterpret_cast<EntityCarrier*>((GameObject*)mCarrier);
         EntityFlyer* pFlyer = reinterpret_cast<EntityFlyer*>(pCarrier);
         if (pFlyer->GetState() == EntityFlyer::LANDED)
         {
@@ -233,15 +233,15 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
         }
         if (pFlyer->GetState() == EntityFlyer::FLYING)
         {
-            delete static_cast<GameObject*>(mCarrier);
+            delete (GameObject*)mCarrier;
             mCarrier = 0;
         }
     }
 
-    GameObject* pVehicle = static_cast<GameObject*>(tracker.mVehicle);
+    GameObject* pVehicle = (GameObject*)tracker.mVehicle;
     if (!BoundaryManager::sInstance->IsOutOfBounds(pVehicle->GetMatrix().GetTranslation()))
     {
-        if (!mCommandPost || GetTeam(static_cast<GameObject*>(tracker.mVehicle)) != 0)
+        if (!mCommandPost || GetTeam((GameObject*)tracker.mVehicle) != 0)
         {
             tracker.mEmptyTimer = 0.0f;
             return;
@@ -260,7 +260,7 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
 
     float fExpireTime;
     if (mCommandPost && mCommandPost->mObject->IsAlive() &&
-        mCommandPost->IsInsideControlRegion(static_cast<GameObject*>(tracker.mVehicle)))
+        mCommandPost->IsInsideControlRegion((GameObject*)tracker.mVehicle))
     {
         if (mSpawnClass[mVehicleTeam] != mSpawnClass[mSpawnTeam])
         {
@@ -268,7 +268,7 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
         }
         else
         {
-            if (mVehicleTeam != mSpawnTeam && static_cast<GameObject*>(tracker.mVehicle) &&
+            if (mVehicleTeam != mSpawnTeam && (GameObject*)tracker.mVehicle &&
                 !tracker.mVehicle->GetGameObjectClass()->AvailableForAnyTeam())
             {
                 tracker.mVehicle->SetOwningTeam(mSpawnTeam);
@@ -298,13 +298,13 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
             continue;
         }
         Controllable* pControllable = pCharacter->GetControllable();
-        if (!pControllable || !pControllable->CanEnterVehicle(static_cast<GameObject*>(tracker.mVehicle)))
+        if (!pControllable || !pControllable->CanEnterVehicle((GameObject*)tracker.mVehicle))
         {
             continue;
         }
         const PblSphere& otherSphere = pControllable->GetGameObject()->GetCollisionObject()->GetCollisionSphere();
-        const float dx = otherSphere.GetCenter().x - sphere.GetCenter().x;
         const float dy = otherSphere.GetCenter().y - sphere.GetCenter().y;
+        const float dx = otherSphere.GetCenter().x - sphere.GetCenter().x;
         const float fReach = otherSphere.GetRadius() + sphere.GetRadius() + 10.0f;
         const float dz = otherSphere.GetCenter().z - sphere.GetCenter().z;
         if (fReach * fReach >= dy * dy + dx * dx + dz * dz)
@@ -322,7 +322,7 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
     {
         const DamageDesc damage(DamageOwner(0, 0, 0, 0, 0, 1.0f),
                                 static_cast<GameObject*>(tracker.mVehicle)->mMaxHealth / mDecayTime);
-        static_cast<Damageable*>(static_cast<GameObject*>(tracker.mVehicle))->ApplyDamage(damage, (unsigned int)-1);
+        tracker.mVehicle->ApplyDamage(damage, (unsigned int)-1);
     }
 }
 
@@ -330,13 +330,11 @@ void VehicleSpawn::UpdateLive(float fDeltaTime, VehicleTracker& tracker)
 void VehicleSpawn::UpdateSpawn(float fDeltaTime)
 {
     const PblBox& box =
-        static_cast<EntityGeometryClass*>(mSpawnClass[mSpawnTeam])->GetModel()->_mModel->_TotalBoundingBox;
+        ((EntityGeometryClass*)mSpawnClass[mSpawnTeam])->GetModel()->_mModel->_TotalBoundingBox;
     const PblVector3 vCenter = (box._vMax + box._vMin) * 0.5f;
     const PblVector3 vExtents = (box._vMax - box._vMin) * 0.5f;
     mSpawnRegion.mMatrix = mMatrix;
-    PblVector3 vPos;
-    D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vPos), reinterpret_cast<const D3DXVECTOR3*>(&vCenter), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
-    mSpawnRegion.mMatrix.SetTranslation(vPos);
+    mSpawnRegion.mMatrix.SetTranslation(mMatrix.ApplyTransform(vCenter));
 
     mSpawnRegion.mSize.x = vExtents.x;
     mSpawnRegion.mSize.y = vExtents.y;
@@ -497,7 +495,7 @@ void VehicleSpawn::UpdateSpawn(float fDeltaTime)
                 {
                     continue;
                 }
-                if (!BonusManager::Instance()->IsTeamBonusActive(iTeam, 0xd265e905))
+                if (!BonusManager::Instance()->IsTeamBonusActive(iTeam, 0xd265e905 /* "team_bonus_sabotage" */))
                 {
                     continue;
                 }
@@ -532,10 +530,10 @@ bool VehicleSpawn::Update(float fDeltaTime)
 
     if (mCommandPost)
     {
-        int iTeam = mCommandPost->mObject->IsAlive() ? GetTeam(static_cast<GameObject*>(mCommandPost->mObject)) : 0;
+        int iTeam = mCommandPost->mObject->IsAlive() ? GetTeam((GameObject*)mCommandPost->mObject) : 0;
         if (mSpawnTeam != iTeam)
         {
-            mSpawnTeam = GetTeam(static_cast<GameObject*>(mCommandPost->mObject));
+            mSpawnTeam = GetTeam((GameObject*)mCommandPost->mObject);
             mSpawnTimer = mSpawnTime;
         }
     }
@@ -543,7 +541,7 @@ bool VehicleSpawn::Update(float fDeltaTime)
     for (PblList<VehicleTracker>::Itor it(mTrackerList); it; ++it)
     {
         VehicleTracker* pTracker = it;
-        if (static_cast<GameObject*>(pTracker->mVehicle) && pTracker->mVehicle->IsAlive())
+        if ((GameObject*)pTracker->mVehicle && pTracker->mVehicle->IsAlive())
         {
             UpdateLive(fDeltaTime, *pTracker);
         }

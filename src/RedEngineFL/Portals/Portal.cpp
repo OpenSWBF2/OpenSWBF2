@@ -5,6 +5,7 @@
 #include "RedEngineFL/Util/ext/SubAllocator.h"
 #include "RedEngineFL/Util/ext/types.h"
 #include "RedEngineFL/geometry/basics.h"
+#include "RedEngineFL/geometry/TransformOps.h"
 #include "PebbleFL/Common/PblVector.h"
 
 #include <math.h>
@@ -207,7 +208,7 @@ pvs::Sector::~Sector()
 // FUNCTION: SWBF2 0x006df450
 void pvs::Sector::AddPortal(pvs::IPortal* pPortal)
 {
-    portals_.Add(static_cast<pvs::Portal*>(pPortal));
+    portals_.Add((pvs::Portal*)pPortal);
 }
 
 // FUNCTION: SWBF2 0x006df4b0
@@ -280,8 +281,8 @@ bool pvs::Portal::Clip(const pvs::ICamera& rCam, geo::Box& rBox, const geo::Frus
     pvs::ISector* pRoot = &IManager::GetInstance().GetRootSector();
     if (gSaveCam)
     {
-        camPos = static_cast<Manager&>(IManager::GetInstance()).saveCamPos_;
-        camTrans = static_cast<Manager&>(IManager::GetInstance()).saveCamTrans_;
+        camPos = ((Manager&)IManager::GetInstance()).saveCamPos_;
+        camTrans = ((Manager&)IManager::GetInstance()).saveCamTrans_;
     }
     else
     {
@@ -439,12 +440,6 @@ bool pvs::Sector::GetActiveTravMark()
     return atmark_;
 }
 
-// FUNCTION: SWBF2 0x006e0660
-geo::ExtrudedPoly3D& pvs::Sector::GetBound()
-{
-    return bound_;
-}
-
 // FUNCTION: SWBF2 0x006e0670
 void pvs::Manager::GetCamFrustum(const pvs::ICamera& rCam, geo::Frustum& rFrustum)
 {
@@ -461,9 +456,8 @@ void pvs::Manager::GetCamFrustum(const pvs::ICamera& rCam, geo::Frustum& rFrustu
         rCam.GetInvViewTrans(camTrans);
     }
 
-    PblVector3 vFwd;
     PblVector3 vBack(0.0f, 0.0f, -1.0f);
-    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vFwd), reinterpret_cast<const D3DXVECTOR3*>(&vBack), reinterpret_cast<const D3DXMATRIX*>(&camTrans));
+    PblVector3 vFwd = camTrans.ApplyRotation(vBack);
     geo::Vector3<float> fwd(vFwd.x, vFwd.y, vFwd.z);
 
     const geo::Vector3<float> yAxis(0.0f, 1.0f, 0.0f);
@@ -483,40 +477,16 @@ pvs::IManager& pvs::IManager::GetInstance()
     return *_man;
 }
 
-// FUNCTION: SWBF2 0x006e0990
-pvs::ISector* pvs::Portal::GetLeft()
-{
-    return left_;
-}
-
 // FUNCTION: SWBF2 0x006e09a0
 unsigned int util::IAllocator::GetMemHash()
 {
     return 0;
 }
 
-// FUNCTION: SWBF2 0x006e09b0
-geo::Poly3D& pvs::Portal::GetPoly()
-{
-    return poly_;
-}
-
-// FUNCTION: SWBF2 0x006e09c0
-const geo::Poly3D& pvs::Portal::GetPoly() const
-{
-    return poly_;
-}
-
 // FUNCTION: SWBF2 0x006e09d0
 pvs::IPortal* pvs::Manager::GetPortal(int iIndex)
 {
     return portals_[iIndex];
-}
-
-// FUNCTION: SWBF2 0x006e09e0
-pvs::ISector* pvs::Portal::GetRight()
-{
-    return right_;
 }
 
 // FUNCTION: SWBF2 0x006e09f0
@@ -549,24 +519,10 @@ geo::Sphere& pvs::Sector::GetSphereBound()
     return sbound_;
 }
 
-// FUNCTION: SWBF2 0x006e0a80
-util::Vector<unsigned int>& pvs::Sector::GetStaticNames()
-{
-    return staticNames_;
-}
-
 // FUNCTION: SWBF2 0x006e0a90
 bool pvs::Sector::GetTravMark()
 {
     return tmark_;
-}
-
-// FUNCTION: SWBF2 0x006e0aa0
-void pvs::Portal::Init(pvs::Sector* pLeft, pvs::Sector* pRight)
-{
-    left_ = pLeft;
-    active_ = true;
-    right_ = pRight;
 }
 
 // FUNCTION: SWBF2 0x006e0ac0
@@ -588,12 +544,6 @@ template bool util::Vector<void*>::Add(void* const&);
 bool pvs::Manager::IsActive()
 {
     return gEnable;
-}
-
-// FUNCTION: SWBF2 0x006e0be0
-bool pvs::Portal::IsActive()
-{
-    return active_;
 }
 
 // FUNCTION: SWBF2 0x006e0bf0
@@ -791,22 +741,10 @@ void pvs::Manager::SetActive(bool bActive)
     gEnable = bActive;
 }
 
-// FUNCTION: SWBF2 0x006e14c0
-void pvs::Portal::SetActive(bool bActive)
-{
-    active_ = bActive;
-}
-
 // FUNCTION: SWBF2 0x006e14d0
 void pvs::Sector::SetActiveTravMark(bool bMark)
 {
     atmark_ = bMark;
-}
-
-// FUNCTION: SWBF2 0x006e14e0
-void pvs::Sector::SetBound(const geo::ExtrudedPoly3D& rBound)
-{
-    bound_ = rBound;
 }
 
 // FUNCTION: SWBF2 0x006e15a0
@@ -815,36 +753,9 @@ void pvs::IManager::SetInstance(IManager& rManager)
     _man = &rManager;
 }
 
-// FUNCTION: SWBF2 0x006e15b0
-void pvs::Portal::SetLeft(pvs::ISector* pLeft)
-{
-    left_ = static_cast<pvs::Sector*>(pLeft);
-}
-
 // FUNCTION: SWBF2 0x006e15c0
 void util::IAllocator::SetMaxMem(int)
 {
-}
-
-// FUNCTION: SWBF2 0x006e15d0
-void pvs::Portal::SetRight(pvs::ISector* pRight)
-{
-    right_ = static_cast<pvs::Sector*>(pRight);
-}
-
-template <class T>
-void pvs::BaseDisplayable<T>::SetSector(pvs::Sector* pSector)
-{
-    if (!this->PortalActive())
-    {
-        sector_ = pSector;
-        return;
-    }
-    if (pSector)
-    {
-        this->SetPortalActive(true);
-    }
-    sector_ = pSector;
 }
 
 // TEMPLATE: SWBF2 0x006e15e0
@@ -879,13 +790,13 @@ void pvs::Sector::SetTravMark(bool bMark)
 // FUNCTION: SWBF2 0x006e1720
 bool pvs::Sector::TestWindingOrder()
 {
-    if (bound_.points_._numElements < 2)
+    if (bound_.points_.GetSize() < 2)
     {
         return false;
     }
 
-    const geo::Vector2<float>& rP0 = bound_.points_._elements[0];
-    const geo::Vector2<float>& rP1 = bound_.points_._elements[1];
+    const geo::Vector2<float>& rP0 = bound_.points_[0];
+    const geo::Vector2<float>& rP1 = bound_.points_[1];
     geo::Vector3<float> p0(rP0.x, rP0.y, 0.0f);
     geo::Vector3<float> p1(rP1.x, rP1.y, 0.0f);
     geo::Vector3<float> edgeDir = geo::normalize(p1 - p0);
@@ -923,7 +834,7 @@ void pvs::Sector::Traverse(const pvs::ICamera& rCam, const geo::Box& rBox, const
     geo::Vector3<float> camPos;
     if (gSaveCam)
     {
-        camPos = static_cast<Manager&>(IManager::GetInstance()).saveCamPos_;
+        camPos = ((Manager&)IManager::GetInstance()).saveCamPos_;
     }
     else
     {
@@ -955,12 +866,12 @@ void pvs::Sector::Traverse(const pvs::ICamera& rCam, const geo::Box& rBox, const
 // FUNCTION: SWBF2 0x006e19f0
 void pvs::Manager::TraversePortals(const pvs::ICamera& rCam, pvs::ITraverser* pTrav)
 {
-    const BaseCamera* pCam = static_cast<const BaseCamera*>(&rCam);
+    const BaseCamera* pCam = (const BaseCamera*)(&rCam);
     const geo::Vector3<float> boxMin(-1.0f, -1.0f, 1.0f);
     const geo::Vector3<float> boxMax(1.0f, 1.0f, 1.0f);
     geo::Box box(boxMin, boxMax);
     geo::Frustum frustum;
-    static_cast<Manager&>(IManager::GetInstance()).GetCamFrustum(*pCam, frustum);
+    ((Manager&)IManager::GetInstance()).GetCamFrustum(*pCam, frustum);
     FindSectors(*pCam, camsectors_, scache_);
     for (int i = 0; i < camsectors_._numElements; ++i)
     {
@@ -997,11 +908,6 @@ void pvs::Sector::UnregisterStatic(pvs::IDisplayable& rDisp)
 {
     statics_.FindRemoveLazy(&rDisp);
     rDisp.SetSector(0);
-}
-
-template <class T>
-void pvs::BaseDisplayable<T>::Update(pvs::Manager&)
-{
 }
 
 // TEMPLATE: SWBF2 0x006e1bc0

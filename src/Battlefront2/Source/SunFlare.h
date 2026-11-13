@@ -26,13 +26,13 @@ public:
     };
 
     SunFlareEffect()
-        : FLEffect(0xBDF357B3u, 6)
+        : FLEffect(0xBDF357B3u /* "SunFlare" */, RENDERABLE_POSTTRANSPARENT)
     {
     }
 
     // SYNTHETIC: SWBF2 0x0042d0d0
     // SunFlareEffect::`scalar deleting destructor'
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Init();
     virtual void Cleanup();
     virtual FLEffectClass* BuildClass(PblConfig& config) const;
@@ -48,20 +48,7 @@ public:
 };
  
 
-// VTABLE: SWBF2 0x007969e4
-class SunSkyRenderable : public Renderable
-{
-public:
-    SunSkyRenderable()
-        : Renderable(1)
-    {
-    }
 
-    // SYNTHETIC: SWBF2 0x0042d220
-    // SunSkyRenderable::`scalar deleting destructor'
-
-    virtual void Render(int value);
-};
  
 
  

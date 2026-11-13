@@ -37,7 +37,7 @@ struct Marker
     void Clear();
 
     PblHandle<GameObject> actor;
-    RedRegion* region;
+    const RedRegion* region;
     unsigned int teamMask;
     unsigned int textureHash;
     float scale;

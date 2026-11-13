@@ -41,7 +41,7 @@ FoleyFXImpact::~FoleyFXImpact()
 // FUNCTION: SWBF2 0x0052ca90
 bool FoleyFXImpact::Read(PblFileChunk& chunk, unsigned int uChunkID)
 {
-    if (uChunkID != 0x1e71b297)
+    if (uChunkID != 0x1e71b297 /* "Impact" */)
     {
         return FoleyFX::Read(chunk, uChunkID);
     }

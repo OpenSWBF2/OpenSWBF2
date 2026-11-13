@@ -125,7 +125,7 @@ public:
 inline Space::Region* Space::FindRegionByIndex(unsigned int uIndex)
 {
     PblListSingle::Node* const pNode = mList.FindByIndex(uIndex);
-    return pNode ? static_cast<Region*>(pNode->GetObjectA(&mList, offsetof(Region, mSpaceNode))) : 0;
+    return pNode ? (Region*)pNode->GetObjectA(&mList, offsetof(Region, mSpaceNode)) : 0;
 }
 
 

@@ -21,7 +21,7 @@ public:
     FogCloudEffect();
 
     virtual ~FogCloudEffect();
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Init();
     virtual void Cleanup();
     virtual void ReadConfig(PblConfig& config);
@@ -105,7 +105,7 @@ public:
     PrecipitationEffect();
 
     virtual ~PrecipitationEffect();
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Init();
     virtual void Cleanup();
     virtual void Update(float fDeltaTime);
@@ -218,7 +218,7 @@ public:
     WindEffect();
 
     virtual ~WindEffect();
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Update(float fDeltaTime);
     virtual void ReadConfig(PblConfig& config);
 

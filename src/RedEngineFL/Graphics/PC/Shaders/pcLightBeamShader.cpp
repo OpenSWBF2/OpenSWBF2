@@ -9,12 +9,24 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include <string.h>
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
+// GLOBAL: SWBF2 0x009c995c
+// pcLightBeamShader::s_uiID
 unsigned int pcLightBeamShader::s_uiID;
+// GLOBAL: SWBF2 0x009c9960
+// pcLightBeamShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcLightBeamShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c996c
+// pcLightBeamShader::BeginFuncArray
 pcRedShader::BeginFuncT pcLightBeamShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9978
+// pcLightBeamShader::EndFuncArray
 pcRedShader::EndFuncT pcLightBeamShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9984
+// pcLightBeamShader::RenderFuncArray
 pcRedShader::RenderFuncT pcLightBeamShader::RenderFuncArray[MAX_PIPELINES];
 
 // FUNCTION: SWBF2 0x00704480
@@ -54,12 +66,6 @@ void pcLightBeamShader::Begin_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetTexture(0, 0);
 }
 
-// FUNCTION: SWBF2 0x00704850
-void pcLightBeamShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x00704870
 void pcLightBeamShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -70,28 +76,10 @@ void pcLightBeamShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x00704890
-unsigned int pcLightBeamShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x007048b0
 RenderPhaseT pcLightBeamShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_TRANSPARENT;
-}
-
-// FUNCTION: SWBF2 0x007048c0
-unsigned int pcLightBeamShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x007048d0
-pcRedShaderDef* pcLightBeamShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x00704900
@@ -187,22 +175,22 @@ void pcLightBeamShader::_Init(unsigned int uiFlags,
 void pcLightBeamShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcLightBeamShader::GetState_Fixed);
+        (GetStateFuncT)(&pcLightBeamShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcLightBeamShader::Begin_Fixed);
+        (BeginFuncT)(&pcLightBeamShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcLightBeamShader::End_Fixed);
+        (EndFuncT)(&pcLightBeamShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcLightBeamShader::Render_Fixed);
+        (RenderFuncT)(&pcLightBeamShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcLightBeamShader::GetState_Prog1);
+        (GetStateFuncT)(&pcLightBeamShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcLightBeamShader::Begin_Prog1);
+        (BeginFuncT)(&pcLightBeamShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcLightBeamShader::End_Prog1);
+        (EndFuncT)(&pcLightBeamShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcLightBeamShader::Render_Prog1);
+        (RenderFuncT)(&pcLightBeamShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x00704b70
@@ -211,7 +199,7 @@ void pcLightBeamShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }

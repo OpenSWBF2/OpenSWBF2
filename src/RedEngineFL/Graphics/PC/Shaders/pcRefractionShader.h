@@ -30,11 +30,18 @@ public:
     // SYNTHETIC: SWBF2 0x0070cc60
     // pcRefractionShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x0070d8c0
+    // pcRefractionShader::GetID
+    // FUNCTION: SWBF2 0x0070d8f0
+    // pcRefractionShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x0070d750
+    // pcRefractionShader::Bind
+    // FUNCTION: SWBF2 0x0070d960
+    // pcRefractionShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcRefractionShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
     virtual RedShadingState* CreateShadingState() const;
-    virtual void Bind();
     virtual unsigned int GetZPrepassState() const;
     virtual void RenderZPrepass(const RenderItem*) const;
     virtual bool SortAsZWritingTransparent() const;
@@ -49,21 +56,11 @@ public:
     virtual int SetDistortionScale(float);
 
 private:
-    virtual void _Read(PblFileChunk& chunk) const;
 
     virtual void _StaticInit() const;
 
-    virtual void InitFixedFunctionShaderDef() const;
 
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                                 const unsigned int* pParams,
-                                 unsigned int uiNumParams,
-                                 unsigned int uiMaterialFlags,
-                                 const RedColor& color0,
-                                 const RedColor& color1,
-                                 float fSpecularPower) const;
 
-    virtual pcRedShaderDef* GetShaderDef() const;
 
 public:
 
@@ -84,29 +81,6 @@ public:
     float m_distortionScale;
     RedMaterial m_material;
 
-    // GLOBAL: SWBF2 0x009ca374
-    static unsigned int s_uiID;
-
-    // GLOBAL: SWBF2 0x009ca378
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca384
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca390
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca39c
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca3ac
-    static unsigned int s_uiRenderTypeHash;
-
-    // GLOBAL: SWBF2 0x009ca3b0
-    static pcRedShaderDef s_shaderDef;
-
-    static pcRefractionShader s_Factory;
-
 private:
 
     pcRefractionShader();
@@ -119,7 +93,6 @@ private:
                const RedColor& color1,
                float fSpecularPower);
 
-    void _InitPipelineFuncArray();
 };
  
  

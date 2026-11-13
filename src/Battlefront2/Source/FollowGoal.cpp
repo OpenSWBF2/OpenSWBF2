@@ -13,7 +13,7 @@ namespace
 
 inline bool IsAlive(const GameObject* pObject)
 {
-    return static_cast<const Damageable*>(pObject)->mIsAlive;
+    return ((const Damageable*)pObject)->mIsAlive;
 }
 }
 
@@ -48,16 +48,16 @@ void AI::FollowGoal::Update()
 {
     if (mEnabled)
     {
-        if (mTarget.mType == GTT_GAMEOBJECT && static_cast<const GameObject*>(mTarget.mGameObj) &&
-            !static_cast<const GameObject*>(mTarget.mGameObj)->IsAlive())
+        if (mTarget.mType == GTT_GAMEOBJECT && (const GameObject*)mTarget.mGameObj &&
+            !((const GameObject*)mTarget.mGameObj)->IsAlive())
         {
             SetEnabled(false);
             return;
         }
         AIGoal::Update();
     }
-    else if (mTarget.mType == GTT_GAMEOBJECT && static_cast<const GameObject*>(mTarget.mGameObj) &&
-             static_cast<const GameObject*>(mTarget.mGameObj)->IsAlive())
+    else if (mTarget.mType == GTT_GAMEOBJECT && (const GameObject*)mTarget.mGameObj &&
+             ((const GameObject*)mTarget.mGameObj)->IsAlive())
     {
         SetEnabled(true);
     }
@@ -77,9 +77,18 @@ void AI::FollowGoal::Assign(Character* pChr)
         return;
     }
 
-    const GameObject* pObject = mTarget.GetGameObject();
+    const GameObject* pObject = 0;
+    if (mTarget.mType == GTT_GAMEOBJECT)
+    {
+        pObject = mTarget.mGameObj;
+    }
+    else if (mTarget.mType == GTT_CHARACTER)
+    {
+        pObject = mTarget.mChr->GetControllable() ? mTarget.mChr->GetControllable()->GetGameObject() : 0;
+    }
     if (pObject)
     {
-        pCtrl->ForceCommand(UnitFollowInfo(PblHandle<GameObject>(const_cast<GameObject*>(pObject)), PblHandle<GameObject>(), true));
+        CmdInfo cmd = UnitFollowInfo(const_cast<GameObject*>(pObject), NULL, true);
+        pCtrl->ForceCommand(cmd);
     }
 }

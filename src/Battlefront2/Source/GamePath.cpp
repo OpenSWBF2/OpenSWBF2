@@ -59,7 +59,7 @@ void GamePathFactory::Read(PblFileChunk& chunk)
         PblConfig pathConfig(config, true);
         const PblFileChunk mark = chunk;
         PblConfig::Data data = config.ReadNextData();
-        if (data.GetId() != 0x84874d36)
+        if (data.GetId() != 0x84874d36 /* "Path" */)
         {
             continue;
         }
@@ -103,7 +103,7 @@ void GamePathFactory::Read(PblFileChunk& chunk)
             RedPath::AddToPathList(pPath);
         }
 
-        if (uiHash != 0x87499d36)
+        if (uiHash != 0x87499d36 /* "type_EntityPath" */)
         {
             const char* pcName = (pFactory == &defaultFactory || !uiHash)
                                      ? acType

@@ -94,10 +94,9 @@ void FishParticle::RespawnFish(const PblVector3& vPos, const FishParticleType& t
 // FUNCTION: SWBF2 0x005228f0
 bool FishParticle::UpdateSwimmingFish(float fDeltaTime)
 {
-    PblVector3 vPos(mBaseMatrix.m[3][0], mBaseMatrix.m[3][1], mBaseMatrix.m[3][2]);
-    PblVector3 vHead(vPos.x + mBaseMatrix.m[2][0] * mType.mSize,
-                     vPos.y + mBaseMatrix.m[2][1] * mType.mSize,
-                     vPos.z + mBaseMatrix.m[2][2] * mType.mSize);
+    PblVector3 vPos = mBaseMatrix.GetTranslation();
+    PblVector3 vForward = mType.mSize * mBaseMatrix.GetZAxis();
+    PblVector3 vHead = vPos + vForward;
 
     mPhase += fDeltaTime * 12.0f;
     if (mPhase > PblMath::fTwoPi)

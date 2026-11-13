@@ -5,6 +5,8 @@
 #include "LuaFL/include/lauxlib.h"
 #include "NetGame.h"
 
+#include "EventManager_LuaCallback.h"
+
 namespace EventManager
 {
 
@@ -42,17 +44,6 @@ TimerMatches LuaGetItem<TimerMatches>(int iIndex)
 // TEMPLATE: SWBF2 0x0051c890
 // EventManager::Event<Timer,char>::GetFilter<EventManager::TimerMatches>
 
-// FUNCTION: SWBF2 0x0051c650
-template <class ITEM, class PARAM>
-LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
-{
-    mFunction = -1;
-    if (LuaHelper::PushRefProc(iRef))
-    {
-        mFunction = luaL_ref(LuaHelper::mState, LUA_REGISTRYINDEX);
-    }
-}
-
 // FUNCTION: SWBF2 0x0051c490
 template <class ITEM, class PARAM, class PREDICATE>
 int RegisterLuaCallback(lua_State*)
@@ -67,7 +58,7 @@ int RegisterLuaCallback(lua_State*)
         typename Event<ITEM, PARAM>::template Filter<PREDICATE>* pFilter =
             pEvent->GetFilter(predicate);
         LuaCallback<ITEM, PARAM>* pCallback = new LuaCallback<ITEM, PARAM>(iRef);
-        pCallback->AttachToParent(pFilter ? (Node*)pFilter : (Node*)&pEvent->mRoot);
+        pEvent->Register(*pCallback, pFilter);
         luaL_unref(LuaHelper::mState, LUA_REGISTRYINDEX, iRef);
         pFilter->Release();
         lua_pushlightuserdata(LuaHelper::mState, pCallback);
@@ -81,31 +72,6 @@ int RegisterLuaCallback(lua_State*)
 // SYNTHETIC: SWBF2 0x0051c780
 // EventManager::LuaCallback<Timer,char>::`scalar deleting destructor'
 
-
-// FUNCTION: SWBF2 0x0051c6e0
-template <class ITEM, class PARAM>
-bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
-{
-    if (mFunction == -1 || !LuaHelper::PushRefProc(mFunction))
-    {
-        return false;
-    }
-
-    if (!LuaPushItem(item))
-    {
-        lua_pop(LuaHelper::mState, 1);
-        return false;
-    }
-
-    if (!LuaPushItem(param))
-    {
-        lua_pop(LuaHelper::mState, 2);
-        return false;
-    }
-
-    LuaHelper::CallProc(0);
-    return true;
-}
 
 // SYNTHETIC: SWBF2 0x0051c820
 // EventManager::Event<Timer,char>::Filter<EventManager::TimerMatches>::`scalar deleting destructor'
@@ -121,23 +87,8 @@ bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
 
 
 
-// FUNCTION: SWBF2 0x0051c320
-template <class ITEM, class PARAM>
-int UnregisterLuaCallback(lua_State*)
-{
-    Event<ITEM, PARAM>* pEvent =
-        (Event<ITEM, PARAM>*)lua_topointer(LuaHelper::mState, lua_upvalueindex(1));
-    if (lua_islightuserdata(LuaHelper::mState, 1))
-    {
-        typename Event<ITEM, PARAM>::Callback* pCallback =
-            (typename Event<ITEM, PARAM>::Callback*)LuaHandleArg::Get(LuaHelper::mState, 1);
-        if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)
-        {
-            pEvent->Unregister(*pCallback);
-        }
-    }
-    return 0;
-}
+// TEMPLATE: SWBF2 0x0051c320
+// EventManager::UnregisterLuaCallback<Timer,char>
 
 template class LuaCallback<Timer, char>;
 template void Event<Timer, char>::Unregister(Callback&);
@@ -168,27 +119,10 @@ void Init();
 }
 
 template <class ITEM, class PARAM>
-void RegisterUnregisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
-{
-    char acName[64];
-    _snprintf(acName, sizeof(acName) - 1, "Release%s", event.mName);
-    acName[sizeof(acName) - 1] = 0;
-    lua_pushlightuserdata(LuaHelper::mState, &event);
-    if (NetGame::IsEnabled() && NetGame::IsClient())
-    {
-        LuaHelper::Register(acName, pfnClient, 0);
-    }
-    else
-    {
-        LuaHelper::Register(acName, UnregisterLuaCallback<ITEM, PARAM>, 1);
-    }
-}
-
-template <class ITEM, class PARAM>
 void RegisterRegisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
 {
     char acName[64];
-    _snprintf(acName, sizeof(acName) - 1, "On%s", event.mName);
+    _snprintf(acName, sizeof(acName) - 1, "On%s", event.GetName());
     acName[sizeof(acName) - 1] = 0;
     lua_pushlightuserdata(LuaHelper::mState, &event);
     if (NetGame::IsEnabled() && NetGame::IsClient())
@@ -205,7 +139,7 @@ template <class ITEM, class PARAM, class PREDICATE>
 void RegisterRegisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
 {
     char acName[64];
-    _snprintf(acName, sizeof(acName) - 1, "On%s%s", event.mName, PREDICATE::GetName());
+    _snprintf(acName, sizeof(acName) - 1, "On%s%s", event.GetName(), PREDICATE::GetName());
     acName[sizeof(acName) - 1] = 0;
     lua_pushlightuserdata(LuaHelper::mState, &event);
     if (NetGame::IsEnabled() && NetGame::IsClient())

@@ -114,7 +114,7 @@ void HeroMessageDisplay::PlayHeroSoundSpawn(int iTeam)
         mHeroSpawned[iTeam]->Play(pPos, 0, false, true);
     }
 
-    const unsigned short* pFormat = RedLocalizeDB::Find(0x0F669681, false);
+    const unsigned short* pFormat = RedLocalizeDB::Find(0x0F669681 /* "game.heromsg.spawn" */, false);
     Team* pTeam = Team::sTeams[iTeam];
     if (!pTeam)
     {
@@ -330,7 +330,7 @@ void HeroMessageDisplay::UpdateHeroSelect(float fDeltaTime, int iTeam, float& fT
         return;
     }
 
-    const unsigned short* pFormat = RedLocalizeDB::Find(0xADD5467C, false);
+    const unsigned short* pFormat = RedLocalizeDB::Find(0xADD5467C /* "game.heromsg.selection" */, false);
 
     int iTeamNumber = 1;
     if (netHeroNextPlayerID[iTeam] >= 0)
@@ -398,7 +398,7 @@ bool HeroMessageDisplay::Update(float fDeltaTime)
                 if (pClass && pClass->mHeroFlag &&
                     pClass->IsRtti(EntitySoldierClass::rttiHashEntitySoldierClass))
                 {
-                    EntitySoldierClass* pSoldier = static_cast<EntitySoldierClass*>(pClass);
+                    EntitySoldierClass* pSoldier = (EntitySoldierClass*)pClass;
                     mHeroSelectable[iTeam]->SetID(pSoldier->GetSndHeroSelectable(), false, false);
                     mHeroSpawned[iTeam]->SetID(pSoldier->GetSndHeroSpawned(), false, false);
                     mHeroDefeated[iTeam]->SetID(pSoldier->GetSndHeroDefeated(), false, false);
@@ -413,7 +413,11 @@ bool HeroMessageDisplay::Update(float fDeltaTime)
     HUD::Event disableEvent(HUD::GameEvents::gPlayerEvents[mViewport].heroSelectDisable, true);
     disableEvent.Send();
 
-    Character* pCharacter = Character::FindPlayer(NetGame::GetLocalIndex(mJoystickIndex));
+    int iLocalIndex = NetGame::GetLocalIndex(mJoystickIndex);
+    Character* pCharacter = (Character::sCharacters && iLocalIndex >= 0 && iLocalIndex < Character::sCharacterLimit &&
+                             Character::sCharacters[iLocalIndex].mPlayerId == iLocalIndex)
+                                ? &Character::sCharacters[iLocalIndex]
+                                : 0;
     if (!pCharacter)
     {
         Hide();

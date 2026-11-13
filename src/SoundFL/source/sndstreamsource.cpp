@@ -35,10 +35,8 @@ void __cdecl StreamSource::FileOpComplete(File* pFile, void* pCallbackData,
     if (bSuccess && (pThis->mFlags & flags_Reading) != 0)
     {
 
-        pPacket->mBufferUsed =
-            pThis->mReadSize - (unsigned int)(unsigned long)pPacket->mCallbackData;
-        pPacket->mCallback = 0;
-        pPacket->mCallbackData = 0;
+        pPacket->SetUsed(pThis->mReadSize - (unsigned int)(unsigned long)pPacket->GetCallbackData());
+        pPacket->SetCallback(0, 0);
 
         if ((pThis->mFlags & flags_SeekPending) != 0)
         {
@@ -63,7 +61,7 @@ void __cdecl StreamSource::FileOpComplete(File* pFile, void* pCallbackData,
         return;
     }
 
-    pThis->mFile.Seek(pThis->mSegment.mOffset + pPacket->mPos);
+    pThis->mFile.Seek(pThis->mSegment.mOffset + pPacket->GetPosition());
     pThis->mLock.Signal();
 }
 
@@ -161,7 +159,7 @@ StreamPacket* StreamSource::GetPacket(unsigned int uiOutput)
 
     StreamPacket* const pPacket = &mPackets[mPacketLockPos];
 
-    if (pPacket->mBufferUsed == 0 || pPacket->mRefCount > 0)
+    if (pPacket->GetUsed() == 0 || pPacket->IsLocked())
     {
         SetStarved(true);
         mLock.Signal();
@@ -273,7 +271,7 @@ void StreamSource::Update()
                 {
                     SetStarved(false);
                     if ((mFlags & flags_Reading) != 0
-                        || mPackets[mPacketReadPos].mBufferUsed != 0)
+                        || mPackets[mPacketReadPos].GetUsed() != 0)
                     {
                         SetPlayState(playState_paused);
                     }
@@ -312,8 +310,8 @@ void StreamSource::Update()
         }
 
         StreamPacket* const pPacket = &mPackets[mPacketReadPos];
-        if ((mFlags & flags_Reading) != 0 || pPacket->mBufferUsed != 0
-            || pPacket->mRefCount > 0)
+        if ((mFlags & flags_Reading) != 0 || pPacket->GetUsed() != 0
+            || pPacket->IsLocked())
         {
             mLock.Signal();
             return;
@@ -369,8 +367,7 @@ void StreamSource::Update()
                     pPacket->SetLast(true);
                 }
                 mFlags |= (unsigned char)flags_LastPacket;
-                pPacket->mCallback = 0;
-                pPacket->mCallbackData = (void*)(unsigned long)mSegment.mPadding;
+                pPacket->SetCallback(0, (void*)(unsigned long)mSegment.mPadding);
                 uiReadSize = mSegment.mOffset + mSegment.mLength - mFile.GetPos();
             }
         }
@@ -379,7 +376,7 @@ void StreamSource::Update()
         if (uiReadSize != 0)
         {
             const unsigned int uiPos = mFile.GetPos() - mSegment.mOffset;
-            pPacket->mPos = uiPos;
+            pPacket->SetPosition(uiPos);
             mPlaybackPosition = uiPos;
             mReadSize = uiReadSize;
             mFlags |= (unsigned char)flags_Reading;
@@ -399,7 +396,7 @@ void StreamSource::Update()
         mLock.Signal();
         if (uiRequest != 0)
         {
-            mFile.Read(pPacket->mBuffer, uiRequest);
+            mFile.Read(pPacket->GetBuffer(), uiRequest);
         }
         return;
     }
@@ -441,7 +438,7 @@ bool StreamSource::Open(File& rFile, unsigned int uiPacketSize, unsigned char ui
 
     for (unsigned int i = 0; i < uiNumPackets; ++i)
     {
-        while (pPackets[i].mRefCount > 0)
+        while (pPackets[i].IsLocked())
         {
             pPackets[i].Unlock();
         }

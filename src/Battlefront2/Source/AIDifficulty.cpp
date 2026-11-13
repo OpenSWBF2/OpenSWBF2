@@ -22,7 +22,7 @@
 #include "Ordnance.h"
 #include "SpaceAssault.h"
 #include "Team.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 
 // GLOBAL: SWBF2 0x007887a0
 // sDifficultyPlayer
@@ -402,7 +402,7 @@ namespace
 
 inline const CollisionObject* GetCollisionObject(const GameObject* pObject)
 {
-    return static_cast<const CollisionObject*>(pObject);
+    return (const CollisionObject*)pObject;
 }
 
 }
@@ -588,7 +588,7 @@ int GetAutoBalanceMode()
     {
         return 3;
     }
-    if (SpaceAssault::mInstance && SpaceAssault::mInstance->mbEnabled)
+    if (SpaceAssault::Instance() && SpaceAssault::Instance()->IsEnabled())
     {
         return 1;
     }

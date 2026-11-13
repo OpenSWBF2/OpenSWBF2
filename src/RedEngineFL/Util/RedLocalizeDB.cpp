@@ -40,16 +40,11 @@ eGAMELANGUAGE gForceLang = eLANG_AUTODETERMINE;
 
 namespace PblBuildType
 {
-// GLOBAL: SWBF2 0x007e2e00
-eGAMELANGUAGE gForceLang1 = eLANG_UNRESTRICTED;
-// GLOBAL: SWBF2 0x007e2e04
-eGAMELANGUAGE gForceLang2 = eLANG_UNRESTRICTED;
-// GLOBAL: SWBF2 0x007e2e08
-eGAMELANGUAGE gForceLang3 = eLANG_UNRESTRICTED;
-// GLOBAL: SWBF2 0x007e2e10
-bool gDemoEnglishOnly = true;
-// GLOBAL: SWBF2 0x009cef71
-bool gDemoBuild;
+extern eGAMELANGUAGE gForceLang1;
+extern eGAMELANGUAGE gForceLang2;
+extern eGAMELANGUAGE gForceLang3;
+extern bool gDemoEnglishOnly;
+extern bool gDemoBuild;
 }
 
 namespace RedLocalizeDB
@@ -190,10 +185,10 @@ const unsigned short* Find(unsigned int uiHash, bool bNullIfMissing)
 {
     switch (uiHash)
     {
-    case 0xb0a4d342:
+    case 0xb0a4d342: /* "ifs.mp.joinerrors.doesnotexist" */
         // STRING: SWBF2 0x00772c08
         return (const unsigned short*)L"Cannot join: does not exist";
-    case 0xe6407c4d:
+    case 0xe6407c4d: /* "ifs.mp.joinerrors.cantconnect" */
         // STRING: SWBF2 0x00772c40
         return (const unsigned short*)L"Cannot join: unable to connect";
     }
@@ -208,16 +203,16 @@ const unsigned short* Find(unsigned int uiHash, bool bNullIfMissing)
 }
 
 // FUNCTION: SWBF2 0x006c5b80
-void ForceLanguageID(int iLanguage)
+void ForceLanguageID(eGAMELANGUAGE eLanguage)
 {
-    if (iLanguage == 5)
+    if (eLanguage == eLANG_JAPANESE)
     {
         RedFont::sJapaneseOnly = true;
-        gForceLang = static_cast<eGAMELANGUAGE>(iLanguage);
+        gForceLang = eLanguage;
     }
-    else if (iLanguage >= -1 && iLanguage < 9)
+    else if (eLanguage >= eLANG_AUTODETERMINE && eLanguage < eLANG_MAX)
     {
-        gForceLang = static_cast<eGAMELANGUAGE>(iLanguage);
+        gForceLang = eLanguage;
     }
 }
 

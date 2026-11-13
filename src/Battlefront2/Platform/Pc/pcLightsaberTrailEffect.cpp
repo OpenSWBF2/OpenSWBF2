@@ -16,13 +16,13 @@ void LightsaberTrailEffect::_PlatformInit()
     if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED)
     {
         m_pShader = pcRedShader::Create(
-            0xE8651328u, 0x1082,
+            0xE8651328u /* "LightBeam" */, 0x1082,
             0, 0, 0x10040, RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
     else
     {
         m_pShader = pcRedShader::Create(
-            0xE8651328u, 0x82,
+            0xE8651328u /* "LightBeam" */, 0x82,
             0, 0, 0x10040, RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
 }
@@ -34,15 +34,6 @@ void LightsaberTrailEffect::_PlatformCleanup()
     m_pShader = 0;
 }
 
-inline void VertexC::SetPos(const PblVector3& v)
-{
-    const float x = v.x;
-    const float z = v.z;
-    const float y = v.y;
-    pos.x = (short)((x - CompressedPos::s_vMin.x) * CompressedPos::s_vScaleInv.x - 32767.5f);
-    pos.y = (short)((y - CompressedPos::s_vMin.y) * CompressedPos::s_vScaleInv.y - 32767.5f);
-    pos.z = (short)((z - CompressedPos::s_vMin.z) * CompressedPos::s_vScaleInv.z - 32767.5f);
-}
 
 #pragma pack(push, 1)
 struct VertexU
@@ -60,7 +51,7 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
 {
     unsigned char auiNumSteps[LightsaberTrail::MAX_SAMPLES_PER_TRAIL];
     float fTotalDist = 0.0f;
-    int uiNumSteps = pTrail->GetTotalNumSteps(m_fLIGHTSABER_TRAIL_MAX_TIME_PER_STEP,
+    unsigned int uiNumSteps = pTrail->GetTotalNumSteps(m_fLIGHTSABER_TRAIL_MAX_TIME_PER_STEP,
                                          m_fLIGHTSABER_TRAIL_MAX_DISTANCE_PER_STEP,
                                          auiNumSteps, &fTotalDist);
     if (!uiNumSteps)
@@ -88,37 +79,41 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
     const float fFadeTimeInv = 1.0f / (fPersistTime - fFadeTime);
     const float fFadeDist = m_fLIGHTSABER_TRAIL_FADE_DISTANCE;
     const float fFadeDistInv = 1.0f / fFadeDist;
-    const int uiNumVertices = 6 * uiNumSteps - 2;
+    const unsigned int uiNumVerts = 6 * uiNumSteps - 2;
 
-    GeometryModeT geometryMode = RedRenderer::pcGetGeometryMode();
+    const int iGeometryMode = RedRenderer::pcGetGeometryMode();
     pcRedPrimitive* pPrim;
-    if (geometryMode == GEOMETRYMODE_COMPRESSED)
+    if (iGeometryMode == GEOMETRYMODE_COMPRESSED)
     {
-        pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x1082, sizeof(VertexC), uiNumVertices, 0, false);
+        pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x1082, sizeof(VertexC), uiNumVerts, 0, false);
         CompressedPos::SetBoundingBox(bbox);
     }
     else
     {
-        pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x82, sizeof(VertexU), uiNumVertices, 0, false);
+        pPrim = pcRedPrimitive::Create(D3DPT_TRIANGLESTRIP, 0x82, sizeof(VertexU), uiNumVerts, 0, false);
     }
     pPrim->m_bbox = bbox;
     RedColor colorEdge = colorTrail;
     colorEdge.a = 0;
-    void* pData = pPrim->BeginVertexData();
+    RedColor color = colorTrail;
     float fTime;
-    if (geometryMode == GEOMETRYMODE_COMPRESSED)
+    PblVector3 vPos;
+    PblVector3 vPosEnd;
+    PblVector3 vCap;
+    if (iGeometryMode == GEOMETRYMODE_COMPRESSED)
     {
-        if (!pData)
+        VertexC* pFront = (VertexC*)pPrim->BeginVertexData();
+        if (!pFront)
         {
             return;
         }
-        VertexC* pFront = (VertexC*)pData;
         VertexC* pBack = pFront + 4 * uiNumSteps - 2;
         VertexC* pThird = pBack + 1;
+        color.a = 0;
 
-        PblVector3 vPos = pTrail->GetPos(0);
-        PblVector3 vPosEnd = vPos + pTrail->GetDir(0) * fLength;
-        PblVector3 vCap = pTrail->GetDir(0) - vCamZ * DotProduct(pTrail->GetDir(0), vCamZ);
+        vPos = pTrail->GetPos(0);
+        vPosEnd = vPos + pTrail->GetDir(0) * fLength;
+        vCap = pTrail->GetDir(0) - vCamZ * DotProduct(pTrail->GetDir(0), vCamZ);
         if (SquaredLength(vCap) > 0.01f)
         {
             vCap = Normalize(vCap);
@@ -127,23 +122,25 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
         {
             vCap *= 10.0f;
         }
-        pFront[0].SetPos(vPos - vCap * fWidth);
-        pFront[0].SetColor(colorEdge);
-        pFront[1].SetPos(vPos);
-        pFront[1].SetColor(colorEdge);
-        pFront += 2;
-        pBack[0].SetPos(vPosEnd);
-        pBack[0].SetColor(colorEdge);
-        pBack[-1].SetPos(vPos);
-        pBack[-1].SetColor(colorEdge);
-        pBack -= 2;
-        pThird[0].SetPos(vPosEnd + vCap * fWidth);
-        pThird[0].SetColor(colorEdge);
-        pThird += 1;
+        pFront->SetPos(vPos - vCap * fWidth);
+        pFront->SetColor(colorEdge);
+        ++pFront;
+        pFront->SetPos(vPos);
+        pFront->SetColor(color);
+        ++pFront;
+        pBack->SetPos(vPosEnd);
+        pBack->SetColor(color);
+        --pBack;
+        pBack->SetPos(vPos);
+        pBack->SetColor(color);
+        --pBack;
+        pThird->SetPos(vPosEnd + vCap * fWidth);
+        pThird->SetColor(colorEdge);
+        ++pThird;
 
-        bool bCoreDone = !pTrail->IsTrailOn();
         float fTimePrev = pTrail->GetTime(0);
         float fAgePrev = pTrail->GetTimer() - fTimePrev;
+        bool bCoreDone = !pTrail->IsTrailOn();
         float fDist = 0.0f;
         for (unsigned int i = 1; i < pTrail->GetNumSamples(); ++i)
         {
@@ -167,7 +164,7 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
             {
                 fTime = fTimePrev + fTimeStep;
                 fDist += fDistStep;
-                RedColor color = colorTrail;
+                color = colorTrail;
                 const float fAge = pTrail->GetTimer() - fTime;
                 const PblVector3 vDir = pTrail->GetInterpolatedDir(fTime);
                 vCap = vDir - vCamZ * DotProduct(vDir, vCamZ);
@@ -183,13 +180,12 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
                 if (!bCoreDone && fAge <= m_fLIGHTSABER_TRAIL_CORE_MAX_TIME &&
                     fDist > fTotalDist - m_fLIGHTSABER_TRAIL_CORE_MAX_DISTANCE)
                 {
-
                     const PblVector3 vPosPrev = vPos;
                     const PblVector3 vPosEndPrev = vPosEnd;
-                    vPos = pTrail->GetInterpolatedPos(fTime);
-                    vPosEnd = vPosPrev + vDir * fLength;
-                    const float fPosMove = Length(vPos - vPosPrev);
-                    const float fTipMove = Length(vPosEnd - vPosEndPrev);
+                    const PblVector3 vPosNew = pTrail->GetInterpolatedPos(fTime);
+                    const PblVector3 vPosEndNew = vPosPrev + vDir * fLength;
+                    const float fPosMove = Length(vPosNew - vPosPrev);
+                    const float fTipMove = Length(vPosEndNew - vPosEndPrev);
                     float fCore;
                     if (fAgePrev > m_fLIGHTSABER_TRAIL_CORE_MAX_TIME)
                     {
@@ -198,39 +194,47 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
                     else
                     {
                         fCore = (fDist - (fTotalDist - m_fLIGHTSABER_TRAIL_CORE_MAX_DISTANCE)) /
-                                Max(fPosMove, fTipMove);
+                                (fPosMove > fTipMove ? fPosMove : fTipMove);
                         if (fCore > 1.0f)
                         {
                             fCore = 1.0f;
                         }
                     }
-                    float fPosWidth = 0.0f;
+                    float fPosWidth;
                     if (fPosMove > 0.01f)
                     {
                         fPosWidth = m_fLIGHTSABER_TRAIL_CORE_WIDTH * fWidth * 0.5f / fPosMove;
                     }
-                    float fTipWidth = 0.0f;
+                    else
+                    {
+                        fPosWidth = 0.0f;
+                    }
+                    float fTipWidth;
                     if (fTipMove > 0.01f)
                     {
                         fTipWidth = m_fLIGHTSABER_TRAIL_CORE_WIDTH * fWidth * 0.5f / fTipMove;
                     }
+                    else
+                    {
+                        fTipWidth = 0.0f;
+                    }
 
                     float fPos = fPosWidth + fCore;
+                    PblVector3 vPosNext = Interpolate(vPosNew, vPosPrev, fPos);
                     float fTip = fTipWidth + fCore;
-                    PblVector3 vPosNext = Interpolate(vPos, vPosPrev, fPos);
-                    PblVector3 vPosEndNext = Interpolate(vPosEnd, vPosEndPrev, fTip);
-                    pFront[0].SetPos(vPosNext - vCap * fWidth);
+                    PblVector3 vPosEndNext = Interpolate(vPosEndNew, vPosEndPrev, fTip);
+                    pFront[0].pos.SetPos(vPosNext - vCap * fWidth);
                     pFront[0].SetColor(colorEdge);
-                    pFront[1].SetPos(vPosNext);
+                    pFront[1].pos.SetPos(vPosNext);
                     pFront[1].SetColor(colorTrail);
-                    pBack[0].SetPos(vPosEndNext);
+                    pBack[0].pos.SetPos(vPosEndNext);
                     pBack[0].SetColor(colorTrail);
-                    pBack[-1].SetPos(vPosNext);
+                    pBack[-1].pos.SetPos(vPosNext);
                     pBack[-1].SetColor(colorTrail);
                     pBack -= 2;
-                    pThird[0].SetPos(vPosEndNext);
+                    pThird[0].pos.SetPos(vPosEndNext);
                     pThird[0].SetColor(colorTrail);
-                    pThird[1].SetPos(vPosEndNext + vCap * fWidth);
+                    pThird[1].pos.SetPos(vPosEndNext + vCap * fWidth);
                     pThird[1].SetColor(colorEdge);
                     pThird += 2;
 
@@ -247,26 +251,33 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
                     }
                     fPos = fCore - fPosWidth;
                     fTip = fCore - fTipWidth;
-                    vPosNext = Interpolate(vPos, vPosPrev, fPos);
-                    vPosEndNext = Interpolate(vPosEnd, vPosEndPrev, fTip);
-                    pFront[2].SetPos(vPosNext - vCap * fWidth);
+                    vPos = Interpolate(vPosNew, vPosPrev, fPos);
+                    vPosEnd = Interpolate(vPosEndNew, vPosEndPrev, fTip);
+                    color = colorHead;
+                    pFront[2].pos.SetPos(vPos - vCap * fWidth);
                     pFront[2].SetColor(colorEdge);
-                    pFront[3].SetPos(vPosNext);
-                    pFront[3].SetColor(colorHead);
+                    pFront[3].pos.SetPos(vPos);
+                    pFront[3].SetColor(color);
                     pFront += 4;
-                    pBack[0].SetPos(vPosEndNext);
-                    pBack[0].SetColor(colorHead);
-                    pBack[-1].SetPos(vPosNext);
-                    pBack[-1].SetColor(colorHead);
+                    pBack[0].pos.SetPos(vPosEnd);
+                    pBack[0].SetColor(color);
+                    pBack[-1].pos.SetPos(vPos);
+                    pBack[-1].SetColor(color);
                     pBack -= 2;
-                    pThird[0].SetPos(vPosEndNext);
-                    pThird[0].SetColor(colorHead);
-                    pThird[1].SetPos(vPosEndNext + vCap * fWidth);
+                    pThird[0].pos.SetPos(vPosEnd);
+                    pThird[0].SetColor(color);
+                    pThird[1].pos.SetPos(vPosEnd + vCap * fWidth);
                     pThird[1].SetColor(colorEdge);
                     pThird += 2;
 
-                    vPos = fPos > 0.0f ? vPos : vPosNext;
-                    vPosEnd = fTip > 0.0f ? vPosEnd : vPosEndNext;
+                    if (fPos > 0.0f)
+                    {
+                        vPos = vPosNew;
+                    }
+                    if (fTip > 0.0f)
+                    {
+                        vPosEnd = vPosEndNew;
+                    }
                     bCoreDone = true;
                 }
                 else
@@ -300,19 +311,19 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
                     }
                 }
 
-                pFront[0].SetPos(vPos - vCap * fWidth);
+                pFront[0].pos.SetPos(vPos - vCap * fWidth);
                 pFront[0].SetColor(colorEdge);
-                pFront[1].SetPos(vPos);
+                pFront[1].pos.SetPos(vPos);
                 pFront[1].SetColor(color);
                 pFront += 2;
-                pBack[0].SetPos(vPosEnd);
+                pBack[0].pos.SetPos(vPosEnd);
                 pBack[0].SetColor(color);
-                pBack[-1].SetPos(vPos);
+                pBack[-1].pos.SetPos(vPos);
                 pBack[-1].SetColor(color);
                 pBack -= 2;
-                pThird[0].SetPos(vPosEnd);
+                pThird[0].pos.SetPos(vPosEnd);
                 pThird[0].SetColor(color);
-                pThird[1].SetPos(vPosEnd + vCap * fWidth);
+                pThird[1].pos.SetPos(vPosEnd + vCap * fWidth);
                 pThird[1].SetColor(colorEdge);
                 pThird += 2;
 
@@ -324,17 +335,18 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
     }
     else
     {
-        if (!pData)
+        VertexU* pFront = (VertexU*)pPrim->BeginVertexData();
+        if (!pFront)
         {
             return;
         }
-        VertexU* pFront = (VertexU*)pData;
         VertexU* pBack = pFront + 4 * uiNumSteps - 2;
         VertexU* pThird = pBack + 1;
+        color.a = 0;
 
-        PblVector3 vPos = pTrail->GetPos(0);
-        PblVector3 vPosEnd = vPos + pTrail->GetDir(0) * fLength;
-        PblVector3 vCap = pTrail->GetDir(0) - vCamZ * DotProduct(pTrail->GetDir(0), vCamZ);
+        vPos = pTrail->GetPos(0);
+        vPosEnd = vPos + pTrail->GetDir(0) * fLength;
+        vCap = pTrail->GetDir(0) - vCamZ * DotProduct(pTrail->GetDir(0), vCamZ);
         if (SquaredLength(vCap) > 0.01f)
         {
             vCap = Normalize(vCap);
@@ -343,19 +355,21 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
         {
             vCap *= 10.0f;
         }
-        pFront[0].SetPos(vPos - vCap * fWidth);
-        pFront[0].SetColor(colorEdge);
-        pFront[1].SetPos(vPos);
-        pFront[1].SetColor(colorEdge);
-        pFront += 2;
-        pBack[0].SetPos(vPosEnd);
-        pBack[0].SetColor(colorEdge);
-        pBack[-1].SetPos(vPos);
-        pBack[-1].SetColor(colorEdge);
-        pBack -= 2;
-        pThird[0].SetPos(vPosEnd + vCap * fWidth);
-        pThird[0].SetColor(colorEdge);
-        pThird += 1;
+        pFront->SetPos(vPos - vCap * fWidth);
+        pFront->SetColor(colorEdge);
+        ++pFront;
+        pFront->SetPos(vPos);
+        pFront->SetColor(color);
+        ++pFront;
+        pBack->SetPos(vPosEnd);
+        pBack->SetColor(color);
+        --pBack;
+        pBack->SetPos(vPos);
+        pBack->SetColor(color);
+        --pBack;
+        pThird->SetPos(vPosEnd + vCap * fWidth);
+        pThird->SetColor(colorEdge);
+        ++pThird;
 
         bool bCoreDone = !pTrail->IsTrailOn();
         float fTimePrev = pTrail->GetTime(0);
@@ -383,7 +397,7 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
             {
                 fTime = fTimePrev + fTimeStep;
                 fDist += fDistStep;
-                RedColor color = colorTrail;
+                color = colorTrail;
                 const float fAge = pTrail->GetTimer() - fTime;
                 const PblVector3 vDir = pTrail->GetInterpolatedDir(fTime);
                 vCap = vDir - vCamZ * DotProduct(vDir, vCamZ);
@@ -399,13 +413,12 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
                 if (!bCoreDone && fAge <= m_fLIGHTSABER_TRAIL_CORE_MAX_TIME &&
                     fDist > fTotalDist - m_fLIGHTSABER_TRAIL_CORE_MAX_DISTANCE)
                 {
-
                     const PblVector3 vPosPrev = vPos;
                     const PblVector3 vPosEndPrev = vPosEnd;
-                    vPos = pTrail->GetInterpolatedPos(fTime);
-                    vPosEnd = vPosPrev + vDir * fLength;
-                    const float fPosMove = Length(vPos - vPosPrev);
-                    const float fTipMove = Length(vPosEnd - vPosEndPrev);
+                    const PblVector3 vPosNew = pTrail->GetInterpolatedPos(fTime);
+                    const PblVector3 vPosEndNew = vPosPrev + vDir * fLength;
+                    const float fPosMove = Length(vPosNew - vPosPrev);
+                    const float fTipMove = Length(vPosEndNew - vPosEndPrev);
                     float fCore;
                     if (fAgePrev > m_fLIGHTSABER_TRAIL_CORE_MAX_TIME)
                     {
@@ -414,41 +427,53 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
                     else
                     {
                         fCore = (fDist - (fTotalDist - m_fLIGHTSABER_TRAIL_CORE_MAX_DISTANCE)) /
-                                Max(fPosMove, fTipMove);
+                                (fPosMove > fTipMove ? fPosMove : fTipMove);
                         if (fCore > 1.0f)
                         {
                             fCore = 1.0f;
                         }
                     }
-                    float fPosWidth = 0.0f;
+                    float fPosWidth;
                     if (fPosMove > 0.01f)
                     {
                         fPosWidth = m_fLIGHTSABER_TRAIL_CORE_WIDTH * fWidth * 0.5f / fPosMove;
                     }
-                    float fTipWidth = 0.0f;
+                    else
+                    {
+                        fPosWidth = 0.0f;
+                    }
+                    float fTipWidth;
                     if (fTipMove > 0.01f)
                     {
                         fTipWidth = m_fLIGHTSABER_TRAIL_CORE_WIDTH * fWidth * 0.5f / fTipMove;
                     }
+                    else
+                    {
+                        fTipWidth = 0.0f;
+                    }
 
                     float fPos = fPosWidth + fCore;
+                    PblVector3 vPosNext = Interpolate(vPosNew, vPosPrev, fPos);
                     float fTip = fTipWidth + fCore;
-                    PblVector3 vPosNext = Interpolate(vPos, vPosPrev, fPos);
-                    PblVector3 vPosEndNext = Interpolate(vPosEnd, vPosEndPrev, fTip);
-                    pFront[0].SetPos(vPosNext - vCap * fWidth);
-                    pFront[0].SetColor(colorEdge);
-                    pFront[1].SetPos(vPosNext);
-                    pFront[1].SetColor(colorTrail);
-                    pBack[0].SetPos(vPosEndNext);
-                    pBack[0].SetColor(colorTrail);
-                    pBack[-1].SetPos(vPosNext);
-                    pBack[-1].SetColor(colorTrail);
-                    pBack -= 2;
-                    pThird[0].SetPos(vPosEndNext);
-                    pThird[0].SetColor(colorTrail);
-                    pThird[1].SetPos(vPosEndNext + vCap * fWidth);
-                    pThird[1].SetColor(colorEdge);
-                    pThird += 2;
+                    PblVector3 vPosEndNext = Interpolate(vPosEndNew, vPosEndPrev, fTip);
+                    pFront->SetPos(vPosNext - vCap * fWidth);
+                    pFront->SetColor(colorEdge);
+                    ++pFront;
+                    pFront->SetPos(vPosNext);
+                    pFront->SetColor(colorTrail);
+                    ++pFront;
+                    pBack->SetPos(vPosEndNext);
+                    pBack->SetColor(colorTrail);
+                    --pBack;
+                    pBack->SetPos(vPosNext);
+                    pBack->SetColor(colorTrail);
+                    --pBack;
+                    pThird->SetPos(vPosEndNext);
+                    pThird->SetColor(colorTrail);
+                    ++pThird;
+                    pThird->SetPos(vPosEndNext + vCap * fWidth);
+                    pThird->SetColor(colorEdge);
+                    ++pThird;
 
                     if (i == pTrail->GetNumSamples() - 1 && j == iNumSteps - 1)
                     {
@@ -463,26 +488,36 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
                     }
                     fPos = fCore - fPosWidth;
                     fTip = fCore - fTipWidth;
-                    vPosNext = Interpolate(vPos, vPosPrev, fPos);
-                    vPosEndNext = Interpolate(vPosEnd, vPosEndPrev, fTip);
-                    pFront[2].SetPos(vPosNext - vCap * fWidth);
-                    pFront[2].SetColor(colorEdge);
-                    pFront[3].SetPos(vPosNext);
-                    pFront[3].SetColor(colorHead);
-                    pFront += 4;
-                    pBack[0].SetPos(vPosEndNext);
-                    pBack[0].SetColor(colorHead);
-                    pBack[-1].SetPos(vPosNext);
-                    pBack[-1].SetColor(colorHead);
-                    pBack -= 2;
-                    pThird[0].SetPos(vPosEndNext);
-                    pThird[0].SetColor(colorHead);
-                    pThird[1].SetPos(vPosEndNext + vCap * fWidth);
-                    pThird[1].SetColor(colorEdge);
-                    pThird += 2;
+                    vPos = Interpolate(vPosNew, vPosPrev, fPos);
+                    vPosEnd = Interpolate(vPosEndNew, vPosEndPrev, fTip);
+                    color = colorHead;
+                    pFront->SetPos(vPos - vCap * fWidth);
+                    pFront->SetColor(colorEdge);
+                    ++pFront;
+                    pFront->SetPos(vPos);
+                    pFront->SetColor(color);
+                    ++pFront;
+                    pBack->SetPos(vPosEnd);
+                    pBack->SetColor(color);
+                    --pBack;
+                    pBack->SetPos(vPos);
+                    pBack->SetColor(color);
+                    --pBack;
+                    pThird->SetPos(vPosEnd);
+                    pThird->SetColor(color);
+                    ++pThird;
+                    pThird->SetPos(vPosEnd + vCap * fWidth);
+                    pThird->SetColor(colorEdge);
+                    ++pThird;
 
-                    vPos = fPos > 0.0f ? vPos : vPosNext;
-                    vPosEnd = fTip > 0.0f ? vPosEnd : vPosEndNext;
+                    if (fPos > 0.0f)
+                    {
+                        vPos = vPosNew;
+                    }
+                    if (fTip > 0.0f)
+                    {
+                        vPosEnd = vPosEndNew;
+                    }
                     bCoreDone = true;
                 }
                 else
@@ -499,31 +534,30 @@ void LightsaberTrailEffect::RenderLightsaberTrail(const LightsaberTrail* pTrail,
                 {
                     color.a = 0;
                 }
-                else
+                else if (fAge > fFadeTime)
                 {
-                    if (fAge > fFadeTime)
-                    {
-                        float fFade = (fPersistTime - fAge) * fFadeTimeInv;
-                        fFade *= fFade;
-                        color.a = (unsigned char)(int)(color.a * fFade);
-                    }
+                    const float fFade = (fPersistTime - fAge) * fFadeTimeInv * ((fPersistTime - fAge) * fFadeTimeInv);
+                    color.a = (unsigned char)(int)(color.a * fFade);
                 }
 
-                pFront[0].SetPos(vPos - vCap * fWidth);
-                pFront[0].SetColor(colorEdge);
-                pFront[1].SetPos(vPos);
-                pFront[1].SetColor(color);
-                pFront += 2;
-                pBack[0].SetPos(vPosEnd);
-                pBack[0].SetColor(color);
-                pBack[-1].SetPos(vPos);
-                pBack[-1].SetColor(color);
-                pBack -= 2;
-                pThird[0].SetPos(vPosEnd);
-                pThird[0].SetColor(color);
-                pThird[1].SetPos(vPosEnd + vCap * fWidth);
-                pThird[1].SetColor(colorEdge);
-                pThird += 2;
+                pFront->SetPos(vPos - vCap * fWidth);
+                pFront->SetColor(colorEdge);
+                ++pFront;
+                pFront->SetPos(vPos);
+                pFront->SetColor(color);
+                ++pFront;
+                pBack->SetPos(vPosEnd);
+                pBack->SetColor(color);
+                --pBack;
+                pBack->SetPos(vPos);
+                pBack->SetColor(color);
+                --pBack;
+                pThird->SetPos(vPosEnd);
+                pThird->SetColor(color);
+                ++pThird;
+                pThird->SetPos(vPosEnd + vCap * fWidth);
+                pThird->SetColor(colorEdge);
+                ++pThird;
 
                 fAgePrev = fAge;
                 fTimePrev = fTime;

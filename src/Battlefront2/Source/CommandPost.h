@@ -26,7 +26,7 @@ public:
 
     float mNeutralizeTime;
     float mCaptureTime;
-    RedModel* m_pHoloModel[8];
+    const RedModel* m_pHoloModel[8];
     EntityHologramClass* m_pHologramClass;
     float m_fHoloTurnOnTime;
     GameSound mSoundAmbience[8];

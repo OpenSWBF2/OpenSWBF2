@@ -19,28 +19,25 @@ public:
     // SYNTHETIC: SWBF2 0x00702500
     // pcZPrepassShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x00702760
+    // pcZPrepassShader::GetID
+    // FUNCTION: SWBF2 0x00702790
+    // pcZPrepassShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x00702720
+    // pcZPrepassShader::Bind
+    // FUNCTION: SWBF2 0x007027a0
+    // pcZPrepassShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcZPrepassShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
-    virtual void Bind();
 
 private:
 
     // FUNCTION: SWBF2 0x007029f0
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                               const unsigned int* pParams,
-                               unsigned int uiNumParams,
-                               unsigned int uiMaterialFlags,
-                               const RedColor& color0,
-                               const RedColor& color1,
-                                 float fSpecularPower) const;
-    virtual void _Read(PblFileChunk&) const;
 
     // FUNCTION: SWBF2 0x007027a0
-    virtual pcRedShaderDef* GetShaderDef() const;
 
 
-    virtual void InitFixedFunctionShaderDef() const;
 
 public:
 
@@ -56,30 +53,6 @@ public:
     RedMaterial m_material;
     unsigned int m_uiState;
     pcRedVertexFormat* m_pVertexInputFormat;
-
-    // GLOBAL: SWBF2 0x009c95a8
-    static unsigned int s_uiID;
-
-    // GLOBAL: SWBF2 0x009c95ac
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c95b8
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c95c4
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c95d0
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009c95e8
-    static unsigned int s_uiRenderTypeHash;
-
-    // GLOBAL: SWBF2 0x009c95ec
-    static pcRedShaderDef s_shaderDef;
-
-    // GLOBAL: SWBF2 0x009c9618
-    static pcZPrepassShader s_Factory;
 
 private:
 
@@ -108,7 +81,6 @@ private:
                float fSpecularPower);
 
     // FUNCTION: SWBF2 0x00702bf0
-    void _InitPipelineFuncArray();
 };
  
  

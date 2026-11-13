@@ -261,12 +261,6 @@ int Lua_Red_Panic(lua_State* L)
     return 0;
 }
 
-// FUNCTION: SWBF2 0x005a18b0
-void __cdecl LuaScript_CallWARNINGF(char const* pcMessage)
-{
-    LOG(LogLua, Warning, "OPENSWBF2 LUA error: %.240s", pcMessage ? pcMessage : "(null)");
-}
-
 // FUNCTION: SWBF2 0x005a16e0
 void LuaMemory::Reset()
 {

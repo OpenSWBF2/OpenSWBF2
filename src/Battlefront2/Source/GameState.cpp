@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include "PerformanceTimer.h"
+#include "FrameUpdate.h"
 #include "CommandPost.h"
 
 #include <process.h>
@@ -15,6 +16,7 @@
 #include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
 #include "CommandLine.h"
+#include "FL_TTY.h"
 #include "GameLoop.h"
 #include "BonusManager.h"
 #include "CollisionManager.h"
@@ -59,6 +61,7 @@
 #include "ReticuleDisplay.h"
 #include "RumbleRegion.h"
 #include "SkyObject.h"
+#include "SkyManager.h"
 #include "SoldierAnimatorLowRes.h"
 #include "PauseMenu.h"
 #include "SoldierAnimatorClass.h"
@@ -87,7 +90,7 @@
 
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Application/Renderable.h"
-#include "RedEngineFL/Application/pc/pcRedDropShadow.h"
+#include "RedEngineFL/Application/RedDropShadow.h"
 #include "RedEngineFL/Application/pc/pcRedParticle.h"
 #include "RedEngineFL/Graphics/PC/pcRedAutoSettings.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
@@ -266,10 +269,6 @@ namespace PropGenerator
     void Init();
 }
 
-namespace SkyManager
-{
-    void Init();
-}
 
 namespace FLRenderer
 {
@@ -342,10 +341,6 @@ bool EntitySoldier::sEnableAnnouncementVO = true;
 // GLOBAL: SWBF2 0x007e651d
 bool EntitySoldier::sEnableMusic = true;
 
-namespace FrameUpdate
-{
-    void Update();
-}
 
 namespace PblProfile
 {
@@ -382,10 +377,6 @@ namespace ReserveManager
 {
     void Reset();
 }
-namespace SkyManager
-{
-    void Reset();
-}
 
 namespace SaveGameManager
 {
@@ -407,14 +398,29 @@ unsigned int mNextStateHash;
 // GLOBAL: SWBF2 0x01e563b8
 // mCurrentStateHash
 unsigned int mCurrentStateHash;
-// SYNTHETIC: SWBF2 0x00403e60
-// `dynamic initializer for '_MissionState''
-// SYNTHETIC: SWBF2 0x00768aa0
-// `dynamic atexit destructor for '_MissionState''
 
-// GLOBAL: SWBF2 0x007eb97c
-// _MissionState
-GameState::MissionState _MissionState;
+namespace GameState
+{
+// SYNTHETIC: SWBF2 0x00403e20
+// GameState::`dynamic initializer for '_TimeBase''
+
+// GLOBAL: SWBF2 0x01ec5f40
+// _TimeBase
+PblTimeBase _TimeBase;
+// SYNTHETIC: SWBF2 0x00403e30
+// GameState::`dynamic initializer for '_SystemTimeBase''
+
+// GLOBAL: SWBF2 0x01ec5f90
+// _SystemTimeBase
+PblTimeBase _SystemTimeBase;
+// SYNTHETIC: SWBF2 0x00403e40
+// GameState::`dynamic initializer for '_TotalTimeBase''
+
+// GLOBAL: SWBF2 0x01ec5f58
+// _TotalTimeBase
+PblTimeBase _TotalTimeBase;
+}
+
 // SYNTHETIC: SWBF2 0x00403e50
 // `dynamic initializer for '_ShellState''
 // SYNTHETIC: SWBF2 0x00768a90
@@ -423,6 +429,14 @@ GameState::MissionState _MissionState;
 // GLOBAL: SWBF2 0x007eb998
 // _ShellState
 GameState::ShellState _ShellState;
+// SYNTHETIC: SWBF2 0x00403e60
+// `dynamic initializer for '_MissionState''
+// SYNTHETIC: SWBF2 0x00768aa0
+// `dynamic atexit destructor for '_MissionState''
+
+// GLOBAL: SWBF2 0x007eb97c
+// _MissionState
+GameState::MissionState _MissionState;
 
 // GLOBAL: SWBF2 0x01f9c2c0
 // _pCurrentState
@@ -441,29 +455,6 @@ bool sKioskMode;
 
 // GLOBAL: SWBF2 0x1e5639e
 bool sbDidOneTimeInit;
-
-
-namespace GameState
-{
-// SYNTHETIC: SWBF2 0x00403e20
-// GameState::`dynamic initializer for '_TimeBase''
-
-// GLOBAL: SWBF2 0x01ec5f40
-// _TimeBase
-PblTimeBase _TimeBase;
-// SYNTHETIC: SWBF2 0x00403e40
-// GameState::`dynamic initializer for '_TotalTimeBase''
-
-// GLOBAL: SWBF2 0x01ec5f58
-// _TotalTimeBase
-PblTimeBase _TotalTimeBase;
-// SYNTHETIC: SWBF2 0x00403e30
-// GameState::`dynamic initializer for '_SystemTimeBase''
-
-// GLOBAL: SWBF2 0x01ec5f90
-// _SystemTimeBase
-PblTimeBase _SystemTimeBase;
-}
 
 // GLOBAL: SWBF2 0x1ec5f70
 PblTimeBase::Stamp SystemTimeStamp;
@@ -500,32 +491,6 @@ namespace GameState
 // GLOBAL: SWBF2 0x1f9c2d8
 LARGE_INTEGER Frequency;
 
-// GLOBAL: SWBF2 0x01f9c2a0
-char* sTTYGrid;
-
-// GLOBAL: SWBF2 0x01f9c2a4
-int sTTYInvalidIndex;
-
-// GLOBAL: SWBF2 0x01f9c2a8
-int sTTYRows;
-
-// GLOBAL: SWBF2 0x01f9c2ac
-int sTTYColumns;
-
-// FUNCTION: SWBF2 0x0052bfe0
-void TTYInit()
-{
-    sTTYRows = 0x50;
-    sTTYColumns = 0x50;
-    sTTYInvalidIndex = -1;
-    sTTYGrid = (char*)RedAllocFromHeap(__RedCurrHeap, 0xC800, 0);
-
-    for (unsigned int i = 0; i < (unsigned int)sTTYColumns; ++i)
-    {
-        sTTYGrid[i * (sTTYRows << 3)] = 0x0A;
-    }
-}
-
 // FUNCTION: SWBF2 0x0053a9e0
 void GameState::OneTimeInit()
 {
@@ -554,7 +519,7 @@ void GameState::OneTimeInit()
         pcCrash::Exit(1);
     }
 
-    TTYInit();
+    TTYInit(80, 80);
 
     QueryPerformanceFrequency(&Frequency);
     maxAdvanceTicks = Frequency.QuadPart;
@@ -636,7 +601,7 @@ void GameState::UpdateTime()
         {
             _TimeBase.AdvanceTicks(iDeltaTicks);
         }
-        _SystemTimeBase.AdvanceTicks(iDeltaTicks);
+        GetSystemTimeBase()->AdvanceTicks(iDeltaTicks);
 
         oldPerfCount = perfCount;
     }
@@ -652,7 +617,7 @@ void GameState::UpdateTime()
         {
             _TimeBase.AdvanceTime(fDeltaTime);
         }
-        _SystemTimeBase.AdvanceTime(fDeltaTime);
+        GetSystemTimeBase()->AdvanceTime(fDeltaTime);
     }
 
     if (!sIgnoreNextTime)
@@ -684,13 +649,13 @@ void GameState::SetState(unsigned int uiState)
     _bDoChangeState = true;
     switch (uiState)
     {
-    case 0x8FF60339:
+    case 0x8FF60339: /* "mission" */
         _pNextState = &_MissionState;
-        mNextStateHash = 0x8FF60339;
+        mNextStateHash = 0x8FF60339 /* "mission" */;
         break;
-    case 0x11E1FC01:
+    case 0x11E1FC01: /* "shell" */
         _pNextState = &_ShellState;
-        mNextStateHash = 0x11E1FC01;
+        mNextStateHash = 0x11E1FC01 /* "shell" */;
         break;
     case 0:
         _pNextState = 0;
@@ -753,55 +718,9 @@ void GameState::_SetState(State* pState)
     }
 }
 
-namespace SaveGameManager
-{
-    // GLOBAL: SWBF2 0x01eaf000
-    unsigned int mReqSaveFile2Data;
-}
-
-namespace SaveGameManager
-{
-    extern void (*mOnDone)();
-}
-namespace SaveGameManager
-{
-    // GLOBAL: SWBF2 0x01eaf008
-    unsigned int mReqSaveFile2Size;
-}
-namespace SaveGameManager
-{
-    // GLOBAL: SWBF2 0x01eaf010
-    unsigned int mReqSaveFile1Data;
-}
-namespace SaveGameManager
-{
-    // GLOBAL: SWBF2 0x01eaf014
-    unsigned int mReqSaveFile1Size;
-}
-namespace SaveGameManager
-{
-    // GLOBAL: SWBF2 0x01eaeff7
-    bool mForceNoSaveDevice;
-}
 namespace PblBuildType
 {
-    // GLOBAL: SWBF2 0x009cef72
-    bool gCreateMemoryProfile;
-}
-
-namespace SaveGameManager
-{
-
-// FUNCTION: SWBF2 0x00632ee0
-void Init(bool bForceNoSaveDevice)
-{
-    SaveGameManager::mOnDone = 0;
-    SaveGameManager::mReqSaveFile2Data = 0;
-    SaveGameManager::mReqSaveFile1Data = 0;
-    SaveGameManager::mReqSaveFile2Size = 0;
-    SaveGameManager::mReqSaveFile1Size = 0;
-    SaveGameManager::mForceNoSaveDevice = bForceNoSaveDevice;
-}
+    extern bool gCreateMemoryProfile;
 }
 
 // FUNCTION: SWBF2 0x005396b0
@@ -895,7 +814,7 @@ void GameState::CreateBaseEntityClasses()
     new CloudClusterClass(PblHash("cloudcluster"));
     new GrassPatchClass(PblHash("grasspatch"));
     new LeafPatchClass(PblHash("leafpatch"));
-    new GodrayClass(0xBA5B0537u);
+    new GodrayClass(0xBA5B0537u /* "Godray" */);
     new EntityLightClass(PblHash("light"));
     new EntityHologramClass(PblHash("hologram"));
     new RumbleEffectClass(PblHash("rumbleeffect"));
@@ -1077,7 +996,7 @@ void GameState::PreStateInit(bool bMission)
     FLRenderer::Init(AIUtil::IsUberMode());
     CameraManager::Create(GameLoop::GetNumCameras());
 
-    FLEffect::InitAll(bMission);
+    FLEffect::InitAll(true);
     if (ColorControl::s_pInstance)
     {
         ColorControl::s_pInstance->SetLevel(COLORCONTROL_GAMMA_CONTRAST,
@@ -1141,20 +1060,6 @@ GamePath* AI::PatrolPathFactory::CreatePath() const
 GamePath* EntityPathFactory::CreatePath() const
 {
     return new EntityPath();
-}
-
-// FUNCTION: SWBF2 0x00539330
-void* SoundStaticRegionFactory::CreateRegion(RedRegionDesc& desc, const char* pcName) const
-{
-    EntitySoundStaticClass soundClass(0xEDE52A96);
-    return EntitySoundClass::CreateSoundFromRegion(desc, pcName, GetPrefix(), soundClass);
-}
-
-// FUNCTION: SWBF2 0x005393d0
-void* SoundStreamRegionFactory::CreateRegion(RedRegionDesc& desc, const char* pcName) const
-{
-    EntitySoundStreamClass soundClass(0x93D6C380);
-    return EntitySoundClass::CreateSoundFromRegion(desc, pcName, GetPrefix(), soundClass);
 }
 
 // FUNCTION: SWBF2 0x00539470
@@ -1222,7 +1127,7 @@ void GameState::MissionState::SetState(unsigned int uiState)
     case 0:
         _SetState(0);
         break;
-    case 0xc2cbd863:
+    case 0xc2cbd863: /* "play" */
         _SetState(&_PlayState);
         break;
     }
@@ -1311,7 +1216,7 @@ void GameState::ShellState::Enter()
     ShellLoop::Init();
     GameSound::SetupDeferred();
 
-    Snd::Bus* pBus = Snd::Bus::FindByHashID(0x985C8F54);
+    Snd::Bus* pBus = Snd::Bus::FindByHashID(0x985C8F54 /* "ingame" */);
     if (pBus)
     {
         pBus->Fade(0.0f, 1.0f, -1.0f);
@@ -1336,7 +1241,7 @@ void GameState::ShellState::Enter()
     }
 
     AppTimeStamp.Mark(&_TimeBase);
-    SystemTimeStamp.Mark(&_SystemTimeBase);
+    SystemTimeStamp.Mark(GetSystemTimeBase());
 }
 
 // FUNCTION: SWBF2 0x0053ba70
@@ -1449,11 +1354,11 @@ void GameState::MissionState::Enter()
     }
 
     AppTimeStamp.Mark(&_TimeBase);
-    SystemTimeStamp.Mark(&_SystemTimeBase);
+    SystemTimeStamp.Mark(GetSystemTimeBase());
 
     RedProfile::DisplayCountersByGroup();
     CameraManager::sInstance->EnableScene(true);
-    MissionState::SetState(0xC2CBD863);
+    MissionState::SetState(0xC2CBD863 /* "play" */);
 
     int iFree = RedGetHeapFree(GameMemory::RunTimeHeap) - 0x20800;
     if (iFree > 0x8000)
@@ -1474,7 +1379,7 @@ void GameState::MissionState::Enter()
         EntityCloth::SetEnable(false);
     }
 
-    Snd::Bus* pBus = Snd::Bus::FindByHashID(0x985C8F54);
+    Snd::Bus* pBus = Snd::Bus::FindByHashID(0x985C8F54 /* "ingame" */);
     if (pBus)
     {
         pBus->Fade(2.0f, 1.0f, -1.0f);
@@ -1511,7 +1416,7 @@ void GameState::MissionState::Exit()
 void GameState::JournalStartTimes()
 {
     _TimeBase.PblJournal_Record();
-    _SystemTimeBase.PblJournal_Record();
+    GetSystemTimeBase()->PblJournal_Record();
 }
 
 // TEMPLATE: SWBF2 0x0053be20
@@ -1912,12 +1817,6 @@ void GameState::PostStateCleanup(bool bMission)
 // TEMPLATE: SWBF2 0x0053c000
 // PblJournal::Record<unsigned int>
 template void PblJournal::Record<unsigned int>(unsigned int& value, PblJournalType type);
-
-// FUNCTION: SWBF2 0x0053bff0
-unsigned int __fastcall GetFactorySecondWord(const unsigned int* pThis)
-{
-    return pThis[1];
-}
 
 // SYNTHETIC: SWBF2 0x00403e70
 // `dynamic initializer for 'GameState::MissionState::_PlayState''

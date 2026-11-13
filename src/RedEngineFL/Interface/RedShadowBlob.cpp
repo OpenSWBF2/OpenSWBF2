@@ -37,9 +37,9 @@ void RedShadowBlob::Update()
     }
 
     const int iNumPasses = gShadowBlurPassCount;
+    const float fWeight = gShadowBlurNeighborWeight;
     for (int pass = 0; pass < iNumPasses; ++pass)
     {
-        const float fWeight = gShadowBlurNeighborWeight;
         for (int row = 1; row < 14; ++row)
         {
             for (int col = 1; col < 19; ++col)

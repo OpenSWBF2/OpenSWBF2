@@ -6,7 +6,7 @@
 
 #include "GameSound.h"
 #include "WeaponCannon.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblHashTable.h"
 
 class WeaponTowCableClass;

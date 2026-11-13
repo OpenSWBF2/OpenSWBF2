@@ -127,7 +127,7 @@ public:
     virtual ~ShieldEffectManager();
     // SYNTHETIC: SWBF2 0x00636690
     // ShieldEffectManager::`scalar deleting destructor'
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Init();
     virtual void Cleanup();
     virtual void ReadConfig(PblConfig& config);

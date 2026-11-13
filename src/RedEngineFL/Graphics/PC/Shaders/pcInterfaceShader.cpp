@@ -13,12 +13,24 @@
 #include "RedEngineFL/Graphics/RedMaterial.h"
 #include "PebbleFL/Common/PblMatrix.h"
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
+// GLOBAL: SWBF2 0x009c94f4
+// pcInterfaceShader::s_uiID
 unsigned int pcInterfaceShader::s_uiID;
+// GLOBAL: SWBF2 0x009c94f8
+// pcInterfaceShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcInterfaceShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9504
+// pcInterfaceShader::BeginFuncArray
 pcRedShader::BeginFuncT pcInterfaceShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c9510
+// pcInterfaceShader::EndFuncArray
 pcRedShader::EndFuncT pcInterfaceShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c951c
+// pcInterfaceShader::RenderFuncArray
 pcRedShader::RenderFuncT pcInterfaceShader::RenderFuncArray[MAX_PIPELINES];
 pcRedVertexFormat* pcInterfaceShader::s_pBitmapTexVertexFormat;
 pcRedVertexFormat* pcInterfaceShader::s_pBitmapPosVertexFormat;
@@ -92,12 +104,6 @@ void pcInterfaceShader::Begin_Prog1(unsigned int, unsigned int) const
     RedRenderer::pcSetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 }
 
-// FUNCTION: SWBF2 0x00701a60
-void pcInterfaceShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x00701a80
 void pcInterfaceShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -108,28 +114,10 @@ void pcInterfaceShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x00701aa0
-unsigned int pcInterfaceShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x00701ac0
 RenderPhaseT pcInterfaceShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_TRANSPARENT;
-}
-
-// FUNCTION: SWBF2 0x00701ad0
-unsigned int pcInterfaceShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x00701ae0
-pcRedShaderDef* pcInterfaceShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x00701af0
@@ -360,22 +348,22 @@ void pcInterfaceShader::_Init(unsigned int,
 void pcInterfaceShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcInterfaceShader::GetState_Fixed);
+        (GetStateFuncT)(&pcInterfaceShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcInterfaceShader::Begin_Fixed);
+        (BeginFuncT)(&pcInterfaceShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcInterfaceShader::End_Fixed);
+        (EndFuncT)(&pcInterfaceShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcInterfaceShader::Render_Fixed);
+        (RenderFuncT)(&pcInterfaceShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcInterfaceShader::GetState_Prog1);
+        (GetStateFuncT)(&pcInterfaceShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcInterfaceShader::Begin_Prog1);
+        (BeginFuncT)(&pcInterfaceShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcInterfaceShader::End_Prog1);
+        (EndFuncT)(&pcInterfaceShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcInterfaceShader::Render_Prog1);
+        (RenderFuncT)(&pcInterfaceShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x00702250
@@ -384,7 +372,7 @@ void pcInterfaceShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -417,18 +405,24 @@ void pcInterfaceShader::_StaticInit() const
 
 // SYNTHETIC: SWBF2 0x004098b0
 // `dynamic initializer for 'pcInterfaceShader::s_uiRenderTypeHash''
+// GLOBAL: SWBF2 0x009c9568
+// pcInterfaceShader::s_uiRenderTypeHash
 unsigned int pcInterfaceShader::s_uiRenderTypeHash = PblHash("Interface");
 
 // SYNTHETIC: SWBF2 0x00409870
 // `dynamic initializer for 'pcInterfaceShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769c60
 // `dynamic atexit destructor for 'pcInterfaceShader::s_Factory''
+// GLOBAL: SWBF2 0x009c9574
+// pcInterfaceShader::s_Factory
 pcInterfaceShader pcInterfaceShader::s_Factory;
 
 // SYNTHETIC: SWBF2 0x00409890
 // `dynamic initializer for 'pcInterfaceShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769c80
 // `dynamic atexit destructor for 'pcInterfaceShader::s_shaderDef''
+// GLOBAL: SWBF2 0x009c953c
+// pcInterfaceShader::s_shaderDef
 // STRING: SWBF2 0x00784744
 pcRedShaderDef pcInterfaceShader::s_shaderDef("interface_shader.xml");
 

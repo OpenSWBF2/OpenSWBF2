@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stddef.h>
-#include "RedLight.h"
 
 // VTABLE: SWBF2 0x00772170
 class RedAmbientLight : public RedLight
@@ -29,10 +28,28 @@ public:
         return *this;
     }
 
-    virtual void DebugDraw() const;
-    virtual bool IsVisible(const RedCamera* pCamera) const;
-    virtual bool SphereIntersect(const PblVector3& vCenter, float fRadius) const;
-    virtual bool AABBIntersect(const PblVector3& vMin, const PblVector3& vMax) const;
+    // FUNCTION: SWBF2 0x006b2570
+    virtual bool IsVisible(const RedCamera* pCamera) const
+    {
+        return true;
+    }
+
+    // FUNCTION: SWBF2 0x006b0c20
+    virtual void DebugDraw() const
+    {
+    }
+
+    // FUNCTION: SWBF2 0x006b4020
+    virtual bool SphereIntersect(const PblVector3& vCenter, float fRadius) const
+    {
+        return true;
+    }
+
+    // FUNCTION: SWBF2 0x006b00c0
+    virtual bool AABBIntersect(const PblVector3& vMin, const PblVector3& vMax) const
+    {
+        return true;
+    }
 
     void SetColor(const RedColorValue& color) { m_color = color; }
     void SetTopColor(const RedColorValue& color) { m_topColor = color; }
@@ -53,25 +70,7 @@ public:
  
  
 
-struct RedLightingState
-{
 
-    RedLightingState& operator=(const RedLightingState& rOther);
-
-    RedAmbientLight ambientLight;
-    RedDirectionalLight* pDirectionalLights[2];
-    RedOmniLight* pOmniLights[4];
-    RedSpotLight* pSpotLights[1];
-    float pDirectionalFactor[2];
-    RedLight* pProjectedLight;
-    RedTexture* pEnvMap;
-    float envMapFactor;
-    unsigned char numDirectionalLights;
-    unsigned char numOmniLights;
-    unsigned char numSpotLights;
-    unsigned char bStaticLighting;
-    unsigned char numSpecularLights;
-};
  
  
  

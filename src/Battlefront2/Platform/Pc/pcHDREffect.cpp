@@ -69,7 +69,7 @@ void HDREffect::PlatformCleanup()
 }
 
 // FUNCTION: SWBF2 0x004192c0
-void HDREffect::Render(int value)
+void HDREffect::Render(unsigned int value) const
 {
     if ((unsigned int)value & 0x200000)
     {

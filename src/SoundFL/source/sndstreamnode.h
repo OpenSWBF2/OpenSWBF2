@@ -6,7 +6,7 @@
 namespace Snd
 {
 
-struct StreamPacket;
+class StreamPacket;
 
 // SYNTHETIC: SWBF2 0x0073c810
 // Snd::StreamNodeSource::`scalar deleting destructor'
@@ -43,11 +43,7 @@ struct StreamNodeConnection
 
     StreamPacket* GetPacket() const
     {
-        if (mInputNode)
-        {
-            return mInputNode->GetPacket(mInputNodeOutputIndex);
-        }
-        return 0;
+        return mInputNode ? mInputNode->GetPacket(mInputNodeOutputIndex) : 0;
     }
 
     StreamNodeSource* mInputNode;
@@ -70,12 +66,7 @@ public:
 
     StreamPacket* ConnectionGetPacket() const
     {
-        StreamNodeSource* const pNode = mConnection.mInputNode;
-        if (pNode == 0)
-        {
-            return 0;
-        }
-        return pNode->GetPacket(mConnection.mInputNodeOutputIndex);
+        return mConnection.GetPacket();
     }
 
     StreamNodeConnection mConnection;

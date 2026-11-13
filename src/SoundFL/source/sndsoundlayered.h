@@ -144,7 +144,7 @@ public:
 
     Layer* FindLayerByIndex(unsigned int uIndex) const
     {
-        return static_cast<Layer*>(mLayerList.FindByIndex(uIndex)->GetObjectA(
+        return (Layer*)(mLayerList.FindByIndex(uIndex)->GetObjectA(
             &mLayerList, offsetof(Layer, mNode)));
     }
 
@@ -162,7 +162,15 @@ public:
     static void operator delete(void* p) { smFreeList.Free(p); }
 
     ~Properties();
-    static void __cdecl DestroyAll();
+    // FUNCTION: SWBF2 0x00734010
+    static void __cdecl DestroyAll()
+    {
+        while (!smPropertyList.IsEmpty())
+        {
+            delete (Properties*)smPropertyList.GetFirst()->GetObjectA(
+                &smPropertyList, offsetof(Properties, mNode));
+        }
+    }
 
     void Read(PblFileChunk& chunk);
 
@@ -226,7 +234,7 @@ public:
 
 inline Sound* SoundLayered::GetLayerByIndex(unsigned int uIndex)
 {
-    return static_cast<SoundLayer*>(mSoundList.FindByIndex(uIndex)->GetObjectA(
+    return (SoundLayer*)(mSoundList.FindByIndex(uIndex)->GetObjectA(
         &mSoundList, offsetof(SoundLayer, mLayerNode)));
 }
 

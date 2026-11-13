@@ -25,7 +25,7 @@ void FlyRegionManager::Reset()
 // FUNCTION: SWBF2 0x0052bd80
 void* FlyRegionManager::CreateRegion(RedRegionDesc& desc, const char* pcName) const
 {
-    if (desc.mTypeId != 0x70C67E32u)
+    if (desc.mTypeId != 0x70C67E32u /* "box" */)
     {
         return 0;
     }

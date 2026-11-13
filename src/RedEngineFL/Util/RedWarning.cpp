@@ -7,19 +7,11 @@
 
 #include "RedWarning.h"
 #include "RedConsole.h"
+#include "RedMissionLog.h"
 
 #include "PebbleFL/Common/PblFile.h"
 
 extern HWND hGlobalWnd;
-
-// GLOBAL: SWBF2 0x007df210
-bool gBreakOnWarning = true;
-
-// FUNCTION: SWBF2 0x006cccb0
-bool GetBreakOnWarning()
-{
-    return gBreakOnWarning;
-}
 
 // GLOBAL: SWBF2 0x007e15cc
 static char* kapcSEVERITYSHORT[6] = { "*", "?", "#", "$", "%", "!" };
@@ -372,7 +364,7 @@ void RedWarning::LogMessage(char const* pcFormat, ...)
         }
 
         RED_ERROR_SEVERITY eBreakAt = RED_SEVERITY_ERROR;
-        if (GetBreakOnWarning())
+        if (RedMissionLog::GetWriteWarnings())
         {
             eBreakAt = RED_SEVERITY_WARNING;
         }
@@ -384,13 +376,14 @@ void RedWarning::LogMessage(char const* pcFormat, ...)
         switch (i)
         {
         case RED_LOG_DESTINATION_INDEX_CONSOLE:
-            if (RedConsole::sInstance)
+            if (RedConsole* pConsole = RedConsole::sInstance)
             {
                 if (g_eSeverity >= g_aeSeverityToDestination[RED_LOG_DESTINATION_INDEX_OPEN_CONSOLE])
                 {
-                    RedConsole::sInstance->SetMode(1);
+                    pConsole->SetMode(1);
+                    pConsole = RedConsole::sInstance;
                 }
-                RedConsole::sInstance->PrintMsg(pcText);
+                pConsole->PrintMsg(pcText);
             }
             break;
 

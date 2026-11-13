@@ -1,4 +1,10 @@
-#include "pcDustEffect.h"
+#include <stddef.h>
+
+#include "Battlefront2/Source/DustEffect.h"
+#include "PebbleFL/Common/PblHeap.h"
+#include "PebbleFL/Common/PblVector.h"
+#include "RedEngineFL/Application/Renderable.h"
+#include "RedEngineFL/Graphics/RedColor.h"
 
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
@@ -27,21 +33,48 @@ struct DustVertex
     float u, v;
 };
 
+// VTABLE: SWBF2 0x00796490
+class DustEffectRenderData : public Renderable
+{
+public:
+    DustEffectRenderData(const DustEffectClass* pClass);
+    virtual ~DustEffectRenderData();
+
+    virtual void Render(unsigned int value) const;
+
+    void RenderInstance(const PblMatrix& matrix, const RedColor& color,
+                        unsigned int uiRenderFlags) const;
+
+private:
+    void Begin() const;
+    void AddParticle(const PblVector3& vPos, float fSize, const RedColor& color,
+                     float fOffset) const;
+    void End() const;
+
+    const DustEffectClass* m_pClass;
+    pcParticleShader* m_pShader;
+    PblHeap<int, float>* mHeap;
+    mutable pcRedPrimitive* m_pPrimitive;
+    mutable void* m_pVertices;
+    mutable PblVector3 m_vUp;
+    mutable PblVector3 m_vRight;
+};
+
 // FUNCTION: SWBF2 0x00410c20
 DustEffectRenderData::DustEffectRenderData(const DustEffectClass* pClass)
-    : Renderable(2)
+    : Renderable(RENDERABLE_PREWORLD)
 {
     m_pClass = pClass;
     m_pPrimitive = 0;
     if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_COMPRESSED)
     {
-        m_pShader = (pcParticleShader*)pcRedShader::Create(0x8A8743BF, 0x9282,
+        m_pShader = (pcParticleShader*)pcRedShader::Create(0x8A8743BF /* "PARTICLE" */, 0x9282,
                                                             &m_pClass->mTextureHash, 1, 0x10004,
                                                             RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
     else
     {
-        m_pShader = (pcParticleShader*)pcRedShader::Create(0x8A8743BF, 0x282,
+        m_pShader = (pcParticleShader*)pcRedShader::Create(0x8A8743BF /* "PARTICLE" */, 0x282,
                                                             &m_pClass->mTextureHash, 1, 0x10004,
                                                             RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
@@ -70,7 +103,7 @@ DustEffectRenderData::~DustEffectRenderData()
 // DustEffectRenderData::`scalar deleting destructor'
 
 // FUNCTION: SWBF2 0x00410e20
-void DustEffectRenderData::Render(int value)
+void DustEffectRenderData::Render(unsigned int value) const
 {
     unsigned int uFlags = (unsigned int)value;
     if (uFlags & 0x200000)
@@ -105,6 +138,16 @@ void DustEffectRenderData::Render(int value)
         mHeap->Pop();
     }
     End();
+}
+
+inline void DustEffectRenderData::RenderInstance(const PblMatrix& matrix, const RedColor& color,
+                                          unsigned int uiRenderFlags) const
+{
+    if (m_pPrimitive)
+    {
+        RedRenderer::pcRenderPrimitive(m_pPrimitive, m_pShader, matrix,
+                                       color, uiRenderFlags, 0, 0, 0);
+    }
 }
 
 // FUNCTION: SWBF2 0x00411020
@@ -227,13 +270,7 @@ void DustEffectClass::Render(const PblMatrix& matrix, float fAlpha, unsigned int
     color.g = RedColor::WHITE.g;
     color.r = RedColor::WHITE.r;
     color.a = (unsigned char)(int)(fAlpha * 255.0f);
-    if (mRenderData->m_pPrimitive)
-    {
-        RedRenderer::pcRenderPrimitive(mRenderData->m_pPrimitive,
-                                       mRenderData->m_pShader,
-                                       matrix,
-                                       color, 0, 0, 0, 0);
-    }
+    mRenderData->RenderInstance(matrix, color, 0);
 }
 
 // FUNCTION: SWBF2 0x004116d0

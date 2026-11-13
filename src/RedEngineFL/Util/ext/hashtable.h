@@ -195,9 +195,9 @@ public:
     {
         if ((float)this->size_ * this->reserveMult_ >= (float)this->elements_.GetSize())
         {
-            int iGrown = (int)((float)this->elements_.GetSize() * this->reserveMult_);
-            int iFloor = 8;
-            Reallocate(Max_(iGrown, iFloor));
+            int newspace = (int)((float)this->elements_.GetSize() * this->reserveMult_);
+            newspace = Max_(newspace, 8);
+            Reallocate(newspace);
         }
     }
 

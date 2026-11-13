@@ -12,8 +12,8 @@ extern bool netIsLocalTurn;
 
 // GLOBAL: SWBF2 0x0078bc00
 const unsigned int VehicleEngine::sParamIDs[12] = {
-    0x7b80c780, 0x2fa0ba9d, 0x6b98ed8f, 0xf8e9242c, 0xd7c3db73, 0xd5bdbb42,
-    0x08aab3aa, 0xc8a9e3c6, 0xc7ab9270, 0x43f6a333, 0xeecf1cca, 0xbb0169a2,
+    0x7b80c780 /* "Speed" */, 0x2fa0ba9d /* "Acceleration" */, 0x6b98ed8f /* "health" */, 0xf8e9242c /* "Boost" */, 0xd7c3db73, 0xd5bdbb42 /* "Height" */,
+    0x08aab3aa /* "TurnOnTime" */, 0xc8a9e3c6 /* "TurnOffTime" */, 0xc7ab9270 /* "Strain" */, 0x43f6a333, 0xeecf1cca, 0xbb0169a2 /* "proximity" */,
 };
 
 // SYNTHETIC: SWBF2 0x00406d70
@@ -549,45 +549,45 @@ bool VehicleEngineClass::SetProperty(unsigned int uiHash, const char* pValue)
 {
     switch (uiHash)
     {
-    case 0xea603e52:
+    case 0xea603e52: /* "TurnOnSound" */
         mTurnOn.SetID(pValue, false, false);
         return true;
-    case 0x205b8d59:
-    case 0xc093b232:
+    case 0x205b8d59: /* "WindUpSound" */
+    case 0xc093b232: /* "TakeoffSound" */
         mWindUp.SetID(pValue, false, false);
         return true;
-    case 0xfc64a1f2:
-    case 0xad3e89e3:
+    case 0xfc64a1f2: /* "WindDownSound" */
+    case 0xad3e89e3: /* "LandSound" */
         mWindDown.SetID(pValue, false, false);
         return true;
-    case 0x7d2c2fa2:
+    case 0x7d2c2fa2: /* "TurningOffSound" */
         mTurningOff.SetID(pValue, false, false);
         return true;
-    case 0x042dabae:
+    case 0x042dabae: /* "TurnOffSound" */
         mTurnOff.SetID(pValue, false, false);
         return true;
-    case 0x84824518:
+    case 0x84824518: /* "VehicleCollisionSound" */
         mCollision.SetID(pValue, false, false);
         return true;
-    case 0x1fe0c822:
+    case 0x1fe0c822: /* "Cockpit1stPersonSound" */
         mCockpit1stPerson.SetID(pValue, false, false);
         return true;
-    case 0x421337df:
+    case 0x421337df: /* "Cockpit3rdPersonSound" */
         mCockpit3rdPerson.SetID(pValue, false, false);
         return true;
-    case 0x84bbef6a:
+    case 0x84bbef6a: /* "EngineSound" */
         mEngine.SetID(pValue);
         return true;
-    case 0xc8a9e3c6:
+    case 0xc8a9e3c6: /* "TurnOffTime" */
         sscanf(pValue, "%f", &mTurnOffTime);
         return true;
-    case 0xf3a06dca:
+    case 0xf3a06dca: /* "ProximityMinDist" */
         sscanf(pValue, "%f", &mProximityMin);
         return true;
-    case 0xac4226d4:
+    case 0xac4226d4: /* "ProximityMaxDist" */
         sscanf(pValue, "%f", &mProximityMax);
         return true;
-    case 0x79e2d013:
+    case 0x79e2d013: /* "BoostSound" */
     {
         char name[256];
         float fSpeedThreshold = 0.0f;

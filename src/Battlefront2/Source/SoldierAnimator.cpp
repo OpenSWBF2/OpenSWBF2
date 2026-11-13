@@ -21,7 +21,7 @@
 // FUNCTION: SWBF2 0x00643550
 void SoldierAnimator::PlayIdleAnimation(SoldierAnimType::MovementAnimation eAnimation)
 {
-    if (eAnimation <= 2 && mAction == 39 && mMoveAnimation <= 2)
+    if (eAnimation <= 2 && mAction == SoldierAnimType::MOVE && mMoveAnimation <= 2)
     {
         mMoveAnimation = eAnimation;
     }
@@ -38,10 +38,9 @@ static const float OVERLAY_FADEOUT_RATE = 8.0f;
 
 
 
-namespace GameLoop
-{
-extern float sClientDeltaTime;
-}
+
+
+
 
 const float UnitCircleNormalize(float fAngle);
 
@@ -1136,34 +1135,33 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
         fBlend = mAnimationTimerUpper / mBlendDurationRotate;
     }
 
-    unsigned int uiAimState = m_uiAimState;
     float fHeadWeight = 0.0f;
     float fTorsoWeight = 0.0f;
-    if (uiAimState & 1)
+    if (m_uiAimState & 1)
     {
-        if ((uiAimState & 0x30) == 0x30)
+        if ((m_uiAimState & 0x30) == 0x30)
         {
             fHeadWeight = fBlend;
             fTorsoWeight = 1.0f - fBlend;
         }
         else
         {
-            fHeadWeight = (uiAimState & 0x10) ? fBlend : 1.0f;
+            fHeadWeight = (m_uiAimState & 0x10) ? fBlend : 1.0f;
         }
     }
-    else if (uiAimState & 2)
+    else if (m_uiAimState & 2)
     {
-        if ((uiAimState & 0x30) == 0x30)
+        if ((m_uiAimState & 0x30) == 0x30)
         {
             fTorsoWeight = fBlend;
             fHeadWeight = 1.0f - fBlend;
         }
         else
         {
-            fTorsoWeight = (uiAimState & 0x10) ? fBlend : 1.0f;
+            fTorsoWeight = (m_uiAimState & 0x10) ? fBlend : 1.0f;
         }
     }
-    else if (uiAimState & 0x10)
+    else if (m_uiAimState & 0x10)
     {
         fHeadWeight = 1.0f - fBlend;
     }
@@ -1219,7 +1217,7 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
 
     if (fTorsoWeight > 0.0f)
     {
-        int iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x5de52389);
+        int iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x5de52389 /* "bone_a_spine" */);
         float fTorsoYaw = fAimYaw * fTorsoWeight;
         float fTorsoPitch = fAimPitch * fTorsoWeight;
         if (iJoint >= 0)
@@ -1231,7 +1229,7 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
             PblVector3 pos = mat->GetTranslation();
             *mat = *mat * worldRotation;
             mat->SetTranslation(pos);
-            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8c1c9bba);
+            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8c1c9bba /* "bone_b_spine" */);
             worldRotation.SetRotateY(fTorsoYaw * 0.375f);
             worldRotation.RotateX(fTorsoPitch * 0.375f);
             mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
@@ -1242,7 +1240,7 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
         }
         else
         {
-            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x93e93819);
+            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x93e93819 /* "bone_abdomen" */);
             worldRotation.SetRotateY(fTorsoYaw * 0.5f);
             worldRotation.RotateX(fTorsoPitch * 0.5f);
             mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
@@ -1251,7 +1249,7 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
             *mat = *mat * worldRotation;
             mat->SetTranslation(pos);
         }
-        iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0xe5b51072);
+        iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0xe5b51072 /* "bone_ribcage" */);
         worldRotation.SetRotateY(fTorsoYaw * 0.5f);
         worldRotation.RotateX(fTorsoPitch * 0.5f);
         mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
@@ -1263,7 +1261,7 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
 
     if (fHeadWeight > 0.0f)
     {
-        int iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0xd2afb28a);
+        int iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0xd2afb28a /* "bone_neck" */);
         float fHeadYaw = fAimYaw * fHeadWeight;
         float fHeadPitch = fAimPitch * fHeadWeight;
         if (iJoint >= 0)
@@ -1275,7 +1273,7 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
             PblVector3 pos = mat->GetTranslation();
             *mat = *mat * worldRotation;
             mat->SetTranslation(pos);
-            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8afdf5e4);
+            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8afdf5e4 /* "bone_head" */);
             worldRotation.SetRotateY(fHeadYaw * 0.375f);
             worldRotation.RotateX(fHeadPitch * 0.375f);
             mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
@@ -1286,7 +1284,7 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
         }
         else
         {
-            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8afdf5e4);
+            iJoint = mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x8afdf5e4 /* "bone_head" */);
             worldRotation.SetRotateY(fHeadYaw * 0.625f);
             worldRotation.RotateX(fHeadPitch * 0.625f);
             mZephyrSkeleton.BuildWorldMatrices(gMatrixIdentity, iJoint, kDirty);
@@ -1433,7 +1431,7 @@ bool SoldierAnimator::UpdateActionAnimation(SoldierAnimType::ActionAnimation eAc
         const PblVector3& x = mLegMatrix.GetXAxis();
         float fForward = mMovement.y * z.y + mMovement.x * z.x + mMovement.z * z.z;
         float fSide = x.x * mMovement.x + mMovement.y * x.y + mMovement.z * x.z;
-        unsigned short uiRoot = (unsigned short)mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x16e27226);
+        unsigned short uiRoot = (unsigned short)mZephyrSkeleton.m_pShared->GetJointIdxByCrc(0x16e27226 /* "bone_root" */);
         PblVector3 vTravel(fabsf(fForward), 0.0f, fabsf(fSide));
         PblVector3 vAxis;
         if (vTravel.x * vTravel.x + vTravel.y * vTravel.y + vTravel.z * vTravel.z > 0.0001f)
@@ -2375,9 +2373,3 @@ void SoldierAnimator::SetAlert(bool bAlert)
     }
 }
 
-// FUNCTION: SWBF2 0x00643650
-void SoldierAnimation::SetVelocity(float fVelocityX, float fVelocityZ)
-{
-    m_iVelocityX = (int)Clamp(fVelocityX * 100.0f + 16383.0f + 0.5f, 0.0f, 32767.0f) - 16383;
-    m_iVelocityZ = (int)Clamp(fVelocityZ * 100.0f + 16383.0f + 0.5f, 0.0f, 32767.0f) - 16383;
-}

@@ -29,19 +29,19 @@ bool SourceTransportControl::Read(PblFileChunk& chunk, unsigned int uiPropertyID
 {
     switch (uiPropertyID)
     {
-    case 0xA7930B6Eu:
+    case 0xA7930B6Eu: /* "PlayProbability" */
         chunk._pFile->Read8();
         mPlayProbability = Clamp(chunk._pFile->ReadFloat(), 0.0f, 1.0f);
         return true;
-    case 0x010B9ECAu:
+    case 0x010B9ECAu: /* "PlayInterval" */
         chunk._pFile->Read8();
         mPlayInterval = chunk._pFile->ReadFloat();
         return true;
-    case 0x3AF79D76u:
+    case 0x3AF79D76u: /* "RandomPlayPos" */
         chunk._pFile->Read8();
         SetRandomPlayPosition(chunk._pFile->ReadFloat() == 1.0f);
         return true;
-    case 0xEDCE1E71u:
+    case 0xEDCE1E71u: /* "PlayIntervalDev" */
         chunk._pFile->Read8();
         mPlayIntervalDev = chunk._pFile->ReadFloat();
         return true;

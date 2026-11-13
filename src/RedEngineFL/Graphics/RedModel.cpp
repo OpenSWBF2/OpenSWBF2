@@ -80,19 +80,6 @@ RedModel::~RedModel()
 // SYNTHETIC: SWBF2 0x006c3eb0
 // RedModel::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x006c3e40
-RedSkeleton::~RedSkeleton()
-{
-    if (m_uiNameHash)
-    {
-        _HashTable.Remove(m_uiNameHash);
-    }
-    delete[] m_amDefaultPose;
-    delete[] m_amDefaultPoseInv;
-    delete[] m_aConnections;
-    delete[] m_auiNameHash;
-}
-
 // FUNCTION: SWBF2 0x006c3ee0
 RedShadingState* RedModel::CreateDefaultShadingState(unsigned int uiRenderTypeHash) const
 {
@@ -521,7 +508,7 @@ void RedModel::_Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4D524658:
+        case CHUNK_ID('X', 'F', 'R', 'M'):
         {
             PblVector3 vRight, vUp, vFront, vOrigin;
             vRight.x = child._pFile->ReadFloat();
@@ -541,7 +528,7 @@ void RedModel::_Read(PblFileChunk& chunk)
             _bHasTransform = true;
             break;
         }
-        case 0x454D414E:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
             child.ReadString(acName, 256);
             _uiNameHash = PblHash(acName);
             if (_HashTable.Find(_uiNameHash))
@@ -549,7 +536,7 @@ void RedModel::_Read(PblFileChunk& chunk)
                 return;
             }
             break;
-        case 0x45444F4E:
+        case CHUNK_ID('N', 'O', 'D', 'E'):
             child.ReadString(acNodeName, 256);
             if (acNodeName[0] == 'h' && acNodeName[1] == 'p' && acNodeName[2] == '_')
             {
@@ -565,12 +552,12 @@ void RedModel::_Read(PblFileChunk& chunk)
             }
             PblTEMPHash(acNodeName);
             break;
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
         {
             int iSkin = child._pFile->Read32();
             if (iSkin == 2)
             {
-                _bHardSkin = RedRenderer::pcGetRenderCaps().skinning == 0;
+                _bHardSkin = RedRenderer::pcGetRenderCaps().skinning == SKINNING_SOFTWARE;
             }
             else
             {
@@ -612,7 +599,7 @@ void RedModel::_Read(PblFileChunk& chunk)
             _BoundingSphere = sphere;
             break;
         }
-        case 0x52485053:
+        case CHUNK_ID('S', 'P', 'H', 'R'):
         {
             float x = child._pFile->ReadFloat();
             float y = child._pFile->ReadFloat();
@@ -624,7 +611,7 @@ void RedModel::_Read(PblFileChunk& chunk)
             _BoundingSphere.w = r;
             break;
         }
-        case 0x6D676573:
+        case CHUNK_ID('s', 'e', 'g', 'm'):
             _apSegments[iSegment] = RedSegment::Read(child, this);
             if (_apSegments[iSegment]->IsVertexLit())
             {
@@ -636,7 +623,7 @@ void RedModel::_Read(PblFileChunk& chunk)
             }
             ++iSegment;
             break;
-        case 0x77646873:
+        case CHUNK_ID('s', 'h', 'd', 'w'):
             if (!_pStencilShadow)
             {
                 _pStencilShadow = new RedStencilShadow;

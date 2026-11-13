@@ -125,7 +125,7 @@ void HeatShimmerEffect::PlatformPostReadInit()
 // FUNCTION: SWBF2 0x00419eb0
 void HeatShimmerEffect::PlatformReadConfigData(PblConfig::Data& data)
 {
-    if (data.GetId() != 0xa9acf4e1u)
+    if (data.GetId() != 0xa9acf4e1u /* "BumpMap" */)
     {
         return;
     }
@@ -149,11 +149,15 @@ void HeatShimmerEffect::PlatformRender(unsigned int) const
     float fAngle;
     if (cameraMatrix[0] == vUp)
     {
-        fAngle = PblMath::Atan2(cameraMatrix.m[1][2], cameraMatrix.m[1][0]);
+        float x = cameraMatrix.m[1][0];
+        float y = cameraMatrix.m[1][2];
+        fAngle = PblMath::Atan2(y, x);
     }
     else
     {
-        fAngle = PblMath::Atan2(cameraMatrix.m[0][2], cameraMatrix.m[0][0]);
+        float x = cameraMatrix.m[0][0];
+        float y = cameraMatrix.m[0][2];
+        fAngle = PblMath::Atan2(y, x);
     }
     float fNear, fFar, fWidth, fHeight;
     pCamera->GetFrustum(fNear, fFar, fWidth, fHeight);

@@ -75,27 +75,27 @@ namespace
 
 inline Damageable* GameObjectDamageable(GameObject* pObject)
 {
-    return static_cast<Damageable*>(pObject);
+    return (Damageable*)pObject;
 }
 inline Controllable* AsControllable(EntityRemoteTerminal* pTerminal)
 {
-    return static_cast<Controllable*>(pTerminal);
+    return (Controllable*)pTerminal;
 }
 
 
 inline const Controllable* SoldierControllable(const EntitySoldier* pSoldier)
 {
-    return static_cast<const Controllable*>(pSoldier);
+    return (const Controllable*)pSoldier;
 }
 
 inline Controllable* SoldierControllable(EntitySoldier* pSoldier)
 {
-    return static_cast<Controllable*>(pSoldier);
+    return (Controllable*)pSoldier;
 }
 
 inline EntitySoldier* PilotSoldier(Controllable* pPilot)
 {
-    return pPilot ? static_cast<EntitySoldier*>(pPilot) : 0;
+    return pPilot ? (EntitySoldier*)pPilot : 0;
 }
 
 }
@@ -107,7 +107,7 @@ EntityRemoteTerminal::EntityRemoteTerminal(EntityRemoteTerminalClass* pClass, co
 {
     mControllableList.AddLast(&this->Controllable::mNode, this);
     mClass = pClass;
-    static_cast<RedSceneObject*>(this)->Activate();
+    ((RedSceneObject*)this)->Activate();
     TargetManager::AddTarget(this, true);
     ClearControllable();
     VehicleManager::Add(this);
@@ -262,7 +262,7 @@ void EntityRemoteTerminal::SetMatrix(const PblMatrix& matrix)
 // FUNCTION: SWBF2 0x004dcab0
 Trackable* EntityRemoteTerminal::GetTrackable()
 {
-    return static_cast<Trackable*>(this);
+    return (Trackable*)this;
 }
 
 // SYNTHETIC: SWBF2 0x004dde99
@@ -308,20 +308,6 @@ float EntityRemoteTerminal::GetMaxStrafe() const
 
 
 
-
-// FUNCTION: SWBF2 0x0046db50
-GameObject* EntityRemoteTerminal::GetRemoteGameObject()
-{
-    if (!mRemoteGameObject)
-    {
-        EntityEx* pEntity = EntityEx::mIdMap.Find(mRemoteGameObjectHash);
-        if (pEntity)
-        {
-            mRemoteGameObject = pEntity->GetGameObject();
-        }
-    }
-    return mRemoteGameObject;
-}
 
 // FUNCTION: SWBF2 0x004dce00
 void EntityRemoteTerminal::Init()
@@ -579,15 +565,15 @@ void EntityRemoteTerminal::SetProperty(unsigned int uProperty, const char* pszVa
 {
     switch (uProperty)
     {
-    case 0x5B36F215u:
+    case 0x5B36F215u: /* "PrevLinkedTerminal" */
         mPrevLinkedTerminalHash = PblHash(pszValue);
         GetPrevLinkedTerminal();
         break;
-    case 0xB7BC02ADu:
+    case 0xB7BC02ADu: /* "NextLinkedTerminal" */
         mNextLinkedTerminalHash = PblHash(pszValue);
         GetNextLinkedTerminal();
         break;
-    case 0xD50DB89Eu:
+    case 0xD50DB89Eu: /* "RemoteGameObject" */
         mRemoteGameObjectHash = PblHash(pszValue);
         GetRemoteGameObject();
         break;
@@ -607,9 +593,9 @@ void EntityRemoteTerminalClass::SetProperty(unsigned int uProperty, const char* 
 {
     switch (uProperty)
     {
-    case 0x47c86b4a:
+    case 0x47c86b4a: /* "GeometryName" */
     {
-        GameObjectClass::SetProperty(0x47c86b4a, pszValue);
+        GameObjectClass::SetProperty(0x47c86b4a /* "GeometryName" */, pszValue);
         sSoftCollisionMask = 0;
         sOrdnanceCollisionMask = 0;
         int iNumBodies = mCollisionModel.GetNumBodies();
@@ -617,7 +603,7 @@ void EntityRemoteTerminalClass::SetProperty(unsigned int uProperty, const char* 
         if (pMesh)
         {
             mCollisionModel.AddBody(new CollisionBodyMesh(pMesh, "CollisionMesh", gMatrixIdentity, 0));
-            int iMaskId = mCollisionModel.GetMaskId(0x29173102);
+            int iMaskId = mCollisionModel.GetMaskId(0x29173102 /* "CollisionMesh" */);
             if (iMaskId >= 0)
             {
                 sSoftCollisionMask |= 1 << iMaskId;
@@ -643,7 +629,7 @@ void EntityRemoteTerminalClass::SetProperty(unsigned int uProperty, const char* 
         mCollisionModel.mIsFlyerFlag = true;
         break;
     }
-    case 0x5233b817:
+    case 0x5233b817: /* "VehicleType" */
         mVehicleType = GameObjectClass::FindVehicleType(pszValue);
         break;
     default:
@@ -662,7 +648,7 @@ void EntityRemoteTerminalClass::SetProperty(unsigned int uProperty, const char* 
 
 
 // FUNCTION: SWBF2 0x004dcc80
-int EntityRemoteTerminalClass::GetVehicleType() const
+GameObjectClass::VehicleType EntityRemoteTerminalClass::GetVehicleType() const
 {
     return mVehicleType;
 }
@@ -671,7 +657,7 @@ int EntityRemoteTerminalClass::GetVehicleType() const
 EntityRemoteTerminalClass::EntityRemoteTerminalClass(EntityRemoteTerminalClass* pBase, unsigned int uHash)
     : GameObjectClass(pBase, uHash), ControllableClass(pBase)
 {
-    mVehicleType = 9;
+    mVehicleType = VEHICLE_UNKNOWN;
     mLODClass = 1;
 }
 

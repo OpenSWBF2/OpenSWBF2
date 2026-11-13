@@ -21,17 +21,17 @@ namespace
 
     inline const PblMatrix& GameObjectGetMatrix(const GameObject* pObj)
     {
-        return static_cast<const CollisionObject*>(pObj)->GetMatrix();
+        return ((const CollisionObject*)pObj)->GetMatrix();
     }
 
     char EntitySoldierAiGetLastCollisionDirection(const Entity* p)
     {
-        return static_cast<const EntitySoldier*>(p)->mAILastCollisionDirection;
+        return ((const EntitySoldier*)p)->mAILastCollisionDirection;
     }
 
     char EntityDroidekaAiGetLastCollisionDirection(const Entity* p)
     {
-        return static_cast<const EntityDroideka*>(p)->mAILastCollisionDirection;
+        return ((const EntityDroideka*)p)->mAILastCollisionDirection;
     }
 }
 
@@ -134,11 +134,11 @@ void UnitRandomAgent::UpdateStatePostVision(float dt)
         bool bCollided = false;
         if (GetMe()->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
         {
-            bCollided = static_cast<EntitySoldier*>(GetMe()->GetEntity())->mAILastCollisionDirection != 0;
+            bCollided = ((EntitySoldier*)GetMe()->GetEntity())->mAILastCollisionDirection != 0;
         }
         if (GetMe()->GetEntity()->IsRtti(EntityDroideka::rttiHashEntityDroideka))
         {
-            bCollided = static_cast<EntityDroideka*>(GetMe()->GetEntity())->mAILastCollisionDirection != 0;
+            bCollided = ((EntityDroideka*)GetMe()->GetEntity())->mAILastCollisionDirection != 0;
         }
 
         if (bCollided || GameLoop::GetMissionTime() > mRandTime + 3.0f || GetLowLevel().IsAtDest())

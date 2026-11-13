@@ -104,7 +104,7 @@ OrdnanceHaywireClass::OrdnanceHaywireClass(OrdnanceHaywireClass* pBase, unsigned
 // FUNCTION: SWBF2 0x00600fa0
 void OrdnanceHaywireClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty != 0x1C1694FA)
+    if (uProperty != 0x1C1694FA /* "DisableTime" */)
     {
         OrdnanceStickyClass::SetProperty(uProperty, pszValue);
         return;

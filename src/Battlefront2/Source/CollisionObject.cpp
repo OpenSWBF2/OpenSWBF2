@@ -11,17 +11,6 @@
 #include <new>
 #include "PebbleFL/Common/PblList.h"
 
-// FUNCTION: SWBF2 0x00443fc0
-bool CollisionObject::CanProcedurallyAnimate()
-{
-    return true;
-}
-
-// FUNCTION: SWBF2 0x00463a70
-void CollisionObject::SetPosition(const PblVector3&)
-{
-}
-
 // FUNCTION: SWBF2 0x00463c20
 void CollisionObject::AddAsteroidToCollisionManager()
 {
@@ -68,11 +57,6 @@ CollisionObject::CollisionObject(CollisionObjectType eType, const CollisionModel
     mLastCollidedObjs[0] = 0;
     mLastCollidedObjs[1] = 0;
     mLastCollidedObjs[2] = 0;
-}
-
-// FUNCTION: SWBF2 0x00454dd0
-void CollisionObject::SetMatrix(const PblMatrix&)
-{
 }
 
 // FUNCTION: SWBF2 0x00463bb0
@@ -235,18 +219,6 @@ void CollisionObject::SetTerrainHeight(int, float)
 {
 }
 
-// FUNCTION: SWBF2 0x00443fe0
-bool CollisionObject::CollideTrisWithAllPrimitives() const
-{
-    return true;
-}
-
-// FUNCTION: SWBF2 0x00443ff0
-bool CollisionObject::IsAChunk() const
-{
-    return false;
-}
-
 // FUNCTION: SWBF2 0x00454e20
 const RedPose* CollisionObject::GetPose() const
 {
@@ -324,7 +296,7 @@ bool CollisionObject::IsInCollisionList()
 // FUNCTION: SWBF2 0x00464470
 void CollisionObject::PlayImpactEffects(const PblVector3* pPos, const PblVector3* pVel) const
 {
-    FoleyFXImpact* pFoleyFX = (FoleyFXImpact*)GetFoleyFX(0x7c13cb48);
+    FoleyFXImpact* pFoleyFX = (FoleyFXImpact*)GetFoleyFX(0x7c13cb48 /* "FoleyFXImpact" */);
     if (pFoleyFX)
     {
         pFoleyFX->mImpact.Play(pPos, pVel, false, true);

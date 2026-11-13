@@ -3,6 +3,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 
 #include "NavigatorGraphFollower.h"
+#include "PebbleFL/Common/PblRtti.h"
 #include "PebbleFL/Common/PblHandle.h"
 
 class GameObject;
@@ -23,17 +24,19 @@ public:
         NUM_CRUMBS = 32
     };
 
-    static PblHash rttiHashNavigatorFollowTarget;
-    static const char rttiNameNavigatorFollowTarget[];
+    // FUNCTION: SWBF2 0x005ac510
+    // NavigatorFollowTarget::IsRtti
+    // FUNCTION: SWBF2 0x005ac540
+    // NavigatorFollowTarget::GetDerivedRtti
+    // FUNCTION: SWBF2 0x005ac550
+    // NavigatorFollowTarget::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(NavigatorFollowTarget, NavigatorGraphFollower)
 
     NavigatorFollowTarget(AILowLevel* pOwner, const GameObject* pTarget,
                           const Obstacle** ppIgnore, int iIgnoreCnt,
                           const PblVector3& followOffset);
     virtual ~NavigatorFollowTarget();
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
     virtual void ReceivePathResult(AIPath* pPath);
     virtual const PblVector3& GetGlobalDest() const;
 
@@ -66,24 +69,3 @@ NavigatorFollowTarget* NavigatorFollowTargetPtr(Navigator* pNavigator);
  
  
 
-// FUNCTION: SWBF2 0x005ac510
-inline bool NavigatorFollowTarget::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashNavigatorFollowTarget == uRtti)
-    {
-        return true;
-    }
-    return NavigatorGraphFollower::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x005ac540
-inline unsigned int NavigatorFollowTarget::GetDerivedRtti() const
-{
-    return rttiHashNavigatorFollowTarget;
-}
-
-// FUNCTION: SWBF2 0x005ac550
-inline const char* NavigatorFollowTarget::GetDerivedRttiName() const
-{
-    return rttiNameNavigatorFollowTarget;
-}

@@ -35,7 +35,7 @@
 #include "TriggerRegionManager.h"
 #include "UnitController.h"
 #include "UnitMobileController.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
@@ -97,11 +97,11 @@ EntityDroidClass::EntityDroidClass(unsigned int uHash)
 
     memset(mWeaponClass, 0, sizeof(mWeaponClass));
     memset(mWeaponAmmo, 0, sizeof(mWeaponAmmo));
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < kMaxWeapons; ++i)
     {
         mWeaponAmmo[i].bFlagAmmoInfinite = 1;
     }
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < kMaxWeapons; ++i)
     {
         mWeaponChannel[i] = i;
     }
@@ -139,7 +139,7 @@ EntityDroidClass::EntityDroidClass(unsigned int uHash)
     mCameraDestructTrackOffset.y = 0.0f;
     mCameraDestructTrackOffset.z = 0.0f;
     mCameraDestructTiltValue = 0.0f;
-    mDestructChargeEffect = 0x23081C56u;
+    mDestructChargeEffect = 0x23081C56u /* "com_sfx_chargeup" */;
 }
 
 
@@ -196,71 +196,71 @@ void EntityDroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x4F358485:
+    case 0x4F358485: /* "SetAltitude" */
         sscanf(pszValue, "%f", &mSetAltitude);
         break;
-    case 0x97F2E0F1:
+    case 0x97F2E0F1: /* "GravityScale" */
         sscanf(pszValue, "%f", &mGravityScale);
         break;
-    case 0x1B5071F9:
+    case 0x1B5071F9: /* "LiftSpring" */
         sscanf(pszValue, "%f", &mLiftSpring);
         break;
-    case 0xA37B2EC6:
+    case 0xA37B2EC6: /* "LiftDamp" */
         sscanf(pszValue, "%f", &mLiftDamp);
         break;
-    case 0x2FA0BA9D:
-    case 0x9F8A0040:
+    case 0x2FA0BA9D: /* "Acceleration" */
+    case 0x9F8A0040: /* "Acceleraton" */
         sscanf(pszValue, "%f", &mAcceleration);
         break;
-    case 0x86DF0364:
+    case 0x86DF0364: /* "MaxSpeed" */
         sscanf(pszValue, "%f", &mMaxSpeed);
         break;
-    case 0x3437A33D:
+    case 0x3437A33D: /* "MaxStrafeSpeed" */
         sscanf(pszValue, "%f", &mMaxStrafeSpeed);
         break;
-    case 0x5433F589:
+    case 0x5433F589: /* "MaxTurnSpeed" */
         sscanf(pszValue, "%f", &mMaxTurnSpeed);
         break;
-    case 0xB5534BE0:
+    case 0xB5534BE0: /* "MaxPitchSpeed" */
         sscanf(pszValue, "%f", &mMaxPitchSpeed);
         break;
-    case 0x3403B139:
+    case 0x3403B139: /* "PitchLimits" */
         sscanf(pszValue, "%f %f", &mMinPitch, &mMaxPitch);
         mMinPitch *= 0.017453292f;
         mMaxPitch *= 0.017453292f;
         break;
-    case 0x02E46404:
+    case 0x02E46404: /* "LevelSpring" */
         sscanf(pszValue, "%f", &mLevelSpring);
         break;
-    case 0x252DFAAB:
+    case 0x252DFAAB: /* "LevelDamp" */
         sscanf(pszValue, "%f", &mLevelDamp);
         break;
-    case 0x2CDB588A:
+    case 0x2CDB588A: /* "CollisionThreshold" */
         sscanf(pszValue, "%f %f %f", &mCollisionThreshold[0], &mCollisionThreshold[1], &mCollisionThreshold[2]);
         break;
-    case 0x1A87BACF:
+    case 0x1A87BACF: /* "CollisionScale" */
         sscanf(pszValue, "%f %f %f", &mCollisionScale[0], &mCollisionScale[1], &mCollisionScale[2]);
         break;
-    case 0x2EF03732:
+    case 0x2EF03732: /* "CollisionInflict" */
         sscanf(pszValue, "%f", &mCollisionInflict);
         break;
-    case 0x28ADDA49:
+    case 0x28ADDA49: /* "NoCombatInterrupt" */
         mCombatInterrupts = atoi(pszValue) == 0;
         break;
-    case 0x4F9D8BB4:
+    case 0x4F9D8BB4: /* "EnergyAutoRestore" */
         sscanf(pszValue, "%f", &mEnergyAutoRestore);
         break;
-    case 0x65A920BA:
+    case 0x65A920BA: /* "AmbientSound" */
         mAmbientSound.SetID(pszValue, true, false);
         break;
-    case 0x9A108B4A:
+    case 0x9A108B4A: /* "Ambient2Sound" */
         mAmbient2Sound.SetID(pszValue, true, false);
         break;
-    case 0x02BB1FE0:
-    case 0x9B30E763:
+    case 0x02BB1FE0: /* "Explosion" */
+    case 0x9B30E763: /* "ExplosionName" */
         mExplosion = ExplosionClass::Find(PblHash(pszValue));
         break;
-    case 0x83E12771:
+    case 0x83E12771: /* "DestructTrackOffset" */
     {
         float x, y, z;
         sscanf(pszValue, "%f %f %f", &x, &y, &z);
@@ -269,18 +269,18 @@ void EntityDroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mCameraDestructTrackOffset.z = z;
         break;
     }
-    case 0xE11CE401:
+    case 0xE11CE401: /* "DestructTiltValue" */
         sscanf(pszValue, "%f", &mCameraDestructTiltValue);
         mCameraDestructTiltValue *= 0.017453292f;
         break;
-    case 0xF9765272:
+    case 0xF9765272: /* "DestructChargeEffect" */
         mDestructChargeEffect = PblHash(pszValue);
         break;
-    case 0xD0329E80:
+    case 0xD0329E80: /* "WeaponSection" */
         sWeaponSection = atoi(pszValue) - 1;
         break;
-    case 0x6F332041:
-    case 0xFBF47DBA:
+    case 0x6F332041: /* "Weapon" */
+    case 0xFBF47DBA: /* "WeaponName" */
     {
         mWeaponClass[sWeaponSection] = WeaponClass::Find(PblHash(pszValue));
         int iCount = sWeaponSection + 1;
@@ -291,10 +291,10 @@ void EntityDroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mWeaponCount = iCount;
         break;
     }
-    case 0x16472328:
+    case 0x16472328: /* "WeaponChannel" */
         sscanf(pszValue, "%d", &mWeaponChannel[sWeaponSection]);
         break;
-    case 0xDC19BD13:
+    case 0xDC19BD13: /* "WeaponAmmo" */
     {
         int iAmmo = 0;
         sscanf(pszValue, "%d", &iAmmo);
@@ -306,7 +306,7 @@ void EntityDroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
     }
-    case 0x8585BB8A:
+    case 0x8585BB8A: /* "WeaponShareAmmo" */
     {
         int iWeapon = 0;
         sscanf(pszValue, "%d", &iWeapon);
@@ -323,7 +323,7 @@ void EntityDroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
     }
-    case 0x9455A446:
+    case 0x9455A446: /* "WeaponShareHeat" */
     {
         int iWeapon = 0;
         sscanf(pszValue, "%d", &iWeapon);
@@ -339,8 +339,8 @@ void EntityDroidClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
     }
-    case 0x47C86B4A:
-        GameObjectClass::SetProperty(0x47C86B4A, pszValue);
+    case 0x47C86B4A: /* "GeometryName" */
+        GameObjectClass::SetProperty(0x47C86B4A /* "GeometryName" */, pszValue);
         if (mCollisionModel.GetNumBodies() == 0 && mModel)
         {
             const PblSphere& sphere = mModel->_mModel->_BoundingSphere;
@@ -479,18 +479,6 @@ const PblMatrix& EntityDroid::GetMatrix() const
     return mMatrix;
 }
 
-// FUNCTION: SWBF2 0x004993f0
-const PblVector3& EntityDroid::GetVelocity() const
-{
-    return mVelocity;
-}
-
-// FUNCTION: SWBF2 0x00499400
-void EntityDroid::SetVelocity(const PblVector3& vVelocity)
-{
-    mVelocity = vVelocity;
-}
-
 // FUNCTION: SWBF2 0x00499420
 TargetInfo* EntityDroid::GetTargetInfo()
 {
@@ -513,48 +501,6 @@ const Controllable* EntityDroid::GetControllable() const
 Controllable* EntityDroid::GetControllable()
 {
     return this;
-}
-
-// FUNCTION: SWBF2 0x00499470
-int EntityDroid::GetWeaponIndex(int iChannel) const
-{
-    return mWeaponIndex[iChannel];
-}
-
-// FUNCTION: SWBF2 0x00499490
-Weapon* EntityDroid::GetWeaponPtr(int iIndex) const
-{
-    return mWeapon[iIndex];
-}
-
-// FUNCTION: SWBF2 0x004994b0
-const Aimer* EntityDroid::GetAimer(int iIndex) const
-{
-    return mAimer[iIndex];
-}
-
-// FUNCTION: SWBF2 0x004994d0
-EnergyBar* EntityDroid::GetEnergyBar()
-{
-    return &mEnergyBar;
-}
-
-// FUNCTION: SWBF2 0x004994e0
-EntityType EntityDroid::GetEntityType() const
-{
-    return ENT_DROID;
-}
-
-// FUNCTION: SWBF2 0x004994f0
-float EntityDroid::GetSmallestCollisionDim() const
-{
-    return 0.3f;
-}
-
-// FUNCTION: SWBF2 0x00499500
-bool EntityDroid::PostCollision::Update(float fDeltaTime)
-{
-    return mOwner->PostCollisionUpdate(fDeltaTime);
 }
 
 // SYNTHETIC: SWBF2 0x00499520
@@ -580,22 +526,10 @@ const char EntityDroidClass::rttiNameEntityDroidClass[] = "EntityDroidClass";
 
 
 
-// FUNCTION: SWBF2 0x004995c0
-int EntityDroidClass::GetWeaponCount() const
-{
-    return mWeaponCount;
-}
-
-// FUNCTION: SWBF2 0x004995d0
-const WeaponClass* EntityDroidClass::GetWeaponClass(int iIndex) const
-{
-    return mWeaponClass[iIndex];
-}
-
 // FUNCTION: SWBF2 0x004995f0
 const ControllableClass* EntityDroidClass::GetControllableClass() const
 {
-    return static_cast<const ControllableClass*>(this);
+    return (const ControllableClass*)this;
 }
 
 // SYNTHETIC: SWBF2 0x00499610
@@ -704,10 +638,6 @@ void EntityDroid::FreezeMovement()
     }
 }
 
-// TEMPLATE: SWBF2 0x0049e180
-// Factory<Weapon,WeaponClass,WeaponDesc>::Find
-template WeaponClass* Factory<Weapon, WeaponClass, WeaponDesc>::Find(unsigned int);
-
 
 
 // FUNCTION: SWBF2 0x00499640
@@ -764,7 +694,7 @@ EntityDroid::EntityDroid(EntityDroidClass* pClass, const EntityDesc& desc)
 
         mWeapon[i] = mClass->mWeaponClass[i]->Build(weaponDesc);
     }
-    for (int iChannel = 0; iChannel < 2; ++iChannel)
+    for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
     {
         mWeaponIndex[iChannel] = -1;
         for (int i = 0; i < mClass->mWeaponCount; ++i)
@@ -818,7 +748,7 @@ void EntityDroid::Init()
             mWeapon[i]->Init();
         }
     }
-    for (int iChannel = 0; iChannel < 2; ++iChannel)
+    for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
     {
         int iIndex = mWeaponIndex[iChannel];
         if (iIndex >= 0 && mWeapon[iIndex])
@@ -1088,8 +1018,8 @@ bool EntityDroid::Update(float fDeltaTime)
         RemoveFromCollisionManager();
         if (mClass->mExplosion)
         {
-            DamageOwner owner(mDamageOwner.mCharacter, mDamageOwner.mGameObject, mDamageOwner.mTeam, mClass, 0,
-                              1.0f);
+            GameObject* pOwnerObject = mDamageOwner.mGameObject;
+            DamageOwner owner(mDamageOwner.mCharacter, pOwnerObject, mDamageOwner.mTeam, mClass, 0, 1.0f);
             mClass->mExplosion->CreateExplosion(mMatrix.GetTranslation(), owner, false, COLL_UNKNOWN);
         }
         mState = KILLTIMER;
@@ -1191,7 +1121,7 @@ bool EntityDroid::Update(float fDeltaTime)
 
     if (mState != FROZEN)
     {
-        for (int iChannel = 0; iChannel < 2; ++iChannel)
+        for (int iChannel = 0; iChannel < kNumWeaponChannels; ++iChannel)
         {
             int iIndex = mWeaponIndex[iChannel];
             if (iIndex < 0 || mControlSwitch[iChannel] == 0.0f)
@@ -1234,7 +1164,7 @@ bool EntityDroid::Update(float fDeltaTime)
 
     if (mPlayerId >= 0)
     {
-        if (GameLoop::_bFirstPersonEnabled && netIsLocalTurn && mControlView.IsPressed() && !IsForcedThirdPerson() &&
+        if (GameLoop::FirstPersonEnabled() && netIsLocalTurn && mControlView.IsPressed() && !IsForcedThirdPerson() &&
             !IsForcedFirstPerson() && mClass->mForceMode != 1 && mClass->mForceMode != 2 && mTracker)
         {
             SwitchControlView(mPlayerId);
@@ -1294,8 +1224,7 @@ bool EntityDroid::Update(float fDeltaTime)
     vLocal.x = 0.0f;
     vLocal.y = fSin;
     vLocal.z = fCos;
-    PblVector3 vEyeDir;
-    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vEyeDir), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
+    PblVector3 vEyeDir = mMatrix.ApplyRotation(vLocal);
     mEyeDir = vEyeDir;
 
     if (mPlayerId >= 0 && mTracker)
@@ -1314,7 +1243,7 @@ bool EntityDroid::Update(float fDeltaTime)
             PblVector3& vAimStart = mTargetInfo.mAimStart;
             vAimStart = mClass->mCameraSettings.CalcCameraPoint(mMatrix, mCamera);
             float fAlong = DotProduct(mEyeDir, mEyePoint - vAimStart);
-            vAimStart += mEyeDir * fAlong;
+            vAimStart = vAimStart + mEyeDir * fAlong;
         }
         const GameObject* pIgnore = this;
         CollisionObject* pHit;
@@ -1683,16 +1612,6 @@ Entity* EntityDroidClass::Build(const EntityDesc& desc)
 // SYNTHETIC: SWBF2 0x0049e2c1
 // ??_EEntityDroid@@WCAA@AEPAXI@Z
 
-// FUNCTION: SWBF2 0x005eedf0
-const PblMatrix& EntityDroid::GetSmoothedMatrix() const
-{
-    if (NetGame::IsEnabled() && mNetUniqueId != -1 && NetGame::IsClient())
-    {
-        return NetPredict::GetSmoothInfo(mNetUniqueId).GetRenderMatrix();
-    }
-    return mMatrix;
-}
-
 // FUNCTION: SWBF2 0x0049ca60
 bool EntityDroid::ShouldShowReticule() const
 {
@@ -1719,7 +1638,7 @@ void EntityDroid::SetWeaponIndex(int iIndex, int iChannel)
 void EntityDroid::DeactivatePhysics()
 {
     mPostCollision.DeactivateThread();
-    static_cast<Thread*>(static_cast<Controllable*>(this))->DeactivateThread();
+    ((Thread*)(Controllable*)this)->DeactivateThread();
 }
 
 // FUNCTION: SWBF2 0x0049d000
@@ -1739,23 +1658,6 @@ void EntityDroid::SetupCameraZoomFactor(float& rZoom)
     {
         rZoom = 1.0f;
     }
-}
-
-// FUNCTION: SWBF2 0x0049ccb0
-CameraTrackSetting::CameraTrackSetting(const CameraTrackSetting& other)
-    : mCameraEyePointOffset(other.mCameraEyePointOffset),
-      mCameraTrackCenter(other.mCameraTrackCenter),
-      mCameraTrackOffset(other.mCameraTrackOffset),
-      mCameraSafePoint(other.mCameraSafePoint),
-      mCameraMoveTensionL(other.mCameraMoveTensionL),
-      mCameraMoveTensionR(other.mCameraMoveTensionR),
-      mCameraMoveTensionU(other.mCameraMoveTensionU),
-      mCameraMoveTensionD(other.mCameraMoveTensionD),
-      mCameraMoveTensionF(other.mCameraMoveTensionF),
-      mCameraMoveTensionB(other.mCameraMoveTensionB),
-      mCameraAimTension(other.mCameraAimTension),
-      mCameraTiltValue(other.mCameraTiltValue)
-{
 }
 
 // FUNCTION: SWBF2 0x00499e10

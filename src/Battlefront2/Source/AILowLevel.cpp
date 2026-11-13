@@ -33,10 +33,10 @@
 #include "UnitController.h"
 #include "Weapon.h"
 #include "WeaponCannon.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "WeaponGrenade.h"
 #include "WeaponLauncher.h"
-#include "WeaponMeleeInstance.h"
+#include "WeaponMelee.h"
 #include "WeaponRepair.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
@@ -484,7 +484,7 @@ void AILowLevel::ProcessTriggerSingle(float dt, ControllableHeading* pHeading,
 
         if (pWpn->IsRtti(WeaponMelee::rttiHashWeaponMelee))
         {
-            static_cast<WeaponMelee*>(pWpn)->m_bAI_Deflect = false;
+            ((WeaponMelee*)pWpn)->m_bAI_Deflect = false;
         }
     }
     else

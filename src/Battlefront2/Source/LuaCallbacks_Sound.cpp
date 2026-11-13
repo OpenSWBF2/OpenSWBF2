@@ -567,9 +567,9 @@ int ScriptCB_PlayAuditionEffect(lua_State*) { return 0; }
 // FUNCTION: SWBF2 0x0059cc70
 int ScriptCB_PlayInGameMusic(lua_State*)
 {
-    static_cast<GameMusic*>(Lua_Callbacks::sGameMusic)->Stop();
-    static_cast<GameMusic*>(Lua_Callbacks::sGameMusic)->SetID(luaL_checklstring(LuaHelper::mState, 1, 0));
-    static_cast<GameMusic*>(Lua_Callbacks::sGameMusic)->Play();
+    ((GameMusic*)Lua_Callbacks::sGameMusic)->Stop();
+    ((GameMusic*)Lua_Callbacks::sGameMusic)->SetID(luaL_checklstring(LuaHelper::mState, 1, 0));
+    ((GameMusic*)Lua_Callbacks::sGameMusic)->Play();
     float& fDelayTime = reinterpret_cast<float&>(Lua_Callbacks::sGameMusicDelayTime);
     float& fCurDelayTime = reinterpret_cast<float&>(Lua_Callbacks::sGameMusicCurDelayTime);
     if (lua_gettop(LuaHelper::mState) >= 2)
@@ -587,7 +587,7 @@ int ScriptCB_PlayInGameMusic(lua_State*)
 // FUNCTION: SWBF2 0x0059cd00
 int ScriptCB_StopInGameMusic(lua_State*)
 {
-    static_cast<GameMusic*>(Lua_Callbacks::sGameMusic)->Stop();
+    ((GameMusic*)Lua_Callbacks::sGameMusic)->Stop();
     return 0;
 }
 
@@ -599,21 +599,21 @@ void ScaleParameter(Snd::Source2D3D& source, Snd::SourceVariation& variation, un
 {
     switch (uiParameterID)
     {
-    case 0xBD324AB1u: source.SetPitch(source.mPitch * fScale); break;
-    case 0x1B5426FEu: source.SetGain(source.mGain * fScale); break;
-    case 0x6C408CFEu: source.SetReverbGain(source.mReverbGain * fScale); break;
-    case 0x4F55EEECu: source.SetPan(source.mPan * fScale); break;
-    case 0x1CE8C2E1u: source.SetRollIn(source.mRollInFactor * fScale); break;
-    case 0x80A163FEu: source.SetRollInDistance(source.mRollInDistance * fScale); break;
-    case 0xB835CF50u: source.SetMinDistance(source.mMinDistance * fScale); break;
-    case 0xE4B12EDFu: source.SetMuteDistance(source.mMuteDistance * fScale); break;
-    case 0xE6915CF6u: source.SetMaxDistance(source.mMaxDistance * fScale); break;
-    case 0xAB59D4BBu: source.SetRollOff(source.mRollOffFactor * fScale); break;
-    case 0xA7930B6Eu: variation.mPlayProbability *= fScale; break;
-    case 0x010B9ECAu: variation.mPlayInterval *= fScale; break;
-    case 0xEDCE1E71u: variation.mPlayIntervalDev *= fScale; break;
-    case 0xF60B6465u: variation.mGainDev *= fScale; break;
-    case 0x35119EB8u: variation.mPitchDev *= fScale; break;
+    case 0xBD324AB1u: /* "Pitch" */ source.SetPitch(source.mPitch * fScale); break;
+    case 0x1B5426FEu: /* "Gain" */ source.SetGain(source.mGain * fScale); break;
+    case 0x6C408CFEu: /* "ReverbGain" */ source.SetReverbGain(source.mReverbGain * fScale); break;
+    case 0x4F55EEECu: /* "Pan" */ source.SetPan(source.mPan * fScale); break;
+    case 0x1CE8C2E1u: /* "RollIn" */ source.SetRollIn(source.mRollInFactor * fScale); break;
+    case 0x80A163FEu: /* "RollInDistance" */ source.SetRollInDistance(source.mRollInDistance * fScale); break;
+    case 0xB835CF50u: /* "MinDistance" */ source.SetMinDistance(source.mMinDistance * fScale); break;
+    case 0xE4B12EDFu: /* "MuteDistance" */ source.SetMuteDistance(source.mMuteDistance * fScale); break;
+    case 0xE6915CF6u: /* "MaxDistance" */ source.SetMaxDistance(source.mMaxDistance * fScale); break;
+    case 0xAB59D4BBu: /* "RollOff" */ source.SetRollOff(source.mRollOffFactor * fScale); break;
+    case 0xA7930B6Eu: /* "PlayProbability" */ variation.mPlayProbability *= fScale; break;
+    case 0x010B9ECAu: /* "PlayInterval" */ variation.mPlayInterval *= fScale; break;
+    case 0xEDCE1E71u: /* "PlayIntervalDev" */ variation.mPlayIntervalDev *= fScale; break;
+    case 0xF60B6465u: /* "GainDev" */ variation.mGainDev *= fScale; break;
+    case 0x35119EB8u: /* "PitchDev" */ variation.mPitchDev *= fScale; break;
     }
 }
 
@@ -946,66 +946,66 @@ int ScriptCB_SetSoundEffect(lua_State* L)
 
     switch (uEffect)
     {
-    case 0x80BD2D68u:
+    case 0x80BD2D68u: /* "SpawnDisplayUnitChange" */
         if (SpawnDisplay* pDisplay = SpawnDisplay::Instance(0))
         {
             pDisplay->mUnitChange.SetID(pSound, false, false);
         }
         break;
-    case 0x29F3F228u:
+    case 0x29F3F228u: /* "SpawnDisplayUnitAccept" */
         if (SpawnDisplay* pDisplay = SpawnDisplay::Instance(0))
         {
             pDisplay->mUnitAccept.SetID(pSound, false, false);
         }
         break;
-    case 0x7A1089D1u:
+    case 0x7A1089D1u: /* "SpawnDisplaySpawnPointChange" */
         if (SpawnDisplay* pDisplay = SpawnDisplay::Instance(0))
         {
             pDisplay->mSpawnPointChange.SetID(pSound, false, false);
         }
         break;
-    case 0xAF57B9D5u:
+    case 0xAF57B9D5u: /* "SpawnDisplaySpawnPointAccept" */
         if (SpawnDisplay* pDisplay = SpawnDisplay::Instance(0))
         {
             pDisplay->mSpawnPointAccept.SetID(pSound, false, false);
         }
         break;
-    case 0x7B76A4D5u:
+    case 0x7B76A4D5u: /* "SpawnDisplayBack" */
         if (SpawnDisplay* pDisplay = SpawnDisplay::Instance(0))
         {
             pDisplay->mBack.SetID(pSound, false, false);
         }
         break;
-    case 0x651E07ADu:
+    case 0x651E07ADu: /* "ScopeDisplayAmbient" */
         ScopeDisplay::Instance(0)->mBinocularSound.SetAmbientID(pSound);
         break;
-    case 0x4D9F349Bu:
+    case 0x4D9F349Bu: /* "ScopeDisplayZoomIn" */
         ScopeDisplay::Instance(0)->mBinocularSound.SetZoomInID(pSound);
         break;
-    case 0x414B5348u:
+    case 0x414B5348u: /* "ScopeDisplayZoomOut" */
         ScopeDisplay::Instance(0)->mBinocularSound.SetZoomOutID(pSound);
         break;
-    case 0xD1454E62u:
+    case 0xD1454E62u: /* "WeaponUnableSelect" */
         WeaponClass::sWeaponChangeUnableSound.SetID(pSound, false, false);
         break;
-    case 0xF8258D3Bu:
+    case 0xF8258D3Bu: /* "LockOn" */
         LockOnManager::sTargetLockSound.SetID(pSound, false, false);
         break;
-    case 0x6DB518D0u:
-    case 0x24422C9Fu:
+    case 0x6DB518D0u: /* "BirdScatter" */
+    case 0x24422C9Fu: /* "BirdScatterSound" */
         BirdParticleManager::Instance()->mScatterSound.SetID(pSound, false, false);
         break;
-    case 0x977128B2u:
-    case 0x3CD0D399u:
+    case 0x977128B2u: /* "Bird" */
+    case 0x3CD0D399u: /* "BirdSound" */
         BirdParticleManager::Instance()->mBirdSound.SetID(pSound, false, false);
         break;
     case 0x956177FFu:
         LeafParticleManager::Instance()->mLeafFallSound.SetID(pSound, false, false);
         break;
-    case 0x4F3DFE5Cu:
+    case 0x4F3DFE5Cu: /* "HeroesUnlocked" */
         HeroMessageDisplay::mHeroesUnlocked->SetID(pSound, false, false);
         break;
-    case 0x7D31DC25u:
+    case 0x7D31DC25u: /* "HeroSpawned" */
     {
         const unsigned int uTeam = LuaHelper::GetInt(3);
         if (uTeam <= 7)
@@ -1014,7 +1014,7 @@ int ScriptCB_SetSoundEffect(lua_State* L)
         }
         break;
     }
-    case 0x56776EBBu:
+    case 0x56776EBBu: /* "HeroDefeated" */
     {
         const unsigned int uTeam = LuaHelper::GetInt(3);
         if (uTeam <= 7)
@@ -1341,7 +1341,7 @@ int ScriptCB_SoundDisable(lua_State* L)
 int ScriptCB_SetDopplerFactor(lua_State* L)
 {
     const float fFactor = luaL_checknumber(LuaHelper::mState, 1);
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < Snd::EngineBase::kMaxListeners; ++i)
     {
         Snd::EngineBase::smListeners[i].SetDopplerFactor(fFactor);
     }

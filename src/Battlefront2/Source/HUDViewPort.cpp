@@ -6,15 +6,15 @@
 #include "HUDManager.h"
 #include "RedEngineFL/Interface/RedInterfaceScreen.h"
 
-static const unsigned int kViewport0Position = 0x0fbfc95e;
-static const unsigned int kViewport1Position = 0x870b1061;
-static const unsigned int kViewport2Position = 0xe123e230;
-static const unsigned int kViewport3Position = 0x2e5f5873;
-static const unsigned int kViewport0UseSafezone = 0xd7c3efff;
-static const unsigned int kViewport1UseSafezone = 0xa97176e2;
-static const unsigned int kViewport2UseSafezone = 0x5d23bd7d;
-static const unsigned int kViewport3UseSafezone = 0x04abb610;
-static const unsigned int kEventNameFilter = 0x4ee68dbe;
+static const unsigned int kViewport0Position = 0x0fbfc95e /* "Viewport0Position" */;
+static const unsigned int kViewport1Position = 0x870b1061 /* "Viewport1Position" */;
+static const unsigned int kViewport2Position = 0xe123e230 /* "Viewport2Position" */;
+static const unsigned int kViewport3Position = 0x2e5f5873 /* "Viewport3Position" */;
+static const unsigned int kViewport0UseSafezone = 0xd7c3efff /* "Viewport0UseSafezone" */;
+static const unsigned int kViewport1UseSafezone = 0xa97176e2 /* "Viewport1UseSafezone" */;
+static const unsigned int kViewport2UseSafezone = 0x5d23bd7d /* "Viewport2UseSafezone" */;
+static const unsigned int kViewport3UseSafezone = 0x04abb610 /* "Viewport3UseSafezone" */;
+static const unsigned int kEventNameFilter = 0x4ee68dbe /* "EventNameFilter" */;
 
 // FUNCTION: SWBF2 0x00568a50
 HUD::Item* HUD::ViewPort::Factory::CreateItem(const char* const pName, ItemCallback pCallback,
@@ -44,7 +44,7 @@ const char* HUD::ViewPort::PropertyTranslateEnum(const unsigned int uHashID,
 
 // FUNCTION: SWBF2 0x00568b00
 HUD::ViewPort::Factory::Factory()
-    : HUD::Element::Factory(0xE4ABBAC3u)
+    : HUD::Element::Factory(0xE4ABBAC3u /* "Viewport" */)
 {
     mName = "ViewPort";
 
@@ -64,7 +64,7 @@ HUD::ViewPort::Factory::Factory()
 // FUNCTION: SWBF2 0x00568d10
 HUD::ViewPort::ViewPort(const char* const pName, HUD::Item::Factory::ItemCallback pCallback,
                         void* const pUserData)
-    : HUD::Element(*static_cast<RedGroupElement*>(this), pName, pCallback, pUserData)
+    : HUD::Element(*(RedGroupElement*)this, pName, pCallback, pUserData)
 {
     mEventFilter = 0;
     mCurViewPort = 0;
@@ -199,7 +199,7 @@ void HUD::ViewPort::Read(PblConfig& config, HUD::Item::Factory::ItemCallback pCa
         while (!configPass.IsDone())
         {
             PblConfig::Data data = configPass.ReadNextData();
-            if (configPass.m_pChunk->PeekNextChildId() == 0x504f4353)
+            if (configPass.m_pChunk->PeekNextChildId() == CHUNK_ID('S', 'C', 'O', 'P'))
             {
                 Item::Factory* pFactory = Item::Factory::FindByHashID(data.GetId());
                 if (pFactory)
@@ -321,15 +321,15 @@ void HUD::ViewPort::WriteData(HUD::File& file, unsigned int uTabs)
         unsigned char uViewport = 0;
         if (mItems[i]->GetType() == HUD::Element::Factory::type_Element)
         {
-            uViewport = static_cast<HUD::Element*>(mItems[i])->GetViewport();
-            static_cast<HUD::Element*>(mItems[i])->SetViewport(0);
+            uViewport = ((HUD::Element*)mItems[i])->GetViewport();
+            ((HUD::Element*)mItems[i])->SetViewport(0);
         }
         mItems[i]->mWriteEnabled = true;
         mItems[i]->Write(file, uTabs, 0);
         mItems[i]->mWriteEnabled = false;
         if (mItems[i]->GetType() == HUD::Element::Factory::type_Element)
         {
-            static_cast<HUD::Element*>(mItems[i])->SetViewport(uViewport);
+            ((HUD::Element*)mItems[i])->SetViewport(uViewport);
         }
     }
 }
@@ -340,7 +340,7 @@ void HUD::ViewPort::ItemConstructionCallback(HUD::Item* const pItem, void* const
     switch (pItem->GetType())
     {
     case HUD::Element::Factory::type_Element:
-        static_cast<HUD::Element*>(pItem)->SetViewport(static_cast<ViewPort*>(pUserData)->mCurViewPort);
+        ((HUD::Element*)pItem)->SetViewport(((ViewPort*)pUserData)->mCurViewPort);
         break;
     }
 }

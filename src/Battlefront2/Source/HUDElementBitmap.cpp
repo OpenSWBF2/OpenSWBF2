@@ -8,17 +8,17 @@
  
  
 
-static const unsigned int kBitmapHash = 0x46544626;
-static const unsigned int kBitmapStyleHash = 0xa28f0eeb;
-static const unsigned int kBitmapWidthHeightHash = 0x967ad461;
-static const unsigned int kRelativeWidthHeightHash = 0x0941e5b8;
-static const unsigned int kBitmapHAlignHash = 0x47ce65fb;
-static const unsigned int kBitmapVAlignHash = 0x8f47c6bd;
-static const unsigned int kTexCoordsHash = 0x1ffad2e0;
-static const unsigned int kEventBitmapHash = 0x5cd8e364;
-static const unsigned int kBitmapRectHash = 0x625fa794;
-static const unsigned int kMaskHash = 0xe7774569;
-static const unsigned int kMaskTexCoordsHash = 0x7e272c84;
+static const unsigned int kBitmapHash = 0x46544626 /* "Bitmap" */;
+static const unsigned int kBitmapStyleHash = 0xa28f0eeb /* "BitmapStyle" */;
+static const unsigned int kBitmapWidthHeightHash = 0x967ad461 /* "BitmapWidthHeight" */;
+static const unsigned int kRelativeWidthHeightHash = 0x0941e5b8 /* "RelativeWidthHeight" */;
+static const unsigned int kBitmapHAlignHash = 0x47ce65fb /* "BitmapHAlign" */;
+static const unsigned int kBitmapVAlignHash = 0x8f47c6bd /* "BitmapVAlign" */;
+static const unsigned int kTexCoordsHash = 0x1ffad2e0 /* "TexCoords" */;
+static const unsigned int kEventBitmapHash = 0x5cd8e364 /* "EventBitmap" */;
+static const unsigned int kBitmapRectHash = 0x625fa794 /* "BitmapRect" */;
+static const unsigned int kMaskHash = 0xe7774569 /* "Mask" */;
+static const unsigned int kMaskTexCoordsHash = 0x7e272c84 /* "MaskTexCoords" */;
 
 // GLOBAL: SWBF2 0x007e6920
 
@@ -65,7 +65,7 @@ HUD::ElementBitmapBase::Factory::Factory(unsigned int uHashID)
 
 // FUNCTION: SWBF2 0x0054deb0
 HUD::ElementBitmapMasked::Factory::Factory()
-    : HUD::ElementBitmapBase::Factory(0xD23CB4F7u)
+    : HUD::ElementBitmapBase::Factory(0xD23CB4F7u /* "BitmapMasked" */)
 {
     mBitmapMask.Init("Mask", mProperties, Property::type_Texture);
 }

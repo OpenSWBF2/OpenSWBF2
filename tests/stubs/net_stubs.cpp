@@ -1,4 +1,5 @@
 #include "Battlefront2/Source/NetComm.h"
+#include "Battlefront2/Source/NetDrag.h"
 #include "Battlefront2/Source/NetGame.h"
 #include "Battlefront2/Source/NetSetup.h"
 #include "Battlefront2/Source/GameLoop.h"
@@ -8,15 +9,6 @@
 #include "Battlefront2/Source/pcCrash.h"
 #include <string.h>
 #include "nettest.h"
-
-class NetDrag
-{
-public:
-    static void Send(NetPacket* pPacket, int iDest);
-    static void Update();
-    static NetPacket* ReceiveLocal();
-    static void FreePackets();
-};
 
 bool netEnabled;
 bool netEnabledNext;
@@ -55,6 +47,12 @@ void NetSocket::StartSockets() {}
 void NetSocket::RecvSockets() {}
 void NetSocket::RecvGalaxySockets() {}
 void NetSocket::GetAddr(const void*, int& iIP, int& iPort) { iIP = 0; iPort = 0; }
+void NetSocket::SetAddr(NetSocketPeerRecord& peer, int ip, int port)
+{
+    peer.mSocketAddress.sin_family = AF_INET;
+    peer.mSocketAddress.sin_addr.s_addr = ip;
+    peer.mSocketAddress.sin_port = htons(port);
+}
 bool __fastcall IsAdminPacketAuthorized(const unsigned char*) { return false; }
 namespace gf { bool checkError() { return false; } }
 namespace galaxy { namespace api { IGalaxy* GalaxyFactory::GetInstance() { return 0; } } }

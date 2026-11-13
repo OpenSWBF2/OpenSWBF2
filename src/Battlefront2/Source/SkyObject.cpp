@@ -19,16 +19,6 @@ int SkyObjectManager::mNumObjectClasses;
 // GLOBAL: SWBF2 0x01eaf06c
 SkyObjectManager::SkyObjectClass* SkyObjectManager::mObjectClasses[10];
 
-namespace SkyManager
-{
-void Activate();
-}
-
-// FUNCTION: SWBF2 0x00638d30
-void SkyManager::Activate()
-{
-}
-
 // FUNCTION: SWBF2 0x00638d40
 void SkyObjectManager::Clear()
 {
@@ -60,7 +50,7 @@ void ReadVarianceData(PblConfig::Data& data, float& fMean, float& fVariance)
 
 // FUNCTION: SWBF2 0x00638e10
 SkyObjectManager::SkyObjectClass::SkyObjectClass(PblConfig& config)
-    : Renderable(0)
+    : Renderable(RENDERABLE_SKY)
 {
     mNumObjects = 1;
     mVelocityX = 0.0f;
@@ -87,36 +77,36 @@ SkyObjectManager::SkyObjectClass::SkyObjectClass(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0xB6C8887Eu:
+        case 0xB6C8887Eu: /* "VelocityX" */
             ReadVarianceData(data, mVelocityX, mVelocityVarianceX);
             break;
-        case 0xB7C88A11u:
+        case 0xB7C88A11u: /* "VelocityY" */
             ReadVarianceData(data, mVelocityY, mVelocityVarianceY);
             break;
-        case 0xB4C88558u:
+        case 0xB4C88558u: /* "VelocityZ" */
             ReadVarianceData(data, mVelocityZ, mVelocityVarianceZ);
             break;
-        case 0xD5BDBB42u:
+        case 0xD5BDBB42u: /* "Height" */
             ReadVarianceData(data, mHeight, mHeightVariance);
             break;
-        case 0xC91C0E2Cu:
+        case 0xC91C0E2Cu: /* "InDirectionFactor" */
             mInDirectionFactor = data.GetFloatArg(0);
             break;
-        case 0x2EB31462u:
+        case 0x2EB31462u: /* "Distance" */
             mDistance = data.GetFloatArg(0);
             break;
-        case 0x2A6D8591u:
-            mModel = RedModel::_HashTable.Find(PblHash(data.GetStringArg(0)));
+        case 0x2A6D8591u: /* "Geometry" */
+            mModel = RedModel::Find(PblHash(data.GetStringArg(0)));
             break;
-        case 0x2FA0BA9Du:
+        case 0x2FA0BA9Du: /* "Acceleration" */
             mAcceleration.x = data.GetFloatArg(0);
             mAcceleration.y = data.GetFloatArg(1);
             mAcceleration.z = data.GetFloatArg(2);
             break;
-        case 0x307926C1u:
+        case 0x307926C1u: /* "NumObjects" */
             mNumObjects = (int)data.GetFloatArg(0);
             break;
-        case 0x5212ABEEu:
+        case 0x5212ABEEu: /* "LifeTime" */
             mMaxLifeTime = data.GetFloatArg(0);
             break;
         }
@@ -173,7 +163,7 @@ bool SkyObjectManager::SkyObjectClass::Update(float fDeltaTime)
 }
 
 // FUNCTION: SWBF2 0x00639220
-void SkyObjectManager::SkyObjectClass::Render(int uiFlags)
+void SkyObjectManager::SkyObjectClass::Render(unsigned int uiFlags) const
 {
     uiFlags |= 0x200;
     RedRenderer::pcFlush(0);

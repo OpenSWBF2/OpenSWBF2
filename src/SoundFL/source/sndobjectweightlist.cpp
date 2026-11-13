@@ -39,7 +39,7 @@ ObjectWeightList::ObjectWeightList()
 bool ObjectWeightList::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 {
     bool bOK = true;
-    if (uiPropertyID != 0x4D5AF670u)
+    if (uiPropertyID != 0x4D5AF670u /* "CyclePlayback" */)
     {
         bOK = false;
     }

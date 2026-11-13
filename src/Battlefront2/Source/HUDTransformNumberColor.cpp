@@ -4,7 +4,7 @@
 
 
 
-static const unsigned int kNumberColorHash = 0xed01cbb7;
+static const unsigned int kNumberColorHash = 0xed01cbb7 /* "NumberColor" */;
 
 static const unsigned int kMaxMappings = 256;
 

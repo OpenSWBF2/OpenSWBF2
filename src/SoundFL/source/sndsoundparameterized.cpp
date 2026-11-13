@@ -212,10 +212,10 @@ void SoundParameterized::Layer::Properties::Read(PblFileChunk& chunk)
         child._pFile->Read8();
         switch (uiID)
         {
-        case 0x8D39BDE6u:
+        case 0x8D39BDE6u: /* "name" */
             mHashID = child._pFile->Read32();
             break;
-        case 0xE657A914u:
+        case 0xE657A914u: /* "ParameterGraph" */
         {
             Controller::Properties* const pController = new Controller::Properties;
             pController->mInputParameterID = child._pFile->Read32();
@@ -238,7 +238,7 @@ void SoundParameterized::Properties::Read(PblFileChunk& chunk)
         child._pFile->Read8();
         switch (uiID)
         {
-        case 0x07A640F6u:
+        case 0x07A640F6u: /* "Layer" */
         {
             Layer::Properties* const pLayer = new Layer::Properties;
             mLayerList.AddLast(&pLayer->mNode);
@@ -246,10 +246,10 @@ void SoundParameterized::Properties::Read(PblFileChunk& chunk)
             pLayer->Read(child);
             break;
         }
-        case 0x8D39BDE6u:
+        case 0x8D39BDE6u: /* "name" */
             mHashID = child._pFile->Read32();
             break;
-        case 0xA54A2138u:
+        case 0xA54A2138u: /* "soundlayered" */
             mSoundLayeredProps = SoundLayered::Properties::FindByHashID(child._pFile->Read32());
             break;
         }
@@ -291,7 +291,7 @@ void SoundParameterized::ResetParameters()
     {
         const Layer::Properties* pLayerProps =
             (const Layer::Properties*)itor.GetNode()->GetObjectA(&layerList, offsetof(Layer::Properties, mNode));
-        Layer* pLayer = static_cast<Layer*>(FindLayerByHashID(pLayerProps->mHashID));
+        Layer* pLayer = (Layer*)FindLayerByHashID(pLayerProps->mHashID);
         if (pLayer)
         {
             pLayer->Reset();
@@ -320,7 +320,7 @@ void SoundParameterized::SetParameter(unsigned int uiParameterID, float fValue, 
                 continue;
             }
 
-            Layer* pLayer = static_cast<Layer*>(FindLayerByHashID(pLayerProps->mHashID));
+            Layer* pLayer = (Layer*)FindLayerByHashID(pLayerProps->mHashID);
             if (!pLayer)
             {
                 continue;
@@ -355,7 +355,7 @@ void SoundParameterized::SetProperties(const Properties* pProps)
         if (SoundLayered::mProperties)
         {
             mProperties = pProps;
-            mUpdateTime = pProps->QueryParameter(0x5D3C9BE4u);
+            mUpdateTime = pProps->QueryParameter(0x5D3C9BE4u /* "Time" */);
         }
     }
 }
@@ -382,7 +382,7 @@ void SoundParameterized::Update(float fDeltaTime)
 
     if (mUpdateTime)
     {
-        SetParameter(0x5D3C9BE4u, mTimeElapsed, false);
+        SetParameter(0x5D3C9BE4u /* "Time" */, mTimeElapsed, false);
     }
 
     const PblListSingle& layerList = mProperties->mLayerList;
@@ -391,21 +391,30 @@ void SoundParameterized::Update(float fDeltaTime)
     {
         const Layer::Properties* pLayerProps =
             (const Layer::Properties*)itor.GetNode()->GetObjectA(&layerList, offsetof(Layer::Properties, mNode));
-        Layer* pLayer = static_cast<Layer*>(FindLayerByHashID(pLayerProps->mHashID));
+        Layer* pLayer = (Layer*)FindLayerByHashID(pLayerProps->mHashID);
         if (!pLayer)
         {
             continue;
         }
 
         pLayer->SetGain(Clamp(pLayer->mProperties->mGain * pLayer->mParameterValues[0], 0.0f, 1.0f));
-        pLayer->SetPitch(Clamp(pLayer->mProperties->mPitch * pLayer->mParameterValues[1], 0.1f, FLT_MAX));
+        float fPitch = pLayer->mProperties->mPitch * pLayer->mParameterValues[1];
+        if (0.1f > fPitch)
+        {
+            fPitch = 0.1f;
+        }
+        else if (fPitch > FLT_MAX)
+        {
+            fPitch = FLT_MAX;
+        }
+        pLayer->SetPitch(fPitch);
         pLayer->SetReverbGain(Clamp(pLayer->mProperties->mReverbGain * pLayer->mParameterValues[2], 0.0f, FLT_MAX));
         pLayer->SetPan(Clamp(pLayer->mProperties->mPan * pLayer->mParameterValues[3], -1.0f, 1.0f));
         const float fMinDistance = Clamp(pLayer->mProperties->mMinDistance * pLayer->mParameterValues[4], 0.0f, FLT_MAX);
         pLayer->SetMinDistance(fMinDistance);
-        const float fMuteDistance = Clamp(pLayer->mProperties->mMuteDistance * pLayer->mParameterValues[5], fMinDistance, FLT_MAX);
+        const float fMuteDistance = Clamp(pLayer->mProperties->mMuteDistance * pLayer->mParameterValues[5], pLayer->mMinDistance, FLT_MAX);
         pLayer->SetMuteDistance(fMuteDistance);
-        pLayer->SetMaxDistance(Clamp(pLayer->mProperties->mMaxDistance * pLayer->mParameterValues[6], fMuteDistance, FLT_MAX));
+        pLayer->SetMaxDistance(Clamp(pLayer->mProperties->mMaxDistance * pLayer->mParameterValues[6], pLayer->mMuteDistance, FLT_MAX));
         pLayer->SetRollOff(Clamp(pLayer->mProperties->mRollOffFactor * pLayer->mParameterValues[7], 0.0f, FLT_MAX));
         pLayer->SetRollIn(Clamp(pLayer->mProperties->mRollInFactor * pLayer->mParameterValues[9], 0.0f, FLT_MAX));
         pLayer->SetRollInDistance(Clamp(pLayer->mProperties->mRollInDistance * pLayer->mParameterValues[10], 0.0f, FLT_MAX));

@@ -71,58 +71,68 @@ class Asteroid : public GameObject, public Thread
 {
 public:
 
-    Asteroid(AsteroidClass* pClass, const EntityDesc& desc);
+    static PblHash rttiHashAsteroid;
+    static const char rttiNameAsteroid[];
 
-    virtual ~Asteroid();
+    virtual bool IsRtti(unsigned int uRtti) const;
+    virtual unsigned int GetDerivedRtti() const;
+    virtual const char* GetDerivedRttiName() const;
 
+    static MemoryPool sMemoryPool;
     static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
     // SYNTHETIC: SWBF2 0x00444530
     // Asteroid::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
+    Asteroid(AsteroidClass* pClass, const EntityDesc& desc);
+    virtual ~Asteroid();
     virtual void Init();
-    virtual const PblVector3& GetVelocity() const;
-    virtual void SetVelocity(const PblVector3& vVelocity);
+    virtual void Kill();
     virtual void ClientKill();
-    virtual float GetMaxSpeed() const;
-    virtual float GetMaxStrafe() const;
-    virtual void ActivatePhysics();
-    virtual void DeactivatePhysics();
-    virtual GameObjectType GetGameObjectType();
-    virtual EntityType GetEntityType() const;
-    virtual bool AddToTeamManager() const;
-
-    virtual void WriteCreate(NetPktGroup& group);
-    virtual void ReadCreate(NetPktGroup& group);
-    virtual void AddSends(void (*pfnSend)(GameObject*, int), int iArg);
-    virtual void WriteObject(NetPktGroup& group, NetObjState* pState);
-    virtual void ReadObject(NetPktGroup& group, NetObjState* pState);
-
-    void Move(const PblMatrix& matrix);
-    virtual const PblMatrix& GetSmoothedMatrix() const;
-
+    virtual bool Update(float fDeltaTime);
+    virtual const PblMatrix& GetMatrix() const;
+    virtual const PblVector3& GetVelocity() const;
     virtual void SetPosition(const PblVector3& vPos);
     virtual void SetMatrix(const PblMatrix& matrix);
-    virtual bool CollisionCallback(const CollisionResult* pResult, CollisionObject* pOther,
-                                   Restrictor* pRestrictor);
-    virtual const PblMatrix& GetMatrix() const;
+
+    // FUNCTION: SWBF2 0x004446b0
+    virtual float GetMaxSpeed() const
+    {
+        return mVelocity.y * mMatrix.m[2][1] + mVelocity.x * mMatrix.m[2][0] +
+               mVelocity.z * mMatrix.m[2][2];
+    }
+    virtual float GetMaxStrafe() const;
+    virtual bool AddToTeamManager() const;
+
+    // FUNCTION: SWBF2 0x00444700
+    virtual void SetVelocity(const PblVector3& vVelocity)
+    {
+        mVelocity = vVelocity;
+    }
 
     virtual void Render(unsigned char ucLod, float fDist, unsigned int uMask);
+    virtual bool CollisionCallback(const CollisionResult* pResult, CollisionObject* pOther,
+                                   Restrictor* pRestrictor);
+    virtual GameObjectType GetGameObjectType();
+    virtual void ActivatePhysics();
+    virtual void DeactivatePhysics();
 
-    virtual void Kill();
-
-    virtual bool Update(float fDeltaTime);
+    // FUNCTION: SWBF2 0x00444730
+    virtual EntityType GetEntityType() const
+    {
+        return ENT_ASTEROID;
+    }
+    virtual void AddSends(void (*pfnSend)(GameObject*, int), int iArg);
+    virtual void WriteCreate(NetPktGroup& group);
+    virtual void ReadCreate(NetPktGroup& group);
+    virtual void WriteObject(NetPktGroup& group, NetObjState* pState);
+    virtual void ReadObject(NetPktGroup& group, NetObjState* pState);
+    void Move(const PblMatrix& matrix);
+    virtual const PblMatrix& GetSmoothedMatrix() const;
 
     PblVector3 mVelocity;
     PblVector3 mOmega;
     AsteroidClass* mClass;
-
-    static MemoryPool sMemoryPool;
-    static PblHash rttiHashAsteroid;
-    static const char rttiNameAsteroid[];
 };
  
  

@@ -31,7 +31,18 @@ public:
     {
     }
 
-    ~RedSkeleton();
+    // FUNCTION: SWBF2 0x006c3e40
+    ~RedSkeleton()
+    {
+        if (m_uiNameHash)
+        {
+            _HashTable.Remove(m_uiNameHash);
+        }
+        delete[] m_amDefaultPose;
+        delete[] m_amDefaultPoseInv;
+        delete[] m_aConnections;
+        delete[] m_auiNameHash;
+    }
 
     unsigned int GetNumBones() const { return m_uiNumBones; }
     int GetParentBone(unsigned int uiBone) const { return m_aConnections[uiBone].iParent; }

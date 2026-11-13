@@ -11,11 +11,11 @@ bool SoundProperties::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
 {
     switch (uiPropertyID)
     {
-    case 0x5FB91E8Cu:
+    case 0x5FB91E8Cu: /* "Group" */
         chunk._pFile->Read8();
         mGroupID = chunk._pFile->Read32();
         return true;
-    case 0x5FD56DF9u:
+    case 0x5FD56DF9u: /* "bus" */
     {
         chunk._pFile->Read8();
         Bus* const pBus = Bus::FindByHashID(chunk._pFile->Read32());
@@ -25,7 +25,7 @@ bool SoundProperties::Read(PblFileChunk& chunk, unsigned int uiPropertyID)
         }
         return true;
     }
-    case 0x8D39BDE6u:
+    case 0x8D39BDE6u: /* "name" */
         chunk._pFile->Read8();
         mHashID = chunk._pFile->Read32();
         return true;

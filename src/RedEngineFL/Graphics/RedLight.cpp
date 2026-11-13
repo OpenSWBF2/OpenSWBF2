@@ -7,7 +7,7 @@
 #include "RedLight.h"
 #include "PebbleFL/Common/PblConfig.h"
 #include "PebbleFL/Common/PblQuaternion.h"
-#include "RedAmbientLight.h"
+#include "RedLight.h"
 #include "RedCamera.h"
 #include "RedDirectionalLight.h"
 #include "RedOmniLight.h"
@@ -33,7 +33,7 @@ unsigned int RedShadowMap::_uiShadowMapWrapMode = 1;
 bool bProjectionEnable = true;
 
 // GLOBAL: SWBF2 0x007df000
-float RedLight::m_sGlobalDirectionalFactor[2] = { 1.0f, 1.0f };
+float RedLight::m_sGlobalDirectionalFactor[kMaxDirectionalLights] = { 1.0f, 1.0f };
 
 // GLOBAL: SWBF2 0x007df014
 PblList<RedLight> RedLight::s_GlobalList;
@@ -78,7 +78,7 @@ bool RedShadowMap::_bShadowMapEnable;
 RedShadowRegionFactory* RedLight::s_pShadowRegionFactory;
 
 // GLOBAL: SWBF2 0x00960f34
-RedDirectionalLight* RedLight::m_sGlobalDirectionals[2];
+RedDirectionalLight* RedLight::m_sGlobalDirectionals[kMaxDirectionalLights];
 
 // GLOBAL: SWBF2 0x00960f3c
 RedAmbientLight* RedLight::m_sGlobalAmbient;
@@ -228,7 +228,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
             bDefault = false;
             afDirectional[0] *= m_sGlobalDirectionalFactor[0];
             afDirectional[1] *= m_sGlobalDirectionalFactor[1];
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < kMaxDirectionalLights; ++i)
             {
                 if (m_sGlobalDirectionals[i] && afDirectional[i] > 0.0f)
                 {
@@ -243,7 +243,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
         }
         else
         {
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < kMaxDirectionalLights; ++i)
             {
                 if (m_sGlobalDirectionals[i])
                 {
@@ -265,7 +265,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
     }
     else
     {
-        for (int i = 0; i < 2; ++i)
+        for (int i = 0; i < kMaxDirectionalLights; ++i)
         {
             if (m_sGlobalDirectionals[i])
             {
@@ -288,7 +288,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
     for (PblList<RedLight>::Itor it = s_VisibleDirectionalLightList.Begin();
          it != s_VisibleDirectionalLightList.End(); ++it)
     {
-        RedDirectionalLight* pLight = static_cast<RedDirectionalLight*>((RedLight*)it);
+        RedDirectionalLight* pLight = (RedDirectionalLight*)(RedLight*)it;
         if (bStatic && pLight->IsStatic() && !pLight->IsSpecularCaster())
         {
             break;
@@ -357,7 +357,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
             {
                 state.pProjectedLight = state.pDirectionalLights[i];
                 state.pDirectionalLights[i] = state.pDirectionalLights[0];
-                state.pDirectionalLights[0] = static_cast<RedDirectionalLight*>(state.pProjectedLight);
+                state.pDirectionalLights[0] = (RedDirectionalLight*)state.pProjectedLight;
                 float fFactor = state.pDirectionalFactor[i];
                 state.pDirectionalFactor[i] = state.pDirectionalFactor[0];
                 state.pDirectionalFactor[0] = fFactor;
@@ -383,7 +383,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
         for (PblList<RedLight>::Itor it = s_VisibleOmniLightList.Begin();
              it != s_VisibleOmniLightList.End(); ++it)
         {
-            RedOmniLight* pLight = static_cast<RedOmniLight*>((RedLight*)it);
+            RedOmniLight* pLight = (RedOmniLight*)(RedLight*)it;
             if (bStatic && pLight->IsStatic())
             {
                 break;
@@ -484,7 +484,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
                 {
                     state.pProjectedLight = state.pOmniLights[i];
                     state.pOmniLights[i] = state.pOmniLights[0];
-                    state.pOmniLights[0] = static_cast<RedOmniLight*>(state.pProjectedLight);
+                    state.pOmniLights[0] = (RedOmniLight*)state.pProjectedLight;
                     break;
                 }
             }
@@ -508,7 +508,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
         for (PblList<RedLight>::Itor it = s_VisibleSpotLightList.Begin();
              it != s_VisibleSpotLightList.End(); ++it)
         {
-            RedSpotLight* pLight = static_cast<RedSpotLight*>((RedLight*)it);
+            RedSpotLight* pLight = (RedSpotLight*)(RedLight*)it;
             if (bStatic && pLight->IsStatic())
             {
                 break;
@@ -612,7 +612,7 @@ const RedLightingState* RedLight::GetLightingState(const PblBox& box, int iMaxOm
                 {
                     state.pProjectedLight = state.pSpotLights[i];
                     state.pSpotLights[i] = state.pSpotLights[0];
-                    state.pSpotLights[0] = static_cast<RedSpotLight*>(state.pProjectedLight);
+                    state.pSpotLights[0] = (RedSpotLight*)state.pProjectedLight;
                     break;
                 }
             }
@@ -688,7 +688,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
             bDefault = false;
             afDirectional[0] *= m_sGlobalDirectionalFactor[0];
             afDirectional[1] *= m_sGlobalDirectionalFactor[1];
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < kMaxDirectionalLights; ++i)
             {
                 if (m_sGlobalDirectionals[i] && afDirectional[i] > 0.0f)
                 {
@@ -703,7 +703,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
         }
         else
         {
-            for (int i = 0; i < 2; ++i)
+            for (int i = 0; i < kMaxDirectionalLights; ++i)
             {
                 if (m_sGlobalDirectionals[i])
                 {
@@ -725,7 +725,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
     }
     else
     {
-        for (int i = 0; i < 2; ++i)
+        for (int i = 0; i < kMaxDirectionalLights; ++i)
         {
             if (m_sGlobalDirectionals[i])
             {
@@ -748,7 +748,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
     for (PblList<RedLight>::Itor it = s_VisibleDirectionalLightList.Begin();
          it != s_VisibleDirectionalLightList.End(); ++it)
     {
-        RedDirectionalLight* pLight = static_cast<RedDirectionalLight*>((RedLight*)it);
+        RedDirectionalLight* pLight = (RedDirectionalLight*)(RedLight*)it;
         if (bStatic && pLight->IsStatic() && !pLight->IsSpecularCaster())
         {
             break;
@@ -814,7 +814,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
             {
                 state.pProjectedLight = state.pDirectionalLights[i];
                 state.pDirectionalLights[i] = state.pDirectionalLights[0];
-                state.pDirectionalLights[0] = static_cast<RedDirectionalLight*>(state.pProjectedLight);
+                state.pDirectionalLights[0] = (RedDirectionalLight*)state.pProjectedLight;
                 float fFactor = state.pDirectionalFactor[i];
                 state.pDirectionalFactor[i] = state.pDirectionalFactor[0];
                 state.pDirectionalFactor[0] = fFactor;
@@ -841,7 +841,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
         for (PblList<RedLight>::Itor it = s_VisibleOmniLightList.Begin();
              it != s_VisibleOmniLightList.End(); ++it)
         {
-            RedOmniLight* pLight = static_cast<RedOmniLight*>((RedLight*)it);
+            RedOmniLight* pLight = (RedOmniLight*)(RedLight*)it;
             if (bStatic && pLight->IsStatic())
             {
                 break;
@@ -908,7 +908,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
                 {
                     state.pProjectedLight = state.pOmniLights[i];
                     state.pOmniLights[i] = state.pOmniLights[0];
-                    state.pOmniLights[0] = static_cast<RedOmniLight*>(state.pProjectedLight);
+                    state.pOmniLights[0] = (RedOmniLight*)state.pProjectedLight;
                     break;
                 }
             }
@@ -932,7 +932,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
         for (PblList<RedLight>::Itor it = s_VisibleSpotLightList.Begin();
              it != s_VisibleSpotLightList.End(); ++it)
         {
-            RedSpotLight* pLight = static_cast<RedSpotLight*>((RedLight*)it);
+            RedSpotLight* pLight = (RedSpotLight*)(RedLight*)it;
             if (bStatic && pLight->IsStatic())
             {
                 break;
@@ -1009,7 +1009,7 @@ const RedLightingState* RedLight::GetLightingState(const PblSphere& sphere, int 
                 {
                     state.pProjectedLight = state.pSpotLights[i];
                     state.pSpotLights[i] = state.pSpotLights[0];
-                    state.pSpotLights[0] = static_cast<RedSpotLight*>(state.pProjectedLight);
+                    state.pSpotLights[0] = (RedSpotLight*)state.pProjectedLight;
                     break;
                 }
             }
@@ -1073,7 +1073,7 @@ void RedLight::PostLoad()
     {
         if (it->m_eType == TYPE_DIRECTIONAL)
         {
-            RedDirectionalLight* pLight = static_cast<RedDirectionalLight*>((RedLight*)it);
+            RedDirectionalLight* pLight = (RedDirectionalLight*)(RedLight*)it;
             pLight->m_boundingRegion = RedRegion::Find(pLight->m_uiRegionName);
         }
     }
@@ -1139,32 +1139,27 @@ void RedLight::ReadGlobals(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0xa710dc3c:
+        case 0xa710dc3c: /* "top" */
             topColor = RedColor(data.GetUint8Arg(0), data.GetUint8Arg(1), data.GetUint8Arg(2), 0xff);
             break;
-        case 0x4ea76b2a:
+        case 0x4ea76b2a: /* "bottom" */
             bottomColor = RedColor(data.GetUint8Arg(0), data.GetUint8Arg(1), data.GetUint8Arg(2), 0xff);
             break;
-        case 0xbb6dd0da:
+        case 0xbb6dd0da: /* "envmap" */
             uiEnvMap = PblHash(data.GetStringArg(0));
             break;
-        case 0xdb56693a:
+        case 0xdb56693a: /* "Light1" */
             uiLight1 = PblHash(data.GetStringArg(0));
             break;
-        case 0xda5667a7:
+        case 0xda5667a7: /* "light2" */
             uiLight2 = PblHash(data.GetStringArg(0));
             break;
         }
     }
 
-    RedLight::m_sGlobalAmbient->m_topColor = topColor;
-    RedLight::m_sGlobalAmbient->m_bottomColor = bottomColor;
-    RedColorValue mean;
-    mean.r = (topColor.r + bottomColor.r) * 0.5f;
-    mean.g = (topColor.g + bottomColor.g) * 0.5f;
-    mean.b = (topColor.b + bottomColor.b) * 0.5f;
-    mean.a = (topColor.a + bottomColor.a) * 0.5f;
-    RedLight::m_sGlobalAmbient->m_color = mean;
+    RedLight::m_sGlobalAmbient->SetTopColor(topColor);
+    RedLight::m_sGlobalAmbient->SetBottomColor(bottomColor);
+    RedLight::m_sGlobalAmbient->SetColor((topColor + bottomColor) * 0.5f);
 
     RedLight::m_sGlobalEnvMapHash = uiEnvMap;
     RedLight::m_sGlobalDirectionalFactor[0] = 0.0f;
@@ -1201,13 +1196,13 @@ void RedLight::Read(PblFileChunk& chunk)
 
         switch (data.GetId())
         {
-        case 0xe29d1e2f:
+        case 0xe29d1e2f: /* "LIGHT" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             ReadLight(scope, PblHash(data.GetStringArg(0)));
             break;
         }
-        case 0xf7548f33:
+        case 0xf7548f33: /* "GlobalLights" */
         {
             PblConfig scope(config.ReadNextScope(), true);
             ReadGlobals(scope);
@@ -1251,29 +1246,29 @@ void RedLight::ReadLight(PblConfig& config, unsigned int uiName)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x21ac415f:
+        case 0x21ac415f: /* "Rotation" */
             qRotation._fX = -data.GetFloatArg(3);
             qRotation._fY = data.GetFloatArg(0);
             qRotation._fZ = -data.GetFloatArg(1);
             qRotation._fS = data.GetFloatArg(2);
             break;
-        case 0x044c2100:
+        case 0x044c2100: /* "Bidirectional" */
             bBidirectional = data.GetUint32Arg(0) == 1;
             break;
-        case 0x031afe7d:
+        case 0x031afe7d: /* "Region" */
             uiRegion = PblHash(data.GetStringArg(0));
             break;
-        case 0x3c6468f4:
+        case 0x3c6468f4: /* "Texture" */
             uiTexture = PblHash(data.GetStringArg(0));
             uiWrapMode = data.GetInt32Arg(1) ? 3 : 1;
             break;
-        case 0x5127f14d:
+        case 0x5127f14d: /* "Type" */
             uiType = data.GetUint32Arg(0);
             break;
         case 0x489162bb:
             bCastSpecular = data.GetNumArgs() > 0 && data.GetInt32Arg(0) != 0;
             break;
-        case 0x3d7e6258:
+        case 0x3d7e6258: /* "Color" */
             color.r = data.GetFloatArg(0);
             color.g = data.GetFloatArg(1);
             color.b = data.GetFloatArg(2);
@@ -1286,7 +1281,7 @@ void RedLight::ReadLight(PblConfig& config, unsigned int uiName)
             fOffsetU = data.GetFloatArg(0);
             fOffsetV = data.GetFloatArg(1);
             break;
-        case 0x934f4e0a:
+        case 0x934f4e0a: /* "Position" */
             vPosition.x = data.GetFloatArg(0);
             vPosition.y = data.GetFloatArg(1);
             vPosition.z = -data.GetFloatArg(2);
@@ -1295,20 +1290,20 @@ void RedLight::ReadLight(PblConfig& config, unsigned int uiName)
             fTileU = data.GetFloatArg(0);
             fTileV = data.GetFloatArg(1);
             break;
-        case 0xc9b2bcc5:
+        case 0xc9b2bcc5: /* "falloff" */
             fFalloff = data.GetFloatArg(0);
             break;
-        case 0xdd404b6a:
+        case 0xdd404b6a: /* "Cone" */
             fInnerCone = data.GetFloatArg(0);
             fOuterCone = data.GetFloatArg(1);
             break;
-        case 0xd290c23b:
+        case 0xd290c23b: /* "STATIC" */
             bStatic = true;
             break;
         case 0xe7e90aee:
             bCastShadow = true;
             break;
-        case 0xfadc0cd2:
+        case 0xfadc0cd2: /* "Range" */
             fRange = data.GetFloatArg(0);
             break;
         }
@@ -1393,25 +1388,6 @@ void RedLight::SetGlobalDirectionalAmbientColors(RedColorValue& topColor,
 void RedLight::SetGlobalDirectionalLightColor(RedColorValue& color, int i)
 {
     m_sGlobalDirectionals[i]->SetColor(color);
-}
-
-// FUNCTION: SWBF2 0x00719be0
-void RedShadowRegion::UpdateAllVisibility(const RedCamera* pCamera)
-{
-    RedShadowRegion::s_VisibleList.Clear();
-    if (!pCamera)
-    {
-        return;
-    }
-
-    for (PblList<RedShadowRegion>::Itor it(RedShadowRegion::s_List); it != RedShadowRegion::s_List.End();
-         ++it)
-    {
-        if (it->IsVisible(pCamera, 25.0f))
-        {
-            RedShadowRegion::s_VisibleList.Add(&it->m_VisibleNode, it);
-        }
-    }
 }
 
 // FUNCTION: SWBF2 0x006c98f0

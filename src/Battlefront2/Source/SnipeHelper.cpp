@@ -53,7 +53,7 @@ namespace
 
     inline const CollisionObject* GetCollisionObject(const GameObject* pObj)
     {
-        return static_cast<const CollisionObject*>(pObj);
+        return (const CollisionObject*)pObj;
     }
 
     inline float DistSq(const PblVector3& a, const PblVector3& b)

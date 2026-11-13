@@ -6,19 +6,31 @@
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Graphics/RedMaterial.h"
 #include "RedEngineFL/Graphics/RedLight.h"
-#include "RedEngineFL/Graphics/RedAmbientLight.h"
+#include "RedEngineFL/Graphics/RedLight.h"
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
 #include "RedEngineFL/Graphics/RedOmniLight.h"
 #include "RedEngineFL/Graphics/RedSpotLight.h"
 
 #include "PebbleFL/Common/PblChunk.h"
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
+// GLOBAL: SWBF2 0x009ca840
+// pcPerVertexDiffuseLightingShader::s_uiID
 unsigned int pcPerVertexDiffuseLightingShader::s_uiID;
+// GLOBAL: SWBF2 0x009ca844
+// pcPerVertexDiffuseLightingShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcPerVertexDiffuseLightingShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca850
+// pcPerVertexDiffuseLightingShader::BeginFuncArray
 pcRedShader::BeginFuncT pcPerVertexDiffuseLightingShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca85c
+// pcPerVertexDiffuseLightingShader::EndFuncArray
 pcRedShader::EndFuncT pcPerVertexDiffuseLightingShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca868
+// pcPerVertexDiffuseLightingShader::RenderFuncArray
 pcRedShader::RenderFuncT pcPerVertexDiffuseLightingShader::RenderFuncArray[MAX_PIPELINES];
 
 // FUNCTION: SWBF2 0x00710560
@@ -98,12 +110,6 @@ void pcPerVertexDiffuseLightingShader::Begin_Prog1(unsigned int, unsigned int) c
     m_pLightingStatePrev = 0;
 }
 
-// FUNCTION: SWBF2 0x00710880
-void pcPerVertexDiffuseLightingShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x007108a0
 void pcPerVertexDiffuseLightingShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -114,28 +120,10 @@ void pcPerVertexDiffuseLightingShader::End_Prog1(unsigned int, unsigned int) con
 {
 }
 
-// FUNCTION: SWBF2 0x007108c0
-unsigned int pcPerVertexDiffuseLightingShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x007108e0
 RenderPhaseT pcPerVertexDiffuseLightingShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_OPAQUE;
-}
-
-// FUNCTION: SWBF2 0x007108f0
-unsigned int pcPerVertexDiffuseLightingShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x00710900
-pcRedShaderDef* pcPerVertexDiffuseLightingShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x00710910
@@ -367,22 +355,22 @@ void pcPerVertexDiffuseLightingShader::_Init(unsigned int,
 void pcPerVertexDiffuseLightingShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcPerVertexDiffuseLightingShader::GetState_Fixed);
+        (GetStateFuncT)(&pcPerVertexDiffuseLightingShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcPerVertexDiffuseLightingShader::Begin_Fixed);
+        (BeginFuncT)(&pcPerVertexDiffuseLightingShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcPerVertexDiffuseLightingShader::End_Fixed);
+        (EndFuncT)(&pcPerVertexDiffuseLightingShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcPerVertexDiffuseLightingShader::Render_Fixed);
+        (RenderFuncT)(&pcPerVertexDiffuseLightingShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcPerVertexDiffuseLightingShader::GetState_Prog1);
+        (GetStateFuncT)(&pcPerVertexDiffuseLightingShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcPerVertexDiffuseLightingShader::Begin_Prog1);
+        (BeginFuncT)(&pcPerVertexDiffuseLightingShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcPerVertexDiffuseLightingShader::End_Prog1);
+        (EndFuncT)(&pcPerVertexDiffuseLightingShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcPerVertexDiffuseLightingShader::Render_Prog1);
+        (RenderFuncT)(&pcPerVertexDiffuseLightingShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x00711480
@@ -391,7 +379,7 @@ void pcPerVertexDiffuseLightingShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -415,18 +403,24 @@ void pcPerVertexDiffuseLightingShader::_Read(PblFileChunk& chunk) const
 
 // SYNTHETIC: SWBF2 0x0040a550
 // `dynamic initializer for 'pcPerVertexDiffuseLightingShader::s_uiRenderTypeHash''
+// GLOBAL: SWBF2 0x009ca87c
+// pcPerVertexDiffuseLightingShader::s_uiRenderTypeHash
 unsigned int pcPerVertexDiffuseLightingShader::s_uiRenderTypeHash = PblHash("pervertexdiffuselighting");
 
 // SYNTHETIC: SWBF2 0x0040a510
 // `dynamic initializer for 'pcPerVertexDiffuseLightingShader::s_Factory''
 // SYNTHETIC: SWBF2 0x00769fc0
 // `dynamic atexit destructor for 'pcPerVertexDiffuseLightingShader::s_Factory''
+// GLOBAL: SWBF2 0x009ca888
+// pcPerVertexDiffuseLightingShader::s_Factory
 pcPerVertexDiffuseLightingShader pcPerVertexDiffuseLightingShader::s_Factory;
 
 // SYNTHETIC: SWBF2 0x0040a530
 // `dynamic initializer for 'pcPerVertexDiffuseLightingShader::s_shaderDef''
 // SYNTHETIC: SWBF2 0x00769fe0
 // `dynamic atexit destructor for 'pcPerVertexDiffuseLightingShader::s_shaderDef''
+// GLOBAL: SWBF2 0x009ca8a8
+// pcPerVertexDiffuseLightingShader::s_shaderDef
 pcRedShaderDef pcPerVertexDiffuseLightingShader::s_shaderDef("pervertexdiffuselighting_shader.xml");
 
 // SYNTHETIC: SWBF2 0x0040a590

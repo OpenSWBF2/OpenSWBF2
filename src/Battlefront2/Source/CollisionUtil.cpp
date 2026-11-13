@@ -696,27 +696,22 @@ bool CollideCapsules(const PblMatrix& m1, float fRadius1, float fHalfHeight1, co
     CollisionUtil::GetClosestPoints_SegmentSegment(vStart1, vEnd1, vStart2, vEnd2, vPoint1, vPoint2);
 
     vDelta = vPoint2 - vPoint1;
-    float fDist2 = SquaredLength(vDelta);
+    float fDist2 = DotProduct(vDelta, vDelta);
     if (0.0001f > fDist2)
     {
-        vNormal.x = 1.0f;
-        vNormal.y = 0.0f;
-        vNormal.z = 0.0f;
-        if (0.0001f > 1.0f - (vNormal.x * m1.m[1][0] + vNormal.y * m1.m[1][1] + vNormal.z * m1.m[1][2]))
+        vNormal.Set(1.0f, 0.0f, 0.0f);
+        if (0.0001f > 1.0f - DotProduct(vNormal, m1.GetYAxis()))
         {
-            vNormal.x = 0.0f;
-            vNormal.y = 0.0f;
-            vNormal.z = 1.0f;
+            vNormal.Set(0.0f, 0.0f, 1.0f);
         }
-        fDepth = fRadius1 > fRadius2 ? fRadius1 : fRadius2;
+        fDepth = Max(fRadius1, fRadius2);
         return true;
     }
-    float fDist = (float)sqrt((double)fDist2);
+    float fDist = sqrtf(fDist2);
     fDepth = fRadius1 + fRadius2 - fDist;
     if (fDepth > 0.0001f)
     {
-        float fInv = 1.0f / fDist;
-        vNormal = vDelta * fInv;
+        vNormal = vDelta / fDist;
         return true;
     }
     return false;

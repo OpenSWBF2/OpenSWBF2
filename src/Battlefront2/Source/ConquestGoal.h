@@ -3,6 +3,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 
 #include "AIGoal.h"
+#include "PebbleFL/Common/PblRtti.h"
 
 namespace AI
 {
@@ -13,9 +14,13 @@ class ConquestGoal : public AIGoal
 public:
     ConquestGoal(unsigned char uTeam, float fWeight);
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
+    // FUNCTION: SWBF2 0x004829c0
+    // AI::ConquestGoal::IsRtti
+    // FUNCTION: SWBF2 0x004829f0
+    // AI::ConquestGoal::GetDerivedRtti
+    // FUNCTION: SWBF2 0x00482a00
+    // AI::ConquestGoal::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(ConquestGoal, AIGoal)
 
     virtual void Update();
 
@@ -31,32 +36,6 @@ protected:
     static float sGetImportance(const CommandPost* pPost, int iTeam);
 
 public:
-    static PblHash rttiHashConquestGoal;
-    static const char rttiNameConquestGoal[];
 };
 
-}
-
- 
-
-// FUNCTION: SWBF2 0x004829c0
-inline bool AI::ConquestGoal::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashConquestGoal == uRtti)
-    {
-        return true;
-    }
-    return AIGoal::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x004829f0
-inline unsigned int AI::ConquestGoal::GetDerivedRtti() const
-{
-    return rttiHashConquestGoal;
-}
-
-// FUNCTION: SWBF2 0x00482a00
-inline const char* AI::ConquestGoal::GetDerivedRttiName() const
-{
-    return rttiNameConquestGoal;
 }

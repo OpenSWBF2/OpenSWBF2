@@ -148,8 +148,8 @@ public:
     HUD::ElementBitmap mTargetCommon[32];
     TargetCommonState mTargetCommonState[32];
     Target mTargetPlayerAll[targetPlayerState_MAX];
-    HUD::ElementBitmap mTargetPlayer[64];
-    TargetPlayerState mTargetPlayerState[64];
+    HUD::ElementBitmap mTargetPlayer[LockOnManager::kMaxTargets];
+    TargetPlayerState mTargetPlayerState[LockOnManager::kMaxTargets];
     HUD::EventHandler mEventResetTargetCommon;
     HUD::EventHandler mEventResetTargetPlayer;
     HUD::ElementBitmap mTargetLockOn[4];

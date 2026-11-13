@@ -36,24 +36,24 @@ void CreateTreeLineOnPath(unsigned int uPathName, PblFileChunk& chunk)
         child._pFile->Read8();
         switch (uProperty)
         {
-        case 0x6850acc6:
+        case 0x6850acc6: /* "BorderOdf" */
             aClasses[iNumClasses] = EntityClass::Find(child._pFile->Read32());
             if (aClasses[iNumClasses])
             {
                 ++iNumClasses;
             }
             break;
-        case 0xef838cc7:
+        case 0xef838cc7: /* "CoverOdf" */
             aOtherClasses[iNumOtherClasses] = EntityClass::Find(child._pFile->Read32());
             if (aOtherClasses[iNumOtherClasses])
             {
                 ++iNumOtherClasses;
             }
             break;
-        case 0xbad71c66:
+        case 0xbad71c66: /* "Flip" */
             bReverse = true;
             break;
-        case 0x2eb31462:
+        case 0x2eb31462: /* "Distance" */
             fSpacing = child._pFile->ReadFloat();
             break;
         }
@@ -104,7 +104,7 @@ void TreeLine::CreateTreeLine(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         const unsigned int uProperty = child._pFile->Read32();
         child._pFile->Read8();
-        if (uProperty == 0x84874d36)
+        if (uProperty == 0x84874d36 /* "Path" */)
         {
             const unsigned int uPathName = child._pFile->Read32();
             PblFileChunk pathChunk = chunk.ReadNextChild();

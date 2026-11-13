@@ -1,5 +1,6 @@
 #include <d3dx9math.h>
 #include "Weapon.h"
+#include "EntityFlyer.h"
 
 #include <math.h>
 #include <new>
@@ -20,7 +21,7 @@
 #include "ParticleEmitterObject.h"
 #include "SoldierAnimationBank.h"
 #include "Trigger.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "SoundFL/source/sndvoicevirtual.h"
 #include "FLEffect.h"
@@ -46,29 +47,6 @@ bool Weapon::FireDone() const
     return true;
 }
 
-// FUNCTION: SWBF2 0x0067bce0
-float WeaponClass::GetHeatPerSalvo() const
-{
-    return mHeatPerShot;
-}
-
-// FUNCTION: SWBF2 0x0067bcf0
-float WeaponClass::GetShotsPerSalvo() const
-{
-    return 1.0f;
-}
-
-// FUNCTION: SWBF2 0x0067bc00
-Weapon* WeaponClass::Build(const WeaponDesc& desc)
-{
-    PostLoadInit();
-    if (Weapon::sMemoryPool.IsFull())
-    {
-        return 0;
-    }
-    return new Weapon(this, desc);
-}
-
 // SYNTHETIC: SWBF2 0x00679b40
 // WeaponClass::`scalar deleting destructor'
 // SYNTHETIC: SWBF2 0x0067c120
@@ -77,28 +55,21 @@ Weapon* WeaponClass::Build(const WeaponDesc& desc)
 // FUNCTION: SWBF2 0x0067a1b0
 WeaponClass::~WeaponClass() {}
 
-// FUNCTION: SWBF2 0x0067bb90
-WeaponClass* WeaponClass::Derive(unsigned int uHash)
-{
-    return new WeaponClass(this, uHash);
-}
-
 
 extern bool netIsLateTurn;
 
 
 
-namespace GameLoop
-{
-extern bool gUnlimitedAmmo;
-}
+
+
+
 
 namespace
 {
 
     inline const PblMatrix& GetCollisionMatrix(GameObject* pObject)
     {
-        return static_cast<CollisionObject*>(pObject)->GetMatrix();
+        return ((CollisionObject*)pObject)->GetMatrix();
     }
 
     inline const PblVector3& GetVelocity(GameObject* pObject)
@@ -122,12 +93,6 @@ namespace
         return pObject->IsRtti(uRtti);
     }
 }
-
-class EntityFlyer
-{
-public:
-    static PblHash rttiHashEntityFlyer;
-};
 
 // FUNCTION: SWBF2 0x00679700
 WeaponClass::WeaponClass(unsigned int uHash)
@@ -153,7 +118,7 @@ WeaponClass::WeaponClass(unsigned int uHash)
     mHUDNameHash = 0;
     mIconTexture = 0;
     mReticuleTexture = 0;
-    mScopeTexture = 0xF6BCFA8Eu;
+    mScopeTexture = 0xF6BCFA8Eu /* "weapon_scope" */;
     mOrdnanceClass = 0;
     mModel = 0;
     mHighResModel = 0;
@@ -353,7 +318,7 @@ WeaponClass::WeaponClass(WeaponClass* pBase, unsigned int uHash)
     mMedalsTypeToUnlock = pBase->mMedalsTypeToUnlock;
     mMedalsTypeToLock = pBase->mMedalsTypeToLock;
     mChargeUpEffect = pBase->mChargeUpEffect;
-    mMuzzleFlashModel = RedModel::_HashTable.Find(0x9DB10C98);
+    mMuzzleFlashModel = RedModel::_HashTable.Find(0x9DB10C98 /* "com_sfx_muzzleflash" */);
     mName[0] = 0;
     mDisplayRefire = pBase->mDisplayRefire;
     mStopChargeSound = pBase->mStopChargeSound;
@@ -373,7 +338,7 @@ void WeaponClass::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x45505954:
+        case CHUNK_ID('T', 'Y', 'P', 'E'):
         {
             memset(acType, 0, sizeof(acType));
             const char* pcType = child.ReadString(acType, sizeof(acType));
@@ -401,10 +366,10 @@ void WeaponClass::Read(PblFileChunk& chunk)
             pCharge->mLabel = RedLocalizeDB::Find(PblHash(acBuffer), true);
             break;
         }
-        case 0x45534142:
+        case CHUNK_ID('B', 'A', 'S', 'E'):
             pClass = Find(PblHash(child.ReadString(acBuffer, sizeof(acBuffer))));
             break;
-        case 0x504F5250:
+        case CHUNK_ID('P', 'R', 'O', 'P'):
         {
             const unsigned int uProperty = child._pFile->Read32();
             char* pcValue = child.ReadString(acBuffer, sizeof(acBuffer));
@@ -432,13 +397,13 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0xFC9B0358:
+    case 0xFC9B0358: /* "SquatSound" */
         mFoleyFX[foleyFX_squat].SetID(pszValue, false, false);
         break;
-    case 0xFFCC84B2:
+    case 0xFFCC84B2: /* "BarrageDelay" */
         sscanf(pszValue, "%f", &mBarrageDelay);
         break;
-    case 0xFBF47DBA:
+    case 0xFBF47DBA: /* "WeaponName" */
         mNameHash = PblHash(pszValue);
         mHashWeaponName = true;
         for (int i = 0; i < (int)sizeof(mName) - 1; ++i)
@@ -447,7 +412,7 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         mName[sizeof(mName) - 1] = 0;
         break;
-    case 0xFAE6054D:
+    case 0xFAE6054D: /* "TargetPerson" */
         if (atoi(pszValue))
         {
             mTargetTypes |= 0x01;
@@ -457,21 +422,21 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mTargetTypes &= ~0x01;
         }
         break;
-    case 0xFAF37909:
+    case 0xFAF37909: /* "AIBubbleCircle" */
         mAIUseBubbleCircle = atoi(pszValue) != 0;
         break;
-    case 0xFBC7C100:
+    case 0xFBC7C100: /* "AutoPitchScreenDist" */
         sscanf(pszValue, "%f", &mAutoPitchScreenDist);
         break;
-    case 0xF8899C5E:
-    case 0x399BF05D:
+    case 0xF8899C5E: /* "OrdnanceName" */
+    case 0x399BF05D: /* "Ordnance" */
         mOrdnanceClass = OrdnanceClass::Find(PblHash(pszValue));
         if (mOrdnanceClass)
         {
             mExtremeRange = mOrdnanceClass->GetRange();
         }
         break;
-    case 0xF2E54D72:
+    case 0xF2E54D72: /* "FlashLightColor" */
     {
         int r = 255, g = 255, b = 255, a = 255;
         const int iCount = sscanf(pszValue, "%i %i %i %i", &r, &g, &b, &a);
@@ -491,22 +456,22 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
     }
-    case 0xEF6119F3:
+    case 0xEF6119F3: /* "ReloadSound" */
         mReloadSound.SetID(pszValue, false, false);
         break;
-    case 0xF15AAEB2:
+    case 0xF15AAEB2: /* "SniperScope" */
         mSniperScope = atoi(pszValue) != 0;
         break;
-    case 0xF303AC7B:
+    case 0xF303AC7B: /* "ChargeDelayHeavy" */
         sscanf(pszValue, "%f", &mChargeDelayHeavy);
         break;
-    case 0xF4A517D4:
+    case 0xF4A517D4: /* "OverheatSound" */
         mOverheatSound.SetID(pszValue, false, false);
         break;
-    case 0xF5701D6D:
+    case 0xF5701D6D: /* "ChargeRateLight" */
         sscanf(pszValue, "%f", &mChargeRateLight);
         break;
-    case 0xEB4230AC:
+    case 0xEB4230AC: /* "FlashColor" */
     {
         int r = 255, g = 255, b = 255, a = 255;
         sscanf(pszValue, "%i %i %i %i", &r, &g, &b, &a);
@@ -516,7 +481,7 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mFlashColor.a = (unsigned char)a;
         break;
     }
-    case 0xE10D2224:
+    case 0xE10D2224: /* "TargetEnemy" */
         if (atoi(pszValue))
         {
             mTargetSides |= 0x01;
@@ -526,10 +491,10 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mTargetSides &= ~0x01;
         }
         break;
-    case 0xD211149D:
+    case 0xD211149D: /* "RollSound" */
         mFoleyFX[foleyFX_roll].SetID(pszValue, false, false);
         break;
-    case 0xD6EE0E46:
+    case 0xD6EE0E46: /* "AITargetAnimal" */
         if (atoi(pszValue))
         {
             mAITargetTypes |= 0x02;
@@ -539,10 +504,10 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mAITargetTypes &= ~0x02;
         }
         break;
-    case 0xD8468816:
+    case 0xD8468816: /* "ChargedSound" */
         mChargedSound.SetID(pszValue, false, false);
         break;
-    case 0xE4AEFAB9:
+    case 0xE4AEFAB9: /* "TargetBuildingUnbuilt" */
         if (atoi(pszValue))
         {
             mTargetTypes |= 0x40;
@@ -552,28 +517,28 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mTargetTypes &= ~0x40;
         }
         break;
-    case 0xE60CD1C3:
+    case 0xE60CD1C3: /* "AIBubbleSizeMultiplier" */
         mAIBubbleSizeMultiplier = (float)atof(pszValue);
         break;
-    case 0xE6C12D74:
+    case 0xE6C12D74: /* "MaxChargeStrengthLight" */
         sscanf(pszValue, "%f", &mMaxChargeStrengthLight);
         break;
-    case 0xCFDE2FC0:
+    case 0xCFDE2FC0: /* "FireSound" */
         mFireSound.SetID(pszValue, false, false);
         break;
-    case 0xCDFE1739:
+    case 0xCDFE1739: /* "AITargetAll" */
         mAITargetTypes = atoi(pszValue) ? -1 : 0;
         break;
-    case 0xCF3649E6:
+    case 0xCF3649E6: /* "RecoilStrengthLight" */
         sscanf(pszValue, "%f", &mRecoilStrengthLight);
         break;
-    case 0xCFCCCBCE:
+    case 0xCFCCCBCE: /* "MuzzleFlash" */
     {
         RedColor flashColor = { 0xFF, 0xFF, 0x32, 0xFF };
         RedColor lightColor;
         switch ((unsigned int)PblHash(pszValue))
         {
-        case 0xB92CF7A1:
+        case 0xB92CF7A1: /* "small_muzzle_flash" */
         {
             mFlashRadius = 0.6f;
             mFlashWidth = 0.15f;
@@ -582,7 +547,7 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             lightColor = c;
             break;
         }
-        case 0xAE94DED9:
+        case 0xAE94DED9: /* "large_muzzle_flash" */
         {
             mFlashRadius = 1.8f;
             mFlashWidth = 0.45f;
@@ -591,7 +556,7 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             lightColor = c;
             break;
         }
-        case 0x84674572:
+        case 0x84674572: /* "med_muzzle_flash" */
         {
             mFlashRadius = 1.0f;
             mFlashWidth = 0.25f;
@@ -609,19 +574,19 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mFlashLightDuration = 0.0f;
         break;
     }
-    case 0xCADB9D74:
+    case 0xCADB9D74: /* "ProneSound" */
         mFoleyFX[foleyFX_prone].SetID(pszValue, false, false);
         break;
-    case 0xC57BC595:
+    case 0xC57BC595: /* "InstantPlayFireAnim" */
         mInstantPlayFireAnim = atoi(pszValue) != 0;
         break;
-    case 0xC915B156:
+    case 0xC915B156: /* "LockOffAngle" */
         if (sscanf(pszValue, "%f", &mLockOffAngle))
         {
             mLockOffAngle *= 0.017453292f;
         }
         break;
-    case 0xCA7F5887:
+    case 0xCA7F5887: /* "TargetFriendly" */
         if (atoi(pszValue))
         {
             mTargetSides |= 0x04;
@@ -631,7 +596,7 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mTargetSides &= ~0x04;
         }
         break;
-    case 0xC4409FF0:
+    case 0xC4409FF0: /* "TargetBuilding" */
         if (atoi(pszValue))
         {
             mTargetTypes |= 0x10;
@@ -641,48 +606,48 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mTargetTypes &= ~0x10;
         }
         break;
-    case 0xB7C581AD:
+    case 0xB7C581AD: /* "RecoilDelayHeavy" */
         sscanf(pszValue, "%f", &mRecoilDelayHeavy);
         break;
-    case 0xB97F1F52:
+    case 0xB97F1F52: /* "RecoilDecayHeavy" */
         sscanf(pszValue, "%f", &mRecoilDecayHeavy);
         break;
-    case 0xB989FC18:
+    case 0xB989FC18: /* "ClankRightWalkSound" */
         mFoleyFX[foleyFX_rightWalk].SetID(pszValue, false, false);
         break;
-    case 0xB7B2D011:
+    case 0xB7B2D011: /* "FlashLength" */
         sscanf(pszValue, "%f", &mFlashLength);
         break;
-    case 0xB53B908E:
+    case 0xB53B908E: /* "FireLoopSound" */
         mFireLoopSound.SetID(pszValue, false, false);
         break;
-    case 0xB7226D43:
+    case 0xB7226D43: /* "ZoomTurnDivisorMin" */
         sscanf(pszValue, "%f", &mZoomTurnDivisorMin);
         if (mZoomTurnDivisorMin == 0.0f)
         {
             mZoomTurnDivisorMin = 1.0f;
         }
         break;
-    case 0xB77F3981:
+    case 0xB77F3981: /* "ClankLeftWalkSound" */
         mFoleyFX[foleyFX_leftWalk].SetID(pszValue, false, false);
         break;
-    case 0xB52F4E1A:
+    case 0xB52F4E1A: /* "OverheatSoundPitch" */
         sscanf(pszValue, "%f", &mOverheatSoundPitch);
         break;
-    case 0xA9B93C09:
+    case 0xA9B93C09: /* "RecoilDecayLight" */
         sscanf(pszValue, "%f", &mRecoilDecayLight);
         break;
-    case 0xAD37783D:
+    case 0xAD37783D: /* "ZoomTurnDivisorMax" */
         sscanf(pszValue, "%f", &mZoomTurnDivisorMax);
         if (mZoomTurnDivisorMax == 0.0f)
         {
             mZoomTurnDivisorMax = 1.0f;
         }
         break;
-    case 0xAD3E89E3:
+    case 0xAD3E89E3: /* "LandSound" */
         mFoleyFX[foleyFX_land].SetID(pszValue, false, false);
         break;
-    case 0xA7C25382:
+    case 0xA7C25382: /* "CustomAnimationBank" */
     {
         char acBuffer[257];
         strlcpy(acBuffer, pszValue, sizeof(acBuffer));
@@ -708,13 +673,13 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mSoldierAnimationWeapon = SoldierAnimationBank::AddWeapon(pcName, pcParent, pcAlertState);
         break;
     }
-    case 0xA3BFD787:
+    case 0xA3BFD787: /* "FlashLightDuration" */
         sscanf(pszValue, "%f", &mFlashLightDuration);
         break;
-    case 0xA61D280F:
+    case 0xA61D280F: /* "MaxChargeStrengthHeavy" */
         sscanf(pszValue, "%f", &mMaxChargeStrengthHeavy);
         break;
-    case 0xA7678F8F:
+    case 0xA7678F8F: /* "AnimationBank" */
     {
         const char* pcName = strchr(pszValue, '_');
         if (pcName)
@@ -728,49 +693,49 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mSoldierAnimationWeapon = SoldierAnimationBank::FindWeapon(pcName);
         break;
     }
-    case 0x9FF840D6:
+    case 0x9FF840D6: /* "HUDTag" */
         mHUDNameHash = PblHash(pszValue);
         break;
-    case 0x8DDBEB4B:
+    case 0x8DDBEB4B: /* "IconTexture" */
         mIconTexture = PblHash(pszValue);
         break;
-    case 0x86FDC077:
+    case 0x86FDC077: /* "FlashRadius" */
         sscanf(pszValue, "%f", &mFlashRadius);
         break;
-    case 0x8B3185DD:
+    case 0x8B3185DD: /* "HighResGeometry" */
         mHighResModel = RedModel::Find(PblHash(pszValue));
         break;
-    case 0x8474EA2C:
+    case 0x8474EA2C: /* "ExtremeRange" */
         sscanf(pszValue, "%f", &mExtremeRange);
         if (mLockOnRange > mExtremeRange)
         {
             mExtremeRange = mLockOnRange;
         }
         break;
-    case 0x83EEA041:
+    case 0x83EEA041: /* "FlashLightRadius" */
         sscanf(pszValue, "%f", &mFlashLightRadius);
         break;
-    case 0x8316F444:
+    case 0x8316F444: /* "NextCharge" */
         mNextCharge = Derive(mId);
         if (mNextCharge)
         {
             sscanf(pszValue, "%f", &mNextCharge->mStrengthLimit);
         }
         break;
-    case 0x7FD5A0F0:
+    case 0x7FD5A0F0: /* "TargetLockMaxDistance" */
         sscanf(pszValue, "%f", &mTargetLockMaxDistance);
         break;
-    case 0x801F7ACB:
+    case 0x801F7ACB: /* "MedalsTypeToLock" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
         mMedalsTypeToLock = (short)iValue;
         break;
     }
-    case 0x9573FB20:
+    case 0x9573FB20: /* "ZoomRate" */
         sscanf(pszValue, "%f", &mZoomRate);
         break;
-    case 0x8F2A8613:
+    case 0x8F2A8613: /* "TargetMine" */
         if (atoi(pszValue))
         {
             mTargetTypes |= 0x80;
@@ -780,16 +745,16 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mTargetTypes &= ~0x80;
         }
         break;
-    case 0x903574D1:
+    case 0x903574D1: /* "RecoilLengthLight" */
         sscanf(pszValue, "%f", &mRecoilLengthLight);
         break;
-    case 0x94650003:
+    case 0x94650003: /* "FlashWidth" */
         sscanf(pszValue, "%f", &mFlashWidth);
         break;
-    case 0x96A29630:
+    case 0x96A29630: /* "ChargeSoundStop" */
         mStopChargeSound = atol(pszValue) != 0;
         break;
-    case 0x9BAD5828:
+    case 0x9BAD5828: /* "AITargetDroid" */
         if (atoi(pszValue))
         {
             mAITargetTypes |= 0x04;
@@ -799,22 +764,22 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mAITargetTypes &= ~0x04;
         }
         break;
-    case 0x9FC1A1AD:
-    case 0x136A7450:
+    case 0x9FC1A1AD: /* "ReloadTime" */
+    case 0x136A7450: /* "MagReloadTime" */
         sscanf(pszValue, "%f", &mReloadTime);
         if (mReloadTime < 0.01f)
         {
             mReloadTime = 0.01f;
         }
         break;
-    case 0x7F012F70:
+    case 0x7F012F70: /* "LockOnRange" */
         sscanf(pszValue, "%f", &mLockOnRange);
         if (mLockOnRange > mExtremeRange)
         {
             mExtremeRange = mLockOnRange;
         }
         break;
-    case 0x6B7F9189:
+    case 0x6B7F9189: /* "AITargetMine" */
         if (atoi(pszValue))
         {
             mAITargetTypes |= 0x80;
@@ -824,20 +789,20 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mAITargetTypes &= ~0x80;
         }
         break;
-    case 0x6667A8E0:
+    case 0x6667A8E0: /* "MedalsTypeToUnlock" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
         mMedalsTypeToUnlock = (short)iValue;
         break;
     }
-    case 0x6729F8E4:
+    case 0x6729F8E4: /* "NoFirstPersonFireAnim" */
         mNoFirstPersonFireAnim = atoi(pszValue) != 0;
         break;
-    case 0x67CFFD1A:
+    case 0x67CFFD1A: /* "HeatPerShot" */
         sscanf(pszValue, "%f", &mHeatPerShot);
         break;
-    case 0x64667773:
+    case 0x64667773: /* "AITargetBuildingUnbuilt" */
         if (atoi(pszValue))
         {
             mAITargetTypes |= 0x40;
@@ -847,7 +812,7 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mAITargetTypes &= ~0x40;
         }
         break;
-    case 0x60329904:
+    case 0x60329904: /* "AITargetBuildingDead" */
         if (atoi(pszValue))
         {
             mAITargetTypes |= 0x20;
@@ -857,28 +822,28 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mAITargetTypes &= ~0x20;
         }
         break;
-    case 0x60DDBF8E:
+    case 0x60DDBF8E: /* "ChargeRateHeavy" */
         sscanf(pszValue, "%f", &mChargeRateHeavy);
         break;
-    case 0x617E2F93:
+    case 0x617E2F93: /* "ReticuleTexture" */
         mReticuleTexture = PblHash(pszValue);
         break;
-    case 0x7CD21CEA:
+    case 0x7CD21CEA: /* "RecoilDelayLight" */
         sscanf(pszValue, "%f", &mRecoilDelayLight);
         break;
-    case 0x7DBE88FA:
+    case 0x7DBE88FA: /* "AutoAimSize" */
         if (sscanf(pszValue, "%f", &mLockOnAngle))
         {
             mLockOnAngle *= 0.072f;
         }
         break;
-    case 0x778F9AAE:
+    case 0x778F9AAE: /* "OptimalRange" */
         sscanf(pszValue, "%f", &mOptimalRange);
         break;
-    case 0x70BB9AA6:
+    case 0x70BB9AA6: /* "AIBubbleScaleDistDivider" */
         mAIBubbleScaleDistDivider = (float)atof(pszValue);
         break;
-    case 0x72B4743E:
+    case 0x72B4743E: /* "AITargetVehicle" */
         if (atoi(pszValue))
         {
             mAITargetTypes |= 0x08;
@@ -888,7 +853,7 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mAITargetTypes &= ~0x08;
         }
         break;
-    case 0x75C58748:
+    case 0x75C58748: /* "TargetAnimal" */
         if (atoi(pszValue))
         {
             mTargetTypes |= 0x02;
@@ -898,13 +863,13 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mTargetTypes &= ~0x02;
         }
         break;
-    case 0x5FAB7F1D:
+    case 0x5FAB7F1D: /* "AutoTurnScreenDist" */
         sscanf(pszValue, "%f", &mAutoTurnScreenDist);
         break;
-    case 0x5136C56B:
+    case 0x5136C56B: /* "TargetAll" */
         mTargetTypes = atoi(pszValue) ? -1 : 0;
         break;
-    case 0x47C86B4A:
+    case 0x47C86B4A: /* "GeometryName" */
         if (!mName[0])
         {
             const char* pc = pszValue;
@@ -925,23 +890,23 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mModel = RedModel::Find(PblHash(pszValue));
         if (mModel)
         {
-            mModel->GetParentBoneAndOffset(0xB3EA0EE8, mFirePointOffset);
+            mModel->GetParentBoneAndOffset(0xB3EA0EE8 /* "hp_fire" */, mFirePointOffset);
         }
         break;
-    case 0x41D6CEC0:
+    case 0x41D6CEC0: /* "AIBubbleScaleClamp" */
         mAIBubbleScaleClamp = (float)atof(pszValue);
         break;
-    case 0x4274FC96:
+    case 0x4274FC96: /* "FirePointName" */
         if (mModel)
         {
             mModel->GetParentBoneAndOffset(PblTEMPHash(pszValue), mFirePointOffset);
         }
         break;
-    case 0x43BCEBE6:
+    case 0x43BCEBE6: /* "MaxRange" */
         sscanf(pszValue, "%f", &mMaxRange);
         mMaxRangeDefault = false;
         break;
-    case 0x48E05B6F:
+    case 0x48E05B6F: /* "AITargetPerson" */
         if (atoi(pszValue))
         {
             mAITargetTypes |= 0x01;
@@ -951,35 +916,35 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mAITargetTypes &= ~0x01;
         }
         break;
-    case 0x4B92A06A:
+    case 0x4B92A06A: /* "RecoilLengthHeavy" */
         sscanf(pszValue, "%f", &mRecoilLengthHeavy);
         break;
-    case 0x4EE58508:
+    case 0x4EE58508: /* "ChargeSound" */
         mChargeSound.SetID(pszValue, false, false);
         break;
-    case 0x580DC4EC:
+    case 0x580DC4EC: /* "JumpSound" */
         mFoleyFX[foleyFX_jump].SetID(pszValue, false, false);
         break;
-    case 0x516C9F08:
+    case 0x516C9F08: /* "ChargeDelayLight" */
         sscanf(pszValue, "%f", &mChargeDelayLight);
         break;
-    case 0x578AD99E:
+    case 0x578AD99E: /* "ReticuleInAimingOnly" */
         mReticuleInAimingOnly = atoi(pszValue) != 0;
         break;
-    case 0x57E7BBA3:
+    case 0x57E7BBA3: /* "HeatRecoverRate" */
         sscanf(pszValue, "%f", &mHeatRecoverRate);
         break;
-    case 0x5C0246C4:
+    case 0x5C0246C4: /* "FireAnim" */
     {
         int iValue = 0;
         sscanf(pszValue, "%i", &iValue);
         mFireAnim = iValue != 0;
         break;
     }
-    case 0x5CD23209:
+    case 0x5CD23209: /* "TargetLockMaxDistanceLose" */
         sscanf(pszValue, "%f", &mTargetLockMaxDistanceLose);
         break;
-    case 0x5F0AE167:
+    case 0x5F0AE167: /* "TargetNeutral" */
         if (atoi(pszValue))
         {
             mTargetSides |= 0x02;
@@ -989,7 +954,7 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mTargetSides &= ~0x02;
         }
         break;
-    case 0x3F76AE9E:
+    case 0x3F76AE9E: /* "TargetBuildingDead" */
         if (atoi(pszValue))
         {
             mTargetTypes |= 0x20;
@@ -999,7 +964,7 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mTargetTypes &= ~0x20;
         }
         break;
-    case 0x2A96E8B4:
+    case 0x2A96E8B4: /* "ZoomMax" */
         sscanf(pszValue, "%f", &mZoomMax);
         if (mZoomMax == 0.0f)
         {
@@ -1007,13 +972,13 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         mZoomTurnDivisorMax = mZoomMax;
         break;
-    case 0x222090F6:
+    case 0x222090F6: /* "AmmoPerShot" */
         sscanf(pszValue, "%f", &mRoundsPerShot);
         break;
-    case 0x22624B58:
+    case 0x22624B58: /* "FireSoundStop" */
         sscanf(pszValue, "%d", &mFireSoundStop);
         break;
-    case 0x281B9338:
+    case 0x281B9338: /* "TargetVehicle" */
         if (atoi(pszValue))
         {
             mTargetTypes |= 0x08;
@@ -1023,37 +988,37 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mTargetTypes &= ~0x08;
         }
         break;
-    case 0x20E1E379:
+    case 0x20E1E379: /* "FireEmptySound" */
         mFireEmptySound.SetID(pszValue, false, false);
         break;
-    case 0x1AA5EC35:
+    case 0x1AA5EC35: /* "BarrageMin" */
         sscanf(pszValue, "%i", &mBarrageMin);
         break;
-    case 0x1EF25B6C:
+    case 0x1EF25B6C: /* "MinRange" */
         sscanf(pszValue, "%f", &mMinRange);
         break;
-    case 0x1F63537B:
+    case 0x1F63537B: /* "MuzzleFlashModel" */
         mMuzzleFlashModel = RedModel::Find(PblHash(pszValue));
         break;
-    case 0x3935C7CA:
+    case 0x3935C7CA: /* "LockOnAngle" */
         if (sscanf(pszValue, "%f", &mLockOnAngle))
         {
             mLockOnAngle *= 0.017453292f;
         }
         break;
-    case 0x2ECD946F:
+    case 0x2ECD946F: /* "OffhandWeapon" */
         mIsOffhand = atoi(pszValue) != 0;
         break;
-    case 0x32E2A37A:
+    case 0x32E2A37A: /* "ScopeTexture" */
         mScopeTexture = PblHash(pszValue);
         break;
-    case 0x352A4DB8:
+    case 0x352A4DB8: /* "WeaponChangeSound" */
         mWeaponChangeSound.SetID(pszValue, false, false);
         break;
-    case 0x39AAA863:
+    case 0x39AAA863: /* "MuzzleFlashEffect" */
         mMuzzleFlashEffect = FLEffect::Get(PblHash(pszValue));
         break;
-    case 0x19007F1A:
+    case 0x19007F1A: /* "TargetDroid" */
         if (atoi(pszValue))
         {
             mTargetTypes |= 0x04;
@@ -1063,10 +1028,10 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mTargetTypes &= ~0x04;
         }
         break;
-    case 0x17668629:
+    case 0x17668629: /* "EnergyDrain" */
         sscanf(pszValue, "%f", &mEnergyDrain);
         break;
-    case 0x1881B1A6:
+    case 0x1881B1A6: /* "ZoomMin" */
         sscanf(pszValue, "%f", &mZoomMin);
         if (mZoomMin == 0.0f)
         {
@@ -1074,34 +1039,34 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         mZoomTurnDivisorMin = mZoomMin;
         break;
-    case 0x18C5F75D:
+    case 0x18C5F75D: /* "ChargeUpEffect" */
         mChargeUpEffect = FLEffect::Get(PblHash(pszValue));
         break;
-    case 0x14EC7E1D:
+    case 0x14EC7E1D: /* "ZoomFirstPerson" */
         mZoomFirstPerson = atoi(pszValue) != 0;
         break;
-    case 0x12586DAE:
+    case 0x12586DAE: /* "ChargeSoundPitch" */
         sscanf(pszValue, "%f", &mChargeSoundPitch);
         break;
-    case 0x12BA9F01:
+    case 0x12BA9F01: /* "RecoilStrengthHeavy" */
         sscanf(pszValue, "%f", &mRecoilStrengthHeavy);
         break;
-    case 0x10A991E4:
+    case 0x10A991E4: /* "ClankRightRunSound" */
         mFoleyFX[foleyFX_rightRun].SetID(pszValue, false, false);
         break;
-    case 0x0E8B2D62:
+    case 0x0E8B2D62: /* "StandSound" */
         mFoleyFX[foleyFX_stand].SetID(pszValue, false, false);
         break;
-    case 0x0EE66C41:
+    case 0x0EE66C41: /* "TimeAtMaxCharge" */
         sscanf(pszValue, "%f", &mTimeAtMaxCharge);
 
-    case 0xED9D56DB:
+    case 0xED9D56DB: /* "TriggerSingle" */
         mTriggerSingle = atoi(pszValue) != 0;
         break;
-    case 0x1064C0A7:
+    case 0x1064C0A7: /* "ClankLeftRunSound" */
         mFoleyFX[foleyFX_leftRun].SetID(pszValue, false, false);
         break;
-    case 0x08F174A6:
+    case 0x08F174A6: /* "AITargetBuilding" */
         if (atoi(pszValue))
         {
             mAITargetTypes |= 0x10;
@@ -1111,13 +1076,13 @@ void WeaponClass::SetProperty(unsigned int uProperty, const char* pszValue)
             mAITargetTypes &= ~0x10;
         }
         break;
-    case 0x01A333E4:
+    case 0x01A333E4: /* "DisplayRefire" */
         mDisplayRefire = atoi(pszValue) != 0;
         break;
-    case 0x04BAE44B:
+    case 0x04BAE44B: /* "BarrageMax" */
         sscanf(pszValue, "%i", &mBarrageMax);
         break;
-    case 0x059DF9F0:
+    case 0x059DF9F0: /* "ScoreForMedalsType" */
     {
         int iValue;
         sscanf(pszValue, "%d", &iValue);
@@ -1146,6 +1111,23 @@ void WeaponClass::PostReadInit()
     }
 }
 
+// FUNCTION: SWBF2 0x0067bb90
+WeaponClass* WeaponClass::Derive(unsigned int uHash)
+{
+    return new WeaponClass(this, uHash);
+}
+
+// FUNCTION: SWBF2 0x0067bc00
+Weapon* WeaponClass::Build(const WeaponDesc& desc)
+{
+    PostLoadInit();
+    if (Weapon::sMemoryPool.IsFull())
+    {
+        return 0;
+    }
+    return new Weapon(this, desc);
+}
+
 // FUNCTION: SWBF2 0x0067bc80
 void WeaponClass::CreateMuzzleFlash(const PblMatrix& mFire) const
 {
@@ -1161,6 +1143,18 @@ void WeaponClass::CreateMuzzleFlash(const PblMatrix& mFire) const
     {
         pEffect->AttachEffectToMatrix(&mFire, false);
     }
+}
+
+// FUNCTION: SWBF2 0x0067bce0
+float WeaponClass::GetHeatPerSalvo() const
+{
+    return mHeatPerShot;
+}
+
+// FUNCTION: SWBF2 0x0067bcf0
+float WeaponClass::GetShotsPerSalvo() const
+{
+    return 1.0f;
 }
 
 // FUNCTION: SWBF2 0x0067bd00
@@ -1214,6 +1208,15 @@ void WeaponClass::RenderFlash(const PblVector3& vPos, const PblVector3& vDir, fl
     mMuzzleFlashModel->Render(&mFlash, 0, color, 0, 0);
 }
 
+// SYNTHETIC: SWBF2 0x00407000
+// `dynamic initializer for 'Weapon::sMemoryPool''
+// SYNTHETIC: SWBF2 0x007697d0
+// `dynamic atexit destructor for 'Weapon::sMemoryPool''
+
+// GLOBAL: SWBF2 0x01f9a830
+// Weapon::sMemoryPool
+MemoryPool Weapon::sMemoryPool("Weapon", sizeof(Weapon));
+
 // SYNTHETIC: SWBF2 0x00407020
 // `dynamic initializer for 'Weapon::rttiHashWeapon''
 // Weapon::rttiHashWeapon
@@ -1245,15 +1248,6 @@ const char WeaponClass::rttiNameWeaponClass[] = "WeaponClass";
 // WeaponClass::sWeaponChangeUnableSound
 GameSound WeaponClass::sWeaponChangeUnableSound;
 
-// SYNTHETIC: SWBF2 0x00407000
-// `dynamic initializer for 'Weapon::sMemoryPool''
-// SYNTHETIC: SWBF2 0x007697d0
-// `dynamic atexit destructor for 'Weapon::sMemoryPool''
-
-// GLOBAL: SWBF2 0x01f9a830
-// Weapon::sMemoryPool
-MemoryPool Weapon::sMemoryPool("Weapon", sizeof(Weapon));
-
 // SYNTHETIC: SWBF2 0x00677650
 // Weapon::operator delete
 void Weapon::operator delete(void* p)
@@ -1271,24 +1265,6 @@ void* Weapon::operator new(size_t uSize)
 
 
 
-
-// FUNCTION: SWBF2 0x00677660
-bool Weapon::IsLocked() const
-{
-    return mTarget != 0;
-}
-
-// FUNCTION: SWBF2 0x006776a0
-const GameObject* Weapon::GetLocked() const
-{
-    return &mTarget();
-}
-
-// FUNCTION: SWBF2 0x006776d0
-int Weapon::GetLockedTargetBodyId() const
-{
-    return mTargetBodyID;
-}
 
 // FUNCTION: SWBF2 0x006776e0
 void Weapon::SetKickSpreadFactor(float)
@@ -1312,12 +1288,6 @@ float Weapon::GetPitchSpread() const
     return 0.0f;
 }
 
-// FUNCTION: SWBF2 0x00677720
-bool Weapon::Deflect(const Ordnance*, const PblVector3&, const PblVector3&)
-{
-    return false;
-}
-
 // FUNCTION: SWBF2 0x00677730
 bool Weapon::ShouldShowReticule() const
 {
@@ -1332,18 +1302,6 @@ bool Weapon::IsMelee() const
 
 // FUNCTION: SWBF2 0x00677750
 bool Weapon::IsMeleeThrow() const
-{
-    return false;
-}
-
-// FUNCTION: SWBF2 0x00677760
-bool Weapon::OverrideSoldierVelocity(float&, float&, float&, float&) const
-{
-    return false;
-}
-
-// FUNCTION: SWBF2 0x00677770
-bool Weapon::OverrideSoldierEnergyRestore(float&) const
 {
     return false;
 }
@@ -1435,7 +1393,7 @@ Weapon::~Weapon()
 // FUNCTION: SWBF2 0x00677b70
 void Weapon::Init()
 {
-    if (BonusManager::sInstance.IsTeamBonusActive(GetTeam(GetOwner()->GetGameObject()), 0xc81956e6))
+    if (BonusManager::sInstance.IsTeamBonusActive(GetTeam(GetOwner()->GetGameObject()), 0xc81956e6 /* "team_bonus_supplies" */))
     {
         float fDefault = m_pAmmoCounter->mDefaultMaxClips;
         if (fDefault < 1.7014117e38f)
@@ -2080,7 +2038,7 @@ void Weapon::EnterCharge()
     mCharged = false;
     mClass = mStart;
     GameObject* pObject = mOwner->GetGameObject();
-    if (!IsRtti(0xe33ded9d) || NetGame::GetJoystickIndex(mOwner->mPlayerId) >= 0)
+    if (!IsRtti(0xe33ded9d /* "WeaponLauncher" */) || NetGame::GetJoystickIndex(mOwner->mPlayerId) >= 0)
     {
         mSoundProps = mClass->mChargeSound;
         const PblVector3* pPos = mAimer ? &mAimer->mFirePos : &pObject->GetMatrix().GetTranslation();
@@ -2303,21 +2261,17 @@ void Weapon::Render(const PblMatrix& mat, const RedPose* pPose, const RedColor& 
         return;
     }
 
-    const RedModel* pModel;
-    if (!bArg || (pModel = mRenderClass->mHighResModel) == 0)
+    const RedModel* pModel = (bArg && mRenderClass->mHighResModel) ? mRenderClass->mHighResModel : mRenderClass->mModel;
+    if (!pModel)
     {
-        pModel = mRenderClass->mModel;
-        if (!pModel)
-        {
-            return;
-        }
+        return;
     }
 
     const PblMatrix* pMatrix = &mat;
     PblMatrix mBoneMatrix;
     if (pPose)
     {
-        const PblMatrix* pBone = pPose->Find(mRenderClass->mIsOffhand ? 0xB7EC1D31 : 0x2B960099);
+        const PblMatrix* pBone = pPose->Find(mRenderClass->mIsOffhand ? 0xB7EC1D31 /* "bone_l_hand" */ : 0x2B960099 /* "hp_weapons" */);
         if (!pBone)
         {
             return;
@@ -2334,8 +2288,7 @@ void Weapon::Render(const PblMatrix& mat, const RedPose* pPose, const RedColor& 
 
     pThis->mFirePointMatrix = *pMatrix;
     {
-        PblVector3 vFirePos;
-        D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vFirePos), reinterpret_cast<const D3DXVECTOR3*>(&mRenderClass->mFirePointOffset), reinterpret_cast<const D3DXMATRIX*>(pMatrix));
+        PblVector3 vFirePos = pMatrix->ApplyTransform(mRenderClass->mFirePointOffset);
         pThis->mFirePointMatrix[3] = vFirePos;
     }
     pThis->mFirePointMatrix.m[3][3] = 1.0f;
@@ -2352,11 +2305,12 @@ void Weapon::Render(const PblMatrix& mat, const RedPose* pPose, const RedColor& 
         if (!mChargeUpEmitter)
         {
             ParticleEmitterObject* pEmitter =
-                static_cast<ParticleEmitterObject*>(mRenderClass->mChargeUpEffect->BuildEffect());
-            pThis->mChargeUpEmitter = pEmitter;
+                (ParticleEmitterObject*)mRenderClass->mChargeUpEffect->BuildEffect();
+            PblHandle<ParticleEmitterObject>& hEmitter = pThis->mChargeUpEmitter;
+            hEmitter = pEmitter;
             if (mChargeUpEmitter)
             {
-                static_cast<ParticleEmitterObject*>(mChargeUpEmitter)->PermaRemoveParticleEffect();
+                ((ParticleEmitterObject*)mChargeUpEmitter)->PermaRemoveParticleEffect();
             }
         }
         if (mChargeUpEmitter)
@@ -2366,8 +2320,8 @@ void Weapon::Render(const PblMatrix& mat, const RedPose* pPose, const RedColor& 
             RedColorValue chargeColor;
             chargeColor.r = chargeColor.g = chargeColor.b = chargeColor.a = mStateTimer / mStateLimit;
             mChargeUpEmitter->SetEmitterColor(chargeColor);
-            static_cast<ParticleEmitterObject*>(mChargeUpEmitter)->Update(0.0f);
-            static_cast<ParticleEmitterObject*>(mChargeUpEmitter)->Render(1, 1.0f, 0);
+            ((ParticleEmitterObject*)mChargeUpEmitter)->Update(0.0f);
+            ((ParticleEmitterObject*)mChargeUpEmitter)->Render(1, 1.0f, 0);
         }
     }
     else if (mChargeUpEmitter)
@@ -2425,7 +2379,7 @@ void WeaponClass::Render(const PblMatrix& mMatrix, const RedPose* pPose, const R
     PblMatrix mBoneMatrix;
     if (pPose)
     {
-        const PblMatrix* pBone = pPose->Find(mIsOffhand ? 0xB7EC1D31 : 0x2B960099);
+        const PblMatrix* pBone = pPose->Find(mIsOffhand ? 0xB7EC1D31 /* "bone_l_hand" */ : 0x2B960099 /* "hp_weapons" */);
         if (!pBone)
         {
             return;

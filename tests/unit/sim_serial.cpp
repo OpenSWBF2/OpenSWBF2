@@ -367,6 +367,24 @@ TEST_CASE("thread activation key is set through one counter reader and reset" * 
     CHECK(sThread.substr(uiReset, uiEnd - uiReset).find("sThreadActivationKey = 0;") != std::string::npos);
 }
 
+TEST_CASE("thread reset moves the executing iterator off the deleted groups" * doctest::test_suite("regression"))
+{
+    std::string sThread;
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\Thread.cpp", sThread));
+
+    std::string::size_type uiReset = sThread.find("void Thread::Reset()");
+    REQUIRE(uiReset != std::string::npos);
+    std::string::size_type uiEnd = sThread.find("\n}", uiReset);
+    REQUIRE(uiEnd != std::string::npos);
+    std::string sReset = sThread.substr(uiReset, uiEnd - uiReset);
+    std::string::size_type uiLastClear = sReset.find("sClientTurnThreadList.Clear();");
+    std::string::size_type uiItor = sReset.find("sExecutingThread = sHostFrameThreadList.mThreads.End();");
+    REQUIRE(uiLastClear != std::string::npos);
+    REQUIRE(uiItor != std::string::npos);
+    CHECK(uiItor > uiLastClear);
+    CHECK(CountOf(sThread, "sExecutingThread = ") == 2);
+}
+
 TEST_CASE("wobble phase comes from the owner handle id under serial order" * doctest::test_suite("regression"))
 {
     const unsigned int auiId[] = { 0x13u, 0x20u, 0x7FFFu };

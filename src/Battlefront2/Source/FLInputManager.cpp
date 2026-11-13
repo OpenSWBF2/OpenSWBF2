@@ -23,7 +23,7 @@
 #include "HUDObjectiveList.h"
 #include "NetGame.h"
 #include "Weapon.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "NetState.h"
 #include "EnergyBar.h"
 #include "PebbleFL/Common/PblUnicode.h"
@@ -67,11 +67,6 @@ FLInputManager::FLInputManager()
     mActiveControllers[0] = true;
 }
 
-// FUNCTION: SWBF2 0x00529b30
-FLInputManager::~FLInputManager()
-{
-}
-
 // FUNCTION: SWBF2 0x0052a190
 RawControllerInputs* FLInputManager::GetPlayerJoystick(int iPlayer)
 {
@@ -97,13 +92,13 @@ struct CustomGlyphData
 // GLOBAL: SWBF2 0x007ec140
 static CustomGlyphData gCustomGlyphData[7] =
 {
-    { 0x7fff, 0x7f0688e4u },
-    { 0x8100, 0x592f1c52u },
-    { 0x8101, 0x7f0688e4u },
-    { 0x8200, 0x00288768u },
-    { 0x8201, 0xee286b12u },
-    { (wchar_t)(RawInputToActionKey('B') + 0x8000), 0xDD7D0382 },
-    { (wchar_t)(RawInputToActionKey('C') + 0x8000), 0xDD7D0382 },
+    { 0x7fff, 0x7f0688e4u /* "hud_notallowed" */ },
+    { 0x8100, 0x592f1c52u /* "small_arrow" */ },
+    { 0x8101, 0x7f0688e4u /* "hud_notallowed" */ },
+    { 0x8200, 0x00288768u /* "optionl" */ },
+    { 0x8201, 0xee286b12u /* "optionr" */ },
+    { (wchar_t)(RawInputToActionKey('B') + 0x8000), 0xDD7D0382 /* "btna" */ },
+    { (wchar_t)(RawInputToActionKey('C') + 0x8000), 0xDD7D0382 /* "btna" */ },
 };
 
 // FUNCTION: SWBF2 0x00529de0
@@ -154,15 +149,15 @@ static const ProcessedInputMap gProcessedInputMap[0x22] =
     { 0x9b656248u,  ePROCESSEDINPUT_reloadButtonDown },
     { 0xbfe61030u,  ePROCESSEDINPUT_useButtonPressed },
     { 0xf85071beu,  ePROCESSEDINPUT_squadCommandButtonPressed },
-    { 0xac98902du, ePROCESSEDINPUT_acceptHeroPressed },
-    { 0xcd1022bdu, ePROCESSEDINPUT_declineHeroPressed },
+    { 0xac98902du /* "AcceptHero" */, ePROCESSEDINPUT_acceptHeroPressed },
+    { 0xcd1022bdu /* "DeclineHero" */, ePROCESSEDINPUT_declineHeroPressed },
     { 0x1ed91b8bu, ePROCESSEDINPUT_lockTargetButtonPressed },
     { 0xc00bacc0u, ePROCESSEDINPUT_primaryNextButtonPressed },
     { 0x287ca200u, ePROCESSEDINPUT_primaryPrevButtonPressed },
     { 0x55cacad8u, ePROCESSEDINPUT_secondaryNextButtonPressed },
     { 0x356988b8u, ePROCESSEDINPUT_secondaryPrevButtonPressed },
-    { 0x0b3b6548u, ePROCESSEDINPUT_playerList },
-    { 0xa24bf9abu, ePROCESSEDINPUT_chat },
+    { 0x0b3b6548u /* "playerlist" */, ePROCESSEDINPUT_playerList },
+    { 0xa24bf9abu /* "chat" */, ePROCESSEDINPUT_chat },
     { 0x20a43ce3u, ePROCESSEDINPUT_friendChat },
     { 0x43a268abu, ePROCESSEDINPUT_Comm_Chat_0 },
     { 0x42a26718u, ePROCESSEDINPUT_Comm_Chat_1 },
@@ -172,7 +167,7 @@ static const ProcessedInputMap gProcessedInputMap[0x22] =
     { 0x46a26d64u, ePROCESSEDINPUT_Comm_Chat_5 },
     { 0x49a2721du, ePROCESSEDINPUT_Comm_Chat_6 },
     { 0x48a2708au, ePROCESSEDINPUT_Comm_Chat_7 },
-    { 0xdfa2efb1u, ePROCESSEDINPUT_Map },
+    { 0xdfa2efb1u /* "map" */, ePROCESSEDINPUT_Map },
     { 0xc3b9429eu, ePROCESSEDINPUT_TakeScreenshot },
     { 0x82feda2eu, ePROCESSEDINPUT_STRAFE_AXIS },
     { 0xbd8888f0u, ePROCESSEDINPUT_MOVE_AXIS },
@@ -252,19 +247,6 @@ void FLInputManager::Init(void)
         pPanel->DrawLCDText("Battlefront II", 0x32, 0x14);
         pPanel->PresentLCD();
     }
-}
-
-// FUNCTION: SWBF2 0x00529ae0
-GUIInputs::GUIInputs()
-{
-    memset(mGUIInputs, 0, sizeof(mGUIInputs));
-    memset(mLastGUIInputs, 0, sizeof(mLastGUIInputs));
-    memset(mProcessedGUIInputs, 0, sizeof(mProcessedGUIInputs));
-}
-
-// FUNCTION: SWBF2 0x00529b20
-GUIInputs::~GUIInputs()
-{
 }
 
 // FUNCTION: SWBF2 0x0052a150
@@ -551,7 +533,7 @@ bool FLInputManager::Update(float fDeltaTime)
                 GameObject* pObject = pControllable->GetGameObject();
                 if (pObject)
                 {
-                    const Damageable* pDamageable = static_cast<const Damageable*>(pObject);
+                    const Damageable* pDamageable = (const Damageable*)pObject;
                     const int iWidth = pLcd->mWidth;
 
                     if (pDamageable->GetMaxShield() > 0.0f)
@@ -659,6 +641,25 @@ void FLInputManager::UnbindController(int iPlayer)
     m_HWPort[0] = 0;
     mPrimaryPort = 0;
 }
+
+// FUNCTION: SWBF2 0x0052a9b0
+int FLInputManager::CountControllers() const
+{
+    int iConnected = 0;
+    for (unsigned char i = 0; i < RedInputManager::GetNumJoystickPorts(); ++i)
+    {
+        if (RedInputManager::GetJoystick(i)->m_connected)
+        {
+            ++iConnected;
+        }
+    }
+    if (iConnected < 1)
+    {
+        return 1;
+    }
+    return iConnected;
+}
+
 
 // FUNCTION: SWBF2 0x0052aa20
 void FLInputManager::BindPlayerInput()

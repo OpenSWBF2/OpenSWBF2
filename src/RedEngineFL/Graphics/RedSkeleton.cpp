@@ -101,7 +101,7 @@ void RedSkeleton::_Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4f464e49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
         {
             child.ReadString(acName, sizeof(acName));
             m_uiNameHash = PblHash(acName);
@@ -120,14 +120,14 @@ void RedSkeleton::_Read(PblFileChunk& chunk)
             }
             break;
         }
-        case 0x454d414e:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
             for (unsigned int i = 0; i < m_uiNumBones; ++i)
             {
                 child.ReadString(acName, sizeof(acName));
                 m_auiNameHash[i] = PblTEMPHash(acName);
             }
             break;
-        case 0x4d524658:
+        case CHUNK_ID('X', 'F', 'R', 'M'):
             for (unsigned int i = 0; i < m_uiNumBones; ++i)
             {
                 PblMatrix m;
@@ -150,7 +150,7 @@ void RedSkeleton::_Read(PblFileChunk& chunk)
                 m_amDefaultPose[i] = m;
             }
             break;
-        case 0x544e5250:
+        case CHUNK_ID('P', 'R', 'N', 'T'):
             for (unsigned int i = 0; i < m_uiNumBones; ++i)
             {
                 child.ReadString(acName, sizeof(acName));

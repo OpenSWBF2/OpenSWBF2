@@ -21,7 +21,7 @@ void MotionBlurEffect::Create()
 
 // FUNCTION: SWBF2 0x005a4f30
 MotionBlurEffect::MotionBlurEffect()
-    : FLEffect(0xF744F3B2u, 9)
+    : FLEffect(0xF744F3B2u /* "motionblur" */, RENDERABLE_SCREENEFFECT)
 {
     Enable(true);
     SetRenderPriority(0x271B);
@@ -68,7 +68,7 @@ void MotionBlurEffect::ReadConfig(PblConfig& config)
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (data.GetId() == 0xAF8BB8CEu)
+        if (data.GetId() == 0xAF8BB8CEu /* "Enable" */)
         {
             Enable(data.GetUint32Arg(0) != 0);
         }
@@ -95,7 +95,7 @@ void MotionBlurEffect::Update(float)
 }
 
 // FUNCTION: SWBF2 0x005a5140
-void MotionBlurEffect::Render(int value)
+void MotionBlurEffect::Render(unsigned int value) const
 {
     if (!((unsigned int)value & 0x200000))
     {

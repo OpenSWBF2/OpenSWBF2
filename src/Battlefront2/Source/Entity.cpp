@@ -92,56 +92,56 @@ void EntityClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x0e8c3fe5:
+    case 0x0e8c3fe5: /* "MapScale" */
         sscanf(pszValue, "%f", &mMapParams.mScale);
         break;
-    case 0x7f8a4c00:
+    case 0x7f8a4c00: /* "MapSpeedMin" */
         sscanf(pszValue, "%f", &mMapParams.mSpeedMin);
         break;
-    case 0x9576e6ea:
+    case 0x9576e6ea: /* "MapSpeedMax" */
         sscanf(pszValue, "%f", &mMapParams.mSpeedMax);
         break;
-    case 0x95eee380:
+    case 0x95eee380: /* "MapViewMin" */
         sscanf(pszValue, "%f", &mMapParams.mViewRangeMin);
         mMapParams.mRangeViewCone = mMapParams.mViewRangeMin > mMapParams.mRangeViewCone
                                         ? mMapParams.mViewRangeMin
                                         : mMapParams.mRangeViewCone;
         break;
-    case 0xabdb7e6a:
+    case 0xabdb7e6a: /* "MapViewMax" */
         sscanf(pszValue, "%f", &mMapParams.mViewRangeMax);
         break;
-    case 0x9dc38d80:
+    case 0x9dc38d80: /* "MapTexture" */
         mMapParams.mTexture = PblHash(pszValue);
         break;
-    case 0x29ef7150:
+    case 0x29ef7150: /* "MapTargetFadeRate" */
         sscanf(pszValue, "%f", &mMapParams.mTargetFadeTime);
         break;
-    case 0x2382f4bf:
+    case 0x2382f4bf: /* "MapRangeOverall" */
         sscanf(pszValue, "%f", &mMapParams.mRangeOverall);
         break;
-    case 0x3f6ae0b3:
+    case 0x3f6ae0b3: /* "MapRangeShooting" */
         sscanf(pszValue, "%f", &mMapParams.mRangeShooting);
         break;
-    case 0x3ac4d4c8:
+    case 0x3ac4d4c8: /* "MapRangeViewCone" */
         sscanf(pszValue, "%f", &mMapParams.mRangeViewCone);
         break;
-    case 0xbdd7449e:
+    case 0xbdd7449e: /* "MapViewConeAngle" */
     {
         float fAngle;
         sscanf(pszValue, "%f", &fAngle);
         mMapParams.mViewConeCosine = PblMath::Cos(fAngle * 0.5f);
         break;
     }
-    case 0x8ddbeb4b:
+    case 0x8ddbeb4b: /* "IconTexture" */
         mIconTexture = PblHash(pszValue);
         break;
-    case 0x0db7468e:
+    case 0x0db7468e: /* "HealthTexture" */
         mHealthTexture = PblHash(pszValue);
         break;
-    case 0x8f8faeb3:
+    case 0x8f8faeb3: /* "HUDModel" */
         mHUDModelID = PblHash(pszValue);
         break;
-    case 0x58071137:
+    case 0x58071137: /* "RemoveFromMapWhenDead" */
         mRemoveFromMapWhenDead = atoi(pszValue) != 0;
         break;
     }
@@ -164,7 +164,7 @@ void EntityClass::Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x45505954:
+        case CHUNK_ID('T', 'Y', 'P', 'E'):
         {
             memset(acType, 0, sizeof(acType));
             const unsigned int uType = PblHash(child.ReadString(acType, sizeof(acType)));
@@ -187,10 +187,10 @@ void EntityClass::Read(PblFileChunk& chunk)
             }
             break;
         }
-        case 0x45534142:
+        case CHUNK_ID('B', 'A', 'S', 'E'):
             pClass = Find(PblHash(child.ReadString(acBuffer, sizeof(acBuffer))));
             break;
-        case 0x504F5250:
+        case CHUNK_ID('P', 'R', 'O', 'P'):
         {
             const unsigned int uProperty = child._pFile->Read32();
             char* pcValue = child.ReadString(acBuffer, sizeof(acBuffer));

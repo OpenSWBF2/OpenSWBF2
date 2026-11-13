@@ -29,7 +29,7 @@ void LightsaberTrailEffect::Init()
 
 
 // FUNCTION: SWBF2 0x00573d20
-void LightsaberTrailEffect::Render(int)
+void LightsaberTrailEffect::Render(unsigned int) const
 {
 }
 
@@ -57,12 +57,13 @@ void LightsaberTrailEffect::Destroy()
     s_pInstance = 0;
 }
 
-namespace GameLoop
-{
+#include "GameLoop.h"
+
+
 
 // GLOBAL: SWBF2 0x01e56058
-float sClientDeltaTime;
-}
+float GameLoop::sClientDeltaTime;
+
 
 // FUNCTION: SWBF2 0x00573f60
 LightsaberTrail::LightsaberTrail(const LightsaberTrailClass* pClass)
@@ -83,23 +84,8 @@ LightsaberTrail::LightsaberTrail(const LightsaberTrailClass* pClass)
 
 
 
-// FUNCTION: SWBF2 0x00573da0
-bool LightsaberTrail::IsEffectActive() const
-{
-    return m_bEffectActive;
-}
 
-// FUNCTION: SWBF2 0x00573db0
-void LightsaberTrail::ActivateEffect()
-{
-    m_bEffectActive = true;
-}
 
-// FUNCTION: SWBF2 0x00573dc0
-void LightsaberTrail::DeactivateEffect()
-{
-    m_bEffectActive = false;
-}
 
 // FUNCTION: SWBF2 0x00573dd0
 void LightsaberTrail::AddToRenderList()
@@ -320,12 +306,12 @@ unsigned int LightsaberTrail::GetTotalNumSteps(float fMaxTimeStep, float fMaxDis
             const float fElapsed = m_afTime[uiIndex] - fPreviousTime;
             if (fElapsed > fMaxTimeStep)
             {
-                uiSteps = static_cast<unsigned int>(fElapsed / fMaxTimeStep) + 1;
+                uiSteps = (unsigned int)(fElapsed / fMaxTimeStep) + 1;
             }
             if (fDistance > fMaxDistanceStep)
             {
                 const unsigned int uiDistanceSteps =
-                    static_cast<unsigned int>(fDistance / fMaxDistanceStep) + 1;
+                    (unsigned int)(fDistance / fMaxDistanceStep) + 1;
                 if (uiSteps < uiDistanceSteps)
                 {
                     uiSteps = uiDistanceSteps;
@@ -338,7 +324,7 @@ unsigned int LightsaberTrail::GetTotalNumSteps(float fMaxTimeStep, float fMaxDis
         }
         if (pSteps)
         {
-            pSteps[i] = static_cast<unsigned char>(uiSteps);
+            pSteps[i] = (unsigned char)uiSteps;
         }
         fPreviousTime = m_afTime[uiIndex];
         uiStepCount += uiSteps;
@@ -353,7 +339,7 @@ PblBox LightsaberTrail::GetBoundingBox(float fLength) const
     unsigned char uiSamplePrev = m_uiSampleFirst;
     for (unsigned char i = 1; i < m_uiNumSamples; ++i)
     {
-        const unsigned char uiSample = static_cast<unsigned char>((m_uiSampleFirst + i) % MAX_SAMPLES_PER_TRAIL);
+        const unsigned char uiSample = (unsigned char)((m_uiSampleFirst + i) % MAX_SAMPLES_PER_TRAIL);
         const PblVector3 vPosEnd = m_avPos[uiSample] + m_avDir[uiSample] * fLength;
         bbox.AddPoint(m_avPos[uiSample]);
         bbox.AddPoint(vPosEnd);

@@ -5,6 +5,29 @@
 #include <stddef.h>
 #include "Entity.h"
 #include "RedEngineFL/Util/RedRegion.h"
+#include "SoundFL/source/sndspace.h"
+#include "RedEngineFL/Memory/RedMemoryPool.h"
+
+class SoundSpaceRegion : public Snd::Space::Region
+{
+public:
+
+    SoundSpaceRegion(const RedRegion& rRegion) : Region(rRegion) {}
+
+    static void* operator new(size_t uSize) { return sMemoryPool.Allocate(uSize); }
+
+    ~SoundSpaceRegion() {}
+
+    // SYNTHETIC: SWBF2 0x004fad10
+    // SoundSpaceRegion::operator delete
+    static void operator delete(void* p) { sMemoryPool.Free(p); }
+
+    static void DestroyAll();
+
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
+
+    static MemoryPool sMemoryPool;
+};
 
 // VTABLE: SWBF2 0x0079fbc0
 class SoundSpaceRegionFactory : public RedRegionFactory

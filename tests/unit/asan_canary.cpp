@@ -12,6 +12,7 @@
 #include "RedEngineFL/Util/ext/SubAllocator.h"
 #include "Battlefront2/Source/LuaMemory.h"
 #include "Battlefront2/Source/NetPacket.h"
+#include "nettest.h"
 #include "SoundFL/source/sndfreelist.h"
 
 #if defined(__SANITIZE_ADDRESS__)
@@ -101,7 +102,7 @@ TEST_CASE("asan canary net packet overflow is reported" * doctest::test_suite("a
     NetPacket* pPacket = NetPacket::Alloc(false);
     REQUIRE(pPacket);
     volatile char* p = (volatile char*)pPacket;
-    p[sizeof(NetBigPacket)] = 1;
+    p[NetTestBigPacketBytes()] = 1;
     pPacket->Free();
 }
 

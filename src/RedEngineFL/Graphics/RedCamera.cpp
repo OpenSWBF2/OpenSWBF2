@@ -16,9 +16,7 @@ RedCamera::VisibilityT RedCamera::ClassifyPoints(const PblVector3* pPoints, int 
     bool hasInside = false;
     for (int i = 0; i < iNumPoints; ++i)
     {
-        PblVector3 point;
-        D3DXVec3TransformCoord((D3DXVECTOR3*)&point, (const D3DXVECTOR3*)&pPoints[i],
-                               (const D3DXMATRIX*)&_MatrixInverse);
+        PblVector3 point = _MatrixInverse.ApplyTransform(pPoints[i]);
         int mask = 0;
         if (-point.z >= _fNear)
         {
@@ -145,7 +143,7 @@ void RedCamera::AddXZPlane(const PblVector3& rA, const PblVector3& rB)
     float fDZ = rB.z - rA.z;
     float fInvLen = 1.0f / sqrtf(fDZ * fDZ + fDX * fDX);
 
-    _XZPlane[_iNumXZPlanes].x = -(fDZ * fInvLen);
+    _XZPlane[_iNumXZPlanes].SetX(-(fDZ * fInvLen));
     _XZPlane[_iNumXZPlanes].z = fDX * fInvLen;
     _XZPlane[_iNumXZPlanes].y = -(_XZPlane[_iNumXZPlanes].x * rA.x +
                                   _XZPlane[_iNumXZPlanes].z * rA.z);

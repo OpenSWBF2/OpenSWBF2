@@ -31,7 +31,7 @@ namespace
 
     inline const PblVector3& GameObjectPosition(const GameObject* pObject)
     {
-        return static_cast<const CollisionObject*>(pObject)->GetPosition();
+        return ((const CollisionObject*)pObject)->GetPosition();
     }
 }
 
@@ -241,12 +241,12 @@ void VehicleManager::Update()
 
         GameObject* pObject = (*sVehicles)[i];
         if (pObject->IsRtti(EntityBuildingArmed::rttiHashEntityBuildingArmed) &&
-            static_cast<EntityBuildingArmed*>(pObject)->mNoAIBoard)
+            ((EntityBuildingArmed*)pObject)->mNoAIBoard)
         {
             continue;
         }
         if (pObject->IsRtti(CommandFlyer::rttiHashCommandFlyer) &&
-            static_cast<CommandFlyer*>(pObject)->mbHasTakenOffBefore)
+            ((CommandFlyer*)pObject)->mbHasTakenOffBefore)
         {
             continue;
         }
@@ -261,7 +261,7 @@ void VehicleManager::Update()
             continue;
         }
 
-        if (!pObject->GetEntity()->IsRtti(EntityBuilding::rttiHashEntityBuilding))
+        if (!pObject->GetEntity()->IsRtti(EntityBuilding::GetRtti()))
         {
             const Obstacle* pBarrier = AIUtil::GetGameObjectBarrier(pObject);
             if (!PathFinder::IsPointValid(pObject->GetMatrix().GetTranslation(), 2.0f, 1, 0,
@@ -333,11 +333,17 @@ void VehicleManager::Update()
                 if (!AIUtil::IsEndGame(0) && pController->IsRtti(UnitController::rttiHashUnitController))
                 {
                     AI::EventInfo info(AI::EVT_EmptyVehicle, pObject);
-                    static_cast<UnitController*>(pController)->SendEvent(&info);
+                    ((UnitController*)pController)->SendEvent(&info);
                 }
             }
         }
     }
+}
+
+// FUNCTION: SWBF2 0x0066e380
+void VehicleManager::SetNotifyRadius(float fRadius)
+{
+    sNotifyRadius = fRadius;
 }
 
 // FUNCTION: SWBF2 0x0066e390
@@ -348,7 +354,8 @@ int VehicleManager::RequestVehiclesInRange(const PblVector3& vPos, float fRadius
     for (int i = 0; i < VehicleManager::sVehicles->GetLength(); ++i)
     {
         GameObject* pObj = static_cast<GameObject*>((*VehicleManager::sVehicles)[i]);
-        const PblMatrix& m = static_cast<const CollisionObject*>(pObj)->GetMatrix();
+        const CollisionObject* pCollisionObject = pObj;
+        const PblMatrix& m = pCollisionObject->GetMatrix();
         const float dx = m.m[3][0] - vPos.x;
         const float dy = m.m[3][1] - vPos.y;
         const float dz = m.m[3][2] - vPos.z;

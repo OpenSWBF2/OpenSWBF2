@@ -28,7 +28,7 @@ namespace
 
     inline const PblMatrix& GameObjectGetMatrix(const GameObject* pObj)
     {
-        return static_cast<const CollisionObject&>(*pObj).GetMatrix();
+        return ((const CollisionObject&)(*pObj)).GetMatrix();
     }
 
     inline const PblVector3& GameObjectGetVelocity(const GameObject* pObj)
@@ -72,7 +72,7 @@ const char NavigatorSlide::rttiNameNavigatorSlide[] = "NavigatorSlide";
 // FUNCTION: SWBF2 0x005ade70
 NavigatorSlide* NavigatorSlidePtr(Navigator* pNavigator)
 {
-    if (pNavigator && pNavigator->IsRtti(NavigatorSlide::rttiHashNavigatorSlide))
+    if (pNavigator && pNavigator->IsRtti(NavigatorSlide::GetRtti()))
     {
         return (NavigatorSlide*)pNavigator;
     }
@@ -93,7 +93,7 @@ NavigatorSlide::NavigatorSlide(AILowLevel* pOwner, const PblVector3& globalDest,
     Entity* pEntity = pOwner->mOwner->mOwner->GetEntity();
     if (pEntity->IsRtti(EntitySoldier::rttiHashEntitySoldier) ||
         pEntity->IsRtti(EntityDroideka::rttiHashEntityDroideka) ||
-        pEntity->IsRtti(EntityDroid::rttiHashEntityDroid))
+        pEntity->IsRtti(EntityDroid::GetRtti()))
     {
         mNextState = STATE_InfantryToPosition;
     }
@@ -358,7 +358,7 @@ void NavigatorSlide::NextVehicleSlidePos()
 {
     PblVector3 pos = GetMatrix().GetTranslation();
     const float fRadius = GetMyRadius() * 2.0f;
-    const int eProhibit = GetMyProhibit();
+    const ConnectivityGraph::ProhibitFlag eProhibit = GetMyProhibit();
     PathFinder::GetClosestValidPoint(pos, pos, fRadius, eProhibit, mIgnore, mIgnoreCnt);
 
     for (int i = 0; i < 5; ++i)

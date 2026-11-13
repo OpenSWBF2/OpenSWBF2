@@ -1,5 +1,10 @@
 #include <d3dx9math.h>
-#include "pcGrassPatch.h"
+#include <stddef.h>
+#include "Battlefront2/Source/GrassPatch.h"
+#include "PebbleFL/Common/PblHeap.h"
+#include "PebbleFL/Common/PblVector.h"
+#include "RedEngineFL/Application/Renderable.h"
+#include "RedEngineFL/Graphics/RedColor.h"
 #include "pcDynamicSprite.h"
 
 #include <math.h>
@@ -29,14 +34,14 @@ struct GrassVertexCompressed
     unsigned char normal[3];
     unsigned char padNormal;
     RedColor color;
-    GrassPatchRenderable::CompressedTexCoord uv;
+    CompressedTexCoord uv;
 };
 struct GrassVertexUncompressed
 {
     float pos[3];
     float normal[3];
     RedColor color;
-    GrassPatchRenderable::TexCoord uv;
+    TexCoord uv;
 };
 
 inline void RenderPrimitive(const pcRedPrimitive* pPrimitive, const pcRedShader* pShader,
@@ -58,29 +63,74 @@ inline RedColor ToRedColor(const RedColorValue& c)
 }
 }
 
+// VTABLE: SWBF2 0x0079653c
+class GrassPatchRenderable : public Renderable
+{
+public:
+
+    GrassPatchRenderable(const GrassPatchClass* pClass);
+    virtual ~GrassPatchRenderable();
+
+    // SYNTHETIC: SWBF2 0x00418de0
+    // GrassPatchRenderable::`scalar deleting destructor'
+
+    virtual void Render(unsigned int value) const;
+
+    void RenderInstance(const PblMatrix& matrix, const RedColor& color, unsigned int uiFlags) const;
+
+private:
+    void Update();
+    void Begin();
+    void AddParticle(const GrassPatchClass::GrassParticle& particle, int iParticleIndex,
+                     const GrassPatchClass* pClass);
+
+    float m_fDistanceFarShader;
+    pcRedPrimitive* m_pPrimitive;
+    pcRedShader* m_pShader;
+    pcRedPrimitive* m_pPrimitiveFar;
+    pcRedShader* m_pShaderFar;
+    pcRedIndexBuffer* m_pIBReverse;
+    pcRedIndexBuffer* m_pIBForward;
+    pcRedShader* m_pShaderTransparent;
+    GrassPatchClass* m_pClass;
+    PblHeap<int, float>* mHeap;
+    pcRedVertexBuffer* m_pVB;
+    unsigned int m_startIndexForward;
+    unsigned int m_startIndexReverse;
+    void* m_pVertices;
+    PblVector3 m_vUp;
+    PblVector3 m_avRight[10];
+    PblVector3 m_vFlatFront;
+    int m_iTexCoordType;
+    mutable bool m_bReflection;
+
+    static const CompressedTexCoord s_CompressedTexCoords[3][6][4];
+    static const TexCoord s_TexCoords[3][6][4];
+};
+
 // FUNCTION: SWBF2 0x00417280
 GrassPatchRenderable::GrassPatchRenderable(const GrassPatchClass* pClass)
-    : Renderable(2), m_fDistanceFarShader(-3.402823466e38f), m_pClass(const_cast<GrassPatchClass*>(pClass))
+    : Renderable(RENDERABLE_PREWORLD), m_fDistanceFarShader(-3.402823466e38f), m_pClass(const_cast<GrassPatchClass*>(pClass))
 {
     m_pPrimitive = 0;
     m_pPrimitiveFar = 0;
     m_pVertices = 0;
     if (RedRenderer::pcGetGeometryMode() == GEOMETRYMODE_UNCOMPRESSED)
     {
-        m_pShader = pcRedShader::Create(0xe68b9c52, 0x2a2, &m_pClass->mTextureHash,
+        m_pShader = pcRedShader::Create(0xe68b9c52 /* "normal" */, 0x2a2, &m_pClass->mTextureHash,
                                         1, 0x10006, RedColor::WHITE, RedColor::BLACK, 32.0f);
-        m_pShaderFar = pcRedShader::Create(0xe68b9c52, 0x2a2, &m_pClass->mTextureHash,
+        m_pShaderFar = pcRedShader::Create(0xe68b9c52 /* "normal" */, 0x2a2, &m_pClass->mTextureHash,
                                            1, 0x10002, RedColor::WHITE, RedColor::BLACK, 32.0f);
-        m_pShaderTransparent = pcRedShader::Create(0xe68b9c52, 0x2a2, &m_pClass->mTextureHash,
+        m_pShaderTransparent = pcRedShader::Create(0xe68b9c52 /* "normal" */, 0x2a2, &m_pClass->mTextureHash,
                                                     1, 0x10004, RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
     else
     {
-        m_pShader = pcRedShader::Create(0xe68b9c52, 0xd2a2, &m_pClass->mTextureHash,
+        m_pShader = pcRedShader::Create(0xe68b9c52 /* "normal" */, 0xd2a2, &m_pClass->mTextureHash,
                                         1, 0x10006, RedColor::WHITE, RedColor::BLACK, 32.0f);
-        m_pShaderFar = pcRedShader::Create(0xe68b9c52, 0xd2a2, &m_pClass->mTextureHash,
+        m_pShaderFar = pcRedShader::Create(0xe68b9c52 /* "normal" */, 0xd2a2, &m_pClass->mTextureHash,
                                            1, 0x10002, RedColor::WHITE, RedColor::BLACK, 32.0f);
-        m_pShaderTransparent = pcRedShader::Create(0xe68b9c52, 0xd2a2, &m_pClass->mTextureHash,
+        m_pShaderTransparent = pcRedShader::Create(0xe68b9c52 /* "normal" */, 0xd2a2, &m_pClass->mTextureHash,
                                                     1, 0x10004, RedColor::WHITE, RedColor::BLACK, 32.0f);
     }
     m_bReflection = false;
@@ -249,12 +299,12 @@ void GrassPatchClass::RenderMaxDist(const PblMatrix& matrix, float fMaxDist,
 }
 
 // FUNCTION: SWBF2 0x00417790
-void GrassPatchRenderable::Render(int value)
+void GrassPatchRenderable::Render(unsigned int value) const
 {
     if (GrassPatch::IsEnabled())
     {
         m_bReflection = ((unsigned int)value & 0x200000) != 0;
-        Update();
+        const_cast<GrassPatchRenderable*>(this)->Update();
     }
 }
 
@@ -268,11 +318,7 @@ void GrassPatchRenderable::RenderInstance(const PblMatrix& matrix, const RedColo
     }
 
     {
-        PblSphere sphere;
-        sphere.w = m_pClass->mBoundingRadius;
-        sphere.x = matrix.m[3][0];
-        sphere.y = matrix.m[3][1];
-        sphere.z = matrix.m[3][2];
+        PblSphere sphere(matrix.GetTranslation(), m_pClass->mBoundingRadius);
         RedRenderer::SetLightingState(*RedLight::GetLightingState(sphere, 4, false, false, false));
     }
 
@@ -471,14 +517,11 @@ void GrassPatchRenderable::AddParticle(const GrassPatchClass::GrassParticle& par
 
         PblVector3 vSide(u.y * vDir.z - u.z * vDir.y, u.z * vDir.x - u.x * vDir.z, u.x * vDir.y - u.y * vDir.x);
         vSide.y = u.y + vSide.y;
-        PblVector3 vNorm;
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&vSide));
-        vSide = vNorm;
+        vSide = Normalize(vSide);
 
         PblVector3 vCross(vSide.y * vDir.z - vSide.z * vDir.y, vSide.z * vDir.x - vSide.x * vDir.z,
                           vSide.x * vDir.y - vSide.y * vDir.x);
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&vCross));
-        vCross = vNorm;
+        vCross = Normalize(vCross);
 
         float fSize = particle.mSize * fScale;
         vRight = PblVector3(vSide.x * fSize, vSide.y * fSize, vSide.z * fSize);
@@ -628,7 +671,7 @@ void GrassPatchRenderable::AddParticle(const GrassPatchClass::GrassParticle& par
 }
 
 // GLOBAL: SWBF2 0x00788290
-const GrassPatchRenderable::TexCoord GrassPatchRenderable::s_TexCoords[3][6][4] = {
+const TexCoord GrassPatchRenderable::s_TexCoords[3][6][4] = {
     {
         { { 0.0f, 1.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 0.0f } },
         { { 1.0f, 1.0f }, { 0.0f, 1.0f }, { 1.0f, 0.0f }, { 0.0f, 0.0f } },
@@ -656,7 +699,7 @@ const GrassPatchRenderable::TexCoord GrassPatchRenderable::s_TexCoords[3][6][4] 
 };
 
 // GLOBAL: SWBF2 0x00788170
-const GrassPatchRenderable::CompressedTexCoord GrassPatchRenderable::s_CompressedTexCoords[3][6][4] = {
+const CompressedTexCoord GrassPatchRenderable::s_CompressedTexCoords[3][6][4] = {
     {
         { { 0, 2047 }, { 2047, 2047 }, { 0, 0 }, { 2047, 0 } },
         { { 2047, 2047 }, { 0, 2047 }, { 2047, 0 }, { 0, 0 } },

@@ -8,13 +8,47 @@
 #include "RedEngineFL/Graphics/PC/pcRedPrimitive.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 
+#pragma init_seg(lib)
+
 void __cdecl PblTraceP(const char* Format, ...);
 
+// GLOBAL: SWBF2 0x009ca178
+// pcNormalMapAdderShader::s_uiID
 unsigned int pcNormalMapAdderShader::s_uiID;
+// GLOBAL: SWBF2 0x009ca17c
+// pcNormalMapAdderShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcNormalMapAdderShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca188
+// pcNormalMapAdderShader::BeginFuncArray
 pcRedShader::BeginFuncT pcNormalMapAdderShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca194
+// pcNormalMapAdderShader::EndFuncArray
 pcRedShader::EndFuncT pcNormalMapAdderShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009ca1a0
+// pcNormalMapAdderShader::RenderFuncArray
 pcRedShader::RenderFuncT pcNormalMapAdderShader::RenderFuncArray[MAX_PIPELINES];
+
+// SYNTHETIC: SWBF2 0x0040a170
+// `dynamic initializer for 'pcNormalMapAdderShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009ca254
+// pcNormalMapAdderShader::s_uiRenderTypeHash
+unsigned int pcNormalMapAdderShader::s_uiRenderTypeHash = PblHash("NormalMapAdder");
+
+// SYNTHETIC: SWBF2 0x0040a190
+// PblMath::`dynamic initializer for 'fOneOverHalfPi''
+
+// SYNTHETIC: SWBF2 0x0040a1b0
+// PblMath::`dynamic initializer for 'fOneOverTwoPi''
+
+// SYNTHETIC: SWBF2 0x0040a130
+// `dynamic initializer for 'pcNormalMapAdderShader::s_Factory''
+// SYNTHETIC: SWBF2 0x00769ed0
+// `dynamic atexit destructor for 'pcNormalMapAdderShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009ca1e8
+// pcNormalMapAdderShader::s_Factory
+pcNormalMapAdderShader pcNormalMapAdderShader::s_Factory;
 
 // SYNTHETIC: SWBF2 0x0040a150
 // `dynamic initializer for 'pcNormalMapAdderShader::s_shaderDef''
@@ -93,12 +127,6 @@ void pcNormalMapAdderShader::Begin_Prog1(unsigned int uiBlend, unsigned int) con
     RedRenderer::pcSetTextureStageState(3, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_PROJECTED);
 }
 
-// FUNCTION: SWBF2 0x0070b770
-void pcNormalMapAdderShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x0070b790
 void pcNormalMapAdderShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -109,28 +137,10 @@ void pcNormalMapAdderShader::End_Prog1(unsigned int, unsigned int) const
 {
 }
 
-// FUNCTION: SWBF2 0x0070b7b0
-unsigned int pcNormalMapAdderShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
-}
-
 // FUNCTION: SWBF2 0x0070b7d0
 RenderPhaseT pcNormalMapAdderShader::GetRenderPhase(const RenderItem*, unsigned int) const
 {
     return RENDERPHASE_OPAQUE;
-}
-
-// FUNCTION: SWBF2 0x0070b7e0
-unsigned int pcNormalMapAdderShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x0070b7f0
-pcRedShaderDef* pcNormalMapAdderShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x0070b800
@@ -239,22 +249,22 @@ void pcNormalMapAdderShader::_Init(unsigned int uiFlags,
 void pcNormalMapAdderShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcNormalMapAdderShader::GetState_Fixed);
+        (GetStateFuncT)(&pcNormalMapAdderShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcNormalMapAdderShader::Begin_Fixed);
+        (BeginFuncT)(&pcNormalMapAdderShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcNormalMapAdderShader::End_Fixed);
+        (EndFuncT)(&pcNormalMapAdderShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcNormalMapAdderShader::Render_Fixed);
+        (RenderFuncT)(&pcNormalMapAdderShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcNormalMapAdderShader::GetState_Prog1);
+        (GetStateFuncT)(&pcNormalMapAdderShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcNormalMapAdderShader::Begin_Prog1);
+        (BeginFuncT)(&pcNormalMapAdderShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcNormalMapAdderShader::End_Prog1);
+        (EndFuncT)(&pcNormalMapAdderShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcNormalMapAdderShader::Render_Prog1);
+        (RenderFuncT)(&pcNormalMapAdderShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x0070bc10
@@ -263,7 +273,7 @@ void pcNormalMapAdderShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -289,28 +299,6 @@ void pcNormalMapAdderShader::_Read(PblFileChunk& chunk) const
 void pcNormalMapAdderShader::_StaticInit() const
 {
 }
-
-// SYNTHETIC: SWBF2 0x0040a170
-// `dynamic initializer for 'pcNormalMapAdderShader::s_uiRenderTypeHash''
-
-// GLOBAL: SWBF2 0x009ca254
-// pcNormalMapAdderShader::s_uiRenderTypeHash
-unsigned int pcNormalMapAdderShader::s_uiRenderTypeHash = PblHash("NormalMapAdder");
-
-// SYNTHETIC: SWBF2 0x0040a190
-// PblMath::`dynamic initializer for 'fOneOverHalfPi''
-
-// SYNTHETIC: SWBF2 0x0040a1b0
-// PblMath::`dynamic initializer for 'fOneOverTwoPi''
-
-// SYNTHETIC: SWBF2 0x0040a130
-// `dynamic initializer for 'pcNormalMapAdderShader::s_Factory''
-// SYNTHETIC: SWBF2 0x00769ed0
-// `dynamic atexit destructor for 'pcNormalMapAdderShader::s_Factory''
-
-// GLOBAL: SWBF2 0x009ca1e8
-// pcNormalMapAdderShader::s_Factory
-pcNormalMapAdderShader pcNormalMapAdderShader::s_Factory;
 
 // GLOBAL: SWBF2 0x009ca1ac
 unsigned int g_pcNormalMapAdderShader;

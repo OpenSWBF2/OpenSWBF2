@@ -52,7 +52,7 @@ void PblCatmullRom::CalculateFirstDerivative(float t, const PblVector3& p0, cons
     PblVector3 c2 = -0.5f * p0 + 0.5f * p2;
     PblVector3 c3 = 1.0f * p0 + -2.5f * p1 + 2.0f * p2 + -0.5f * p3;
     PblVector3 c4 = -0.5f * p0 + 1.5f * p1 + -1.5f * p2 + 0.5f * p3;
-    vResult = (t * (c4 * 3.0f) + c3 * 2.0f) * t + c2;
+    vResult = ((3.0f * c4) * t + 2.0f * c3) * t + c2;
 }
 
 // FUNCTION: SWBF2 0x0072b000

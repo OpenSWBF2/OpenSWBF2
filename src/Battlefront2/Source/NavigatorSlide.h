@@ -3,6 +3,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 
 #include "Navigator.h"
+#include "PebbleFL/Common/PblRtti.h"
 #include "PebbleFL/Common/PblHandle.h"
 #include "PebbleFL/Common/PblVector.h"
 
@@ -28,8 +29,13 @@ public:
         STATE_FINAL = 5
     };
 
-    static PblHash rttiHashNavigatorSlide;
-    static const char rttiNameNavigatorSlide[];
+    // FUNCTION: SWBF2 0x005addf0
+    // NavigatorSlide::IsRtti
+    // FUNCTION: SWBF2 0x005ade20
+    // NavigatorSlide::GetDerivedRtti
+    // FUNCTION: SWBF2 0x005ade30
+    // NavigatorSlide::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(NavigatorSlide, Navigator)
 
     NavigatorSlide(AILowLevel* pOwner, const PblVector3& globalDest,
                    const Obstacle** ppIgnore, int iIgnoreCnt);
@@ -37,9 +43,6 @@ public:
                    bool bUseAttackHelper, const Obstacle** ppIgnore, int iIgnoreCnt);
     virtual ~NavigatorSlide();
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
 
     bool IsEqual(AILowLevel* pOwner, const PblVector3& globalDest);
     bool IsEqual(AILowLevel* pOwner, const GameObject* pSlideObj, float fOffset,
@@ -79,24 +82,3 @@ public:
 
 NavigatorSlide* NavigatorSlidePtr(Navigator* pNavigator);
 
-// FUNCTION: SWBF2 0x005addf0
-inline bool NavigatorSlide::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashNavigatorSlide == uRtti)
-    {
-        return true;
-    }
-    return Navigator::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x005ade20
-inline unsigned int NavigatorSlide::GetDerivedRtti() const
-{
-    return rttiHashNavigatorSlide;
-}
-
-// FUNCTION: SWBF2 0x005ade30
-inline const char* NavigatorSlide::GetDerivedRttiName() const
-{
-    return rttiNameNavigatorSlide;
-}

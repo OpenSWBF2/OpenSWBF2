@@ -35,15 +35,17 @@ public:
     // FUNCTION: SWBF2 0x0042cf20
     virtual ~PblHandled() { mHandleId = 0; PblHandleRegistry::Erase(this); }
 
-    unsigned int GetHandleId() const;
+    // FUNCTION: SWBF2 0x00423e90
+    unsigned int GetHandleId() const
+    {
+        return mHandleId;
+    }
 
     static unsigned int SetNextHandleId(unsigned int uId);
     static unsigned int GetNextHandleId();
     static unsigned int HandleIdOffset();
 
 private:
-    template <class> friend class PblHandle;
-
     unsigned int mHandleId;
 };
 
@@ -64,7 +66,7 @@ public:
 
     // TEMPLATE: SWBF2 0x00439a80
     // PblHandle<GameObject>::PblHandle<GameObject>
-    PblHandle(TYPE* pObject) : mObject(pObject), mSavedHandleId(pObject ? pObject->mHandleId : 0) {}
+    PblHandle(TYPE* pObject) : mObject(pObject), mSavedHandleId(pObject ? pObject->GetHandleId() : 0) {}
     // TEMPLATE: SWBF2 0x0042e950
     // PblHandle<GameObject const >::PblHandle<GameObject const >
     PblHandle() : mObject(0), mSavedHandleId(0) {}
@@ -86,6 +88,9 @@ public:
 
     // TEMPLATE: SWBF2 0x0042cd20
     // PblHandle<GameObject>::~PblHandle<GameObject>
+
+    // TEMPLATE: SWBF2 0x0042e960
+    // PblHandle<GameObject const >::~PblHandle<GameObject const >
     ~PblHandle() {}
 
     // TEMPLATE: SWBF2 0x005d3700
@@ -109,6 +114,8 @@ public:
     // PblHandle<GameObject>::operator->
     // TEMPLATE: SWBF2 0x0043a120
     // PblHandle<GameObject const >::operator->
+    // TEMPLATE: SWBF2 0x00428e40
+    // PblHandle<ParticleEmitterObject>::operator->
     TYPE* operator->() const { return GetObjectA(); }
 
     // TEMPLATE: SWBF2 0x0043a150
@@ -144,7 +151,12 @@ public:
     void operator=(TYPE* pObject)
     {
         mObject = pObject;
-        mSavedHandleId = pObject ? pObject->mHandleId : 0;
+        mSavedHandleId = pObject ? pObject->GetHandleId() : 0;
+    }
+
+    bool IsDeadHandle() const
+    {
+        return mObject && !PblHandleRegistry::IsLive(mObject, mSavedHandleId);
     }
 
     bool IsLive() const { return mObject && PblHandleRegistry::IsLive(mObject, mSavedHandleId); }
@@ -154,8 +166,6 @@ public:
         return mObject == other.mObject && mSavedHandleId == other.mSavedHandleId;
     }
 
-    // TEMPLATE: SWBF2 0x00428e40
-    // PblHandle<ParticleEmitterObject>::GetObjectA
     TYPE* GetObjectA() const
     {
         if (mObject)

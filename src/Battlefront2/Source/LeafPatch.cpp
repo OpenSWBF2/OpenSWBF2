@@ -80,7 +80,7 @@ LeafPatchClass::LeafPatchClass(unsigned int uHash)
     mSizeMax = 15.0f;
     mAlpha = 0.5f;
     mRenderData = 0;
-    mTextureHash = 0xB26FAC7Du;
+    mTextureHash = 0xB26FAC7Du /* "Grass" */;
     mRadius = 5.0f;
     mHeight = 5.0f;
     mMaxDistance = 100.0f;
@@ -121,30 +121,30 @@ void LeafPatchClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0xD133F7DA:
+    case 0xD133F7DA: /* "NumParticles" */
         if (sscanf(pszValue, "%i", &mNumParticles))
         {
             mNumParticles /= CameraManager::Instance()->GetNumCameras();
         }
         mNumVisible = mNumParticles;
         break;
-    case 0x1ABD7877:
+    case 0x1ABD7877: /* "NumVisible" */
         sscanf(pszValue, "%i", &mNumVisible);
         mFadeInStep = 1.0f / ((float)mNumVisible * 0.2f);
         break;
-    case 0x0DBA4CB3:
+    case 0x0DBA4CB3: /* "Radius" */
         sscanf(pszValue, "%f", &mRadius);
         break;
-    case 0xCAAA3778:
+    case 0xCAAA3778: /* "HeightScale" */
         sscanf(pszValue, "%f", &mHeightScale);
         break;
-    case 0xD5BDBB42:
+    case 0xD5BDBB42: /* "Height" */
         sscanf(pszValue, "%f", &mHeight);
         break;
-    case 0x5045BCAC:
+    case 0x5045BCAC: /* "Seed" */
         sscanf(pszValue, "%i", &mSeed);
         break;
-    case 0x14C8D3CA:
+    case 0x14C8D3CA: /* "Offset" */
     {
         float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
@@ -153,22 +153,22 @@ void LeafPatchClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mOffset.z = fZ;
         break;
     }
-    case 0xEAEBCF6E:
+    case 0xEAEBCF6E: /* "MinSize" */
         sscanf(pszValue, "%f", &mSizeMin);
         break;
-    case 0x80BA1308:
+    case 0x80BA1308: /* "MaxSize" */
         sscanf(pszValue, "%f", &mSizeMax);
         break;
-    case 0x5D8B6DAB:
+    case 0x5D8B6DAB: /* "Alpha" */
         sscanf(pszValue, "%f", &mAlpha);
         break;
-    case 0xE6915CF6:
+    case 0xE6915CF6: /* "MaxDistance" */
         sscanf(pszValue, "%f", &mMaxDistance);
         break;
-    case 0xEAAAA7A9:
+    case 0xEAAAA7A9: /* "ConeHeight" */
         sscanf(pszValue, "%f", &mConeHeight);
         break;
-    case 0x35A4393B:
+    case 0x35A4393B: /* "BoxSize" */
     {
         float fX, fY, fZ;
         sscanf(pszValue, "%f %f %f", &fX, &fY, &fZ);
@@ -178,46 +178,46 @@ void LeafPatchClass::SetProperty(unsigned int uProperty, const char* pszValue)
         mType = 2;
         break;
     }
-    case 0x3C6468F4:
+    case 0x3C6468F4: /* "Texture" */
         mTextureHash = PblHash(pszValue);
         break;
-    case 0x13FAC25E:
+    case 0x13FAC25E: /* "DarknessMin" */
         sscanf(pszValue, "%f", &mDarknessMin);
         break;
-    case 0x25E5C3FC:
+    case 0x25E5C3FC: /* "DarknessMax" */
         sscanf(pszValue, "%f", &mDarknessMax);
         break;
-    case 0x5AC02207:
+    case 0x5AC02207: /* "NumParts" */
         sscanf(pszValue, "%i", &mNumParts);
         break;
-    case 0xFD7FAE90:
+    case 0xFD7FAE90: /* "MaxFallingLeaves" */
     {
         int iCount;
         sscanf(pszValue, "%i", &iCount);
         mMaxFallingLeaves = (unsigned char)(iCount > 50 ? 50 : iCount);
         break;
     }
-    case 0x3B1948F3:
+    case 0x3B1948F3: /* "MaxScatterBirds" */
     {
         int iCount;
         sscanf(pszValue, "%i", &iCount);
         mMaxScatterBirds = (unsigned char)(iCount > 5 ? 5 : iCount);
         break;
     }
-    case 0xCDBC383D:
+    case 0xCDBC383D: /* "Vine" */
         sscanf(pszValue, "%f %f", &mVineXSpread, &mVineZSpread);
         mType = 3;
         break;
-    case 0xA8C0D41D:
+    case 0xA8C0D41D: /* "VineLength" */
         sscanf(pszValue, "%i %i", &mVineLengthMin, &mVineLengthMax);
         break;
-    case 0x45328DC6:
+    case 0x45328DC6: /* "VineSpread" */
         sscanf(pszValue, "%f", &mVineSpread);
         break;
-    case 0xD4CBD35B:
+    case 0xD4CBD35B: /* "WiggleSpeed" */
         sscanf(pszValue, "%f", &mWiggleSpeed);
         break;
-    case 0x7CBB796C:
+    case 0x7CBB796C: /* "WiggleAmount" */
         sscanf(pszValue, "%f", &mWiggleAmount);
         break;
     default:
@@ -299,8 +299,13 @@ void LeafPatchClass::Init()
 
     mParticle = new LeafParticle[mNumParticles];
 
+    float fOffsetZ;
+    float fOffsetY;
+    float fOffsetX;
     const float fInvHeightScale = 1.0f / mHeightScale;
-    const PblVector3 vOffset(mOffset.x, mOffset.y * fInvHeightScale, mOffset.z);
+    fOffsetZ = mOffset.z;
+    fOffsetX = mOffset.x;
+    fOffsetY = mOffset.y * fInvHeightScale;
 
     PblRandom rand(mSeed ^ 0xC71C2830u);
     rand.GetInt();
@@ -382,9 +387,9 @@ void LeafPatchClass::Init()
         mParticle[i].mTime = rand.GetFloat() * 100.0f;
         mParticle[i].mTexture = (unsigned char)(i % 4);
         PblVector3& vPos = mParticle[i].mPos;
-        vPos.x += vOffset.x;
-        vPos.y += vOffset.y;
-        vPos.z += vOffset.z;
+        vPos.x += fOffsetX;
+        vPos.y += fOffsetY;
+        vPos.z += fOffsetZ;
 
         const float fHalfSize = mParticle[i].mSize * 0.5f;
         const float fLowX = mParticle[i].mPos.x - fHalfSize;
@@ -473,7 +478,7 @@ LeafPatch::LeafPatch(LeafPatchClass* pClass, const PblMatrix& matrix)
         SetRenderPos(vCenter);
     }
     SetRenderRadius(mClass->mBoundingRadius);
-    static_cast<RedSceneObject*>(this)->Activate();
+    ((RedSceneObject*)this)->Activate();
 
     mLod = 0.0f;
     mNumFallingLeaves = 0;
@@ -507,28 +512,13 @@ LeafPatch::~LeafPatch()
 // SYNTHETIC: SWBF2 0x0056d400
 // LeafPatch::`scalar deleting destructor'
 
-// FUNCTION: SWBF2 0x0056cef0
-void LeafPatch::DeactivateLeaf()
-{
-    --mNumFallingLeaves;
-}
 
-// FUNCTION: SWBF2 0x0056cf00
-const PblVector3& LeafPatch::GetPosition() const
-{
-    return mMatrix.GetTranslation();
-}
 
-// FUNCTION: SWBF2 0x0056cf10
-const PblMatrix& LeafPatch::GetMatrix() const
-{
-    return mMatrix;
-}
 
 // FUNCTION: SWBF2 0x0056d4a0
 void LeafPatch::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty == 0xE6915CF6)
+    if (uProperty == 0xE6915CF6 /* "MaxDistance" */)
     {
         sscanf(pszValue, "%f", &mMaxDistance);
     }

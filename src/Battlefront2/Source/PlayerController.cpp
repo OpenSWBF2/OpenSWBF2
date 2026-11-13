@@ -1,4 +1,5 @@
 #include "PebbleFL/Common/PblMath.h"
+#include "PopupText.h"
 #include <d3dx9math.h>
 #include "PlayerController.h"
 #include "AIUtil.h"
@@ -25,7 +26,7 @@
 #include "PauseMenu.h"
 #include "ToolTips.h"
 #include "Weapon.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "Aimer.h"
 #include "CollisionModel.h"
@@ -47,15 +48,6 @@
  
 
 
-namespace PopupText
-{
-
-    enum PopupType { DISABLED = 0, HINT = 1, OBJECTIVE = 2, SELECTION = 3, MAX_POPUP_TYPES = 4 };
-    bool IsEnabled();
-    void ShowPopup(PopupType eType, unsigned int uID);
-    void SetPreventJump(bool bPrevent);
-    bool GetPreventJump();
-}
 
 void ClearFireTriggerBlock();
 bool IsFireTriggerBlocked();
@@ -76,12 +68,12 @@ extern bool netIsLocalTurn;
 
 static const PblMatrix& GetObjectMatrix(const GameObject* pObject)
 {
-    return static_cast<const CollisionObject*>(pObject)->GetMatrix();
+    return ((const CollisionObject*)pObject)->GetMatrix();
 }
 
 static float GetInvisibility(const GameObject* pObject)
 {
-    return (float)static_cast<const EntitySoldier*>(pObject)->GetInvisibilityAlpha() * (1.0f / 255.0f);
+    return (float)((const EntitySoldier*)pObject)->GetInvisibilityAlpha() * (1.0f / 255.0f);
 }
 
 // SYNTHETIC: SWBF2 0x00405f00
@@ -115,7 +107,7 @@ PlayerController* PlayerControllerPtr(Controller* pCtrl)
 {
     if (pCtrl && pCtrl->IsRtti(PlayerController::rttiHashPlayerController))
     {
-        return static_cast<PlayerController*>(pCtrl);
+        return (PlayerController*)pCtrl;
     }
     return 0;
 }
@@ -125,7 +117,7 @@ const PlayerController* PlayerControllerPtr(const Controller* pCtrl)
 {
     if (pCtrl && pCtrl->IsRtti(PlayerController::rttiHashPlayerController))
     {
-        return static_cast<const PlayerController*>(pCtrl);
+        return (const PlayerController*)pCtrl;
     }
     return 0;
 }
@@ -138,7 +130,7 @@ PlayerController* PlayerControllerPtr(Controllable* pControllable)
         Controller* pCtrl = pControllable->mCtrl;
         if (pCtrl && pCtrl->IsRtti(PlayerController::rttiHashPlayerController))
         {
-            return static_cast<PlayerController*>(pControllable->mCtrl);
+            return (PlayerController*)pControllable->mCtrl;
         }
     }
     return 0;
@@ -146,7 +138,7 @@ PlayerController* PlayerControllerPtr(Controllable* pControllable)
 
 const PlayerController* PlayerControllerPtr(const Controllable* pControllable)
 {
-    return pControllable ? PlayerControllerPtr(static_cast<const Controller*>(pControllable->mCtrl)) : 0;
+    return pControllable ? PlayerControllerPtr((const Controller*)pControllable->mCtrl) : 0;
 }
 
 // FUNCTION: SWBF2 0x0061a120
@@ -202,7 +194,7 @@ void PlayerController::Update(float dt)
                     mOwner->GetGameObject()->GetMaxStrafe() < 0.0001f;
     bool bIsDroideka = mOwner->GetEntity()->IsRtti(EntityDroideka::rttiHashEntityDroideka);
     bool bIsJedi = mOwner->GetWeaponPtr(0) && mOwner->GetWeaponPtr(0)->IsMelee();
-    bool bIsTurret = mOwner->GetEntity()->IsRtti(MountedTurret::rttiHashMountedTurret) ||
+    bool bIsTurret = mOwner->GetEntity()->IsRtti(MountedTurret::GetRtti()) ||
                      mOwner->GetEntity()->IsRtti(EntityBuildingArmed::rttiHashEntityBuildingArmed);
 
     int iInputMode;
@@ -514,7 +506,7 @@ void PlayerController::Update(float dt)
             GameObject* pMe = mOwner->GetGameObject();
 
             if (pTarget && pTarget->GetDerivedRtti() == EntitySoldier::GetRtti() &&
-                static_cast<const EntitySoldier*>(pTarget)->GetInvisibilityFactor() > 0.0f &&
+                ((const EntitySoldier*)pTarget)->GetInvisibilityFactor() > 0.0f &&
                 pMe->GetAffiliationToMe(pTarget) < 0)
             {
                 pTarget = 0;
@@ -568,7 +560,7 @@ void PlayerController::Update(float dt)
                     const PblBox& box = pTarget->GetModel()->GetTotalBoundingBox();
                     PblVector3 vMid((box._vMax.x + box._vMin.x) * 0.5f, (box._vMax.y + box._vMin.y) * 0.5f,
                                     (box._vMax.z + box._vMin.z) * 0.5f);
-                    vCenter = static_cast<const CollisionObject*>(pTarget)->GetMatrix().ApplyTransform(vMid);
+                    vCenter = ((const CollisionObject*)pTarget)->GetMatrix().ApplyTransform(vMid);
                     fRadius = Length(box._vMax - box._vMin) * 0.5f;
                 }
 
@@ -617,7 +609,7 @@ void PlayerController::Update(float dt)
             if (fTargetPrio > 0.0f)
             {
                 PblVector3 vSearch = vDir * fRange * 0.5f + vStart;
-                PblMatrix mInverse = static_cast<const CollisionObject*>(pMe)->GetMatrix().GetInverse();
+                PblMatrix mInverse = pMe->GetMatrix().GetInverse();
                 GameObject* apObjects[300];
                 int iCount = CollisionManager::GetObjectsInRange(vSearch, fRange, apObjects, 300, pMe, 0x3b);
                 for (int i = 0; i < iCount; ++i)
@@ -635,12 +627,12 @@ void PlayerController::Update(float dt)
                         continue;
                     }
                     if (mOwner->mPlayerId >= 0 &&
-                        static_cast<GameObjectClass*>(pObject->mEntityClass)->IsNotTargetableByPlayer())
+                        ((GameObjectClass*)pObject->mEntityClass)->IsNotTargetableByPlayer())
                     {
                         continue;
                     }
                     if (pObject->GetDerivedRtti() == EntitySoldier::GetRtti() &&
-                        static_cast<const EntitySoldier*>(pObject)->GetInvisibilityFactor() > 0.0f &&
+                        ((const EntitySoldier*)pObject)->GetInvisibilityFactor() > 0.0f &&
                         pMe->GetAffiliationToMe(pObject) < 0)
                     {
                         continue;
@@ -666,7 +658,7 @@ void PlayerController::Update(float dt)
                         const PblBox& box = pObject->GetModel()->GetTotalBoundingBox();
                         PblVector3 vMid((box._vMin.x + box._vMax.x) * 0.5f, (box._vMin.y + box._vMax.y) * 0.5f,
                                         (box._vMin.z + box._vMax.z) * 0.5f);
-                        vCenter = static_cast<const CollisionObject*>(pObject)->GetMatrix().ApplyTransform(vMid);
+                        vCenter = ((const CollisionObject*)pObject)->GetMatrix().ApplyTransform(vMid);
                         fRadius = Length(box._vMax - box._vMin) * 0.5f;
                     }
 
@@ -741,12 +733,12 @@ void PlayerController::DeployCargo()
     GameObject* pObject = mOwner->GetGameObject();
     Controllable* pControl = pObject->GetControllable();
     if (pControl != mOwner ||
-        static_cast<GameObjectClass*>(pObject->mEntityClass)->GetVehicleType() != 5)
+        ((GameObjectClass*)pObject->mEntityClass)->GetVehicleType() != 5)
     {
         return;
     }
 
-    EntityFlyer* pFlyer = mOwner ? static_cast<EntityFlyer*>(mOwner) : 0;
+    EntityFlyer* pFlyer = mOwner ? (EntityFlyer*)mOwner : 0;
     EntityFlyer::State eState = pFlyer->mState;
     if (eState == EntityFlyer::LANDING)
     {
@@ -758,7 +750,7 @@ void PlayerController::DeployCargo()
         const CommandPost* pPost = 0;
         if (AIUtil::IsNearNonAllyCommandPost(pObject, &pPost))
         {
-            AIUtil::DeployCargo(static_cast<GameObject*>(pFlyer), pPost);
+            AIUtil::DeployCargo((GameObject*)pFlyer, pPost);
         }
     }
     mLanding = false;

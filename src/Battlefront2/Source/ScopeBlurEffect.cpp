@@ -17,7 +17,7 @@ void ScopeBlurEffect::Create()
 
 // FUNCTION: SWBF2 0x00633340
 ScopeBlurEffect::ScopeBlurEffect()
-    : FLEffect(0xF35CF5C6u, 9)
+    : FLEffect(0xF35CF5C6u /* "ScopeBlur" */, RENDERABLE_SCREENEFFECT)
 {
     Enable(true);
     m_alpha[0] = 0;
@@ -59,7 +59,7 @@ void ScopeBlurEffect::ReadConfig(PblConfig& config)
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (data.GetId() == 0xAF8BB8CEu)
+        if (data.GetId() == 0xAF8BB8CEu /* "Enable" */)
         {
             Enable(data.GetUint32Arg(0) != 0);
         }

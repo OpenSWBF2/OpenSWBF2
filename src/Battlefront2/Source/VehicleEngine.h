@@ -13,6 +13,9 @@ class VehicleEngineClass
 {
 public:
 
+    // SYNTHETIC: SWBF2 0x004a78d0
+    // VehicleEngineClass::~VehicleEngineClass
+
     class Boost
     {
     protected:

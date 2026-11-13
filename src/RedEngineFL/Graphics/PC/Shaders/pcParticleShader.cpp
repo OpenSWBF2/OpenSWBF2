@@ -12,6 +12,8 @@
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "PebbleFL/Common/PblVector.h"
 
+#pragma init_seg(lib)
+
 // GLOBAL: SWBF2 0x007848f0
 // __xmm@0000000000000000000000003f000000
 // GLOBAL: SWBF2 0x00784900
@@ -23,6 +25,31 @@
 
 void __cdecl PblTraceP(const char* Format, ...);
 
+
+// SYNTHETIC: SWBF2 0x004099f0
+// `dynamic initializer for 'pcParticleShader::s_uiRenderTypeHash''
+
+// GLOBAL: SWBF2 0x009c96ec
+// pcParticleShader::s_uiRenderTypeHash
+unsigned int pcParticleShader::s_uiRenderTypeHash = PblHash("Particle");
+
+// SYNTHETIC: SWBF2 0x004099b0
+// `dynamic initializer for 'pcParticleShader::s_Factory''
+// SYNTHETIC: SWBF2 0x00769cc0
+// `dynamic atexit destructor for 'pcParticleShader::s_Factory''
+
+// GLOBAL: SWBF2 0x009c96f0
+// pcParticleShader::s_Factory
+pcParticleShader pcParticleShader::s_Factory;
+
+// SYNTHETIC: SWBF2 0x004099d0
+// `dynamic initializer for 'pcParticleShader::s_shaderDef''
+// SYNTHETIC: SWBF2 0x00769ce0
+// `dynamic atexit destructor for 'pcParticleShader::s_shaderDef''
+
+// GLOBAL: SWBF2 0x009c9780
+// pcParticleShader::s_shaderDef
+pcRedShaderDef pcParticleShader::s_shaderDef("particle_shader.xml");
 
 // SYNTHETIC: SWBF2 0x00409a70
 // `dynamic initializer for 's_blurTexMatrix''
@@ -38,10 +65,20 @@ static float s_FadeNearDistance = 4.0f;
 
 static float s_FadeFarDistance = 14.0f;
 
+// GLOBAL: SWBF2 0x009c96b4
+// pcParticleShader::s_uiID
 unsigned int pcParticleShader::s_uiID;
+// GLOBAL: SWBF2 0x009c96b8
+// pcParticleShader::GetStateFuncArray
 pcRedShader::GetStateFuncT pcParticleShader::GetStateFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c96c4
+// pcParticleShader::BeginFuncArray
 pcRedShader::BeginFuncT pcParticleShader::BeginFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c96d0
+// pcParticleShader::EndFuncArray
 pcRedShader::EndFuncT pcParticleShader::EndFuncArray[MAX_PIPELINES];
+// GLOBAL: SWBF2 0x009c96dc
+// pcParticleShader::RenderFuncArray
 pcRedShader::RenderFuncT pcParticleShader::RenderFuncArray[MAX_PIPELINES];
 
 // FUNCTION: SWBF2 0x00702d30
@@ -238,12 +275,6 @@ void pcParticleShader::Render_Fixed(const RenderItem* pItem, unsigned int) const
     pItem->pPrim->Draw();
 }
 
-// FUNCTION: SWBF2 0x00703440
-void pcParticleShader::Bind()
-{
-    _BindPipeline(GetStateFuncArray, BeginFuncArray, EndFuncArray, RenderFuncArray);
-}
-
 // FUNCTION: SWBF2 0x00703460
 void pcParticleShader::End_Fixed(unsigned int, unsigned int) const
 {
@@ -252,12 +283,6 @@ void pcParticleShader::End_Fixed(unsigned int, unsigned int) const
 // FUNCTION: SWBF2 0x00703470
 void pcParticleShader::End_Prog1(unsigned int, unsigned int) const
 {
-}
-
-// FUNCTION: SWBF2 0x00703480
-unsigned int pcParticleShader::GetID(unsigned int uiPass) const
-{
-    return s_shaderDef.m_states[uiPass].uiID;
 }
 
 // FUNCTION: SWBF2 0x007034a0
@@ -273,18 +298,6 @@ RenderPhaseT pcParticleShader::GetRenderPhase(const RenderItem* pItem, unsigned 
         phase = RENDERPHASE_OPAQUE;
     }
     return phase;
-}
-
-// FUNCTION: SWBF2 0x007034c0
-unsigned int pcParticleShader::GetRenderTypeHash() const
-{
-    return s_uiRenderTypeHash;
-}
-
-// FUNCTION: SWBF2 0x007034d0
-pcRedShaderDef* pcParticleShader::GetShaderDef() const
-{
-    return &s_shaderDef;
 }
 
 // FUNCTION: SWBF2 0x007034e0
@@ -425,22 +438,22 @@ void pcParticleShader::_Init(unsigned int uiFlags,
 void pcParticleShader::_InitPipelineFuncArray()
 {
     GetStateFuncArray[PIPELINE_FIXED] =
-        static_cast<GetStateFuncT>(&pcParticleShader::GetState_Fixed);
+        (GetStateFuncT)(&pcParticleShader::GetState_Fixed);
     BeginFuncArray[PIPELINE_FIXED] =
-        static_cast<BeginFuncT>(&pcParticleShader::Begin_Fixed);
+        (BeginFuncT)(&pcParticleShader::Begin_Fixed);
     EndFuncArray[PIPELINE_FIXED] =
-        static_cast<EndFuncT>(&pcParticleShader::End_Fixed);
+        (EndFuncT)(&pcParticleShader::End_Fixed);
     RenderFuncArray[PIPELINE_FIXED] =
-        static_cast<RenderFuncT>(&pcParticleShader::Render_Fixed);
+        (RenderFuncT)(&pcParticleShader::Render_Fixed);
 
     GetStateFuncArray[PIPELINE_PROG1] =
-        static_cast<GetStateFuncT>(&pcParticleShader::GetState_Prog1);
+        (GetStateFuncT)(&pcParticleShader::GetState_Prog1);
     BeginFuncArray[PIPELINE_PROG1] =
-        static_cast<BeginFuncT>(&pcParticleShader::Begin_Prog1);
+        (BeginFuncT)(&pcParticleShader::Begin_Prog1);
     EndFuncArray[PIPELINE_PROG1] =
-        static_cast<EndFuncT>(&pcParticleShader::End_Prog1);
+        (EndFuncT)(&pcParticleShader::End_Prog1);
     RenderFuncArray[PIPELINE_PROG1] =
-        static_cast<RenderFuncT>(&pcParticleShader::Render_Prog1);
+        (RenderFuncT)(&pcParticleShader::Render_Prog1);
 }
 
 // FUNCTION: SWBF2 0x00703bc0
@@ -449,7 +462,7 @@ void pcParticleShader::_Read(PblFileChunk& chunk) const
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId != 0x454d414e)
+        if (child._iId != CHUNK_ID('N', 'A', 'M', 'E'))
         {
             continue;
         }
@@ -475,31 +488,6 @@ void pcParticleShader::_Read(PblFileChunk& chunk) const
 void pcParticleShader::_StaticInit() const
 {
 }
-
-// SYNTHETIC: SWBF2 0x004099f0
-// `dynamic initializer for 'pcParticleShader::s_uiRenderTypeHash''
-
-// GLOBAL: SWBF2 0x009c96ec
-// pcParticleShader::s_uiRenderTypeHash
-unsigned int pcParticleShader::s_uiRenderTypeHash = PblHash("Particle");
-
-// SYNTHETIC: SWBF2 0x004099b0
-// `dynamic initializer for 'pcParticleShader::s_Factory''
-// SYNTHETIC: SWBF2 0x00769cc0
-// `dynamic atexit destructor for 'pcParticleShader::s_Factory''
-
-// GLOBAL: SWBF2 0x009c96f0
-// pcParticleShader::s_Factory
-pcParticleShader pcParticleShader::s_Factory;
-
-// SYNTHETIC: SWBF2 0x004099d0
-// `dynamic initializer for 'pcParticleShader::s_shaderDef''
-// SYNTHETIC: SWBF2 0x00769ce0
-// `dynamic atexit destructor for 'pcParticleShader::s_shaderDef''
-
-// GLOBAL: SWBF2 0x009c9780
-// pcParticleShader::s_shaderDef
-pcRedShaderDef pcParticleShader::s_shaderDef("particle_shader.xml");
 
 // SYNTHETIC: SWBF2 0x00409a50
 // `dynamic initializer for 'kuiLinearRamp''

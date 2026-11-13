@@ -47,55 +47,55 @@ bool FoleyFXSoldier::Read(PblFileChunk& chunk, unsigned int uChunkID)
 {
     switch (uChunkID)
     {
-    case 0x2a9f6673:
+    case 0x2a9f6673: /* "FootstepLeftWalk" */
         chunk._pFile->Read8();
         mFootstepLeftWalk.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0xe79eb7c2:
+    case 0xe79eb7c2: /* "FootstepRightWalk" */
         chunk._pFile->Read8();
         mFootstepRightWalk.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0x640f6efb:
+    case 0x640f6efb: /* "FootstepLeftRun" */
         chunk._pFile->Read8();
         mFootstepLeftRun.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0xa4df1b00:
+    case 0xa4df1b00: /* "FootstepRightRun" */
         chunk._pFile->Read8();
         mFootstepRightRun.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0xb59a8702:
+    case 0xb59a8702: /* "FootstepLeftStop" */
         chunk._pFile->Read8();
         mFootstepLeftStop.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0x54e8af1f:
+    case 0x54e8af1f: /* "FootstepRightStop" */
         chunk._pFile->Read8();
         mFootstepRightStop.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0xa73f5c0d:
+    case 0xa73f5c0d: /* "Jump" */
         chunk._pFile->Read8();
         mJump.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0x6dea369c:
+    case 0x6dea369c: /* "Land" */
         chunk._pFile->Read8();
         mLand.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0x16ff3d1e:
+    case 0x16ff3d1e: /* "Roll" */
         chunk._pFile->Read8();
         mRoll.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0x6dd99a25:
+    case 0x6dd99a25: /* "Prone" */
         chunk._pFile->Read8();
         mProne.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0x65bfa4e1:
+    case 0x65bfa4e1: /* "Squat" */
         chunk._pFile->Read8();
         mSquat.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0x75493323:
+    case 0x75493323: /* "Stand" */
         chunk._pFile->Read8();
         mStand.SetID(chunk._pFile->Read32(), false, false);
         return true;
-    case 0x70dc49d0:
+    case 0x70dc49d0: /* "BodyFall" */
         chunk._pFile->Read8();
         mBodyFall.SetID(chunk._pFile->Read32(), false, false);
         return true;

@@ -136,23 +136,6 @@ void TreeGrid::Update(TreeGridObject* pObj, const PblVector3& rPos, float fSize,
     Add(pObj, vPos, fSize, f2dSize);
 }
 
-// FUNCTION: SWBF2 0x0065adb0
-bool TreeGrid::ProcessCell(int iCell, TreeGridCallback pCallback, TreeGridCallbackData* pData,
-                           float& fDist)
-{
-    for (TreeGridStack* pStack = mGrid[iCell]; pStack; pStack = pStack->mNext)
-    {
-        for (int i = 0; i < pStack->mStackSize; ++i)
-        {
-            if (!pCallback(pStack->mObject[i], pData, fDist))
-            {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 // FUNCTION: SWBF2 0x0065b1b0
 bool TreeGrid::ProcessCellRect(int iCell, TreeGridCallback pCallback, TreeGridCallbackData* pData,
                                float& fDist, const PblVector3& rMin, const PblVector3& rMax)
@@ -812,20 +795,3 @@ TreeGridStack* TreeGridStack::RemoveObject(TreeGridObject* pObj)
     return this;
 }
 
-// FUNCTION: SWBF2 0x0065c810
-void TreeGridCache::CallbackOnRect(TreeGrid* pTreeGrid, const PblVector3& rMin, const PblVector3& rMax, TreeGridCallback pCallback, TreeGridCallbackData* pData)
-{
-    pTreeGrid->CallbackOnRect(rMin, rMax, pCallback, pData);
-}
-
-// FUNCTION: SWBF2 0x0065c830
-void TreeGridCache::CallbackOnLazyRay(TreeGrid* pTreeGrid, const PblVector3& rFrom, const PblVector3& rTo, TreeGridCallback pCallback, TreeGridCallbackData* pData)
-{
-    pTreeGrid->CallbackOnLazyRay(rFrom, rTo, pCallback, pData);
-}
-
-// FUNCTION: SWBF2 0x0065c850
-void TreeGridCache::CallbackOnSphere(TreeGrid* pTreeGrid, const PblVector3& rCenter, float fRadius, TreeGridCallback pCallback, TreeGridCallbackData* pData)
-{
-    pTreeGrid->CallbackOnSphere(rCenter, fRadius, pCallback, pData);
-}

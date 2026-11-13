@@ -99,12 +99,12 @@ void FogCloudEffect::PlatformInit()
     {
         if (RedRenderer::pcGetGeometryMode())
         {
-            m_pShader = pcRedShader::Create(0x8A8743BF, 0x9282, &TEXTURE_HASH, 1, 0x10004,
+            m_pShader = pcRedShader::Create(0x8A8743BF /* "PARTICLE" */, 0x9282, &TEXTURE_HASH, 1, 0x10004,
                                             RedColor::WHITE, RedColor::BLACK, 32.0f);
         }
         else
         {
-            m_pShader = pcRedShader::Create(0x8A8743BF, 0x282, &TEXTURE_HASH, 1, 0x10004,
+            m_pShader = pcRedShader::Create(0x8A8743BF /* "PARTICLE" */, 0x282, &TEXTURE_HASH, 1, 0x10004,
                                             RedColor::WHITE, RedColor::BLACK, 32.0f);
         }
     }
@@ -121,7 +121,7 @@ void FogCloudEffect::PlatformCleanup()
 }
 
 // FUNCTION: SWBF2 0x00433f90
-void FogCloudEffect::Render(int value)
+void FogCloudEffect::Render(unsigned int value) const
 {
     if ((unsigned int)value & 0x200000)
     {
@@ -140,20 +140,14 @@ void FogCloudEffect::Render(int value)
     const float* vAt = mCamera.m[2];
     const float* vPos = mCamera.m[3];
 
-    float fRightX = vRight[0] * fWidth, fRightY = vRight[1] * fWidth, fRightZ = vRight[2] * fWidth;
+    PblVector3 vScaledRight = mCamera.GetXAxis() * fWidth;
+    const PblVector3& vAxisUp = mCamera.GetYAxis();
+    const PblVector3& vAxisAt = mCamera.GetZAxis();
     PblVector3 vCorners[4];
-    vCorners[0].x = ((-vAt[0] + fRightX) + vUp[0] * fHeight) * fInvLength;
-    vCorners[0].y = ((-vAt[1] + fRightY) + vUp[1] * fHeight) * fInvLength;
-    vCorners[0].z = ((-vAt[2] + fRightZ) + vUp[2] * fHeight) * fInvLength;
-    vCorners[1].x = ((-vAt[0] + fRightX) - vUp[0] * fHeight) * fInvLength;
-    vCorners[1].y = ((-vAt[1] + fRightY) - vUp[1] * fHeight) * fInvLength;
-    vCorners[1].z = ((-vAt[2] + fRightZ) - vUp[2] * fHeight) * fInvLength;
-    vCorners[2].x = ((-vAt[0] - fRightX) - vUp[0] * fHeight) * fInvLength;
-    vCorners[2].y = ((-vAt[1] - fRightY) - vUp[1] * fHeight) * fInvLength;
-    vCorners[2].z = ((-vAt[2] - fRightZ) - vUp[2] * fHeight) * fInvLength;
-    vCorners[3].x = ((-vAt[0] - fRightX) + vUp[0] * fHeight) * fInvLength;
-    vCorners[3].y = ((-vAt[1] - fRightY) + vUp[1] * fHeight) * fInvLength;
-    vCorners[3].z = ((-vAt[2] - fRightZ) + vUp[2] * fHeight) * fInvLength;
+    vCorners[0] = ((-vAxisAt + vScaledRight) + vAxisUp * fHeight) * fInvLength;
+    vCorners[1] = ((-vAxisAt + vScaledRight) - vAxisUp * fHeight) * fInvLength;
+    vCorners[2] = ((-vAxisAt - vScaledRight) - vAxisUp * fHeight) * fInvLength;
+    vCorners[3] = ((-vAxisAt - vScaledRight) + vAxisUp * fHeight) * fInvLength;
 
     PblBox box;
     box._vMin = PblVector3(vPos[0] - vAt[0] * DISTANCE_NEAR, vPos[1] - vAt[1] * DISTANCE_NEAR,
@@ -301,34 +295,38 @@ void FogCloudEffect::Render(int value)
                 color.r = COLOR.r;
                 color.a = (unsigned char)(int)((1.0f - fFade) * (float)COLOR.a);
 
-                PblVector3 aCorners[4] = {
-                    PblVector3(fPosX + vDiagA.x, fPosY + vDiagA.y, fPosZ + vDiagA.z),
-                    PblVector3(fPosX + vDiagB.x, fPosY + vDiagB.y, fPosZ + vDiagB.z),
-                    PblVector3(fPosX - vDiagA.x, fPosY - vDiagA.y, fPosZ - vDiagA.z),
-                    PblVector3(fPosX - vDiagB.x, fPosY - vDiagB.y, fPosZ - vDiagB.z),
-                };
-                static const float s_afU[4] = { 0.0f, 1.0f, 1.0f, 0.0f };
-                static const float s_afV[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
                 if (RedRenderer::pcGetGeometryMode())
                 {
                     TexturedVertex::VertexC* pVertex = (TexturedVertex::VertexC*)pVertices;
-                    for (unsigned int i = 0; i < 4; ++i)
-                    {
-                        pVertex[i].SetPos(aCorners[i]);
-                        pVertex[i].SetColor(color);
-                        pVertex[i].SetUV(s_afU[i], s_afV[i]);
-                    }
+                    pVertex[0].SetPos(PblVector3(fPosX + vDiagA.x, fPosY + vDiagA.y, fPosZ + vDiagA.z));
+                    pVertex[0].SetColor(color);
+                    pVertex[0].SetUV(0.0f, 0.0f);
+                    pVertex[1].SetPos(PblVector3(fPosX + vDiagB.x, fPosY + vDiagB.y, fPosZ + vDiagB.z));
+                    pVertex[1].SetColor(color);
+                    pVertex[1].SetUV(1.0f, 0.0f);
+                    pVertex[2].SetPos(PblVector3(fPosX - vDiagA.x, fPosY - vDiagA.y, fPosZ - vDiagA.z));
+                    pVertex[2].SetColor(color);
+                    pVertex[2].SetUV(1.0f, 1.0f);
+                    pVertex[3].SetPos(PblVector3(fPosX - vDiagB.x, fPosY - vDiagB.y, fPosZ - vDiagB.z));
+                    pVertex[3].SetColor(color);
+                    pVertex[3].SetUV(0.0f, 1.0f);
                     pVertices = pVertex + 4;
                 }
                 else
                 {
                     TexturedVertex::VertexU* pVertex = (TexturedVertex::VertexU*)pVertices;
-                    for (unsigned int i = 0; i < 4; ++i)
-                    {
-                        pVertex[i].SetPos(aCorners[i]);
-                        pVertex[i].SetColor(color);
-                        pVertex[i].SetUV(s_afU[i], s_afV[i]);
-                    }
+                    pVertex[0].SetPos(PblVector3(fPosX + vDiagA.x, fPosY + vDiagA.y, fPosZ + vDiagA.z));
+                    pVertex[0].SetColor(color);
+                    pVertex[0].SetUV(0.0f, 0.0f);
+                    pVertex[1].SetPos(PblVector3(fPosX + vDiagB.x, fPosY + vDiagB.y, fPosZ + vDiagB.z));
+                    pVertex[1].SetColor(color);
+                    pVertex[1].SetUV(1.0f, 0.0f);
+                    pVertex[2].SetPos(PblVector3(fPosX - vDiagA.x, fPosY - vDiagA.y, fPosZ - vDiagA.z));
+                    pVertex[2].SetColor(color);
+                    pVertex[2].SetUV(1.0f, 1.0f);
+                    pVertex[3].SetPos(PblVector3(fPosX - vDiagB.x, fPosY - vDiagB.y, fPosZ - vDiagB.z));
+                    pVertex[3].SetColor(color);
+                    pVertex[3].SetUV(0.0f, 1.0f);
                     pVertices = pVertex + 4;
                 }
 
@@ -386,7 +384,7 @@ inline PblVector3 CameraManager::GetCameraVelocity(int iCam) const
 }
 
 // FUNCTION: SWBF2 0x004356b0
-void PrecipitationEffect::Render(int value)
+void PrecipitationEffect::Render(unsigned int value) const
 {
     if ((unsigned int)value & 0x200000)
     {
@@ -408,14 +406,11 @@ void PrecipitationEffect::Render(int value)
                 vCameraVelocity = CameraManager::Instance()->GetCameraVelocity(i);
                 if (CAMERA_CROSSVELOCITY_SCALE != 1.0f || CAMERA_AXIALVELOCITY_SCALE != 1.0f)
                 {
-                    PblVector3 vLocal;
-                    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&vCameraVelocity),
-                                            reinterpret_cast<const D3DXMATRIX*>(&RedRenderer::GetCamera()->GetMatrixInverse()));
+                    PblVector3 vLocal = RedRenderer::GetCamera()->GetMatrixInverse().ApplyRotation(vCameraVelocity);
                     vCameraVelocity.x = vLocal.x * CAMERA_CROSSVELOCITY_SCALE;
                     vCameraVelocity.y = vLocal.y * CAMERA_CROSSVELOCITY_SCALE;
                     vCameraVelocity.z = CAMERA_AXIALVELOCITY_SCALE * vLocal.z;
-                    PblVector3 vWorld;
-                    D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vWorld), reinterpret_cast<const D3DXVECTOR3*>(&vCameraVelocity), reinterpret_cast<const D3DXMATRIX*>(&mCamera));
+                    PblVector3 vWorld = mCamera.ApplyRotation(vCameraVelocity);
                     vCameraVelocity = vWorld;
                 }
                 break;
@@ -437,7 +432,7 @@ void PrecipitationEffect::Render(int value)
         }
 
         float fBoxMin = BOX_SIZE * -0.5f;
-        float fPad = (float)fabs(VELOCITY_RANGE * STREAK_TIME);
+        float fPad = (float)fabs((double)(VELOCITY_RANGE * STREAK_TIME));
         float fLo = fBoxMin - fPad;
         float fHi = BOX_SIZE * 0.5f + fPad;
         PblBox box;
@@ -475,9 +470,9 @@ void PrecipitationEffect::Render(int value)
                 PblVector3 vHead(fBoxMin + data.vPosRelative.x * BOX_SIZE,
                                  data.vPosRelative.y * BOX_SIZE + fBoxMin,
                                  fBoxMin + data.vPosRelative.z * BOX_SIZE);
-                PblVector3 vTail((vStreak.x + data.vVelocityLocal.x * -STREAK_TIME) + vHead.x,
-                                 (data.vVelocityLocal.y * -STREAK_TIME + vStreak.y) + vHead.y,
-                                 (data.vVelocityLocal.z * -STREAK_TIME + vStreak.z) + vHead.z);
+                PblVector3 vTail((vStreak.x + data.vVelocityLocal.x * fScale) + vHead.x,
+                                 (data.vVelocityLocal.y * fScale + vStreak.y) + vHead.y,
+                                 (data.vVelocityLocal.z * fScale + vStreak.z) + vHead.z);
                 RedColor colorHead = COLOR;
                 colorHead.a = (unsigned char)(int)(data.fAlpha * 255.0f);
                 RedColor colorTail = COLOR;
@@ -497,9 +492,9 @@ void PrecipitationEffect::Render(int value)
                 PblVector3 vHead(fBoxMin + data.vPosRelative.x * BOX_SIZE,
                                  data.vPosRelative.y * BOX_SIZE + fBoxMin,
                                  fBoxMin + data.vPosRelative.z * BOX_SIZE);
-                PblVector3 vTail((vStreak.x + data.vVelocityLocal.x * -STREAK_TIME) + vHead.x,
-                                 (data.vVelocityLocal.y * -STREAK_TIME + vStreak.y) + vHead.y,
-                                 (data.vVelocityLocal.z * -STREAK_TIME + vStreak.z) + vHead.z);
+                PblVector3 vTail((vStreak.x + data.vVelocityLocal.x * fScale) + vHead.x,
+                                 (data.vVelocityLocal.y * fScale + vStreak.y) + vHead.y,
+                                 (data.vVelocityLocal.z * fScale + vStreak.z) + vHead.z);
                 RedColor colorHead = COLOR;
                 colorHead.a = (unsigned char)(int)(data.fAlpha * 255.0f);
                 RedColor colorTail = COLOR;
@@ -568,34 +563,38 @@ void PrecipitationEffect::Render(int value)
             RedColor color = COLOR;
             color.a = (unsigned char)(int)(data.fAlpha * 255.0f);
 
-            PblVector3 aCorners[4] = {
-                PblVector3(vCenter.x - vDiagA.x, vCenter.y - vDiagA.y, vCenter.z - vDiagA.z),
-                PblVector3(vCenter.x - vDiagB.x, vCenter.y - vDiagB.y, vCenter.z - vDiagB.z),
-                PblVector3(vDiagA.x + vCenter.x, vDiagA.y + vCenter.y, vDiagA.z + vCenter.z),
-                PblVector3(vDiagB.x + vCenter.x, vDiagB.y + vCenter.y, vDiagB.z + vCenter.z),
-            };
-            static const float s_afU[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
-            static const float s_afV[4] = { 1.0f, 1.0f, 0.0f, 0.0f };
             if (RedRenderer::pcGetGeometryMode())
             {
                 TexturedVertex::VertexC* pVertex = (TexturedVertex::VertexC*)pVertices;
-                for (unsigned int j = 0; j < 4; ++j)
-                {
-                    pVertex[j].SetPos(aCorners[j]);
-                    pVertex[j].SetColor(color);
-                    pVertex[j].SetUV(s_afU[j], s_afV[j]);
-                }
+                pVertex[0].SetPos(PblVector3(vCenter.x - vDiagA.x, vCenter.y - vDiagA.y, vCenter.z - vDiagA.z));
+                pVertex[0].SetColor(color);
+                pVertex[0].SetUV(1.0f, 1.0f);
+                pVertex[1].SetPos(PblVector3(vCenter.x - vDiagB.x, vCenter.y - vDiagB.y, vCenter.z - vDiagB.z));
+                pVertex[1].SetColor(color);
+                pVertex[1].SetUV(0.0f, 1.0f);
+                pVertex[2].SetPos(PblVector3(vDiagA.x + vCenter.x, vDiagA.y + vCenter.y, vDiagA.z + vCenter.z));
+                pVertex[2].SetColor(color);
+                pVertex[2].SetUV(0.0f, 0.0f);
+                pVertex[3].SetPos(PblVector3(vDiagB.x + vCenter.x, vDiagB.y + vCenter.y, vDiagB.z + vCenter.z));
+                pVertex[3].SetColor(color);
+                pVertex[3].SetUV(1.0f, 0.0f);
                 pVertices = pVertex + 4;
             }
             else
             {
                 TexturedVertex::VertexU* pVertex = (TexturedVertex::VertexU*)pVertices;
-                for (unsigned int j = 0; j < 4; ++j)
-                {
-                    pVertex[j].SetPos(aCorners[j]);
-                    pVertex[j].SetColor(color);
-                    pVertex[j].SetUV(s_afU[j], s_afV[j]);
-                }
+                pVertex[0].SetPos(PblVector3(vCenter.x - vDiagA.x, vCenter.y - vDiagA.y, vCenter.z - vDiagA.z));
+                pVertex[0].SetColor(color);
+                pVertex[0].SetUV(1.0f, 1.0f);
+                pVertex[1].SetPos(PblVector3(vCenter.x - vDiagB.x, vCenter.y - vDiagB.y, vCenter.z - vDiagB.z));
+                pVertex[1].SetColor(color);
+                pVertex[1].SetUV(0.0f, 1.0f);
+                pVertex[2].SetPos(PblVector3(vDiagA.x + vCenter.x, vDiagA.y + vCenter.y, vDiagA.z + vCenter.z));
+                pVertex[2].SetColor(color);
+                pVertex[2].SetUV(0.0f, 0.0f);
+                pVertex[3].SetPos(PblVector3(vDiagB.x + vCenter.x, vDiagB.y + vCenter.y, vDiagB.z + vCenter.z));
+                pVertex[3].SetColor(color);
+                pVertex[3].SetUV(1.0f, 0.0f);
                 pVertices = pVertex + 4;
             }
 
@@ -708,16 +707,16 @@ void PrecipitationEffect::Render(int value)
                     mWorld.m[3][3] = 1.0f;
                     float fDepth = -(mWorld.m[3][1] * mCamera.m[2][1] + mCamera.m[2][0] * mWorld.m[3][0]
                                      + mCamera.m[2][2] * mWorld.m[3][2]) - fCameraDepth;
-                    if (fDepth < fCullDistance
+                    if (!(fDepth >= fCullDistance)
                         && camera.ClassifyAABox(vCellCenter, vExtents) != RedCamera::VISIBILITY_NONE)
                     {
-                        if (fFadeStart < fDepth)
+                        if (fDepth <= fFadeStart)
                         {
-                            color.a = (unsigned char)(int)((fRenderDistance - fDepth) * (float)COLOR.a * fFadeScale);
+                            color.a = COLOR.a;
                         }
                         else
                         {
-                            color.a = COLOR.a;
+                            color.a = (unsigned char)(int)((fRenderDistance - fDepth) * (float)COLOR.a * fFadeScale);
                         }
                         RedRenderer::pcRenderPrimitive(pPrimitive,
                                                        m_pShader,
@@ -744,9 +743,9 @@ void PrecipitationEffect::Render(int value)
                               + ((float)iStartX + 0.5f) * BOX_SIZE * mCamera.m[2][0]
                               + mCamera.m[2][2] * (((float)iStartZ + 0.5f) * BOX_SIZE))
                             - fCameraDepth;
-        float fStepX = (float)fabs(mCamera.m[2][0]) * BOX_SIZE;
-        float fStepY = (float)fabs(mCamera.m[2][1]) * BOX_SIZE;
-        float fStepZ = (float)fabs(mCamera.m[2][2]) * BOX_SIZE;
+        float fStepX = (float)fabs((double)mCamera.m[2][0]) * BOX_SIZE;
+        float fStepY = (float)fabs((double)mCamera.m[2][1]) * BOX_SIZE;
+        float fStepZ = (float)fabs((double)mCamera.m[2][2]) * BOX_SIZE;
 
         for (int iY = iStartY; iY != iEndY; iY += iStepY)
         {
@@ -814,13 +813,13 @@ void PrecipitationEffect::Render(int value)
                             }
                             if (it == itVisibleEnd)
                             {
-                                if (fFadeStart < fCell)
+                                if (fCell <= fFadeStart)
                                 {
-                                    color.a = (unsigned char)(int)((fRenderDistance - fCell) * (float)COLOR.a * fFadeScale);
+                                    color.a = COLOR.a;
                                 }
                                 else
                                 {
-                                    color.a = COLOR.a;
+                                    color.a = (unsigned char)(int)((fRenderDistance - fCell) * (float)COLOR.a * fFadeScale);
                                 }
                                 RedRenderer::pcRenderPrimitive(pPrimitive,
                                                                m_pShader,
@@ -863,12 +862,12 @@ void PrecipitationEffect::PlatformInit()
     {
         if (RedRenderer::pcGetGeometryMode())
         {
-            m_pShader = pcRedShader::Create(0x89A3B5D3, 0x1082,
+            m_pShader = pcRedShader::Create(0x89A3B5D3 /* "Rain" */, 0x1082,
                                             0, 0, 0x10004, RedColor::WHITE, RedColor::BLACK, 32.0f);
         }
         else
         {
-            m_pShader = pcRedShader::Create(0x89A3B5D3, 0x82,
+            m_pShader = pcRedShader::Create(0x89A3B5D3 /* "Rain" */, 0x82,
                                             0, 0, 0x10004, RedColor::WHITE, RedColor::BLACK, 32.0f);
         }
         ((pcRainShader*)m_pShader)->SetLineWidth(PARTICLE_SIZE);
@@ -878,12 +877,12 @@ void PrecipitationEffect::PlatformInit()
     {
         if (RedRenderer::pcGetGeometryMode())
         {
-            m_pShader = pcRedShader::Create(0x8A8743BF, 0x9282,
+            m_pShader = pcRedShader::Create(0x8A8743BF /* "PARTICLE" */, 0x9282,
                                             &TEXTURE_HASH, 1, 0x10004, RedColor::WHITE, RedColor::BLACK, 32.0f);
         }
         else
         {
-            m_pShader = pcRedShader::Create(0x8A8743BF, 0x282,
+            m_pShader = pcRedShader::Create(0x8A8743BF /* "PARTICLE" */, 0x282,
                                             &TEXTURE_HASH, 1, 0x10004, RedColor::WHITE, RedColor::BLACK, 32.0f);
         }
     }

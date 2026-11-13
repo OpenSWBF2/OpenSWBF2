@@ -26,6 +26,7 @@ class RedInterfaceElement;
 class SpawnDisplay : public Thread
 {
 public:
+    static const int kMaxClassSlots = 10;
 
     enum Mode
     {
@@ -112,9 +113,9 @@ public:
     RedScreenGroupElement mGroupTimer;
     RedScreenGroupElement mGroupMainNoSafeCC;
     RedTextElement* m_pInfoBoxText[10];
-    RedTextElement* m_pUnitNameText[10];
-    RedBitmapElement* m_pClassIcon[10];
-    RedGroupElement* m_pSlotBorder[10];
+    RedTextElement* m_pUnitNameText[kMaxClassSlots];
+    RedBitmapElement* m_pClassIcon[kMaxClassSlots];
+    RedGroupElement* m_pSlotBorder[kMaxClassSlots];
     RedTextElement* m_pUnitCountText;
     RedBitmapElement* m_pSideIcon[2];
     RedGroupElement* m_pSideBG[2];

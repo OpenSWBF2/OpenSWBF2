@@ -14,7 +14,7 @@ public:
     public:
 
         ClearViewportsCallback(pcDynamicSprite* pOwner)
-            : Renderable(2), m_pOwner(pOwner)
+            : Renderable(RENDERABLE_PREWORLD), m_pOwner(pOwner)
         {
         }
 
@@ -27,7 +27,7 @@ public:
         // SYNTHETIC: SWBF2 0x00411950
         // pcDynamicSprite::ClearViewportsCallback::`scalar deleting destructor'
 
-        virtual void Render(int value);
+        virtual void Render(unsigned int value) const;
 
         pcDynamicSprite* m_pOwner;
     };
@@ -42,7 +42,7 @@ public:
 
     virtual void Deactivate();
 
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
 
     void ClearViewports();
 
@@ -56,8 +56,8 @@ public:
     float m_fViewportWidth;
     float m_fViewportHeight;
 
-    int m_iNumTempBufferSprites;
-    bool m_bViewportsLocked;
+    mutable int m_iNumTempBufferSprites;
+    mutable bool m_bViewportsLocked;
 
     ClearViewportsCallback m_ClearViewportsCallback;
 };

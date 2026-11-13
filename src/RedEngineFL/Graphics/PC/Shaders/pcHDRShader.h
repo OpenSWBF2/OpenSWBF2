@@ -34,27 +34,24 @@ public:
     // SYNTHETIC: SWBF2 0x00713a00
     // pcHDRShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x00713be0
+    // pcHDRShader::GetID
+    // FUNCTION: SWBF2 0x00713c10
+    // pcHDRShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x00713b80
+    // pcHDRShader::Bind
+    // FUNCTION: SWBF2 0x00713c20
+    // pcHDRShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcHDRShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
-    virtual void Bind();
 
 private:
-    virtual void _Read(PblFileChunk& chunk) const;
 
     virtual void _StaticInit() const;
 
-    virtual void InitFixedFunctionShaderDef() const;
 
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                                 const unsigned int* pParams,
-                                 unsigned int uiNumParams,
-                                 unsigned int uiMaterialFlags,
-                                 const RedColor& color0,
-                                 const RedColor& color1,
-                                 float fArg7) const;
 
-    virtual pcRedShaderDef* GetShaderDef() const;
 
 public:
 
@@ -90,29 +87,6 @@ public:
     float m_bloomWeight;
     HDR_MODE m_state;
 
-    // GLOBAL: SWBF2 0x009caa10
-    static unsigned int s_uiID;
-
-    // GLOBAL: SWBF2 0x009caa14
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009caa20
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009caa2c
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009caa38
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009caa7c
-    static unsigned int s_uiRenderTypeHash;
-
-    // GLOBAL: SWBF2 0x009caa48
-    static pcRedShaderDef s_shaderDef;
-
-    static pcHDRShader s_Factory;
-
 private:
 
     pcHDRShader();
@@ -125,7 +99,6 @@ private:
                const RedColor& color1,
                float fArg7);
 
-    void _InitPipelineFuncArray();
 };
  
  

@@ -164,7 +164,7 @@ void UnitDeathmatchAgent::EnterState()
         {
             mCombatCmd = UnitCombatInfo(UnitCombatInfo::ENGAGE);
         }
-        mCombatHelper.Init(static_cast<const UnitCombatInfo&>(mCombatCmd));
+        mCombatHelper.Init((const UnitCombatInfo&)mCombatCmd);
         break;
 
     case STATE_Stationary:
@@ -190,7 +190,7 @@ void UnitDeathmatchAgent::DoJetJumpStuff()
         return;
     }
 
-    EntitySoldier* pSoldier = static_cast<EntitySoldier*>(GetMe()->GetEntity());
+    EntitySoldier* pSoldier = (EntitySoldier*)GetMe()->GetEntity();
     if (pSoldier->mClass->mJetFuelRechargeRate > 0.0f)
     {
         if (pSoldier->GetJetFuel() > pSoldier->mClass->GetJetFuelMinBorder())

@@ -440,18 +440,18 @@ TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
     std::string sRendererRaw;
     std::string sLuaRaw;
     std::string sArgsRaw;
-    std::string sMemRaw;
+    std::string sScriptRaw;
     if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
         !ReadSource("../src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw) ||
         !ReadSource("../src/Battlefront2/Source/LuaVideoArgs.cpp", sArgsRaw) ||
-        !ReadSource("../src/Battlefront2/Source/LuaMemory.cpp", sMemRaw))
+        !ReadSource("../src/Battlefront2/Source/LuaScript.cpp", sScriptRaw))
     {
         SkipCase("source files not found");
     }
     const std::string sRenderer = StripCr(sRendererRaw);
     const std::string sLua = StripCr(sLuaRaw);
     const std::string sArgs = StripCr(sArgsRaw);
-    const std::string sMem = StripCr(sMemRaw);
+    const std::string sScript = StripCr(sScriptRaw);
 
     const std::string sApply = FunctionBody(sRenderer, "bool RedRenderer::pcApplyDisplayMode(");
     REQUIRE(!sApply.empty());
@@ -500,7 +500,7 @@ TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
     CHECK(Has(sVideoGet, "return LuaVideoArgs::PushLegacyVideoGet("));
     CHECK((Has(sArgs, "!= kLegacyVideoSetArgs") || Has(sArgs, "== kLegacyVideoSetArgs")));
     CHECK(Has(sArgs, "return kLegacyVideoGetValues;"));
-    const std::string sWarn = FunctionBody(sMem, "void __cdecl LuaScript_CallWARNINGF(");
+    const std::string sWarn = FunctionBody(sScript, "void __cdecl LuaScript_CallWARNINGF(");
     REQUIRE(!sWarn.empty());
     CHECK(Has(sWarn, "OPENSWBF2 LUA error"));
 
@@ -984,7 +984,7 @@ TEST_CASE("gamma pass source pins" * doctest::test_suite("unit"))
 
     const std::string sPre = FunctionBody(sState, "void GameState::PreStateInit(bool bMission)");
     REQUIRE(!sPre.empty());
-    size_t uiEffect = sPre.find("FLEffect::InitAll(bMission);");
+    size_t uiEffect = sPre.find("FLEffect::InitAll(true);");
     size_t uiBright = sPre.find("mGammaBrightness");
     size_t uiLoad = sPre.find("LoadDisplay::Create();");
     REQUIRE(uiEffect != std::string::npos);
@@ -1320,7 +1320,7 @@ TEST_CASE("hardware cursor source pins" * doctest::test_suite("unit"))
     CHECK(Has(sSet, "HTCLIENT"));
     CHECK(Has(sSet, "HwCursor::Software()"));
     CHECK(Has(sSet, "SetCursor(HwCursor::Current());"));
-    CHECK(Has(sSet, "RedTexture::s_textureHashTable.Find(0xA2BB0616)"));
+    CHECK(Has(sSet, "RedTexture::s_textureHashTable.Find(0xA2BB0616 /* \"mousecursor\" */)"));
 
     CHECK(CountOf(sMain, "HwCursor::ReleaseClip();") == 3);
     const size_t uiClose = sMain.find("case WM_CLOSE:");

@@ -11,7 +11,7 @@ namespace Snd
 {
 class StreamGSMDecoder;
 class StreamPacketIO;
-struct StreamPacket;
+class StreamPacket;
 struct StreamNodeConnection;
 }
 

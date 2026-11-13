@@ -16,6 +16,24 @@ QueueBase::~QueueBase()
 {
 }
 
+// FUNCTION: SWBF2 0x00738950
+void* QueueBase::Add(unsigned int uiElementSize, void* const pElements,
+                     unsigned short usCapacity)
+{
+    if (mFull)
+    {
+        return 0;
+    }
+    unsigned short i = mHead++;
+    void* pResult = (char*)pElements + i * uiElementSize;
+    if (mHead == usCapacity)
+    {
+        mHead = 0;
+    }
+    mFull = mHead == mTail;
+    return pResult;
+}
+
 // FUNCTION: SWBF2 0x00738a20
 void* QueueBase::Get(unsigned int uiElementSize, void* const pElements,
                       unsigned int uiCapacity)

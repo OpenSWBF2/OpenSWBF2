@@ -11,6 +11,7 @@ namespace GameVoiceChat
     extern Encoder* gEncoders[1];
     extern Decoder* gDecoders[1];
     extern Node* gNodes[1];
+    extern int gHeap;
     extern unsigned char* gEncoderStorage;
     extern unsigned char* gDecoderStorage;
     extern unsigned char* gNodeStorage;

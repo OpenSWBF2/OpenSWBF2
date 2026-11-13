@@ -41,7 +41,7 @@ const char WeaponDetonator::rttiNameWeaponDetonator[] = "WeaponDetonator";
 // FUNCTION: SWBF2 0x00682600
 unsigned int WeaponDetonator::GetNameHash() const
 {
-    const WeaponDetonatorClass* pClass = static_cast<const WeaponDetonatorClass*>(mClass);
+    const WeaponDetonatorClass* pClass = (const WeaponDetonatorClass*)mClass;
     if (pClass && HasItemsDispensed() && pClass->mPlantedHash)
     {
         return pClass->mPlantedHash;
@@ -54,7 +54,7 @@ unsigned int WeaponDetonator::GetNameHash() const
 WeaponDetonatorClass::WeaponDetonatorClass(unsigned int uHash)
     : WeaponDispenserClass(uHash)
 {
-    mPlantedHash = 0x2E4D0225u;
+    mPlantedHash = 0x2E4D0225u /* "hud_detpack_plunger" */;
     mMaxItems = 1;
 }
 
@@ -77,7 +77,7 @@ WeaponDetonatorClass::WeaponDetonatorClass(WeaponDetonatorClass* pBase, unsigned
 // FUNCTION: SWBF2 0x00682b40
 void WeaponDetonatorClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
-    if (uProperty != 0x83CF5063)
+    if (uProperty != 0x83CF5063 /* "PlantedHash" */)
     {
         WeaponDispenserClass::SetProperty(uProperty, pszValue);
         return;
@@ -115,7 +115,7 @@ WeaponDetonator::WeaponDetonator(const WeaponDetonatorClass* pClass, const Weapo
 void WeaponDetonator::NetAttachItem(Entity* pAttach)
 {
     WeaponDetonator* pWeapon = this;
-    EntityItem* pItem = static_cast<EntityItem*>(pAttach);
+    EntityItem* pItem = (EntityItem*)pAttach;
     WeaponDispenserClass* pClass = (WeaponDispenserClass*)pWeapon->mClass;
     if (!pClass->mDispenseClass || !pWeapon->mItemArray || !pWeapon->mItemCount || !pItem)
     {
@@ -129,33 +129,36 @@ void WeaponDetonator::NetAttachItem(Entity* pAttach)
 
     const float strength = (pClass->mMaxStrength - pClass->mMinStrength) *
                            pWeapon->mStrength + pClass->mMinStrength;
+    const float launchSpeed = pClass->mVelocity;
     GameObject* pOwnerObject = pWeapon->mOwner->GetGameObject();
-    const PblVector3& ownerPosition = pOwnerObject->GetPosition();
     const PblVector3& direction = pWeapon->mAimer->GetDirection();
-    const float scale = pClass->mVelocity * strength;
-    PblVector3 firePosition(ownerPosition.x + direction.x * scale,
-                            ownerPosition.y + direction.y * scale,
-                            ownerPosition.z + direction.z * scale);
-    pObject->SetPosition(firePosition);
-    Character* pCharacter = pWeapon->mOwner->mCharacter;
-    const int team = pCharacter->mTeamNumber;
+    const float scale = launchSpeed * strength;
+    const PblVector3 dispenseVelocity(direction.x * scale,
+                                      direction.y * scale,
+                                      direction.z * scale);
+    const PblVector3& ownerVelocity = pOwnerObject->GetVelocity();
+    PblVector3 launchVelocity(ownerVelocity.x + dispenseVelocity.x,
+                              ownerVelocity.y + dispenseVelocity.y,
+                              ownerVelocity.z + dispenseVelocity.z);
+    pObject->SetVelocity(launchVelocity);
+    const int team = pWeapon->mOwner->mCharacter->mTeamNumber;
     pObject->SetTeam(team);
     pObject->SetPerceivedTeam(team);
     Entity* pEntity = pObject->GetEntity();
     if (pEntity->IsRtti(EntityPortableTurret::rttiHashEntityPortableTurret))
     {
-        static_cast<EntityPortableTurret*>(pObject)->mOwnerChar = pCharacter;
+        ((EntityPortableTurret*)pObject)->mOwnerChar = pWeapon->mOwner->mCharacter;
     }
     pObject->Init();
 
     if (pObject->IsRtti(EntityItem::rttiHashEntityItem))
     {
-        pItem->mOwner = pCharacter;
-        EventManager::CharacterEvent::mDispensePowerup.Trigger(*pCharacter, *pObject);
+        ((EntityItem*)pObject)->mOwner = pWeapon->mOwner->mCharacter;
+        EventManager::CharacterEvent::mDispensePowerup.Trigger(*pWeapon->mOwner->mCharacter, *pObject);
     }
     else
     {
-        EventManager::CharacterEvent::mDispenseControllable.Trigger(*pCharacter, *pObject);
+        EventManager::CharacterEvent::mDispenseControllable.Trigger(*pWeapon->mOwner->mCharacter, *pObject);
         Controllable* pControllable = pObject->GetControllable();
         if (pControllable && pControllable->IsSelfPilotable() && !pControllable->GetPilot())
         {
@@ -164,14 +167,13 @@ void WeaponDetonator::NetAttachItem(Entity* pAttach)
                 !pController->IsRtti(UnitStationaryController::rttiHashUnitStationaryController))
             {
                 const GameObject* pTarget = pWeapon->mTarget;
+                pOwnerObject = pWeapon->mOwner->GetGameObject();
                 if (!pTarget)
                 {
                     pTarget = pOwnerObject;
                 }
-                PblHandle<const GameObject> who(pTarget);
-                PblHandle<const GameObject> owner(pOwnerObject);
-                DroidRepairInfo info(who, owner);
-                CommandFsm* pFsm = static_cast<UnitController*>(pController);
+                DroidRepairInfo info(pTarget, pOwnerObject);
+                CommandFsm* pFsm = (UnitController*)pController;
                 pFsm->ForceCommand(info);
             }
         }

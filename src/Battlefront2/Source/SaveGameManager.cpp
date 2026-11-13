@@ -6,21 +6,30 @@
 
 namespace SaveGameManager
 {
-    extern unsigned int mReqSaveFile2Data;
-}
-namespace SaveGameManager
-{
-    extern unsigned int mReqSaveFile2Size;
-}
-namespace SaveGameManager
-{
-    extern unsigned int mReqSaveFile1Data;
-}
-namespace SaveGameManager
-{
-    extern unsigned int mReqSaveFile1Size;
+    // GLOBAL: SWBF2 0x01eaf000
+    unsigned int mReqSaveFile2Data;
 }
 
+namespace SaveGameManager
+{
+    // GLOBAL: SWBF2 0x01eaf008
+    unsigned int mReqSaveFile2Size;
+}
+namespace SaveGameManager
+{
+    // GLOBAL: SWBF2 0x01eaf010
+    unsigned int mReqSaveFile1Data;
+}
+namespace SaveGameManager
+{
+    // GLOBAL: SWBF2 0x01eaf014
+    unsigned int mReqSaveFile1Size;
+}
+namespace SaveGameManager
+{
+    // GLOBAL: SWBF2 0x01eaeff7
+    bool mForceNoSaveDevice;
+}
 // GLOBAL: SWBF2 0x01faa220
 // sNextFileName
 
@@ -40,11 +49,6 @@ void ResetFileList();
 
 namespace SaveGameManager
 {
-    extern bool mForceNoSaveDevice;
-}
-
-namespace SaveGameManager
-{
 
 // SYNTHETIC: SWBF2 0x00406350
 // SaveGameManager::`dynamic initializer for 'mSaveFsm''
@@ -54,6 +58,19 @@ namespace SaveGameManager
 // GLOBAL: SWBF2 0x01f3a1b0
 // mSaveFsm
 SaveFsm mSaveFsm;
+
+extern void (*mOnDone)();
+
+// FUNCTION: SWBF2 0x00632ee0
+void Init(bool bForceNoSaveDevice)
+{
+    SaveGameManager::mOnDone = 0;
+    SaveGameManager::mReqSaveFile2Data = 0;
+    SaveGameManager::mReqSaveFile1Data = 0;
+    SaveGameManager::mReqSaveFile2Size = 0;
+    SaveGameManager::mReqSaveFile1Size = 0;
+    SaveGameManager::mForceNoSaveDevice = bForceNoSaveDevice;
+}
 
 // FUNCTION: SWBF2 0x00633050
 bool CheckIfOkToExitMemoryMode()
@@ -136,7 +153,7 @@ void StartInitialMemcardCheck(void (*pfnDone)())
     else
     {
         mOnDone = pfnDone;
-        mSaveFsm.SetNextState(5);
+        mSaveFsm.StartInitialMemcardCheck();
     }
 }
 

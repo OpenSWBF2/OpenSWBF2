@@ -137,7 +137,7 @@ public:
         mProperties = 0;
     }
 
-    Properties* mProperties;
+    const Properties* mProperties;
     PblListSingle::Node mNode;
 };
 
@@ -183,7 +183,7 @@ private:
 
 inline void Sound::SetProperties(const Properties* pProps)
 {
-    mProperties = const_cast<Properties*>(pProps);
+    mProperties = pProps;
     if (pProps)
     {
         pProps->SetupVoiceVirtual(this, this, 0);

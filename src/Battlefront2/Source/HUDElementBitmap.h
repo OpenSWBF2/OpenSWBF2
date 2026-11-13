@@ -181,7 +181,7 @@ public:
 
 inline HUD::ElementBitmap::ElementBitmap(const char* const pName, Factory::ItemCallback pCallback,
                                   void* const pUserData)
-    : HUD::ElementBitmapBase(*static_cast<RedBitmapElement*>(this), pName, pCallback, pUserData)
+    : HUD::ElementBitmapBase(*(RedBitmapElement*)this, pName, pCallback, pUserData)
 {
     RedBitmapElement::Enable(false);
 }
@@ -189,7 +189,7 @@ inline HUD::ElementBitmap::ElementBitmap(const char* const pName, Factory::ItemC
 inline HUD::ElementBitmapMasked::ElementBitmapMasked(const char* const pName,
                                               Factory::ItemCallback pCallback,
                                               void* const pUserData)
-    : HUD::ElementBitmapBase(*static_cast<RedMaskedBitmapElement*>(this), pName, pCallback,
+    : HUD::ElementBitmapBase(*(RedMaskedBitmapElement*)this, pName, pCallback,
                              pUserData),
       mMaskTextureName(0)
 {
@@ -197,7 +197,7 @@ inline HUD::ElementBitmapMasked::ElementBitmapMasked(const char* const pName,
 }
 
 inline HUD::ElementBitmap::Factory::Factory()
-    : HUD::ElementBitmapBase::Factory(0x46544626u)
+    : HUD::ElementBitmapBase::Factory(0x46544626u /* "Bitmap" */)
 {
     mName = "Bitmap";
 }

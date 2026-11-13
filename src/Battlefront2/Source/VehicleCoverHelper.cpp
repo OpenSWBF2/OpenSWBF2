@@ -97,9 +97,8 @@ void VehicleCoverHelper::EnterState()
         PblVector3 vMe = mOwner->GetMe()->GetMatrix().GetTranslation();
         const PblVector3& vHint = mHint->GetCollisionCenter();
         PblVector3 vDir = vHint - vMe;
-        float fDist = PblMath::Sqrt(vDir.x * vDir.x + vDir.y * vDir.y + vDir.z * vDir.z);
-        PblVector3 vNorm;
-        D3DXVec3Normalize(reinterpret_cast<D3DXVECTOR3*>(&vNorm), reinterpret_cast<const D3DXVECTOR3*>(&vDir));
+        float fDist = Length(vDir);
+        PblVector3 vNorm = Normalize(vDir);
         fDist += 4.0f;
         PblVector3 vDest = vNorm * fDist + vMe;
         GetLowLevel(GetCtrl()).SetNavigator_Goto(vDest, NULL, false, false);
@@ -139,7 +138,7 @@ void VehicleCoverHelper::EnterState()
         int iSide = mHint->GetRandomSidestep() == BaseHint::STEP_LEFT ? -1 : 1;
         float fRadius = GetCollisionObject(GetMe()->GetGameObject())->GetCollisionRadius();
         float fDist = AIUtil::GetRandomFloat(fRadius * 2.0f, fRadius * 3.0f) * (float)iSide;
-        PblVector3 vDest = mHint->GetCollisionCenter() + vSide * fDist;
+        PblVector3 vDest = mHint->GetCollisionCenter() + fDist * vSide;
         GetLowLevel(GetCtrl()).SetNavigator_Goto(vDest, NULL, false, false);
         GetLowLevel(GetCtrl()).mAllowHoverStrafe = true;
         GetLowLevel(GetCtrl()).SetHeight(HEIGHT_WALK);
@@ -371,7 +370,7 @@ const VehicleCoverHint* VehicleCoverHelper::SelectHint(int iCount, const BaseHin
         {
             --iCount;
             int i = AIUtil::GetRandomInt(0, iCount);
-            const VehicleCoverHint* pHint = static_cast<const VehicleCoverHint*>(ppHints[i]);
+            const VehicleCoverHint* pHint = (const VehicleCoverHint*)ppHints[i];
             if (AIUtil::IsHintAvailable(pMe, pHint))
             {
                 float fScore = IsHintSuitable(pHint);

@@ -17,28 +17,25 @@ public:
     // SYNTHETIC: SWBF2 0x007126d0
     // pcSpecularLightingShader::`scalar deleting destructor'
 
+    // FUNCTION: SWBF2 0x00712970
+    // pcSpecularLightingShader::GetID
+    // FUNCTION: SWBF2 0x007129a0
+    // pcSpecularLightingShader::GetRenderTypeHash
+    // FUNCTION: SWBF2 0x00712930
+    // pcSpecularLightingShader::Bind
+    // FUNCTION: SWBF2 0x007129b0
+    // pcSpecularLightingShader::GetShaderDef
+    DECLARE_PC_RED_SHADER_METHODS(pcSpecularLightingShader)
+
     virtual RenderPhaseT GetRenderPhase(const RenderItem*, unsigned int) const;
-    virtual unsigned int GetID(unsigned int uiPass) const;
-    virtual unsigned int GetRenderTypeHash() const;
-    virtual void Bind();
 
 private:
 
     // FUNCTION: SWBF2 0x007136e0
-    virtual pcRedShader* _Create(unsigned int uiFlags,
-                               const unsigned int* pParams,
-                               unsigned int uiNumParams,
-                               unsigned int uiMaterialFlags,
-                               const RedColor& color0,
-                               const RedColor& color1,
-                                 float fSpecularPower) const;
-    virtual void _Read(PblFileChunk&) const;
 
     // FUNCTION: SWBF2 0x007129b0
-    virtual pcRedShaderDef* GetShaderDef() const;
 
 
-    virtual void InitFixedFunctionShaderDef() const;
 
 public:
 
@@ -55,30 +52,6 @@ private:
     void PerVertexLighting(const RenderItem* pItem, unsigned int uiPass) const;
     void PerPixelLighting(const RenderItem* pItem, unsigned int uiPass) const;
 public:
-
-    // GLOBAL: SWBF2 0x009ca970
-    static unsigned int s_uiID;
-
-    // GLOBAL: SWBF2 0x009ca974
-    static GetStateFuncT GetStateFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca980
-    static BeginFuncT BeginFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca98c
-    static EndFuncT EndFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009ca998
-    static RenderFuncT RenderFuncArray[MAX_PIPELINES];
-
-    // GLOBAL: SWBF2 0x009caa0c
-    static unsigned int s_uiRenderTypeHash;
-
-    // GLOBAL: SWBF2 0x009ca9dc
-    static pcRedShaderDef s_shaderDef;
-
-    // GLOBAL: SWBF2 0x009ca9a8
-    static pcSpecularLightingShader s_Factory;
 
 private:
 
@@ -98,6 +71,5 @@ private:
     pcSpecularLightingShader();
 
     // FUNCTION: SWBF2 0x00713770
-    void _InitPipelineFuncArray();
 };
  

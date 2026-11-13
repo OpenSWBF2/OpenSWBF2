@@ -7,6 +7,7 @@
 
 #include "LoadUtil.h"
 #include "DataFileName.h"
+#include "SkyManager.h"
 
 #include "BoundaryManager.h"
 #include "CollisionBody.h"
@@ -77,11 +78,12 @@ void ProcessHint(PblFileChunk& chunk);
 void ProcessBarrier(PblFileChunk& chunk);
 }
 
-namespace GameLoop
-{
-void SetWorldFilename(char const* pcName);
-void SetTerrainFilename(char const* pcName);
-}
+#include "GameLoop.h"
+
+
+
+
+
 
 // GLOBAL: SWBF2 0x01faaa78
 
@@ -101,21 +103,13 @@ namespace PropGenerator
 {
     void Read(PblFileChunk& chunk);
 }
-namespace SkyManager
-{
-    void Read(PblFileChunk& chunk);
-}
 
 extern bool sLoadNestedLevels;
 
 // GLOBAL: SWBF2 0x01e56fa3
 bool gLoading;
 
-// GLOBAL: SWBF2 0x009a1a40
-char RedStack::sMem[40960];
 
-// GLOBAL: SWBF2 0x009aba40
-int RedStack::sMemIdx;
 
 
 // FUNCTION: SWBF2 0x00578ff0
@@ -134,7 +128,7 @@ void LoadUtil::ProcessBin(PblFileChunk& chunk)
     while (!chunk.IsDone())
     {
         PblFileChunk child = chunk.ReadNextChild();
-        if (child._iId == 0x454D414E)
+        if (child._iId == CHUNK_ID('N', 'A', 'M', 'E'))
         {
             char acName[256];
             child.ReadString(acName, sizeof(acName));
@@ -223,7 +217,7 @@ bool LoadUtil::ReadDataFileChunk(char const* pName, PblFileChunk& chunk,
 
         Snd::EngineBase::CallbackOverride aSoundOverrides[2] = {
             { 0x5E262256, LoadSoundBank, 0 },
-            { 0x9A644D15, LoadSoundBank, 0 },
+            { 0x9A644D15 /* "SampleBank" */, LoadSoundBank, 0 },
         };
 
         if (puiIds)
@@ -250,7 +244,7 @@ bool LoadUtil::ReadDataFileChunk(char const* pName, PblFileChunk& chunk,
 
         switch (child._iId)
         {
-        case 0x74726F70:
+        case CHUNK_ID('p', 'o', 'r', 't'):
         {
             RedSceneManager::Read(child);
             pvs::IManager& manager = pvs::IManager::GetInstance();
@@ -259,91 +253,91 @@ bool LoadUtil::ReadDataFileChunk(char const* pName, PblFileChunk& chunk,
             reader.Read(manager, config);
             break;
         }
-        case 0x746E6F66:
+        case CHUNK_ID('f', 'o', 'n', 't'):
             RedFont::Read(child);
             break;
-        case 0x7468676C:
+        case CHUNK_ID('l', 'g', 'h', 't'):
             RedLight::Read(child);
             break;
-        case 0x706E6C70:
+        case CHUNK_ID('p', 'l', 'n', 'p'):
             ConnectivityGraphManager::ReadWorldPatch(child);
             break;
-        case 0x6E726574:
+        case CHUNK_ID('t', 'e', 'r', 'n'):
             RedTerrain::Read(child);
             break;
-        case 0x6E616C70:
+        case CHUNK_ID('p', 'l', 'a', 'n'):
             ConnectivityGraphManager::ReadWorldGraph(child);
             break;
-        case 0x6D6E6173:
+        case CHUNK_ID('s', 'a', 'n', 'm'):
             SoldierAnimatorClass::Read(child);
             break;
-        case 0x6D697270:
+        case CHUNK_ID('p', 'r', 'i', 'm'):
             CollisionBodyPrimitive::Read(child);
             break;
-        case 0x6C6C6F63:
+        case CHUNK_ID('c', 'o', 'l', 'l'):
             CollisionMesh::Read(child);
             break;
-        case 0x6C656B73:
+        case CHUNK_ID('s', 'k', 'e', 'l'):
             RedSkeleton::Read(child);
             break;
-        case 0x6C646F6D:
+        case CHUNK_ID('m', 'o', 'd', 'l'):
             RedModel::Read(child);
             break;
-        case 0x6C636F4C:
+        case CHUNK_ID('L', 'o', 'c', 'l'):
             RedLocalizeDB::Read(child);
             break;
-        case 0x68746170:
+        case CHUNK_ID('p', 'a', 't', 'h'):
             GamePathFactory::Read(child);
             break;
-        case 0x6766636D:
+        case CHUNK_ID('m', 'c', 'f', 'g'):
             if (GameMovie::sUseMovies)
             {
                 RedMovie::Load(child, false);
             }
             break;
-        case 0x646F6D67:
+        case CHUNK_ID('g', 'm', 'o', 'd'):
             GameModel::Read(child);
             break;
-        case 0x646C7277:
+        case CHUNK_ID('w', 'r', 'l', 'd'):
             ProcessWorld(child);
             break;
-        case 0x63746E65:
+        case CHUNK_ID('e', 'n', 't', 'c'):
             EntityClass::Read(child);
             break;
-        case 0x636E7077:
+        case CHUNK_ID('w', 'p', 'n', 'c'):
             WeaponClass::Read(child);
             break;
-        case 0x63707865:
+        case CHUNK_ID('e', 'x', 'p', 'c'):
             ExplosionClass::Read(child);
             break;
-        case 0x6364726F:
+        case CHUNK_ID('o', 'r', 'd', 'c'):
             OrdnanceClass::Read(child);
             break;
-        case 0x626D6F63:
+        case CHUNK_ID('c', 'o', 'm', 'b'):
             WeaponMeleeClass::ReadCombo(child);
             break;
-        case 0x5F796B73:
+        case CHUNK_ID('s', 'k', 'y', '_'):
             SkyManager::Read(child);
             break;
-        case 0x5F786666:
+        case CHUNK_ID('f', 'f', 'x', '_'):
             FoleyFX::Load(child);
             break;
-        case 0x5F786574:
+        case CHUNK_ID('t', 'e', 'x', '_'):
             RedTexture::Read(child);
             break;
-        case 0x5F73756D:
+        case CHUNK_ID('m', 'u', 's', '_'):
             Music::Load(child);
             break;
-        case 0x5F727374:
+        case CHUNK_ID('t', 's', 'r', '_'):
             TriggerSoundRegion::Properties::Load(child);
             break;
-        case 0x5F726373:
+        case CHUNK_ID('s', 'c', 'r', '_'):
             LuaScriptFactory::Read(child);
             break;
-        case 0x5F707270:
+        case CHUNK_ID('p', 'r', 'p', '_'):
             PropGenerator::Read(child);
             break;
-        case 0x5F6C766C:
+        case CHUNK_ID('l', 'v', 'l', '_'):
             while (!child.IsDone())
             {
                 PblFileChunk lvl = child.ReadNextChild();
@@ -376,7 +370,7 @@ bool LoadUtil::ReadDataFileChunk(char const* pName, PblFileChunk& chunk,
                 }
             }
             break;
-        case 0x5F66617A:
+        case CHUNK_ID('z', 'a', 'f', '_'):
         {
             const unsigned int uiAllocSize = child._iSize + 8;
             void* pData = RedAllocFromHeap(__RedTempHeap, uiAllocSize, 0);
@@ -386,16 +380,16 @@ bool LoadUtil::ReadDataFileChunk(char const* pName, PblFileChunk& chunk,
             RedFreeToHeap(__RedTempHeap, pData, 0);
             break;
         }
-        case 0x5F647568:
+        case CHUNK_ID('h', 'u', 'd', '_'):
             HUD::Manager::Load(child);
             break;
-        case 0x5F646E73:
+        case CHUNK_ID('s', 'n', 'd', '_'):
             Snd::EngineBase::LoadConfiguration(child, 0, true, 0, 0);
             break;
-        case 0x5F646E62:
+        case CHUNK_ID('b', 'n', 'd', '_'):
             BoundaryManager::Instance()->Read(child);
             break;
-        case 0x5F61617A:
+        case CHUNK_ID('z', 'a', 'a', '_'):
         {
             const unsigned int uiAllocSize = child._iSize + 8;
             void* pData = RedAllocFromHeap(__RedTempHeap, uiAllocSize, 0);
@@ -405,20 +399,20 @@ bool LoadUtil::ReadDataFileChunk(char const* pName, PblFileChunk& chunk,
             RedFreeToHeap(__RedTempHeap, pData, 0);
             break;
         }
-        case 0x5F5F7866:
+        case CHUNK_ID('f', 'x', '_', '_'):
             FLEffect::Read(child);
             break;
-        case 0x5F4E4942:
+        case CHUNK_ID('B', 'I', 'N', '_'):
             ProcessBin(child);
             break;
         case 0x5E262256:
             Snd::EngineBase::LoadConfiguration(child, pName, true, aSoundOverrides, 2);
             break;
-        case 0x464C4E54:
-        case 0x52444853:
+        case CHUNK_ID('T', 'N', 'L', 'F'):
+        case CHUNK_ID('S', 'H', 'D', 'R'):
             RedRenderer::Read(child);
             break;
-        case 0x48544C43:
+        case CHUNK_ID('C', 'L', 'T', 'H'):
             ClothData::Read(child);
             break;
         }
@@ -552,33 +546,33 @@ void LoadUtil::ProcessWorld(PblFileChunk& chunk)
         char acName[256];
         switch (child._iId)
         {
-        case 0x454D414E:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
             child.ReadString(acName, 256);
             GameLoop::SetWorldFilename(acName);
             break;
-        case 0x4D414E54:
+        case CHUNK_ID('T', 'N', 'A', 'M'):
             child.ReadString(acName, 256);
             GameLoop::SetTerrainFilename(acName);
             break;
-        case 0x52524142:
+        case CHUNK_ID('B', 'A', 'R', 'R'):
             ProcessBarrier(child);
             break;
-        case 0x676D6E61:
+        case CHUNK_ID('a', 'n', 'm', 'g'):
             PAAnimationGroup::Read(child);
             break;
-        case 0x686D6E61:
+        case CHUNK_ID('a', 'n', 'm', 'h'):
             PAAnimationGroup::ReadHierarchy(child);
             break;
-        case 0x6D696E61:
+        case CHUNK_ID('a', 'n', 'i', 'm'):
             PAAnimation::Read(child);
             break;
-        case 0x6E676572:
+        case CHUNK_ID('r', 'e', 'g', 'n'):
             ProcessRegion(child);
             break;
-        case 0x746E6948:
+        case CHUNK_ID('H', 'i', 'n', 't'):
             ProcessHint(child);
             break;
-        case 0x74736E69:
+        case CHUNK_ID('i', 'n', 's', 't'):
             ProcessEntity(child);
             break;
         default:
@@ -600,15 +594,15 @@ Entity* LoadUtil::ProcessEntityInfo(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x454D414E:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
             desc.mNameId = PblHash(child.ReadString(acName, sizeof(acName)));
             StringDB::Store(desc.mNameId, acName);
             break;
-        case 0x45505954:
+        case CHUNK_ID('T', 'Y', 'P', 'E'):
             pClass = Factory<Entity, EntityClass, EntityDesc>::Find(
                 PblHash(child.ReadString(acName, sizeof(acName))));
             break;
-        case 0x4D524658:
+        case CHUNK_ID('X', 'F', 'R', 'M'):
         {
             float x = child._pFile->ReadFloat();
             float y = child._pFile->ReadFloat();
@@ -649,14 +643,14 @@ void LoadUtil::ProcessEntity(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             pEntity = ProcessEntityInfo(child);
             if (!pEntity)
             {
                 return;
             }
             break;
-        case 0x504F5250:
+        case CHUNK_ID('P', 'R', 'O', 'P'):
         {
             const unsigned int uProperty = child._pFile->Read32();
             char* pcValue = child.ReadString(acValue, sizeof(acValue));
@@ -681,14 +675,14 @@ RedRegion* LoadUtil::ProcessRegionInfo(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x45505954:
+        case CHUNK_ID('T', 'Y', 'P', 'E'):
             desc.mTypeId = PblHash(child.ReadString(acName, sizeof(acName)));
             break;
-        case 0x454D414E:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
             desc.mNameId = PblHash(child.ReadString(acName, sizeof(acName)));
             StringDB::Store(desc.mNameId, acName);
             break;
-        case 0x455A4953:
+        case CHUNK_ID('S', 'I', 'Z', 'E'):
         {
             desc.mSize.x = child._pFile->ReadFloat();
             desc.mSize.y = child._pFile->ReadFloat();
@@ -696,7 +690,7 @@ RedRegion* LoadUtil::ProcessRegionInfo(PblFileChunk& chunk)
             desc.mSize.w = D3DXVec3Length(reinterpret_cast<const D3DXVECTOR3*>(&desc.mSize));
             break;
         }
-        case 0x4D524658:
+        case CHUNK_ID('X', 'F', 'R', 'M'):
         {
             float x = child._pFile->ReadFloat();
             float y = child._pFile->ReadFloat();
@@ -739,10 +733,10 @@ void LoadUtil::ProcessRegion(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             pRegion = ProcessRegionInfo(child);
             break;
-        case 0x504F5250:
+        case CHUNK_ID('P', 'R', 'O', 'P'):
             if ((unsigned int)pRegion > 1)
             {
                 const unsigned int uProperty = child._pFile->Read32();
@@ -777,13 +771,13 @@ BaseHint* ProcessHintInfo(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x454D414E:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
             desc.mNameId = PblHash(child.ReadString(acName, sizeof(acName)));
             break;
-        case 0x45505954:
+        case CHUNK_ID('T', 'Y', 'P', 'E'):
             uType = PblHash(child.ReadString(acName, sizeof(acName)));
             break;
-        case 0x4D524658:
+        case CHUNK_ID('X', 'F', 'R', 'M'):
         {
             float x = child._pFile->ReadFloat();
             float y = child._pFile->ReadFloat();
@@ -809,13 +803,13 @@ BaseHint* ProcessHintInfo(PblFileChunk& chunk)
     BaseHint* pHint = 0;
     switch (uType)
     {
-    case 0x350CA8AF:
+    case 0x350CA8AF: /* "0" */
         pHint = new SnipeHint(desc);
         break;
-    case 0x340CA71C:
+    case 0x340CA71C: /* "1" */
         pHint = new PatrolHint(desc);
         break;
-    case 0x370CABD5:
+    case 0x370CABD5: /* "2" */
         pHint = new CoverHint(desc);
         break;
     case 0x310CA263:
@@ -824,13 +818,13 @@ BaseHint* ProcessHintInfo(PblFileChunk& chunk)
     case 0x300CA0D0:
         pHint = new MinefieldHint(desc);
         break;
-    case 0x330CA589:
+    case 0x330CA589: /* "6" */
         pHint = new LandHint(desc);
         break;
-    case 0x320CA3F6:
+    case 0x320CA3F6: /* "7" */
         pHint = new FortificationHint(desc);
         break;
-    case 0x3D0CB547:
+    case 0x3D0CB547: /* "8" */
         pHint = new VehicleCoverHint(desc);
         break;
     }
@@ -849,14 +843,14 @@ void LoadUtil::ProcessHint(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             pHint = LoadUtil::ProcessHintInfo(child);
             if (!pHint)
             {
                 return;
             }
             break;
-        case 0x504F5250:
+        case CHUNK_ID('P', 'R', 'O', 'P'):
         {
             const unsigned int uProperty = child._pFile->Read32();
             char* pcValue = child.ReadString(acValue, sizeof(acValue));
@@ -884,7 +878,7 @@ void ProcessBarrierInfo(PblFileChunk& chunk)
 {
     PblMatrix mMatrix = gMatrixIdentity;
     PblVector4 vSize(0.0f);
-    int iFlag = 0;
+    unsigned int iFlag = 0;
     char acName[128];
 
     while (!chunk.IsDone())
@@ -892,13 +886,13 @@ void ProcessBarrierInfo(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x47414C46:
+        case CHUNK_ID('F', 'L', 'A', 'G'):
             iFlag = child._pFile->Read32();
             break;
-        case 0x454D414E:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
             child.ReadString(acName, sizeof(acName));
             break;
-        case 0x455A4953:
+        case CHUNK_ID('S', 'I', 'Z', 'E'):
         {
             const float fX = child._pFile->ReadFloat();
             const float fY = child._pFile->ReadFloat();
@@ -907,7 +901,7 @@ void ProcessBarrierInfo(PblFileChunk& chunk)
             vSize = PblVector4(fX, fY, fZ, fLength);
             break;
         }
-        case 0x4D524658:
+        case CHUNK_ID('X', 'F', 'R', 'M'):
         {
             float x = child._pFile->ReadFloat();
             float y = child._pFile->ReadFloat();
@@ -930,7 +924,7 @@ void ProcessBarrierInfo(PblFileChunk& chunk)
         }
     }
 
-    PathFinder::AddObstacle(mMatrix, vSize, iFlag, PblHash(acName));
+    PathFinder::AddObstacle(mMatrix, vSize, (ConnectivityGraph::ProhibitFlag)iFlag, PblHash(acName));
 }
 }
 
@@ -944,20 +938,16 @@ void LoadUtil::ProcessBarrier(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x4F464E49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
             LoadUtil::ProcessBarrierInfo(child);
             break;
-        case 0x504F5250:
+        case CHUNK_ID('P', 'R', 'O', 'P'):
             child._pFile->Read32();
             child.ReadString(acValue, sizeof(acValue));
             break;
         }
     }
 }
-
-// TEMPLATE: SWBF2 0x00446c00
-// Factory<Entity,EntityClass,EntityDesc>::Find
-template EntityClass* Factory<Entity, EntityClass, EntityDesc>::Find(unsigned int);
 
 // TEMPLATE: SWBF2 0x00578f10
 // util::HashTable_<pvs::ISector *,char const *,util::Vector<pvs::ISector *,util::BaseArray<pvs::ISector *,util::TypedArrayAllocator<pvs::ISector *,util::TNewArrayAlloc<pvs::ISector *> > > >,util::Vector<char const *,util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::TNewArrayAlloc<pvs::ISector *> > > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::TNewArrayAlloc<pvs::ISector *> > > > >::~HashTable_<pvs::ISector *,char const *,util::Vector<pvs::ISector *,util::BaseArray<pvs::ISector *,util::TypedArrayAllocator<pvs::ISector *,util::TNewArrayAlloc<pvs::ISector *> > > >,util::Vector<char const *,util::BaseArray<char const *,util::TypedArrayAllocator<char const *,util::TNewArrayAlloc<pvs::ISector *> > > >,util::Vector<unsigned int,util::BaseArray<unsigned int,util::TypedArrayAllocator<unsigned int,util::TNewArrayAlloc<pvs::ISector *> > > > >

@@ -16,8 +16,9 @@
 #include "MountedTurret.h"
 #include "UnitAttackPatterns.h"
 #include "UnitThreatManager.h"
-#include "WeaponCannonInstance.h"
+#include "WeaponCannon.h"
 #include "WeaponTowCable.h"
+#include "EntityFlyer.h"
 
 #include <math.h>
 
@@ -27,12 +28,6 @@
 // __xmm@00000002000000010000000000000000
 // GLOBAL: SWBF2 0x007b2710
 // __xmm@00000004000000020000000100000001
-
-class EntityFlyer
-{
-public:
-    static PblHash rttiHashEntityFlyer;
-};
 
 // TEMPLATE: SWBF2 0x00671220
 // PblHeap<VisionManager::RayRequest *,int>::FindLowest
@@ -180,7 +175,7 @@ void UpdatePotentiallyVisible(UnitController* pController)
         pMe->GetEntity()->GetEntityClass()->IsRtti(MountedTurretClass::rttiHashMountedTurretClass))
     {
         const MountedTurretClass* pTurretClass =
-            static_cast<const MountedTurretClass*>(pMe->GetEntity()->GetEntityClass());
+            (const MountedTurretClass*)pMe->GetEntity()->GetEntityClass();
         bTargetPlayer = CombatUtil::CanTurretFaceDisturbance(pMe, pTurretClass, pMeObj,
                                                              pPlayerTarget->GetMatrix().GetTranslation());
     }
@@ -209,7 +204,7 @@ void UpdatePotentiallyVisible(UnitController* pController)
         }
 
         float fDistSq = -1.0f;
-        if (!(pController->mLodState == 4 && pObj == pPlayerTarget) && !AIUtil::CanPotentiallySee(pMe, pObj, &fDistSq))
+        if (!(pController->mLodState == AILOD_HIGH && pObj == pPlayerTarget) && !AIUtil::CanPotentiallySee(pMe, pObj, &fDistSq))
         {
             continue;
         }
@@ -533,7 +528,7 @@ template void PblHeap<PblHandle<GameObject>, int>::Pop();
 template void PblHeap<VisionManager::RayRequest*, int>::Pop();
 
 // FUNCTION: SWBF2 0x00671130
-void __fastcall VisionManager::AddFakeRayhitResult(UnitController* pUnit, const GameObject* pObject)
+void VisionManager::AddFakeRayhitResult(UnitController* pUnit, const GameObject* pObject)
 {
     if (!pUnit || !pObject || !pUnit->mOwner)
     {

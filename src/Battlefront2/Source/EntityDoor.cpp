@@ -21,7 +21,7 @@ extern bool netFrameLock;
 // FUNCTION: SWBF2 0x00498460
 void EntityDoor::Render(unsigned char ucViewport, float fDist, unsigned int uiFlags)
 {
-    if (!static_cast<const EntityPropClass*>(mEntityClass)->m_bDynamicLighting)
+    if (!((const EntityPropClass*)mEntityClass)->m_bDynamicLighting)
     {
         uiFlags |= 0x80u;
     }
@@ -250,7 +250,7 @@ void EntityDoor::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x295eb940:
+    case 0x295eb940: /* "OpenRatio" */
     {
         float fRatio;
         sscanf(pszValue, "%f", &fRatio);
@@ -259,7 +259,7 @@ void EntityDoor::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0x9dd5da63:
+    case 0x9dd5da63: /* "IsLocked" */
         mIsLocked = atoi(pszValue) != 0;
         if (NetGame::IsEnabled())
         {
@@ -268,7 +268,7 @@ void EntityDoor::SetProperty(unsigned int uProperty, const char* pszValue)
         }
         break;
 
-    case 0xd55de4cf:
+    case 0xd55de4cf: /* "OpenTrigger" */
         mOpenTrigger = atoi(pszValue) != 0;
         break;
 
@@ -396,7 +396,7 @@ bool EntityDoor::Update(float fDeltaTime)
 
     if (portal_)
     {
-        static_cast<pvs::IPortal*>(portal_)->SetActive(mZephyrPoseDyn.m_fCurT > 0.0f);
+        ((pvs::IPortal*)portal_)->SetActive(mZephyrPoseDyn.m_fCurT > 0.0f);
     }
 
     if (mIsOpen || fLastTime - mZephyrPoseDyn.m_fCurT > 0.0f)
@@ -499,19 +499,19 @@ void EntityDoorClass::SetProperty(unsigned int uProperty, const char* pszValue)
 {
     switch (uProperty)
     {
-    case 0x323f7450:
+    case 0x323f7450: /* "OpenSound" */
         mOpenSound.SetID(pszValue, false, false);
         break;
 
-    case 0x4fcf4562:
+    case 0x4fcf4562: /* "CloseSound" */
         mCloseSound.SetID(pszValue, false, false);
         break;
 
-    case 0x027b5cb2:
+    case 0x027b5cb2: /* "LockedSound" */
         mLockedSound.SetID(pszValue, false, false);
         break;
 
-    case 0x1d56b73b:
+    case 0x1d56b73b: /* "AnimationTrigger" */
     {
         char acName[256];
         float fRadius;
@@ -528,14 +528,14 @@ void EntityDoorClass::SetProperty(unsigned int uProperty, const char* pszValue)
         break;
     }
 
-    case 0xe145ee5d:
+    case 0xe145ee5d: /* "Animation" */
         if (mAnimObj)
         {
             mAnimation = (ZephyrAnim*)mAnimObj->FindAnimation(pszValue);
         }
         break;
 
-    case 0x98557a5e:
+    case 0x98557a5e: /* "AnimationName" */
         InitAnimations(pszValue);
         break;
 

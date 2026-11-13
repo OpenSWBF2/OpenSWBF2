@@ -24,21 +24,6 @@ const char IFaceSoldierAnimator::rttiNameIFaceSoldierAnimator[] = "IFaceSoldierA
 
 
 
-// FUNCTION: SWBF2 0x0056a180
-void IFaceSoldierAnimator::SetUpperLowerAnimations(unsigned int uUpperAnimHash, unsigned int uLowerAnimHash,
-                                                   float fTransitionTime)
-{
-    Close();
-    mAnimHash = uUpperAnimHash;
-    mLowerAnimHash = uLowerAnimHash;
-    mQueuedAnim = 0;
-    mQueuedLowerAnim = 0;
-    mAnimTransitionTimeTotal = fTransitionTime;
-    mAnimTransitionTime = 0.0f;
-    Open();
-}
-
-
 // FUNCTION: SWBF2 0x0056a240
 IFaceSoldierAnimator::IFaceSoldierAnimator(const Red3DModelAnimator* pAnimator)
     : mLowerAnimHash(0),

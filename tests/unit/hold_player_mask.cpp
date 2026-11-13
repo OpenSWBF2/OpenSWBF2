@@ -25,7 +25,7 @@ TEST_CASE("command post hold mask sites keep retail only in the sim" * doctest::
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\CaptureDisplay.cpp", sText));
-    CHECK(CountText(sText, "CommandPost::HoldMaskHasPlayer(pPost->mHoldPlayerMask, pChr->mPlayerId)") == 1);
+    CHECK(CountText(sText, "CommandPost::HoldMaskHasPlayer(pPost->GetHoldPlayerMask(), pChr->mPlayerId)") == 1);
     CHECK(CountText(sText, "HoldMaskHasPlayerRetail") == 0);
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntitySoldier.cpp", sText));
     CHECK(CountText(sText, "CommandPost::HoldMaskHasPlayerRetail(") == 2);

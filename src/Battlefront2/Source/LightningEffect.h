@@ -19,7 +19,7 @@ public:
     LightningEffect();
 
     virtual ~LightningEffect();
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual bool IsReflected();
     virtual void Update(float fDeltaTime);
     virtual void ReadConfig(PblConfig& config);

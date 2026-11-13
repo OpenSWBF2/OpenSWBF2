@@ -490,10 +490,6 @@ bool CollisionPrimitive::CollideBox(const PblVector3& vVelocity, const PblVector
     }
 }
 
-// TEMPLATE: SWBF2 0x004620a0
-// PolyListContainer<100>::AddPolygon
-template void PolyListContainer<100>::AddPolygon(unsigned char, const PblVector3*);
-
 // FUNCTION: SWBF2 0x00467090
 bool CollisionPrimitive::InitMeshCollision(const PblMatrix& matrix, const CollisionMesh* pMesh,
                                            const PblMatrix& meshMatrix, CollisionObject* pObject,
@@ -590,7 +586,7 @@ bool CollisionPrimitive::InitMeshCollision(const PblMatrix& matrix, const Collis
         EntitySoldier* pSoldier = NULL;
         if (pObject->GetEntity() && pObject->GetEntity()->IsRtti(EntitySoldier::rttiHashEntitySoldier))
         {
-            pSoldier = static_cast<EntitySoldier*>(pObject->GetEntity());
+            pSoldier = (EntitySoldier*)pObject->GetEntity();
         }
 
         float fRadius = pObject->GetCollisionRadius();
@@ -726,7 +722,7 @@ int CollisionPrimitive::GetClosestPoint(PblVector3& aMidPoint, float& aMaxDist,
             PblVector3 testOut;
             CollisionUtil::GetClosestPoints_SegmentSegment(sLocalPos, endPointCyl, outPos,
                 endPointTest, cylOut, testOut);
-            if (SquaredLength(cylOut - testOut) >= 0.0001f)
+            if (!(SquaredLength(cylOut - testOut) < 0.0001f))
             {
                 continue;
             }
@@ -736,14 +732,14 @@ int CollisionPrimitive::GetClosestPoint(PblVector3& aMidPoint, float& aMaxDist,
             int vertNum = 0;
             while (bInside && vertNum < numVertices - 1)
             {
-                if (DotProduct(CrossProduct(corners[vertNum] - cylOut,
-                    corners[vertNum + 1] - cylOut), polyNorm) >= 0.0f)
+                if (0.0f > DotProduct(CrossProduct(corners[vertNum] - cylOut,
+                    corners[vertNum + 1] - cylOut), polyNorm))
                 {
-                    ++vertNum;
+                    bInside = false;
                 }
                 else
                 {
-                    bInside = false;
+                    ++vertNum;
                 }
             }
             if (!bInside)
@@ -811,7 +807,7 @@ bool CollisionPrimitive::CollideMesh(const PblMatrix& matrix, const CollisionMes
                 sPrimitiveInCollision.GetXAxis();
             fCollisionOverlap = mWidth - fabsf(dotX1);
         }
-        else if (dotX2 <= dotY2 && dotY2 > dotZ2)
+        else if (dotY2 > dotZ2)
         {
             vCollisionDir = dotY1 < 0.0f ? -sPrimitiveInCollision.GetYAxis() :
                 sPrimitiveInCollision.GetYAxis();
@@ -829,13 +825,13 @@ bool CollisionPrimitive::CollideMesh(const PblMatrix& matrix, const CollisionMes
         float radiusOverlap = mRadius - Length(closestCylPos - closestPos);
         float heightOverlap = mHeight * 0.5f - fabsf(DotProduct(closestPos - sLocalPos,
             sPrimitiveInCollision.GetYAxis()));
-        if (mHeight * 0.5f - heightOverlap >= 0.0001f)
+        if (!(mHeight * 0.5f - heightOverlap < 0.0001f))
         {
             vCollisionDir = sLocalPos - closestPos;
             float dist = Length(vCollisionDir);
             float tmpOverlap = dist / (mHeight * 0.5f - heightOverlap) * heightOverlap;
             float testSq = (mHeight * 0.25f * mHeight + mRadius * mRadius) * 0.8f;
-            if (testSq < (tmpOverlap + dist) * (tmpOverlap + dist))
+            if (!((tmpOverlap + dist) * (tmpOverlap + dist) <= testSq))
             {
                 fCollisionOverlap = radiusOverlap;
                 vCollisionDir = Normalize(closestCylPos - closestPos);
@@ -886,6 +882,7 @@ bool CollisionPrimitive::CollideTerrain(const PblMatrix& matrix, PblVector3& vNo
     float terrainHeight;
     PblVector3 radiusDir(0.0f, 0.0f, 0.0f);
     vPos = vTrans - PblVector3(0.0f, collHeight, 0.0f);
+    PblVector3 pos = vPos;
 
     if (mType == SPHERE)
     {
@@ -914,19 +911,22 @@ bool CollisionPrimitive::CollideTerrain(const PblMatrix& matrix, PblVector3& vNo
             radiusDir = Normalize(radiusDir);
         }
         vPos += mRadius * radiusDir;
-        terrainHeight = RedTerrain::GetHoleHeight(vPos.x, vPos.z);
+        pos = vPos;
+        terrainHeight = RedTerrain::GetHoleHeight(pos.x, pos.z);
         fDepth = terrainHeight - vTrans.y + collHeight;
         if (fDepth < 0.0f || fDepth > collHeight * 4.0f)
         {
             const PblVector3 vRim = vPos;
             vPos -= mHeight * vDir;
-            terrainHeight = RedTerrain::GetHoleHeight(vPos.x, vPos.z);
+            pos = vPos;
+            terrainHeight = RedTerrain::GetHoleHeight(pos.x, pos.z);
             fDepth = terrainHeight - vTrans.y + collHeight;
             if (fDepth < 0.0f || fDepth > collHeight * 4.0f)
             {
                 const float fDiameter = mRadius * 2.0f;
                 vPos = vRim - fDiameter * radiusDir;
-                terrainHeight = RedTerrain::GetHoleHeight(vPos.x, vPos.z);
+                pos = vPos;
+                terrainHeight = RedTerrain::GetHoleHeight(pos.x, pos.z);
                 fDepth = terrainHeight - vTrans.y + collHeight;
             }
         }
@@ -968,7 +968,8 @@ bool CollisionPrimitive::CollideTerrain(const PblMatrix& matrix, PblVector3& vNo
 
     if (mType != CYLINDER)
     {
-        terrainHeight = RedTerrain::GetHoleHeight(vPos.x, vPos.z);
+        pos = vPos;
+        terrainHeight = RedTerrain::GetHoleHeight(pos.x, pos.z);
         fDepth = terrainHeight - vTrans.y + collHeight;
     }
     if (fDepth < 0.0f || fDepth > collHeight * 2.0f)
@@ -976,7 +977,7 @@ bool CollisionPrimitive::CollideTerrain(const PblMatrix& matrix, PblVector3& vNo
         return false;
     }
 
-    vNormal = RedTerrain::GetInterpolatedNormal(vPos.x, vPos.z);
+    vNormal = RedTerrain::GetInterpolatedNormal(pos.x, pos.z);
     if (mType == CYLINDER)
     {
 

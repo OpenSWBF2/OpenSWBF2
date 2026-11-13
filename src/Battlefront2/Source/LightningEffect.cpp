@@ -7,7 +7,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblRandom.h"
-#include "RedEngineFL/Graphics/RedAmbientLight.h"
+#include "RedEngineFL/Graphics/RedLight.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/RedDirectionalLight.h"
 #include "RedEngineFL/Graphics/RedLight.h"
@@ -45,7 +45,7 @@ bool LightningEffect::IsReflected()
 }
 
 // FUNCTION: SWBF2 0x00572840
-void LightningEffect::Render(int)
+void LightningEffect::Render(unsigned int) const
 {
 }
 
@@ -70,7 +70,7 @@ void LightningEffect::Destroy()
 
 // FUNCTION: SWBF2 0x005728e0
 LightningEffect::LightningEffect()
-    : FLEffect(0xE812F405u, 3)
+    : FLEffect(0xE812F405u /* "Lightning" */, RENDERABLE_POSTWORLD)
 {
     Enable(false);
     m_colorLightning = RedColorValue(0.937254965f, 0.972549081f, 1.0f, 1.0f);
@@ -111,10 +111,10 @@ void LightningEffect::ReadConfig(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0xAF8BB8CEu:
+        case 0xAF8BB8CEu: /* "Enable" */
             Enable(data.GetUint32Arg(0) != 0);
             break;
-        case 0x3D7E6258u:
+        case 0x3D7E6258u: /* "Color" */
         {
             RedColor color;
             color.r = ClampColorComponent(data.GetFloatArg(0));
@@ -124,38 +124,38 @@ void LightningEffect::ReadConfig(PblConfig& config)
             m_colorLightning = RedColorValue(color);
             break;
         }
-        case 0x15F3DEB6u:
+        case 0x15F3DEB6u: /* "SunlightFadeFactor" */
             m_fSunlightFadeMax = data.GetFloatArg(0);
             break;
-        case 0x034AEBFDu:
+        case 0x034AEBFDu: /* "SkyDomeDarkenFactor" */
             m_fSkyDomeDarken = data.GetFloatArg(0);
             break;
-        case 0xDB50529Eu:
+        case 0xDB50529Eu: /* "BrightnessMin" */
             m_fBrightnessMin = data.GetFloatArg(0);
             break;
-        case 0xA40F930Au:
+        case 0xA40F930Au: /* "FadeTime" */
             m_fTimeToFade = data.GetFloatArg(0);
             break;
-        case 0x260E9234u:
+        case 0x260E9234u: /* "TimeBetweenFlashesMinMax" */
             m_fTimeBetweenFlashesMin = data.GetFloatArg(0);
             m_fTimeBetweenFlashesMax = data.GetFloatArg(1);
             break;
-        case 0xD71D3C32u:
+        case 0xD71D3C32u: /* "TimeBetweenSubFlashesMinMax" */
             m_fTimeBetweenSubFlashesMin = data.GetFloatArg(0);
             m_fTimeBetweenSubFlashesMax = data.GetFloatArg(1);
             break;
-        case 0x67F9208Du:
+        case 0x67F9208Du: /* "NumSubFlashesMinMax" */
             m_iNumSubFlashesMin = data.GetUint32Arg(0);
             m_iNumSubFlashesMax = data.GetUint32Arg(1);
             break;
-        case 0xFC6B14B1u:
+        case 0xFC6B14B1u: /* "HorizonAngleMinMax" */
             m_fHorizonAngleMin = data.GetFloatArg(0) * 0.017453292f;
             m_fHorizonAngleMax = data.GetFloatArg(1) * 0.017453292f;
             break;
-        case 0xE46BF7A2u:
+        case 0xE46BF7A2u: /* "SoundCrack" */
             m_soundCrack.SetID(data.GetStringArg(0), false, false);
             break;
-        case 0x882E50B8u:
+        case 0x882E50B8u: /* "SoundSubCrack" */
             m_soundSubCrack.SetID(data.GetStringArg(0), false, false);
             break;
         }
@@ -170,7 +170,7 @@ void LightningEffect::ReadConfig(PblConfig& config)
 void LightningEffect::PlaySound(GameSound& sound)
 {
     bool bOutdoors = false;
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < Snd::EngineBase::kMaxListeners; ++i)
     {
         const Snd::Listener& listener = Snd::EngineBase::smListeners[i];
         bOutdoors |= listener.Enabled() && listener.GetSpace() == &Snd::Space::smDefaultSpace;
@@ -198,8 +198,8 @@ void LightningEffect::Update(float fDeltaTime)
         m_bInitRestore = true;
     }
 
-    float fBoltDist = 800.0f;
     float fBoltHeight = 300.0f;
+    float fBoltDist = 800.0f;
 
     m_fTimer += fDeltaTime;
     if (m_fTimer > m_fTimeNextFlash)
@@ -207,19 +207,17 @@ void LightningEffect::Update(float fDeltaTime)
         m_fTimer = 0.0f;
         if (m_iNumSubFlashesRemaining <= 0)
         {
-            float fElevation = (m_fHorizonAngleMax - m_fHorizonAngleMin) * PblRandom::GetGlobalFloat() +
+            float fElevation = (m_fHorizonAngleMax - m_fHorizonAngleMin) * PblRandom::_Global.GetFloat() +
                                m_fHorizonAngleMin;
-            float fHeading = PblRandom::GetGlobalFloat() * PblMath::fTwoPi;
+            float fHeading = PblRandom::_Global.GetFloat() * PblMath::fTwoPi;
             float fSinElevation, fCosElevation, fSinHeading, fCosHeading;
             PblMath::SinCos(&fSinElevation, &fCosElevation, fElevation);
             PblMath::SinCos(&fSinHeading, &fCosHeading, fHeading);
-            m_vDir.x = -(fSinHeading * fCosElevation);
-            m_vDir.y = -fSinElevation;
-            m_vDir.z = -(fCosHeading * fCosElevation);
+            m_vDir = PblVector3(-(fSinHeading * fCosElevation), -fSinElevation, -(fCosHeading * fCosElevation));
 
             m_iNumSubFlashesRemaining =
                 (int)(((float)(m_iNumSubFlashesMax - m_iNumSubFlashesMin) + 0.9999f) *
-                          PblRandom::GetGlobalFloat() +
+                          PblRandom::_Global.GetFloat() +
                       (float)m_iNumSubFlashesMin);
             PlaySound(m_soundCrack);
             fBoltDist = 200.0f;
@@ -227,28 +225,50 @@ void LightningEffect::Update(float fDeltaTime)
             mBoltTimer = 0.0f;
         }
         --m_iNumSubFlashesRemaining;
-        m_fBrightness = (1.0f - m_fBrightnessMin) * PblRandom::GetGlobalFloat() + m_fBrightnessMin;
         if (m_iNumSubFlashesRemaining > 0)
         {
+            m_fBrightness = (1.0f - m_fBrightnessMin) * PblRandom::GetGlobalFloat() + m_fBrightnessMin;
             m_fTimeNextFlash = (m_fTimeBetweenSubFlashesMax - m_fTimeBetweenSubFlashesMin) *
-                                   PblRandom::GetGlobalFloat() +
+                                   PblRandom::_Global.GetFloat() +
                                m_fTimeBetweenSubFlashesMin;
             PlaySound(m_soundSubCrack);
         }
         else
         {
+            m_fBrightness = (1.0f - m_fBrightnessMin) * PblRandom::GetGlobalFloat() + m_fBrightnessMin;
             m_fTimeNextFlash = (m_fTimeBetweenFlashesMax - m_fTimeBetweenFlashesMin) *
-                                   PblRandom::GetGlobalFloat() +
+                                   PblRandom::_Global.GetFloat() +
                                m_fTimeBetweenFlashesMin;
         }
     }
 
-    if (m_fTimer < m_fTimeToFade)
+    if (m_fTimer >= m_fTimeToFade)
+    {
+        if (m_fTimer - fDeltaTime < m_fTimeToFade)
+        {
+            RedLight::SetGlobalDirectionalLightColor(m_colorSunlight_Restore, 0);
+            RedLight::SetGlobalAmbientLightColor(m_colorAmbient_Restore);
+            RedLight::SetGlobalDirectionalAmbientColors(m_colorDirectionalAmbient_Restore[0],
+                                                        m_colorDirectionalAmbient_Restore[1]);
+            {
+            const float t = m_fSkyDomeDarken;
+            RedColor c;
+            c.b = (unsigned char)(int)(RedColor::WHITE.b * (1.0f - t) + RedColor::BLACK.b * t + 0.5f);
+            c.g = (unsigned char)(int)(RedColor::WHITE.g * (1.0f - t) + RedColor::BLACK.g * t + 0.5f);
+            c.r = (unsigned char)(int)(RedColor::WHITE.r * (1.0f - t) + RedColor::BLACK.r * t + 0.5f);
+            c.a = (unsigned char)(int)(RedColor::WHITE.a * (1.0f - t) + RedColor::BLACK.a * t + 0.5f);
+            SkyDome::sInstance->SetSkyDomeColor(c);
+            }
+            RedRenderer::SetFogColor(m_colorFog_Restore);
+            pcTerrainShader::_SetLightningValue(0.0f);
+        }
+    }
+    else
     {
         float fFade = m_fTimer / m_fTimeToFade;
         float fSunlight = fFade * m_fSunlightBrightness;
         float fFlash = (1.0f - fFade) * m_fBrightness;
-        float fBrightness = (PblRandom::GetGlobalFloat() - 0.5f) * (1.0f - fFlash) * fFlash + fFlash;
+        float fBrightness = (PblRandom::_Global.GetFloat() - 0.5f) * (1.0f - fFlash) * fFlash + fFlash;
         if (fBrightness > fSunlight)
         {
             float fLightning = fBrightness - fSunlight;
@@ -291,26 +311,30 @@ void LightningEffect::Update(float fDeltaTime)
             pcTerrainShader::_SetLightningValue(0.0f);
         }
 
-        SkyDome::sInstance->SetSkyDomeColor(
-            Interpolate(RedColor::WHITE, RedColor::BLACK, m_fSkyDomeDarken * (1.0f - fBrightness)));
-        RedRenderer::SetFogColor(
-            Interpolate(RedColor::WHITE, RedColor::BLACK, m_fSkyDomeDarken * (1.0f - fBrightness)));
-    }
-    else if (m_fTimer - fDeltaTime < m_fTimeToFade)
-    {
-        RedLight::SetGlobalDirectionalLightColor(m_colorSunlight_Restore, 0);
-        RedLight::SetGlobalAmbientLightColor(m_colorAmbient_Restore);
-        RedLight::SetGlobalDirectionalAmbientColors(m_colorDirectionalAmbient_Restore[0],
-                                                    m_colorDirectionalAmbient_Restore[1]);
-        SkyDome::sInstance->SetSkyDomeColor(Interpolate(RedColor::WHITE, RedColor::BLACK, m_fSkyDomeDarken));
-        RedRenderer::SetFogColor(m_colorFog_Restore);
-        pcTerrainShader::_SetLightningValue(0.0f);
+        {
+        const float t = m_fSkyDomeDarken * (1.0f - fBrightness);
+        RedColor c;
+        c.b = (unsigned char)(int)(RedColor::WHITE.b * (1.0f - t) + RedColor::BLACK.b * t + 0.5f);
+        c.g = (unsigned char)(int)(RedColor::WHITE.g * (1.0f - t) + RedColor::BLACK.g * t + 0.5f);
+        c.r = (unsigned char)(int)(RedColor::WHITE.r * (1.0f - t) + RedColor::BLACK.r * t + 0.5f);
+        c.a = (unsigned char)(int)(RedColor::WHITE.a * (1.0f - t) + RedColor::BLACK.a * t + 0.5f);
+        SkyDome::sInstance->SetSkyDomeColor(c);
+        }
+        {
+        const float t = m_fSkyDomeDarken * (1.0f - fBrightness);
+        RedColor c;
+        c.b = (unsigned char)(int)(RedColor::WHITE.b * (1.0f - t) + RedColor::BLACK.b * t + 0.5f);
+        c.g = (unsigned char)(int)(RedColor::WHITE.g * (1.0f - t) + RedColor::BLACK.g * t + 0.5f);
+        c.r = (unsigned char)(int)(RedColor::WHITE.r * (1.0f - t) + RedColor::BLACK.r * t + 0.5f);
+        c.a = (unsigned char)(int)(RedColor::WHITE.a * (1.0f - t) + RedColor::BLACK.a * t + 0.5f);
+        RedRenderer::SetFogColor(c);
+        }
     }
 
     mBoltTimer -= fDeltaTime;
     if (mBoltTimer < 0.0f)
     {
-        FLEffectClass* pClass = FLEffect::Get(0x559A2771u);
+        FLEffectClass* pClass = FLEffect::Get(0x559A2771u /* "skybolt" */);
         if (pClass)
         {
             FLEffectObject* pEffect = pClass->BuildEffect();
@@ -330,10 +354,10 @@ void LightningEffect::Update(float fDeltaTime)
 
                 float fOffsetX = (PblRandom::GetGlobalFloat() - 0.5f) * 20.0f;
                 float fOffsetZ = (PblRandom::GetGlobalFloat() - 0.5f) * 20.0f;
-                LightningBoltEffectObject* pBolt = static_cast<LightningBoltEffectObject*>(pEffect);
+                LightningBoltEffectObject* pBolt = (LightningBoltEffectObject*)pEffect;
                 pBolt->SetTargetPoint(vDir + PblVector3(fOffsetX, -200.0f, fOffsetZ));
             }
         }
-        mBoltTimer = (mBoltFrequencyMax - mBoltFrequencyMin) * PblRandom::GetGlobalFloat() + mBoltFrequencyMin;
+        mBoltTimer = (mBoltFrequencyMax - mBoltFrequencyMin) * PblRandom::_Global.GetFloat() + mBoltFrequencyMin;
     }
 }

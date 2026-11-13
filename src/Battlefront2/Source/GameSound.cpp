@@ -135,7 +135,7 @@ bool GameSound::CanPlay() const
     {
         return false;
     }
-    if (GameState::GetState() != 0x11E1FC01)
+    if (GameState::GetState() != 0x11E1FC01 /* "shell" */)
     {
         if (GameLoop::IsGameOver() && mType == type_soundStream)
         {
@@ -239,7 +239,7 @@ void GameSound::SetID(const char* pName, bool, bool bDeferred)
     }
 
     unsigned int uID = PblHash(buffer);
-    if ((strlen(pModifier) && PblHash(pModifier) == 0x1A01FB3B) || bDeferred)
+    if ((strlen(pModifier) && PblHash(pModifier) == 0x1A01FB3B /* "defer" */) || bDeferred)
     {
         mType = type_ID;
         mProps = (const void*)uID;
@@ -305,7 +305,7 @@ float GameSound::GetMuteDistance() const
             const Snd::SoundLayered::Properties* pLayered = (const Snd::SoundLayered::Properties*)mProps;
             const PblListSingle::Node* pFirst = pLayered->mLayerList.GetFirst();
             pFirst = (pFirst == pLayered->mLayerList.GetTerminator()) ? 0 : pFirst;
-            Snd::SoundLayered::Properties::Layer* pLayer = static_cast<Snd::SoundLayered::Properties::Layer*>(
+            Snd::SoundLayered::Properties::Layer* pLayer = (Snd::SoundLayered::Properties::Layer*)(
                 pFirst->GetObjectA(&pLayered->mLayerList, offsetof(Snd::SoundLayered::Properties::Layer, mNode)));
             return pLayer->mSoundProps->mMuteDistance;
         }
@@ -352,7 +352,7 @@ float GameSound::GetGain() const
         const Snd::SoundLayered::Properties* pLayered = (const Snd::SoundLayered::Properties*)mProps;
         const PblListSingle::Node* pFirst = pLayered->mLayerList.GetFirst();
         pFirst = (pFirst == pLayered->mLayerList.GetTerminator()) ? 0 : pFirst;
-        Snd::SoundLayered::Properties::Layer* pLayer = static_cast<Snd::SoundLayered::Properties::Layer*>(
+        Snd::SoundLayered::Properties::Layer* pLayer = (Snd::SoundLayered::Properties::Layer*)(
             pFirst->GetObjectA(&pLayered->mLayerList, offsetof(Snd::SoundLayered::Properties::Layer, mNode)));
         return pLayer->mSoundProps->mGain;
     }
@@ -374,7 +374,7 @@ float GameSound::GetPitch() const
         const Snd::SoundLayered::Properties* pLayered = (const Snd::SoundLayered::Properties*)mProps;
         const PblListSingle::Node* pFirst = pLayered->mLayerList.GetFirst();
         pFirst = (pFirst == pLayered->mLayerList.GetTerminator()) ? 0 : pFirst;
-        Snd::SoundLayered::Properties::Layer* pLayer = static_cast<Snd::SoundLayered::Properties::Layer*>(
+        Snd::SoundLayered::Properties::Layer* pLayer = (Snd::SoundLayered::Properties::Layer*)(
             pFirst->GetObjectA(&pLayered->mLayerList, offsetof(Snd::SoundLayered::Properties::Layer, mNode)));
         return pLayer->mSoundProps->mPitch;
     }

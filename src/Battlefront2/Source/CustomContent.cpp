@@ -71,7 +71,7 @@ void CustomContent::Create(bool bMission)
         else
         {
             char acMission[64];
-            strlcpy(acMission, GameLoop::mMissionScript, sizeof(acMission));
+            strlcpy(acMission, GameLoop::GetNextMission(), sizeof(acMission));
             acMission[sizeof(acMission) - 1] = 0;
             _strlwr(acMission);
             strncmp(acMission, "tat2", 4);

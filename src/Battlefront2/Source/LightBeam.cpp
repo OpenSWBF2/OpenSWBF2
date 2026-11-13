@@ -23,7 +23,7 @@ void LightBeamEffect::Init()
 }
 
 // FUNCTION: SWBF2 0x0056fa90
-void LightBeamEffect::Render(int)
+void LightBeamEffect::Render(unsigned int) const
 {
 }
 
@@ -80,30 +80,30 @@ FLEffectClass* LightBeamEffect::BuildClass(PblConfig& config) const
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x934F4E0Au:
+        case 0x934F4E0Au: /* "Position" */
             vPosition = PblVector3(data.GetFloatArg(0), data.GetFloatArg(1), data.GetFloatArg(2));
             pBeam->SetHeadPosition(vPosition);
             break;
-        case 0x81932130u:
+        case 0x81932130u: /* "TailPosition" */
             bHeadTail = true;
             bOmni = false;
             vTailPosition = PblVector3(data.GetFloatArg(0), data.GetFloatArg(1), data.GetFloatArg(2));
             break;
-        case 0x83D03615u:
+        case 0x83D03615u: /* "Length" */
             pBeam->SetLength(data.GetFloatArg(0));
             if (data.GetFloatArg(0) > 0.0f)
             {
                 bOmni = false;
             }
             break;
-        case 0xDF6DC76Au:
+        case 0xDF6DC76Au: /* "Direction" */
             pBeam->SetDirection(PblVector3(data.GetFloatArg(0), data.GetFloatArg(1), data.GetFloatArg(2)));
             bOmni = false;
             break;
-        case 0xA939A4BCu:
+        case 0xA939A4BCu: /* "FadeFactor" */
             pBeam->_fFadeAmount = data.GetFloatArg(0);
             break;
-        case 0xAA671039u:
+        case 0xAA671039u: /* "FinalWidth" */
             if (data.GetNumArgs() > 1)
             {
                 pBeam->SetFinalWidth(data.GetFloatArg(0), data.GetFloatArg(1));
@@ -113,13 +113,13 @@ FLEffectClass* LightBeamEffect::BuildClass(PblConfig& config) const
                 pBeam->SetFinalWidth(data.GetFloatArg(0));
             }
             break;
-        case 0x75096FABu:
+        case 0x75096FABu: /* "BeamIntensity" */
             pBeam->_fBeamIntensity = data.GetFloatArg(0);
             break;
-        case 0x5AE03A9Eu:
+        case 0x5AE03A9Eu: /* "FlareAngle" */
             pBeam->_fFlareCosAngle = PblMath::Cos(data.GetFloatArg(0) * 0.017453292f);
             break;
-        case 0x633ED9D4u:
+        case 0x633ED9D4u: /* "FlareIntensity" */
         {
             pBeam->_fFlareIntensity = data.GetFloatArg(0);
             RedColor color = pBeam->_color;
@@ -127,7 +127,7 @@ FLEffectClass* LightBeamEffect::BuildClass(PblConfig& config) const
             pBeam->_Flare._color = color;
             break;
         }
-        case 0x3D7E6258u:
+        case 0x3D7E6258u: /* "Color" */
         {
             RedColor color;
             color.r = ClampColorComponent(data.GetFloatArg(0));
@@ -138,7 +138,7 @@ FLEffectClass* LightBeamEffect::BuildClass(PblConfig& config) const
             pBeam->_Flare._color = RedColor(pBeam->_color, (unsigned char)(int)(pBeam->_color.a * pBeam->_fFlareIntensity));
             break;
         }
-        case 0x1414BF95u:
+        case 0x1414BF95u: /* "InitialWidth" */
             if (data.GetNumArgs() > 1)
             {
                 pBeam->SetInitialWidth(data.GetFloatArg(0), data.GetFloatArg(1));
@@ -148,11 +148,11 @@ FLEffectClass* LightBeamEffect::BuildClass(PblConfig& config) const
                 pBeam->SetInitialWidth(data.GetFloatArg(0));
             }
             break;
-        case 0x1612C34Cu:
+        case 0x1612C34Cu: /* "DrawDistance" */
             pBeam->_fSquaredDrawDistance = data.GetFloatArg(0) * data.GetFloatArg(0);
             pBeam->_Flare._fSquaredDrawDistance = pBeam->_fSquaredDrawDistance;
             break;
-        case 0x20C351FBu:
+        case 0x20C351FBu: /* "FadeLength" */
             pBeam->SetFadeLength(data.GetFloatArg(0));
             break;
         }
@@ -167,26 +167,6 @@ FLEffectClass* LightBeamEffect::BuildClass(PblConfig& config) const
         pBeam->SetPositionOmni(vPosition);
     }
     return pBeam;
-}
-
-// FUNCTION: SWBF2 0x0056fb10
-LightBeam::LightBeam(const LightBeam& that)
-    : _Flare(that._Flare)
-    , _vHeadPosition(that._vHeadPosition)
-    , _vDirection(that._vDirection)
-    , _color(that._color)
-    , _fLength(that._fLength)
-    , _fHeadSizeX(that._fHeadSizeX)
-    , _fHeadSizeZ(that._fHeadSizeZ)
-    , _fTailSizeX(that._fTailSizeX)
-    , _fTailSizeZ(that._fTailSizeZ)
-    , _fFadeLength(that._fFadeLength)
-    , _fFadeAmount(that._fFadeAmount)
-    , _fSquaredDrawDistance(that._fSquaredDrawDistance)
-    , _fFlareIntensity(that._fFlareIntensity)
-    , _fBeamIntensity(that._fBeamIntensity)
-    , _fFlareCosAngle(0.5f)
-{
 }
 
 inline ManagedLightBeam::ManagedLightBeam(const LightBeam& beam)

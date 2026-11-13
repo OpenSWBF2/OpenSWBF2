@@ -1,5 +1,6 @@
 #pragma once
 
+#include <math.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -41,6 +42,24 @@ public:
             NUM_BUTTONS = 7
         };
 
+        enum BUTTON_ACTION
+        {
+            ACTION_PRESS = 0,
+            ACTION_TAP = 1,
+            ACTION_HOLD = 2,
+            ACTION_HOLD_RELEASE = 3,
+            ACTION_TAP_PRESS = 4,
+            ACTION_DOUBLETAP = 5,
+            ACTION_TAP_HOLD = 6,
+            ACTION_TAP_HOLD_RELEASE = 7,
+            ACTION_UP = 8,
+            ACTION_RELEASE = 9,
+            ACTION_DOWN = 10,
+            ACTION_FLAG_RELEASE = 1,
+            ACTION_FLAG_HOLD = 2,
+            ACTION_FLAG_DOUBLE = 4
+        };
+
         BUTTON GetButton() const { return (BUTTON)m_uiButton; }
 
         bool TestSoldierState(int iState, float fTime) const;
@@ -66,14 +85,128 @@ public:
             return fRef * VELOCITYY_MAG_SCALE;
         }
 
-        void SetTimeStart(float fTime, bool bFromEnd);
-        void SetTimeEnd(float fTime, bool bFromEnd, bool b);
-        void SetInputMag(float fMag, bool bLess);
+        void SetBreak(bool bBreak)
+        {
+            m_uiBreakTime = 0;
+            m_bBreak = bBreak;
+        }
 
-        void SetBreak(float fTime);
-        void SetSoldierStateTime(float fTime, bool bLess);
-        void SetEnergy(float fEnergy, bool bLess);
-        void SetInputDir(float fMin, float fMax);
+        // FUNCTION: SWBF2 0x00470960
+        void SetBreak(float fTime)
+        {
+            int iTime = (int)(fTime * TIME_SCALE_INV);
+            if (iTime < 0)
+            {
+                iTime = 0;
+            }
+            else if (iTime > 511)
+            {
+                iTime = 511;
+            }
+            m_uiBreakTime = iTime;
+            m_bBreak = 1;
+        }
+
+        // FUNCTION: SWBF2 0x004709a0
+        void SetTimeStart(float fTime, bool bFromEnd)
+        {
+            int iTime = (int)(fTime * TIME_SCALE_INV);
+            if (iTime < -512)
+            {
+                iTime = -512;
+            }
+            else if (iTime > 511)
+            {
+                iTime = 511;
+            }
+            m_iTimeStart = iTime;
+            m_bTimeStartFromEnd = bFromEnd;
+        }
+
+        // FUNCTION: SWBF2 0x00470a00
+        void SetTimeEnd(float fTime, bool bFromEnd, bool bSyncIfOvertime)
+        {
+            int iTime = (int)(fTime * TIME_SCALE_INV);
+            if (iTime < -512)
+            {
+                iTime = -512;
+            }
+            else if (iTime > 511)
+            {
+                iTime = 511;
+            }
+            m_iTimeEnd = iTime;
+            m_bTimeEndFromEnd = bFromEnd;
+            m_bSyncIfOvertime = bSyncIfOvertime;
+        }
+
+        void SetSoldierStates(unsigned int uiStates) { m_uiSoldierStates = uiStates; }
+
+        // FUNCTION: SWBF2 0x00470a70
+        void SetSoldierStateTime(float fTime, bool bLess)
+        {
+            int iTime = (int)(fTime * TIME_SCALE_INV);
+            if (iTime < 0)
+            {
+                iTime = 0;
+            }
+            else if (iTime > 2047)
+            {
+                iTime = 2047;
+            }
+            m_uiSoldierStateTimeRef = iTime;
+            m_bSoldierStateTimeLess = bLess;
+        }
+
+        // FUNCTION: SWBF2 0x00470ac0
+        void SetEnergy(float fEnergy, bool bLess)
+        {
+            int iEnergy = (int)(fEnergy * ENERGY_SCALE_INV);
+            if (iEnergy < 0)
+            {
+                iEnergy = 0;
+            }
+            else if (iEnergy > 1023)
+            {
+                iEnergy = 1023;
+            }
+            m_uiEnergyRef = iEnergy;
+            m_bEnergyLess = bLess;
+        }
+
+        void SetButton(BUTTON eButton, BUTTON_ACTION eAction)
+        {
+            m_uiButton = eButton;
+            m_uiButtonAction = eAction;
+        }
+
+        void SetInputButtonsPressed(unsigned int uiButtons) { m_uiInputButtonsPressed = uiButtons; }
+
+        void SetInputButtonsReleased(unsigned int uiButtons) { m_uiInputButtonsReleased = uiButtons; }
+
+        // FUNCTION: SWBF2 0x00470b10
+        void SetInputMag(float fMag, bool bLess)
+        {
+            int iMag = (int)(fMag * INPUT_MAG_SCALE_INV);
+            if (iMag < 0)
+            {
+                iMag = 0;
+            }
+            else if (iMag > 100)
+            {
+                iMag = 100;
+            }
+            m_uiInputMagRef = iMag;
+            m_bInputMagLess = bLess;
+        }
+
+        // FUNCTION: SWBF2 0x00470b60
+        void SetInputDir(float fMin, float fMax)
+        {
+            m_iInputDirMin = (((int)fMin + 179) % 360 + 360) % 360 - 179;
+            m_iInputDirMax = (((int)fMax + 179) % 360 + 360) % 360 - 179;
+        }
+
         // FUNCTION: SWBF2 0x00470bd0
         void SetVelocityY(float fVelocity, bool bSigned, bool bLess)
         {
@@ -91,24 +224,31 @@ public:
             m_bVelocityYSigned = bSigned;
             m_bVelocityYLess = bLess;
         }
-        void SetVelocityXZMag(float fMag, bool bLess);
-        void SetVelocityXZDir(float fMin, float fMax);
 
-        void SetSoldierStates(unsigned int uiStates) { m_uiSoldierStates = uiStates; }
-        void SetButton(unsigned int eButton, unsigned int eAction)
+        // FUNCTION: SWBF2 0x00470c50
+        void SetVelocityXZMag(float fMag, bool bLess)
         {
-            m_uiButton = eButton;
-            m_uiButtonAction = eAction;
+            int iMag = (int)(fMag * VELOCITYXZ_MAG_SCALE_INV);
+            if (iMag < 0)
+            {
+                iMag = 0;
+            }
+            else if (iMag > 2047)
+            {
+                iMag = 2047;
+            }
+            m_uiVelocityXZMagRef = iMag;
+            m_bVelocityXZMagLess = bLess;
         }
-        void SetInputButtonsPressed(unsigned int uiButtons) { m_uiInputButtonsPressed = uiButtons; }
-        void SetInputButtonsReleased(unsigned int uiButtons) { m_uiInputButtonsReleased = uiButtons; }
+
+        // FUNCTION: SWBF2 0x00470ca0
+        void SetVelocityXZDir(float fMin, float fMax)
+        {
+            m_iVelocityXZDirMin = (((int)fMin + 179) % 360 + 360) % 360 - 179;
+            m_iVelocityXZDirMax = (((int)fMax + 179) % 360 + 360) % 360 - 179;
+        }
+
         bool IsBreak() const { return m_bBreak != 0; }
-
-        void SetBreak(bool bBreak)
-        {
-            m_uiBreakTime = 0;
-            m_bBreak = bBreak;
-        }
 
     private:
         friend class Transition;
@@ -208,6 +348,7 @@ public:
 
         unsigned int GetNumConditions() const { return m_uiNumConditions; }
         const Condition* GetCondition(unsigned int iCondition) const { return &m_aCondition[iCondition]; }
+        float GetEnergyCost() const { return m_uiEnergyCost * ENERGY_SCALE; }
 
         Condition* AddCondition();
 
@@ -236,13 +377,14 @@ public:
 
         void _ReadConfig(PblConfig& config, const char* pszComboName, const char* pszStateName);
 
+        static const float ENERGY_SCALE_INV;
+        static const float ENERGY_SCALE;
+
     public:
 
         static MemoryPool sMemoryPool;
 
         static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
-
-        static const float ENERGY_SCALE_INV;
 
         unsigned int m_uiTargetState;
         Condition* m_aCondition;
@@ -803,8 +945,10 @@ public:
             unsigned char uiWeapon : 2;
         };
 
+        float GetEnergyCost() const { return m_uiEnergyCost * ENERGY_SCALE; }
         unsigned int GetNumDeflectAnimations() const { return m_uiNumDeflectAnimations; }
         unsigned char GetDeflectAnimIndex(unsigned int i) const { return m_aDeflectAnim[i].uiAnimIndex; }
+        unsigned char GetDeflectWeapon(unsigned int i) const { return m_aDeflectAnim[i].uiWeapon; }
 
         unsigned int AddDeflectAnimation(unsigned char uiAnimIndex, unsigned char uiDirections,
                                          unsigned char uiWeapon);
@@ -835,12 +979,13 @@ public:
 
         void _ReadConfig(PblConfig& config, const Combo& combo, const char* pszStateName);
 
+        static const float ENERGY_SCALE_INV;
+        static const float ENERGY_SCALE;
+
     public:
         static MemoryPool sMemoryPool;
 
         static void* operator new(size_t uiSize) { return sMemoryPool.Allocate(uiSize); }
-
-        static const float ENERGY_SCALE_INV;
 
         union
         {

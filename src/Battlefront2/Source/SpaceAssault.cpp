@@ -156,12 +156,7 @@ unsigned int SpaceAssault::GetIsAliveTurnNumber(GameObject* pObject) const
 // FUNCTION: SWBF2 0x0064bc10
 bool SpaceAssault::Update(float fDeltaTime)
 {
-    if (!mbEnabled)
-    {
-        return true;
-    }
-
-    if (NetGame::IsEnabled() && NetGame::IsHost())
+    if (mbEnabled && NetGame::IsEnabled() && NetGame::IsHost())
     {
         for (int i = 0; i < mNumCriticalSystems; ++i)
         {
@@ -216,10 +211,8 @@ bool SpaceAssault::Update(float fDeltaTime)
             continue;
         }
 
-        RedColor friendlyColor = Team::GetColorByAffiliation(1);
-        vp.elemShipFriendly.SetColor(friendlyColor);
-        RedColor enemyColor = Team::GetColorByAffiliation(-1);
-        vp.elemShipEnemy.SetColor(enemyColor);
+        vp.elemShipFriendly.SetColor(Team::GetColorByAffiliation(1));
+        vp.elemShipEnemy.SetColor(Team::GetColorByAffiliation(-1));
 
         for (int i = 0; i < mNumCriticalSystems; ++i)
         {
@@ -471,8 +464,8 @@ void SpaceAssault::InitBitmaps(int iViewport)
         return;
     }
 
-    mpGroupElement = static_cast<HUD::ElementGroup*>(pElement);
-    RedGroupElement& group = static_cast<RedGroupElement&>(pElement->GetRedInterfaceElement());
+    mpGroupElement = (HUD::ElementGroup*)pElement;
+    RedGroupElement& group = (RedGroupElement&)pElement->GetRedInterfaceElement();
     mWidth = mpGroupElement->GetWidthPixelsFloat();
     mHeight = mpGroupElement->GetHeightPixelsFloat();
 

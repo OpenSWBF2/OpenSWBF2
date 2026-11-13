@@ -82,7 +82,7 @@ public:
     GodrayManager();
 
     virtual ~GodrayManager();
-    virtual void Render(int value);
+    virtual void Render(unsigned int value) const;
     virtual void Init();
     virtual void Cleanup();
     virtual void Update(float fDeltaTime);
@@ -141,12 +141,12 @@ public:
     float m_fOffsetAngle;
     RedColor m_color;
     PblRandom m_Rand;
-    PblVector3 m_vWidthDir;
-    float m_fTexOffsetAngle;
-    float m_fTexOffsetW;
-    float m_fTexOffsetL;
-    bool m_bTowardCamera;
-    float m_fNearDist;
+    mutable PblVector3 m_vWidthDir;
+    mutable float m_fTexOffsetAngle;
+    mutable float m_fTexOffsetW;
+    mutable float m_fTexOffsetL;
+    mutable bool m_bTowardCamera;
+    mutable float m_fNearDist;
     pcRedShader* m_pShader;
 
 private:
@@ -227,7 +227,11 @@ public:
     virtual bool IsEffectActive() const;
 private:
     GodrayEffectObject(unsigned int hGodray) : m_hGodray(hGodray) {}
-    virtual void UpdatedWorldMatrix();
+    // FUNCTION: SWBF2 0x0053e490
+    virtual void UpdatedWorldMatrix()
+    {
+        GodrayManager::s_pInstance->UpdateGodrayPosition(m_hGodray, m_mWorldMatrix.GetTranslation());
+    }
 public:
     unsigned int m_hGodray;
 };

@@ -22,7 +22,7 @@ class FLEffect : public Renderable
 {
 public:
 
-    FLEffect(unsigned int uiName, int ePhase)
+    FLEffect(unsigned int uiName, RENDERABLE_PHASE ePhase)
         : Renderable(ePhase)
         , m_bEnabled(true)
     {
@@ -47,7 +47,7 @@ public:
 
     bool IsEnabled() const { return m_bEnabled; }
 
-    static void InitAll(bool bMission);
+    static void InitAll(bool bAllowRender);
 
     static void CleanupAll();
 
@@ -121,7 +121,15 @@ public:
     virtual bool IsEffectActive() const = 0;
     virtual void ActivateEffect();
     virtual void DeactivateEffect();
-    virtual void StopAndFinish();
+    // FUNCTION: SWBF2 0x0042cf60
+    virtual void StopAndFinish()
+    {
+        m_uiAttachFlags |= KILL_ON_NEXT_UPDATE;
+        if (!IsThreadActive())
+        {
+            ActivateThread(0, PER_FRAME);
+        }
+    }
     void DetachFromTarget();
     template <class EFFECT>
     friend void DetachEffectFromTarget(EFFECT& rEffect);

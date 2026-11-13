@@ -16,6 +16,7 @@ struct PropClusterLayer
 class PropCluster : public RedSceneObject
 {
 public:
+    static const int kMaxLayers = 4;
     PropCluster();
     virtual ~PropCluster();
 
@@ -29,7 +30,7 @@ public:
 
     const PropObject* FindPropObject(const PblVector3& vPos, bool bParam) const;
 
-    PropClusterLayer mLayers[4];
+    PropClusterLayer mLayers[kMaxLayers];
     unsigned char mId;
     int mMapIndex;
     unsigned int mWasRenderedFlag;

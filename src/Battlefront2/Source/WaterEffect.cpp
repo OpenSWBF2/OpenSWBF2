@@ -68,8 +68,8 @@ void WaterEffect::ReadConfig(PblConfig& config)
         desc.mType = (PblRegion::Type)0;
         desc.mMatrix = DirectionMatrix(PblVector3(0.0f, 1.0f, 0.0f), PblVector3(1.0f, 0.0f, 0.0f),
                                        PblVector3(0.0f, fHeight, 0.0f));
-        desc.mNameId = 0x6EBDE457u;
-        desc.mTypeId = 0xCCCB0055u;
+        desc.mNameId = 0x6EBDE457u /* "water_sink_region" */;
+        desc.mTypeId = 0xCCCB0055u /* "Plane" */;
         new RedRegion(desc);
         TriggerRegionManager::sInstance->AddSinkRegion("water_sink_region");
     }
@@ -102,7 +102,7 @@ void WaterEffect::Update(float fDeltaTime)
 
 
 // FUNCTION: SWBF2 0x00677070
-void WaterEffect::Render(int)
+void WaterEffect::Render(unsigned int) const
 {
 }
 

@@ -114,7 +114,7 @@ bool GameModel::_Read(PblFileChunk& chunk)
         PblFileChunk child = chunk.ReadNextChild();
         switch (child._iId)
         {
-        case 0x32444f4c:
+        case CHUNK_ID('L', 'O', 'D', '2'):
             child.ReadString(acModel, 256);
             _mLod[2] = RedModel::_HashTable.Find(PblHash(acModel));
             _iLodCost[2] = child._pFile->Read32();
@@ -124,7 +124,7 @@ bool GameModel::_Read(PblFileChunk& chunk)
             }
             break;
 
-        case 0x31444f4c:
+        case CHUNK_ID('L', 'O', 'D', '1'):
             child.ReadString(acModel, 256);
             _mLod[1] = RedModel::_HashTable.Find(PblHash(acModel));
             _iLodCost[1] = child._pFile->Read32();
@@ -134,14 +134,14 @@ bool GameModel::_Read(PblFileChunk& chunk)
             }
             break;
 
-        case 0x30444f4c:
+        case CHUNK_ID('L', 'O', 'D', '0'):
             child.ReadString(acModel, 256);
             _mLod[0] = RedModel::_HashTable.Find(PblHash(acModel));
             _mModel = _mLod[0];
             _iLodCost[0] = child._pFile->Read32();
             break;
 
-        case 0x44574f4c:
+        case CHUNK_ID('L', 'O', 'W', 'D'):
             child.ReadString(acModel, 256);
             if (!sLoadLowDetailModels)
             {
@@ -150,7 +150,7 @@ bool GameModel::_Read(PblFileChunk& chunk)
             }
             break;
 
-        case 0x454d414e:
+        case CHUNK_ID('N', 'A', 'M', 'E'):
             child.ReadString(acName, 256);
             _uiNameHash = PblHash(acName);
             if (_HashTable.Find(_uiNameHash))
@@ -160,7 +160,7 @@ bool GameModel::_Read(PblFileChunk& chunk)
             _HashTable.Store(_uiNameHash, this);
             break;
 
-        case 0x4f464e49:
+        case CHUNK_ID('I', 'N', 'F', 'O'):
         {
             _iLodType = child._pFile->Read32();
             _fLodBias = child._pFile->ReadFloat();

@@ -53,7 +53,7 @@ void DecalManager::Destroy()
 
 // FUNCTION: SWBF2 0x0048ab90
 DecalManager::DecalManager()
-    : FLEffect(0xDE15F6AEu, 5)
+    : FLEffect(0xDE15F6AEu /* "Decal" */, RENDERABLE_PRETRANSPARENT)
 {
     Enable(true);
 }
@@ -81,7 +81,7 @@ void DecalManager::ReadConfig(PblConfig& config)
     while (!config.IsDone())
     {
         PblConfig::Data data = config.ReadNextData();
-        if (data.GetId() == 0xAF8BB8CEu)
+        if (data.GetId() == 0xAF8BB8CEu /* "Enable" */)
         {
             Enable(data.GetUint32Arg(0) != 0);
         }
@@ -147,7 +147,7 @@ void DecalManager::Update(float fDeltaTime)
 }
 
 // FUNCTION: SWBF2 0x0048af30
-void DecalManager::Render(int value)
+void DecalManager::Render(unsigned int value) const
 {
     const RedCamera* pCamera = RedRenderer::GetCamera();
     float fNear, fFar, fWidth, fHeight;
@@ -221,12 +221,13 @@ DecalClass::DecalClass(PblConfig& config)
     auTextures[0] = m_textureHash;
     auTextures[1] = IsBumped() ? m_bumpTextureHash : 0;
     const bool bUseShader = !(IsBumped() && RedRenderer::pcGetRenderCaps().pipeline == PIPELINE_FIXED);
-    m_pShader = bUseShader ? pcRedShader::Create(0xDE15F6AEu, 0x282, auTextures, 2, 0x10004,
+    m_pShader = bUseShader ? pcRedShader::Create(0xDE15F6AEu /* "Decal" */, 0x282, auTextures, 2, 0x10004,
                                                  RedColor::WHITE, RedColor::BLACK, 32.0f)
                            : 0;
     if (bUseShader)
     {
-        DecalManager::s_pInstance->AddClass(this);
+        DecalManager* pManager = DecalManager::s_pInstance;
+        pManager->AddClass(this);
     }
 }
 
@@ -268,16 +269,16 @@ void DecalClass::ReadConfig(PblConfig& config)
         PblConfig::Data data = config.ReadNextData();
         switch (data.GetId())
         {
-        case 0x3C6468F4u:
+        case 0x3C6468F4u: /* "Texture" */
             m_textureHash = PblHash(data.GetStringArg(0));
             break;
-        case 0x08AF6C24u:
+        case 0x08AF6C24u: /* "BumpTexture" */
             m_bumpTextureHash = PblHash(data.GetStringArg(0));
             break;
-        case 0x0786DC43u:
+        case 0x0786DC43u: /* "MaxDecals" */
             m_maxDecals = (int)data.GetFloatArg(0);
             break;
-        case 0x3D7E6258u:
+        case 0x3D7E6258u: /* "Color" */
         {
             RedColor color;
             color.r = ClampColorComponent(data.GetFloatArg(0));
@@ -294,13 +295,13 @@ void DecalClass::ReadConfig(PblConfig& config)
             m_color = color;
             break;
         }
-        case 0x5212ABEEu:
+        case 0x5212ABEEu: /* "LifeTime" */
             m_lifeTime = data.GetFloatArg(0);
             break;
-        case 0x5083ECD9u:
+        case 0x5083ECD9u: /* "FadeInTime" */
             m_fadeInTime = data.GetFloatArg(0);
             break;
-        case 0x798DC484u:
+        case 0x798DC484u: /* "FadeOutTime" */
             m_fadeOutTime = data.GetFloatArg(0);
             break;
         }

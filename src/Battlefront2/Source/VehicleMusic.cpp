@@ -67,28 +67,28 @@ bool VehicleMusicClass::SetProperty(unsigned int uProperty, const char* pszValue
 {
     switch (uProperty)
     {
-    case 0x9f9c4fd4:
+    case 0x9f9c4fd4: /* "Music" */
         for (unsigned int i = 0; i < 8; ++i)
         {
             mMusic[i].SetID(pszValue);
         }
         return true;
-    case 0x4232e9bf:
+    case 0x4232e9bf: /* "AllMusic" */
         mMusic[Team::side_Alliance].SetID(pszValue);
         return true;
-    case 0xcedc7e88:
+    case 0xcedc7e88: /* "ImpMusic" */
         mMusic[Team::side_Empire].SetID(pszValue);
         return true;
-    case 0x9347d123:
+    case 0x9347d123: /* "RepMusic" */
         mMusic[Team::side_Republic].SetID(pszValue);
         return true;
-    case 0xaf8e60ed:
+    case 0xaf8e60ed: /* "CISMusic" */
         mMusic[Team::side_CIS].SetID(pszValue);
         return true;
-    case 0x4defb65f:
+    case 0x4defb65f: /* "MusicSpeed" */
         sscanf(pszValue, "%f", &mMusicSpeed);
         return true;
-    case 0x1784e0a3:
+    case 0x1784e0a3: /* "MusicDelay" */
         sscanf(pszValue, "%f", &mMusicDelay);
         return true;
     }

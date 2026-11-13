@@ -1,12 +1,13 @@
 #include <stdio.h>
 
 #include "EventManager_Region.h"
-#include "LuaHandleArg.h"
 #include "ActiveRegion.h"
 #include "Controllable.h"
 #include "Entity.h"
 #include "NetGame.h"
 #include "LuaFL/include/lauxlib.h"
+
+#include "EventManager_LuaCallback.h"
 
 namespace EventManager
 {
@@ -81,58 +82,7 @@ CharacterMatchesClass LuaGetItem<CharacterMatchesClass>(int iIndex)
 // TEMPLATE: SWBF2 0x0051ae80
 // EventManager::Event<RedRegion,Character>::GetFilter<EventManager::CharacterMatchesClass>
 
-template <class ITEM, class PARAM>
-LuaCallback<ITEM, PARAM>::LuaCallback(int iRef)
-{
-    mFunction = -1;
-    if (LuaHelper::PushRefProc(iRef))
-    {
-        mFunction = luaL_ref(LuaHelper::mState, LUA_REGISTRYINDEX);
-    }
-}
 
-
-
-template <class ITEM, class PARAM>
-bool LuaCallback<ITEM, PARAM>::operator()(ITEM& item, PARAM& param)
-{
-    if (mFunction == -1 || !LuaHelper::PushRefProc(mFunction))
-    {
-        return false;
-    }
-
-    if (!LuaPushItem(item))
-    {
-        lua_pop(LuaHelper::mState, 1);
-        return false;
-    }
-
-    if (!LuaPushItem(param))
-    {
-        lua_pop(LuaHelper::mState, 2);
-        return false;
-    }
-
-    LuaHelper::CallProc(0);
-    return true;
-}
-
-template <class ITEM, class PARAM>
-int UnregisterLuaCallback(lua_State*)
-{
-    Event<ITEM, PARAM>* pEvent =
-        (Event<ITEM, PARAM>*)lua_topointer(LuaHelper::mState, lua_upvalueindex(1));
-    if (lua_islightuserdata(LuaHelper::mState, 1))
-    {
-        typename Event<ITEM, PARAM>::Callback* pCallback =
-            (typename Event<ITEM, PARAM>::Callback*)LuaHandleArg::Get(LuaHelper::mState, 1);
-        if (pEvent->mRoot.Contains(pCallback) && !pCallback->mChild)
-        {
-            pEvent->Unregister(*pCallback);
-        }
-    }
-    return 0;
-}
 
 template <class ITEM, class PARAM, class PREDICATE>
 int RegisterLuaCallback(lua_State*)
@@ -147,7 +97,7 @@ int RegisterLuaCallback(lua_State*)
         typename Event<ITEM, PARAM>::template Filter<PREDICATE>* pFilter =
             pEvent->GetFilter(predicate);
         LuaCallback<ITEM, PARAM>* pCallback = new LuaCallback<ITEM, PARAM>(iRef);
-        pCallback->AttachToParent(pFilter ? (Node*)pFilter : (Node*)&pEvent->mRoot);
+        pEvent->Register(*pCallback, pFilter);
         luaL_unref(LuaHelper::mState, LUA_REGISTRYINDEX, iRef);
         pFilter->Release();
         lua_pushlightuserdata(LuaHelper::mState, pCallback);
@@ -174,7 +124,7 @@ int RegisterLuaCallback(lua_State*)
         typename Event<ITEM, PARAM>::template Filter<P2>* pFilter2 =
             pEvent->GetFilter(predicate2, pFilter1);
         LuaCallback<ITEM, PARAM>* pCallback = new LuaCallback<ITEM, PARAM>(iRef);
-        pCallback->AttachToParent(pFilter2 ? (Node*)pFilter2 : (Node*)&pEvent->mRoot);
+        pEvent->Register(*pCallback, pFilter2);
         luaL_unref(LuaHelper::mState, LUA_REGISTRYINDEX, iRef);
         pFilter1->Release();
         pFilter2->Release();
@@ -186,28 +136,11 @@ int RegisterLuaCallback(lua_State*)
     return 1;
 }
 
-template <class ITEM, class PARAM>
-void RegisterUnregisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
-{
-    char acName[64];
-    _snprintf(acName, sizeof(acName) - 1, "Release%s", event.mName);
-    acName[sizeof(acName) - 1] = 0;
-    lua_pushlightuserdata(LuaHelper::mState, &event);
-    if (NetGame::IsEnabled() && NetGame::IsClient())
-    {
-        LuaHelper::Register(acName, pfnClient, 0);
-    }
-    else
-    {
-        LuaHelper::Register(acName, UnregisterLuaCallback<ITEM, PARAM>, 1);
-    }
-}
-
 template <class ITEM, class PARAM, class PREDICATE>
 void RegisterRegisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
 {
     char acName[64];
-    _snprintf(acName, sizeof(acName) - 1, "On%s%s", event.mName, PREDICATE::GetName());
+    _snprintf(acName, sizeof(acName) - 1, "On%s%s", event.GetName(), PREDICATE::GetName());
     acName[sizeof(acName) - 1] = 0;
     lua_pushlightuserdata(LuaHelper::mState, &event);
     if (NetGame::IsEnabled() && NetGame::IsClient())
@@ -224,7 +157,7 @@ template <class ITEM, class PARAM, class P1, class P2>
 void RegisterRegisterLuaCallback(Event<ITEM, PARAM>& event, lua_CFunction pfnClient)
 {
     char acName[64];
-    _snprintf(acName, sizeof(acName) - 1, "On%s%s%s", event.mName, P1::GetName(), P2::GetName());
+    _snprintf(acName, sizeof(acName) - 1, "On%s%s%s", event.GetName(), P1::GetName(), P2::GetName());
     acName[sizeof(acName) - 1] = 0;
     lua_pushlightuserdata(LuaHelper::mState, &event);
     if (NetGame::IsEnabled() && NetGame::IsClient())

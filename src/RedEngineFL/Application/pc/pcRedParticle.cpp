@@ -46,6 +46,15 @@ struct ParticleVertexT
 RedParticleRenderer* RedParticleRenderer::currentCache;
 // GLOBAL: SWBF2 0x009661b8
 int RedParticleRenderer::s_cacheIndex;
+// GLOBAL: SWBF2 0x009661bc
+bool RedParticleRenderer::s_blurEnable;
+
+// SYNTHETIC: SWBF2 0x00408180
+// `dynamic initializer for 'kuiParticleShader''
+
+// GLOBAL: SWBF2 0x009661dc
+// kuiParticleShader
+unsigned int kuiParticleShader = PblHash("particle");
 
 // SYNTHETIC: SWBF2 0x006d0bf0
 // RedParticleRenderer::RedParticleRenderer
@@ -56,13 +65,6 @@ int RedParticleRenderer::s_cacheIndex;
 // GLOBAL: SWBF2 0x009661e0
 // RedParticleRenderer::s_caches
 RedParticleRenderer RedParticleRenderer::s_caches[15];
-
-// SYNTHETIC: SWBF2 0x00408180
-// `dynamic initializer for 'kuiParticleShader''
-
-// GLOBAL: SWBF2 0x009661dc
-// kuiParticleShader
-unsigned int kuiParticleShader = PblHash("particle");
 
 // SYNTHETIC: SWBF2 0x004080f0
 // `dynamic initializer for 'RedParticleRenderer::_Instance''
@@ -115,20 +117,6 @@ static inline bool IsZero(const PblVector3& v)
     return v.x == 0.0f && v.y == 0.0f && v.z == 0.0f;
 }
 
-static inline void SetXYZ(PosXYZ& out, const PblVector3& v)
-{
-    out.x = v.x;
-    out.y = v.y;
-    out.z = v.z;
-}
-
-static inline void SetXYZ(NormalXYZ& out, const PblVector3& v)
-{
-    out.x = v.x;
-    out.y = v.y;
-    out.z = v.z;
-}
-
 static inline void SetXYZ(ParticleVertexT& out, const PblVector3& v)
 {
     out.x = v.x;
@@ -136,24 +124,11 @@ static inline void SetXYZ(ParticleVertexT& out, const PblVector3& v)
     out.z = v.z;
 }
 
-static inline void SetXYZ(BlurParticleVertexT& out, const PblVector3& vPos, const PblVector3& vBlur)
-{
-    SetXYZ(out.pos, vPos);
-    SetXYZ(out.normal, vBlur);
-}
-
 static inline void SetUV(ParticleVertexT& out, RedColor color, float u, float v)
 {
     out.color = color;
     out.tu = u;
     out.tv = v;
-}
-
-static inline void SetUV(BlurParticleVertexT& out, RedColor color, float u, float v)
-{
-    out.color = color;
-    out.uv.u = u;
-    out.uv.v = v;
 }
 
 static float GetCos(float fAngle);
@@ -195,8 +170,7 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
     BlurParticleVertexT* pBlurVerts = (BlurParticleVertexT*)pVertices;
     const PblMatrix& mCamera = RedRenderer::GetCamera()->GetMatrix();
 
-    m_blurBounds._vMin = PblVector3(FLT_MAX, FLT_MAX, FLT_MAX);
-    m_blurBounds._vMax = PblVector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+    m_blurBounds.SetEmpty();
 
     bool bStreakStart = false;
     unsigned int iBaseVertex = 0;
@@ -214,10 +188,15 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
         case PIT_ANIMATED:
             if (m_blendMode == BLEND_BLUR)
             {
-                SetUV(pBlurVerts[0], info.mColor, info.u[1], info.v[0]);
-                SetUV(pBlurVerts[1], info.mColor, info.u[0], info.v[0]);
-                SetUV(pBlurVerts[2], info.mColor, info.u[1], info.v[1]);
-                SetUV(pBlurVerts[3], info.mColor, info.u[0], info.v[1]);
+                pBlurVerts[0].color = info.mColor;
+                pBlurVerts[1].color = info.mColor;
+                pBlurVerts[2].color = info.mColor;
+                pBlurVerts[3].color = info.mColor;
+
+                pBlurVerts[0].uv.SetUV(info.u[1], info.v[0]);
+                pBlurVerts[1].uv.SetUV(info.u[0], info.v[0]);
+                pBlurVerts[2].uv.SetUV(info.u[1], info.v[1]);
+                pBlurVerts[3].uv.SetUV(info.u[0], info.v[1]);
 
                 float fRotation = info.mRotation;
                 const float fHalfSize = info.mSize * 0.5f;
@@ -389,18 +368,26 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
             {
                 const PblVector3 vBack = vStart - vDepth;
 
-                SetUV(pBlurVerts[0], info.mColor, 0.0f, 0.0f);
+                pBlurVerts[0].color = info.mColor;
+                pBlurVerts[0].uv.SetUV(0.0f, 0.0f);
                 PblVector3 vPos = vBack + vWidth;
-                SetXYZ(pBlurVerts[0], vPos, vPos + (vNormal - vSideNorm) * m_blurValue);
+                pBlurVerts[0].pos.SetPos(vPos);
+                pBlurVerts[0].normal.SetNormal(vPos + (vNormal - vSideNorm) * m_blurValue);
                 vPos = vBack - vWidth;
-                SetUV(pBlurVerts[1], info.mColor, 0.0f, 1.0f);
-                SetXYZ(pBlurVerts[1], vPos, vPos + (-vNormal - vSideNorm) * m_blurValue);
+                pBlurVerts[1].color = info.mColor;
+                pBlurVerts[1].uv.SetUV(0.0f, 1.0f);
+                pBlurVerts[1].pos.SetPos(vPos);
+                pBlurVerts[1].normal.SetNormal(vPos + (-vNormal - vSideNorm) * m_blurValue);
                 vPos = vStart + vWidth;
-                SetUV(pBlurVerts[2], info.mColor, 0.25f, 0.0f);
-                SetXYZ(pBlurVerts[2], vPos, vPos + vNormal * m_blurValue);
+                pBlurVerts[2].color = info.mColor;
+                pBlurVerts[2].uv.SetUV(0.25f, 0.0f);
+                pBlurVerts[2].pos.SetPos(vPos);
+                pBlurVerts[2].normal.SetNormal(vPos + vNormal * m_blurValue);
                 vPos = vStart - vWidth;
-                SetUV(pBlurVerts[3], info.mColor, 0.25f, 1.0f);
-                SetXYZ(pBlurVerts[3], vPos, vPos + -vNormal * m_blurValue);
+                pBlurVerts[3].color = info.mColor;
+                pBlurVerts[3].uv.SetUV(0.25f, 1.0f);
+                pBlurVerts[3].pos.SetPos(vPos);
+                pBlurVerts[3].normal.SetNormal(vPos + -vNormal * m_blurValue);
 
                 const PblVector3 vToEndCam = vEnd - mCamera.GetTranslation();
                 const PblVector3 vEndWidth = vNormal * info.mSize;
@@ -408,16 +395,24 @@ void RedParticleRenderer::AddParticleToBuffers(void* pVertices, unsigned short* 
                 PblVector3 vEndSideNorm = Normalize(vEndSide);
 
                 const PblVector3 vZero(0.0f, 0.0f, 0.0f);
-                SetUV(pBlurVerts[4], info.mColor, 0.25f, 0.5f);
-                SetXYZ(pBlurVerts[4], vStart, vZero);
-                SetUV(pBlurVerts[5], info.mColor, 1.0f, 0.5f);
-                SetXYZ(pBlurVerts[5], vEnd, vZero);
+                pBlurVerts[4].color = info.mColor;
+                pBlurVerts[4].uv.SetUV(0.25f, 0.5f);
+                pBlurVerts[4].pos.SetPos(vStart);
+                pBlurVerts[4].normal.SetNormal(vZero);
+                pBlurVerts[5].color = info.mColor;
+                pBlurVerts[5].uv.SetUV(1.0f, 0.5f);
+                pBlurVerts[5].pos.SetPos(vEnd);
+                pBlurVerts[5].normal.SetNormal(vZero);
                 vPos = vEnd + vEndWidth;
-                SetUV(pBlurVerts[6], info.mColor, 1.0f, 0.0f);
-                SetXYZ(pBlurVerts[6], vPos, vPos + vNormal * m_blurValue);
+                pBlurVerts[6].color = info.mColor;
+                pBlurVerts[6].uv.SetUV(1.0f, 0.0f);
+                pBlurVerts[6].pos.SetPos(vPos);
+                pBlurVerts[6].normal.SetNormal(vPos + vNormal * m_blurValue);
                 vPos = vEnd - vEndWidth;
-                SetUV(pBlurVerts[7], info.mColor, 1.0f, 1.0f);
-                SetXYZ(pBlurVerts[7], vPos, vPos + -vNormal * m_blurValue);
+                pBlurVerts[7].color = info.mColor;
+                pBlurVerts[7].uv.SetUV(1.0f, 1.0f);
+                pBlurVerts[7].pos.SetPos(vPos);
+                pBlurVerts[7].normal.SetNormal(vPos + -vNormal * m_blurValue);
 
                 static const unsigned short s_blurIndices[18] = {
                     0, 2, 1, 2, 3, 1, 2, 6, 5, 2, 5, 4, 4, 5, 3, 3, 5, 7
@@ -607,8 +602,8 @@ static float GetSin(float fAngle)
 // FUNCTION: SWBF2 0x006d3050
 void RedParticleRenderer::Init()
 {
-    FLRenderer::AddRenderable(&RedParticleRenderer::_Instance, 3, 0x12c);
-    FLRenderer::AddRenderable(&RedParticleRenderer::_FarInstance, 1, 0x12c);
+    FLRenderer::AddRenderable(&RedParticleRenderer::_Instance, RENDERABLE_POSTWORLD, 0x12c);
+    FLRenderer::AddRenderable(&RedParticleRenderer::_FarInstance, RENDERABLE_SKY_POSTWORLD, 0x12c);
 
     currentCache = 0;
     s_cacheIndex = 0;
@@ -626,7 +621,7 @@ bool RedParticleRenderer::IsFull()
 }
 
 // FUNCTION: SWBF2 0x006d30b0
-void RedParticleRenderer::Renderable::Render(int value)
+void RedParticleRenderer::Renderable::Render(unsigned int value) const
 {
     RenderAll();
 }

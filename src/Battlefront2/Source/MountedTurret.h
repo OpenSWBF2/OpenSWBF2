@@ -7,6 +7,7 @@
 #include "Aimer.h"
 #include "Controllable.h"
 #include "Entity.h"
+#include "PebbleFL/Common/PblRtti.h"
 #include "GameSound.h"
 #include "Thread.h"
 #include "Trackable.h"
@@ -38,8 +39,8 @@ public:
 
     AimerClass mAimerClass[4];
     WeaponClass* mWeaponClass[4];
-    WeaponAmmoDesc mWeaponAmmo[4];
-    int mWeaponChannel[4];
+    WeaponAmmoDesc mWeaponAmmo[kMaxWeapons];
+    int mWeaponChannel[kMaxWeapons];
     int mWeaponCount;
     CameraTrackSetting mCameraSettings;
     PblVector3 mMountPos;
@@ -98,6 +99,15 @@ public:
 class MountedTurret : public EntityEx, public Controllable
 {
 public:
+    // FUNCTION: SWBF2 0x005a5160
+    // MountedTurret::IsRtti
+    // FUNCTION: SWBF2 0x005a5190
+    // MountedTurret::GetDerivedRtti
+    // FUNCTION: SWBF2 0x005a51a0
+    // MountedTurret::GetDerivedRttiName
+    PBL_DECLARE_DERIVED_RTTI(MountedTurret, EntityEx)
+
+    static void SetupMemoryPool(unsigned int uCount, unsigned int uSize, unsigned int uGrow) { sMemoryPool.Setup(uCount, uSize, uGrow); }
 
     // VTABLE: SWBF2 0x007aa600
     class PostCollision : public Thread
@@ -117,9 +127,6 @@ public:
     // MountedTurret::operator delete
     static void operator delete(void* pBlock) { sMemoryPool.Free(pBlock); }
 
-    virtual bool IsRtti(unsigned int uRtti) const;
-    virtual unsigned int GetDerivedRtti() const;
-    virtual const char* GetDerivedRttiName() const;
     virtual void Init();
     virtual Entity* GetEntity();
     virtual const Entity* GetEntity() const;
@@ -185,8 +192,8 @@ public:
     PblMatrix mAimMatrix;
     PblMatrix mRootMatrix;
     Aimer* mAimer[4];
-    Weapon* mWeapon[4];
-    int mWeaponIndex[2];
+    Weapon* mWeapon[kMaxWeapons];
+    int mWeaponIndex[kNumWeaponChannels];
     float mPitch;
     float mOmegaPitch;
     float mYaw;
@@ -207,8 +214,6 @@ public:
     PostCollision mPostCollision;
     int mInterpIndex;
 
-    static PblHash rttiHashMountedTurret;
-    static const char rttiNameMountedTurret[];
     static MemoryPool sMemoryPool;
 };
  
@@ -225,28 +230,6 @@ public:
  
  
  
-
-// FUNCTION: SWBF2 0x005a5160
-inline bool MountedTurret::IsRtti(unsigned int uRtti) const
-{
-    if (rttiHashMountedTurret == uRtti)
-    {
-        return true;
-    }
-    return EntityEx::IsRtti(uRtti);
-}
-
-// FUNCTION: SWBF2 0x005a5190
-inline unsigned int MountedTurret::GetDerivedRtti() const
-{
-    return rttiHashMountedTurret;
-}
-
-// FUNCTION: SWBF2 0x005a51a0
-inline const char* MountedTurret::GetDerivedRttiName() const
-{
-    return rttiNameMountedTurret;
-}
 
 // FUNCTION: SWBF2 0x005a52f0
 inline bool MountedTurretClass::IsRtti(unsigned int uRtti) const

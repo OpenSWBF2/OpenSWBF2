@@ -18,4 +18,4 @@ extern float adminKeyNextTime;
 extern char adminKey[2];
 
 void __fastcall HeartBeat(const unsigned __int64* pPeer);
-int __fastcall FindAdminSource(int iDest);
+int FindAdminSource(int iDest);

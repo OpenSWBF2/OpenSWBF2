@@ -42,7 +42,7 @@ void MessageDisplay::AddKillMessage(const Character* pVictim, const Character* p
     unsigned short message[256];
     if (pKiller->IsHero())
     {
-        const unsigned short* pFormat = RedLocalizeDB::Find(0x083ab1e9u, false);
+        const unsigned short* pFormat = RedLocalizeDB::Find(0x083ab1e9u /* "game.heromsg.defeat" */, false);
         if (Team::sTeams[iTeam])
         {
             unsigned short heroName[64];
@@ -59,12 +59,12 @@ void MessageDisplay::AddKillMessage(const Character* pVictim, const Character* p
     {
         if (pVictim->mTeamNumber == iTeam)
         {
-            PblUnicode::usnprintf(message, 255, RedLocalizeDB::Find(0xc57ae533u, false),
+            PblUnicode::usnprintf(message, 255, RedLocalizeDB::Find(0xc57ae533u /* "game.infomsg.teamkill" */, false),
                                   pVictim->mName, pKiller->mName);
         }
         else
         {
-            PblUnicode::usnprintf(message, 255, RedLocalizeDB::Find(0xacc1eef7u, false),
+            PblUnicode::usnprintf(message, 255, RedLocalizeDB::Find(0xacc1eef7u /* "game.infomsg.killed" */, false),
                                   pVictim->mName, pKiller->mName);
         }
     }

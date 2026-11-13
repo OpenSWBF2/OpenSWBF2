@@ -5,6 +5,7 @@
 #include "PebbleFL/Common/PblFile.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Util/RedLog.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "LoadDisplay.h"
 #include "LuaHelper.h"
@@ -15,6 +16,12 @@ LuaScriptFactory::List LuaScriptFactory::_GlobalList;
 
 // GLOBAL: SWBF2 0x01e579ac
 int LuaScriptFactory::sScriptMemUsage;
+
+// FUNCTION: SWBF2 0x005a18b0
+void __cdecl LuaScript_CallWARNINGF(char const* pcMessage)
+{
+    LOG(LogLua, Warning, "OPENSWBF2 LUA error: %.240s", pcMessage ? pcMessage : "(null)");
+}
 
 // FUNCTION: SWBF2 0x005a18c0
 LuaScriptFactory::LuaScriptFactory() : mNameHash(0), mDataLen(0), mData(0)
