@@ -7,6 +7,7 @@
 [PASS] hardening:gamma-get
 [PASS] hardening:addr-order
 [PASS] hardening:mi-api-ban
+[PASS] hardening:crt-heap-ban
 [PASS] hardening:snd-alloc-size-t
 [PASS] hardening:galaxy-getter-cast
 [PASS] hardening:handle-raw
@@ -26,6 +27,7 @@
 [PASS] hardening:flag-alignednew-tests
 [PASS] hardening:flag-banned
 [PASS] hardening:mimalloc-defines
+[PASS] hardening:mimalloc-crt-hooks
 [PASS] hardening:import-SetProcessDpiAwarenessContext
 [PASS] hardening:import-SetProcessDpiAwareness
 [PASS] hardening:import-SetProcessDPIAware

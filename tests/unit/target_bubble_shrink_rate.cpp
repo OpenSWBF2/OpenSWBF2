@@ -34,4 +34,21 @@ TEST_CASE("ai difficulty compiles with fp strict" * doctest::test_suite("regress
                               sOwner == "src\\Battlefront2\\Source\\WeaponCannon.cpp";
         CHECK_MESSAGE(bAllowed, sOwner);
     }
+
+    const char* const apcShared[] = {
+        "OpenSWBF2.Game.props",
+        "src\\LuaFL\\LuaFL.vcxproj",
+        "src\\RedEngineFL\\RedEngineFL.vcxproj",
+        "src\\mimalloc\\mimalloc.vcxproj",
+        "src\\SoundFL\\SoundFL.vcxproj",
+        "src\\Zephyr\\ZephyrFL.vcxproj",
+        "src\\ZlibFL\\ZLibFL.vcxproj",
+    };
+    for (const char* pcPath : apcShared)
+    {
+        std::string sShared;
+        REQUIRE_MESSAGE(ReadRepoText(pcPath, sShared), pcPath);
+        CHECK_MESSAGE(sShared.find("/fp:") == std::string::npos, pcPath);
+        CHECK_MESSAGE(sShared.find(sModel) == std::string::npos, pcPath);
+    }
 }

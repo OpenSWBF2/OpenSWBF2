@@ -195,9 +195,10 @@ EntityMine::~EntityMine()
 {
     ItemTimerDisplay::RemoveItemTimer(this);
     NetGame::Destroyed(this);
+    StickInfo::UntrackMine(this);
     if (mStickInfo)
     {
-        StickInfo::sMemoryPool.Free(mStickInfo);
+        delete mStickInfo;
     }
 }
 
@@ -272,9 +273,12 @@ bool EntityMine::Update(float fDeltaTime)
     StickInfo* pStick = mStickInfo;
     if (pStick)
     {
-        if (pStick->mCollHandle.IsDeadHandle())
+        PblMatrix mBody;
+        bool bHasBody = false;
+        if (pStick->mCollHandle.IsDeadHandle() || !pStick->FollowTarget(mBody, bHasBody))
         {
             mParent = 0;
+            StickInfo::UntrackMine(this);
             delete pStick;
             mStickInfo = 0;
             mStationary = false;
@@ -282,13 +286,8 @@ bool EntityMine::Update(float fDeltaTime)
         else
         {
             PblMatrix mStick(pStick->mLocalRotation, pStick->mLocalPosition);
-            CollisionObject* pObject = mStickInfo->mCollObject;
-            CollisionModel* pModel = pObject->mCollisionModel;
-            if (pModel)
+            if (bHasBody)
             {
-                StickInfo* pInfo = pStick;
-                PblMatrix mBody = pModel->GetWorldMatrix(pInfo->mCollBodyID,
-                                                         pObject->GetMatrix(), pObject->GetPose());
                 mStick *= mBody;
             }
             SetMatrix(mStick);
@@ -498,7 +497,7 @@ bool EntityMine::CollisionCallback(const CollisionResult* pResult, CollisionObje
     }
 
     if ((!pOther->GetGameObject() || (HealthType)pOther->GetGameObject()->mHealthType >= HEALTH_TYPE_VEHICLE) &&
-        StickInfo::sMemoryPool.mUsed < StickInfo::sMemoryPool.mCount)
+        (mStickInfo || StickInfo::sMemoryPool.mUsed < StickInfo::sMemoryPool.mCount))
     {
         CollisionModel* pModel = pOther->mCollisionModel;
         PblVector3 vNormal = pResult->mSeparationNormal;
@@ -508,7 +507,10 @@ bool EntityMine::CollisionCallback(const CollisionResult* pResult, CollisionObje
         PblMatrix mStick = NormalMatrix(mMatrix.GetZAxis(), vNormal,
                                       mMatrix.GetTranslation());
 
-        mStickInfo = new StickInfo;
+        if (!mStickInfo)
+        {
+            mStickInfo = new StickInfo;
+        }
         mStickInfo->mCollHandle = pOther->GetGameObject();
         mStickInfo->mCollObject = pOther;
         mStickInfo->mCollKey = CollisionObject::LastCollidedKey(pOther);
@@ -526,6 +528,7 @@ bool EntityMine::CollisionCallback(const CollisionResult* pResult, CollisionObje
         mStickInfo->mLocalRotation = PblQuaternion(mStick);
 
         mParent = pOther;
+        StickInfo::TrackMine(this);
         mVelocity = gVectorZero;
         mOldPosition = mMatrix.GetTranslation();
         if (!mHitSurface)

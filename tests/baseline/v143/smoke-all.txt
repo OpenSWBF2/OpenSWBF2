@@ -7,6 +7,7 @@
 [PASS] hardening:gamma-get
 [PASS] hardening:addr-order
 [PASS] hardening:mi-api-ban
+[PASS] hardening:crt-heap-ban
 [PASS] hardening:snd-alloc-size-t
 [PASS] hardening:galaxy-getter-cast
 [PASS] hardening:handle-raw
@@ -26,6 +27,7 @@
 [PASS] hardening:flag-alignednew-tests
 [PASS] hardening:flag-banned
 [PASS] hardening:mimalloc-defines
+[PASS] hardening:mimalloc-crt-hooks
 [PASS] hardening:import-SetProcessDpiAwarenessContext
 [PASS] hardening:import-SetProcessDpiAwareness
 [PASS] hardening:import-SetProcessDPIAware
@@ -160,6 +162,7 @@
 [PASS] smoke:crash-poolcount class=Pass exit=0x00000000
 [PASS] smoke:pool-full class=Pass exit=0x00000000
 [PASS] smoke:pool-full-strict class=Pass exit=0x00000000
+[PASS] smoke:crash-stickdelete class=Pass exit=0x00000000
 [PASS] smoke:crash-luaoom class=Pass exit=0x00000000
 [PASS] smoke:crash-luapanic class=Fatal exit=0x00000004
 [PASS] smoke:crash-hang class=Fatal exit=0x00000005
@@ -191,7 +194,7 @@
 [PASS] smoke:crash-menuapplyfail class=Pass exit=0x00000000
 
 Results
-  PASS     191
+  PASS     194
   FAIL     0
   SKIP     0
   TIMEOUT  0

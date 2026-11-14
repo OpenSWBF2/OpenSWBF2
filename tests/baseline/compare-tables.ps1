@@ -1,18 +1,25 @@
 param(
     [Parameter(Mandatory)][string]$Tables,
     [string]$Baseline,
-    [switch]$LuaBins
+    [switch]$LuaBins,
+    [switch]$OffThread
 )
 
 $ErrorActionPreference = 'Stop'
 if (-not $Baseline) { $Baseline = Join-Path $PSScriptRoot 'v143' }
 
-function Read-Keyed([string]$dir, [string]$name, [int]$keyCols, [string[]]$skip) {
+function Read-Keyed([string]$dir, [string]$name, [int]$keyCols, [string[]]$skip, [bool]$offThread) {
     $path = Join-Path $dir $name
     if (-not (Test-Path -LiteralPath $path)) { throw "$name not found in $dir" }
     $rows = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
     $count = 0
     foreach ($line in [IO.File]::ReadAllLines($path)) {
+        if ($offThread) {
+            if ($line -ceq '## sound-on') { break }
+            if ($line.StartsWith("case`t")) { continue }
+            $cols = @($line -split "`t")
+            if ($cols.Count -gt 4) { $line = (@($cols[0]) + @($cols[2..($cols.Count - 1)])) -join "`t" }
+        }
         if (-not $line -or $line.StartsWith('#') -or $line.StartsWith("mission`t")) { continue }
         $count++
         $key = (@($line -split "`t")[0..($keyCols - 1)]) -join "`t"
@@ -24,9 +31,9 @@ function Read-Keyed([string]$dir, [string]$name, [int]$keyCols, [string[]]$skip)
     return $rows
 }
 
-function Compare-Table([string]$label, [string]$name, [int]$keyCols, [string[]]$skip) {
-    $base = Read-Keyed $Baseline $name $keyCols $skip
-    $new = Read-Keyed $Tables $name $keyCols $skip
+function Compare-Table([string]$label, [string]$name, [int]$keyCols, [string[]]$skip, [bool]$offThread = $false) {
+    $base = Read-Keyed $Baseline $name $keyCols $skip $offThread
+    $new = Read-Keyed $Tables $name $keyCols $skip $offThread
     $bad = @()
     if ($base.Count -eq 0) { $bad += 'no baseline rows to compare' }
     foreach ($k in ($base.Keys | Sort-Object)) {
@@ -53,6 +60,9 @@ function Compare-Table([string]$label, [string]$name, [int]$keyCols, [string[]]$
 $fail = 0
 if ($LuaBins) {
     $fail += Compare-Table 'tables:lua-bins' 'lua-bins.txt' 3 @()
+}
+elseif ($OffThread) {
+    $fail += Compare-Table 'tables:offthread' 'offthread.txt' 1 @() $true
 }
 else {
     $fail += Compare-Table 'tables:cloth' 'cloth-headroom.txt' 1 @()

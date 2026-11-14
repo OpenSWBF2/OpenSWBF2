@@ -745,154 +745,154 @@
 744	0002:000012f8	??sList$initializer$@PblRegion@@2P6AXXZA@@3P6AXXZA	??sList$initializer$@PblRegion@@2P6AXXZA@@3P6AXXZA	PblRegion.obj
 745	0002:000012fc	?pblTime$initializer$@@3P6AXXZA	void (__cdecl* pblTime$initializer$)(void)	PblTime.obj
 746	0002:00001300	?sStartupWordCopy$initializer$@@3P6AXXZA	void (__cdecl* sStartupWordCopy$initializer$)(void)	PblTime.obj
-747	0002:00001304	??_UnderWaterRenderable$initializer$@RedWater@@2P6AXXZA@@3P6AXXZA	??_UnderWaterRenderable$initializer$@RedWater@@2P6AXXZA@@3P6AXXZA	RedWater.obj
-748	0002:00001308	??_WaterRenderable$initializer$@RedWater@@2P6AXXZA@@3P6AXXZA	??_WaterRenderable$initializer$@RedWater@@2P6AXXZA@@3P6AXXZA	RedWater.obj
-749	0002:0000130c	??_kStaticRenderable$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_kStaticRenderable$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
-750	0002:00001310	??_aSpheres$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_aSpheres$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
-751	0002:00001314	??_aMarkers3D$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_aMarkers3D$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
-752	0002:00001318	??_ScreenGroup$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_ScreenGroup$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
-753	0002:0000131c	??_aTextLines$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_aTextLines$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
-754	0002:00001320	??_aText3D$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_aText3D$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
-755	0002:00001324	??_PrintfColor$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_PrintfColor$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
-756	0002:00001328	?kuiShader$initializer$@@3P6AXXZA	void (__cdecl* kuiShader$initializer$)(void)	pcRedDropShadow.obj
-757	0002:0000132c	?kuiParticleShader$initializer$@@3P6AXXZA	void (__cdecl* kuiParticleShader$initializer$)(void)	pcRedParticle.obj
-758	0002:00001330	??_Instance$initializer$@RedParticleRenderer@@2P6AXXZA@@3P6AXXZA	??_Instance$initializer$@RedParticleRenderer@@2P6AXXZA@@3P6AXXZA	pcRedParticle.obj
-759	0002:00001334	??_FarInstance$initializer$@RedParticleRenderer@@2P6AXXZA@@3P6AXXZA	??_FarInstance$initializer$@RedParticleRenderer@@2P6AXXZA@@3P6AXXZA	pcRedParticle.obj
-760	0002:00001338	?_TerrainRenderable$initializer$@@3P6AXXZA	void (__cdecl* _TerrainRenderable$initializer$)(void)	pcRedTerrain.obj
-761	0002:0000133c	?cvForceFullDetail$initializer$@@3P6AXXZA	void (__cdecl* cvForceFullDetail$initializer$)(void)	pcRedTerrain.obj
-762	0002:00001340	?kuiUnderWaterShader$initializer$@@3P6AXXZA	void (__cdecl* kuiUnderWaterShader$initializer$)(void)	pcRedWater.obj
-763	0002:00001344	?kuiPreReflectionShader$initializer$@@3P6AXXZA	void (__cdecl* kuiPreReflectionShader$initializer$)(void)	pcRedWater.obj
-764	0002:00001348	?kuiNormalMapAdderShader$initializer$@@3P6AXXZA	void (__cdecl* kuiNormalMapAdderShader$initializer$)(void)	pcRedWater.obj
-765	0002:0000134c	?kuiWaterShader$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterShader$initializer$)(void)	pcRedWater.obj
-766	0002:00001350	?kuiOceanShader$initializer$@@3P6AXXZA	void (__cdecl* kuiOceanShader$initializer$)(void)	pcRedWater.obj
-767	0002:00001354	?kuiWaterSplashTextureHash$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterSplashTextureHash$initializer$)(void)	pcRedWater.obj
-768	0002:00001358	?kuiWaterSplashShader$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterSplashShader$initializer$)(void)	pcRedWater.obj
-769	0002:0000135c	?kuiWaterDistortionRingTextureHash$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterDistortionRingTextureHash$initializer$)(void)	pcRedWater.obj
-770	0002:00001360	?kuiWaterRingTextureHash$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterRingTextureHash$initializer$)(void)	pcRedWater.obj
-771	0002:00001364	?kuiWaterRingShader$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterRingShader$initializer$)(void)	pcRedWater.obj
-772	0002:00001368	?WATERSPLASH_COLOR$initializer$@@3P6AXXZA	void (__cdecl* WATERSPLASH_COLOR$initializer$)(void)	pcRedWater.obj
-773	0002:0000136c	?kuiFilterShader$initializer$@@3P6AXXZA	void (__cdecl* kuiFilterShader$initializer$)(void)	pcShadowQuadRenderable.obj
-774	0002:00001370	?kuiClearShader$initializer$@@3P6AXXZA	void (__cdecl* kuiClearShader$initializer$)(void)	pcShadowQuadRenderable.obj
-775	0002:00001374	??m_colorFog$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_colorFog$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
-776	0002:00001378	??m_opaqueQueues$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_opaqueQueues$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
-777	0002:0000137c	??m_preShadowTransparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_preShadowTransparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
-778	0002:00001380	??m_transparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_transparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
-779	0002:00001384	??m_posttransparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_posttransparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
-780	0002:00001388	??m_renderItemPool$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_renderItemPool$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
-781	0002:0000138c	??m_aLightingStatePool$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_aLightingStatePool$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
-782	0002:00001390	??s_textureHashTable$initializer$@RedTexture@@2P6AXXZA@@3P6AXXZA	??s_textureHashTable$initializer$@RedTexture@@2P6AXXZA@@3P6AXXZA	pcRedTexture.obj
-783	0002:00001394	?sStaticVertexBufferHashTable$initializer$@@3P6AXXZA	void (__cdecl* sStaticVertexBufferHashTable$initializer$)(void)	pcRedVertexBuffer.obj
-784	0002:00001398	?sDynamicVertexBufferHashTable$initializer$@@3P6AXXZA	void (__cdecl* sDynamicVertexBufferHashTable$initializer$)(void)	pcRedVertexBuffer.obj
-785	0002:0000139c	??s_uiRenderTypeHash$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	??s_uiRenderTypeHash$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	pcRefractionShader.obj
-786	0002:000013a0	??s_Factory$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	??s_Factory$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	pcRefractionShader.obj
-787	0002:000013a4	??s_shaderDef$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	??s_shaderDef$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	pcRefractionShader.obj
-788	0002:000013a8	?kuiLinearRamp$initializer$@@3P6AXXZA	void (__cdecl* kuiLinearRamp$initializer$)(void)	pcRefractionShader.obj
-789	0002:000013ac	??s_shaderDef$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	??s_shaderDef$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	pcShieldShader.obj
-790	0002:000013b0	?kuiSpecularSpotMap$initializer$@@3P6AXXZA	void (__cdecl* kuiSpecularSpotMap$initializer$)(void)	pcShieldShader.obj
-791	0002:000013b4	??s_uiRenderTypeHash$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	??s_uiRenderTypeHash$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	pcShieldShader.obj
-792	0002:000013b8	??s_Factory$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	??s_Factory$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	pcShieldShader.obj
-793	0002:000013bc	?kuiLinearRamp$initializer$@@3P6AXXZA	void (__cdecl* kuiLinearRamp$initializer$)(void)	pcShieldShader.obj
-794	0002:000013c0	??s_shaderDef$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	??s_shaderDef$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	pcWaterShader.obj
-795	0002:000013c4	?kuiCubeNormalizationMap$initializer$@@3P6AXXZA	void (__cdecl* kuiCubeNormalizationMap$initializer$)(void)	pcWaterShader.obj
-796	0002:000013c8	?kuiLinearRamp$initializer$@@3P6AXXZA	void (__cdecl* kuiLinearRamp$initializer$)(void)	pcWaterShader.obj
-797	0002:000013cc	??s_uiRenderTypeHash$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	??s_uiRenderTypeHash$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	pcWaterShader.obj
-798	0002:000013d0	??s_Factory$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	??s_Factory$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	pcWaterShader.obj
-799	0002:000013d4	??BLACK$initializer$@RedAmbientLight@@2P6AXXZA@@3P6AXXZA	??BLACK$initializer$@RedAmbientLight@@2P6AXXZA@@3P6AXXZA	RedAmbientLight.obj
-800	0002:000013d8	??WHITE$initializer$@RedAmbientLight@@2P6AXXZA@@3P6AXXZA	??WHITE$initializer$@RedAmbientLight@@2P6AXXZA@@3P6AXXZA	RedAmbientLight.obj
-801	0002:000013dc	??BLACK$initializer$@RedDirectionalLight@@2P6AXXZA@@3P6AXXZA	??BLACK$initializer$@RedDirectionalLight@@2P6AXXZA@@3P6AXXZA	RedDirectionalLight.obj
-802	0002:000013e0	??_HashTable$initializer$@RedModel@@2P6AXXZA@@3P6AXXZA	??_HashTable$initializer$@RedModel@@2P6AXXZA@@3P6AXXZA	RedModel.obj
-803	0002:000013e4	??sMemoryPool$initializer$@RedOmniLight@@2P6AXXZA@@3P6AXXZA	??sMemoryPool$initializer$@RedOmniLight@@2P6AXXZA@@3P6AXXZA	RedOmniLight.obj
-804	0002:000013e8	??BLACK$initializer$@RedOmniLight@@2P6AXXZA@@3P6AXXZA	??BLACK$initializer$@RedOmniLight@@2P6AXXZA@@3P6AXXZA	RedOmniLight.obj
-805	0002:000013ec	??sMemoryPool$initializer$@Entry@RedShadingPose@@2P6AXXZA@@3P6AXXZA	??sMemoryPool$initializer$@Entry@RedShadingPose@@2P6AXXZA@@3P6AXXZA	RedShadingState.obj
-806	0002:000013f0	??sMemoryPool$initializer$@RedShadingState@@2P6AXXZA@@3P6AXXZA	??sMemoryPool$initializer$@RedShadingState@@2P6AXXZA@@3P6AXXZA	RedShadingState.obj
-807	0002:000013f4	??_HashTable$initializer$@RedSkeleton@@2P6AXXZA@@3P6AXXZA	??_HashTable$initializer$@RedSkeleton@@2P6AXXZA@@3P6AXXZA	RedSkeleton.obj
-808	0002:000013f8	??BLACK$initializer$@RedSpotLight@@2P6AXXZA@@3P6AXXZA	??BLACK$initializer$@RedSpotLight@@2P6AXXZA@@3P6AXXZA	RedSpotLight.obj
-809	0002:000013fc	??rttiHashRed3DModelAnimator$initializer$@Red3DModelAnimator@@2P6AXXZA@@3P6AXXZA	??rttiHashRed3DModelAnimator$initializer$@Red3DModelAnimator@@2P6AXXZA@@3P6AXXZA	Red3DModelAnimator.obj
-810	0002:00001400	??s_fontHashTable$initializer$@RedFont@@2P6AXXZA@@3P6AXXZA	??s_fontHashTable$initializer$@RedFont@@2P6AXXZA@@3P6AXXZA	RedFont.obj
-811	0002:00001404	?SQRT3$initializer$@@3P6AXXZA	void (__cdecl* SQRT3$initializer$)(void)	RedHotSpot.obj
-812	0002:00001408	??s_fCotHalfFOVx$initializer$@RedHotSpot@@2P6AXXZA@@3P6AXXZA	??s_fCotHalfFOVx$initializer$@RedHotSpot@@2P6AXXZA@@3P6AXXZA	RedHotSpot.obj
-813	0002:0000140c	??s_fCotHalfFOVy$initializer$@RedHotSpot@@2P6AXXZA@@3P6AXXZA	??s_fCotHalfFOVy$initializer$@RedHotSpot@@2P6AXXZA@@3P6AXXZA	RedHotSpot.obj
-814	0002:00001410	??sAllObjectsList$initializer$@RedInterfaceElement@@2P6AXXZA@@3P6AXXZA	??sAllObjectsList$initializer$@RedInterfaceElement@@2P6AXXZA@@3P6AXXZA	RedInterfaceElement.obj
-815	0002:00001414	??s_screenFull$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??s_screenFull$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
-816	0002:00001418	??s_directionalLight$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??s_directionalLight$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
-817	0002:0000141c	??s_lightingState$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??s_lightingState$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
-818	0002:00001420	??sSQRT3$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??sSQRT3$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
-819	0002:00001424	??sfWidth$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??sfWidth$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
-820	0002:00001428	??sfHeight$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??sfHeight$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
-821	0002:0000142c	?shadowBlobRandom$initializer$@@3P6AXXZA	void (__cdecl* shadowBlobRandom$initializer$)(void)	RedShadowBlob.obj
-822	0002:00001430	??s_aPoints$initializer$@RedVectorElement@@2P6AXXZA@@3P6AXXZA	??s_aPoints$initializer$@RedVectorElement@@2P6AXXZA@@3P6AXXZA	RedVectorElement.obj
-823	0002:00001434	?displayableSuballoc_$initializer$@pvs@@3P6AXXZA	void (__cdecl* pvs::displayableSuballoc_$initializer$)(void)	Portal.obj
-824	0002:00001438	?g_Enable$initializer$@@3P6AXXZA	void (__cdecl* g_Enable$initializer$)(void)	Portal.obj
-825	0002:0000143c	?g_SaveCam$initializer$@@3P6AXXZA	void (__cdecl* g_SaveCam$initializer$)(void)	Portal.obj
-826	0002:00001440	?g_BackFaceCull$initializer$@@3P6AXXZA	void (__cdecl* g_BackFaceCull$initializer$)(void)	Portal.obj
-827	0002:00001444	?g_ProximityTest$initializer$@@3P6AXXZA	void (__cdecl* g_ProximityTest$initializer$)(void)	Portal.obj
-828	0002:00001448	?g_DebugDraw$initializer$@@3P6AXXZA	void (__cdecl* g_DebugDraw$initializer$)(void)	Portal.obj
-829	0002:0000144c	??_HashTable$initializer$@RedAnimation@@2P6AXXZA@@3P6AXXZA	??_HashTable$initializer$@RedAnimation@@2P6AXXZA@@3P6AXXZA	RedAnimation.obj
-830	0002:00001450	?sMasterLocalizeHash$initializer$@@3P6AXXZA	void (__cdecl* sMasterLocalizeHash$initializer$)(void)	RedLocalizeDB.obj
-831	0002:00001454	??sList$initializer$@RedRegionFactory@@2P6AXXZA@@3P6AXXZA	??sList$initializer$@RedRegionFactory@@2P6AXXZA@@3P6AXXZA	RedRegion.obj
-832	0002:00001458	??sRegionFactory$initializer$@RedRegionFactory@@2P6AXXZA@@3P6AXXZA	??sRegionFactory$initializer$@RedRegionFactory@@2P6AXXZA@@3P6AXXZA	RedRegion.obj
-833	0002:0000145c	?gStackAllocator_$initializer$@?A0xffc11138@util@@3P6AXXZA	void (__cdecl* util::`anonymous namespace'::gStackAllocator_$initializer$)(void)	Allocator.obj
-834	0002:00001460	?gStaticAllocator_$initializer$@?A0xffc11138@util@@3P6AXXZA	void (__cdecl* util::`anonymous namespace'::gStaticAllocator_$initializer$)(void)	Allocator.obj
-835	0002:00001464	?globals$initializer$@util@@3P6AXXZA	void (__cdecl* util::globals$initializer$)(void)	Globals.obj
-836	0002:00001468	?m_joysticks$initializer$@RedInputManager@@3P6AXXZA	void (__cdecl* RedInputManager::m_joysticks$initializer$)(void)	pcRedInputManager.obj
-837	0002:0000146c	?m_mouses$initializer$@RedInputManager@@3P6AXXZA	void (__cdecl* RedInputManager::m_mouses$initializer$)(void)	pcRedInputManager.obj
-838	0002:00001470	?m_keyboards$initializer$@RedInputManager@@3P6AXXZA	void (__cdecl* RedInputManager::m_keyboards$initializer$)(void)	pcRedInputManager.obj
-839	0002:00001474	?gLCDPanels$initializer$@@3P6AXXZA	void (__cdecl* gLCDPanels$initializer$)(void)	pcRedLogitechLCD.obj
-840	0002:00001478	??sRandom$initializer$@Properties@RedMovie@@2P6AXXZA@@3P6AXXZA	??sRandom$initializer$@Properties@RedMovie@@2P6AXXZA@@3P6AXXZA	RedMovie.obj
-841	0002:0000147c	??smFreeList$initializer$@Bus@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Bus@Snd@@2P6AXXZA@@3P6AXXZA	sndbus.obj
-842	0002:00001480	??smRootBus$initializer$@Bus@Snd@@2P6AXXZA@@3P6AXXZA	??smRootBus$initializer$@Bus@Snd@@2P6AXXZA@@3P6AXXZA	sndbus.obj
-843	0002:00001484	??smVoiceVirtualManager$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	??smVoiceVirtualManager$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	sndenginebase.obj
-844	0002:00001488	??smSoundRAMAllocator$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	??smSoundRAMAllocator$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	sndenginebase.obj
-845	0002:0000148c	??smListeners$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	??smListeners$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	sndenginebase.obj
-846	0002:00001490	??smQueuedFileOpListLock$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	??smQueuedFileOpListLock$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	sndfile.obj
-847	0002:00001494	??smQueuedCommands$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	??smQueuedCommands$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	sndfile.obj
-848	0002:00001498	??smQueuedFileOpList$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	??smQueuedFileOpList$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	sndfile.obj
-849	0002:0000149c	??smFileList$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	??smFileList$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	sndfile.obj
-850	0002:000014a0	?sndRandom$initializer$@Snd@@3P6AXXZA	void (__cdecl* Snd::sndRandom$initializer$)(void)	sndglobals.obj
-851	0002:000014a4	??smFreeList$initializer$@I3DL2ReverbPreset@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@I3DL2ReverbPreset@Snd@@2P6AXXZA@@3P6AXXZA	sndi3dl2reverbpreset.obj
-852	0002:000014a8	??smList$initializer$@I3DL2ReverbPreset@Snd@@2P6AXXZA@@3P6AXXZA	??smList$initializer$@I3DL2ReverbPreset@Snd@@2P6AXXZA@@3P6AXXZA	sndi3dl2reverbpreset.obj
-853	0002:000014ac	??smFreeList$initializer$@Node@ObjectList@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Node@ObjectList@Snd@@2P6AXXZA@@3P6AXXZA	sndobjectlist.obj
-854	0002:000014b0	??smFreeList$initializer$@ObjectWeight@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@ObjectWeight@Snd@@2P6AXXZA@@3P6AXXZA	sndobjectweightlist.obj
-855	0002:000014b4	??smFreeList$initializer$@ControlPoint@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@ControlPoint@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	sndparametergraph.obj
-856	0002:000014b8	??smFreeList$initializer$@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	sndparametergraph.obj
-857	0002:000014bc	??smParameterGraphs$initializer$@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	??smParameterGraphs$initializer$@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	sndparametergraph.obj
-858	0002:000014c0	??smSampleBankList$initializer$@SampleBankBase@Snd@@2P6AXXZA@@3P6AXXZA	??smSampleBankList$initializer$@SampleBankBase@Snd@@2P6AXXZA@@3P6AXXZA	sndsamplebankbase.obj
-859	0002:000014c4	??smSource3Ds$initializer$@Sound@Snd@@2P6AXXZA@@3P6AXXZA	??smSource3Ds$initializer$@Sound@Snd@@2P6AXXZA@@3P6AXXZA	sndsound.obj
-860	0002:000014c8	??smFreeList$initializer$@Properties@Sound@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@Sound@Snd@@2P6AXXZA@@3P6AXXZA	sndsound.obj
-861	0002:000014cc	??smPropertyList$initializer$@Properties@Sound@Snd@@2P6AXXZA@@3P6AXXZA	??smPropertyList$initializer$@Properties@Sound@Snd@@2P6AXXZA@@3P6AXXZA	sndsound.obj
-862	0002:000014d0	??smSoundList$initializer$@Sound@Snd@@2P6AXXZA@@3P6AXXZA	??smSoundList$initializer$@Sound@Snd@@2P6AXXZA@@3P6AXXZA	sndsound.obj
-863	0002:000014d4	??smFreeList$initializer$@SoundLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@SoundLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
-864	0002:000014d8	??smFreeList$initializer$@Layer@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Layer@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
-865	0002:000014dc	??smFreeList$initializer$@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
-866	0002:000014e0	??smPropertyList$initializer$@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smPropertyList$initializer$@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
-867	0002:000014e4	??smActiveList$initializer$@FireForgetLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smActiveList$initializer$@FireForgetLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
-868	0002:000014e8	??smInactiveList$initializer$@FireForgetLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smInactiveList$initializer$@FireForgetLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
-869	0002:000014ec	??smSoundLayeredList$initializer$@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smSoundLayeredList$initializer$@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
-870	0002:000014f0	??smFreeList$initializer$@Layer@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Layer@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
-871	0002:000014f4	??smFreeList$initializer$@Properties@Controller@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@Controller@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
-872	0002:000014f8	??smFreeList$initializer$@Properties@Layer@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@Layer@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
-873	0002:000014fc	??smFreeList$initializer$@Properties@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
-874	0002:00001500	??smPropertyList$initializer$@Properties@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smPropertyList$initializer$@Properties@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
-875	0002:00001504	??smSoundParameterizedList$initializer$@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smSoundParameterizedList$initializer$@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
-876	0002:00001508	??smPropertyList$initializer$@Properties@SoundStream@Snd@@2P6AXXZA@@3P6AXXZA	??smPropertyList$initializer$@Properties@SoundStream@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundstream.obj
-877	0002:0000150c	??smFreeList$initializer$@Properties@SoundStream@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@SoundStream@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundstream.obj
-878	0002:00001510	??smFreeList$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	sndsoundstream.obj
-879	0002:00001514	??smQueue$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	??smQueue$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	sndsoundstream.obj
-880	0002:00001518	??smFree$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	??smFree$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	sndsoundstream.obj
-881	0002:0000151c	??smFireForget$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	??smFireForget$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	sndsoundstream.obj
-882	0002:00001520	??smList$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	??smList$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	sndsoundstream.obj
-883	0002:00001524	??smFreeList$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	sndspace.obj
-884	0002:00001528	??smSpaceList$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	??smSpaceList$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	sndspace.obj
-885	0002:0000152c	??smDefaultSpace$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	??smDefaultSpace$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	sndspace.obj
-886	0002:00001530	??smFreeList$initializer$@Connected@Space@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Connected@Space@Snd@@2P6AXXZA@@3P6AXXZA	sndspace.obj
-887	0002:00001534	??smInfoList$initializer$@Info@StreamBase@Snd@@2P6AXXZA@@3P6AXXZA	??smInfoList$initializer$@Info@StreamBase@Snd@@2P6AXXZA@@3P6AXXZA	sndstreambase.obj
-888	0002:00001538	??smList$initializer$@DSBuffer@Snd@@0P6AXXZA@@3P6AXXZA	??smList$initializer$@DSBuffer@Snd@@0P6AXXZA@@3P6AXXZA	snddsbuffer.obj
-889	0002:0000153c	??smRendererList$initializer$@DSBufferRenderer@Snd@@2P6AXXZA@@3P6AXXZA	??smRendererList$initializer$@DSBufferRenderer@Snd@@2P6AXXZA@@3P6AXXZA	snddsbufferrenderer.obj
-890	0002:00001540	??smDummySecBuffer$initializer$@Engine@Snd@@2P6AXXZA@@3P6AXXZA	??smDummySecBuffer$initializer$@Engine@Snd@@2P6AXXZA@@3P6AXXZA	sndengine.obj
-891	0002:00001544	?sndEngineThreadUpdate$initializer$@Snd@@3P6AXXZA	void (__cdecl* Snd::sndEngineThreadUpdate$initializer$)(void)	sndengine.obj
-892	0002:00001548	?smEngineUpdater$initializer$@@3P6AXXZA	void (__cdecl* smEngineUpdater$initializer$)(void)	sndengine.obj
-893	0002:0000154c	?_smHighLowPass$initializer$@@3P6AXXZA	void (__cdecl* _smHighLowPass$initializer$)(void)	sndengine.obj
-894	0002:00001550	?gEncryptedAppTicket$initializer$@@3P6AXXZA	void (__cdecl* gEncryptedAppTicket$initializer$)(void)	gfSteamAuth.obj
-895	0002:00001554	?gFriendConnectionStrings$initializer$@@3P6AXXZA	void (__cdecl* gFriendConnectionStrings$initializer$)(void)	gfSteamAuth.obj
+747	0002:00001304	?gEncryptedAppTicket$initializer$@@3P6AXXZA	void (__cdecl* gEncryptedAppTicket$initializer$)(void)	gfSteamAuth.obj
+748	0002:00001308	?gFriendConnectionStrings$initializer$@@3P6AXXZA	void (__cdecl* gFriendConnectionStrings$initializer$)(void)	gfSteamAuth.obj
+749	0002:0000130c	??_UnderWaterRenderable$initializer$@RedWater@@2P6AXXZA@@3P6AXXZA	??_UnderWaterRenderable$initializer$@RedWater@@2P6AXXZA@@3P6AXXZA	RedWater.obj
+750	0002:00001310	??_WaterRenderable$initializer$@RedWater@@2P6AXXZA@@3P6AXXZA	??_WaterRenderable$initializer$@RedWater@@2P6AXXZA@@3P6AXXZA	RedWater.obj
+751	0002:00001314	??_kStaticRenderable$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_kStaticRenderable$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
+752	0002:00001318	??_aSpheres$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_aSpheres$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
+753	0002:0000131c	??_aMarkers3D$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_aMarkers3D$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
+754	0002:00001320	??_ScreenGroup$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_ScreenGroup$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
+755	0002:00001324	??_aTextLines$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_aTextLines$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
+756	0002:00001328	??_aText3D$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_aText3D$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
+757	0002:0000132c	??_PrintfColor$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	??_PrintfColor$initializer$@RedDebug@@0P6AXXZA@@3P6AXXZA	pcRedDebug.obj
+758	0002:00001330	?kuiShader$initializer$@@3P6AXXZA	void (__cdecl* kuiShader$initializer$)(void)	pcRedDropShadow.obj
+759	0002:00001334	?kuiParticleShader$initializer$@@3P6AXXZA	void (__cdecl* kuiParticleShader$initializer$)(void)	pcRedParticle.obj
+760	0002:00001338	??_Instance$initializer$@RedParticleRenderer@@2P6AXXZA@@3P6AXXZA	??_Instance$initializer$@RedParticleRenderer@@2P6AXXZA@@3P6AXXZA	pcRedParticle.obj
+761	0002:0000133c	??_FarInstance$initializer$@RedParticleRenderer@@2P6AXXZA@@3P6AXXZA	??_FarInstance$initializer$@RedParticleRenderer@@2P6AXXZA@@3P6AXXZA	pcRedParticle.obj
+762	0002:00001340	?_TerrainRenderable$initializer$@@3P6AXXZA	void (__cdecl* _TerrainRenderable$initializer$)(void)	pcRedTerrain.obj
+763	0002:00001344	?cvForceFullDetail$initializer$@@3P6AXXZA	void (__cdecl* cvForceFullDetail$initializer$)(void)	pcRedTerrain.obj
+764	0002:00001348	?kuiUnderWaterShader$initializer$@@3P6AXXZA	void (__cdecl* kuiUnderWaterShader$initializer$)(void)	pcRedWater.obj
+765	0002:0000134c	?kuiPreReflectionShader$initializer$@@3P6AXXZA	void (__cdecl* kuiPreReflectionShader$initializer$)(void)	pcRedWater.obj
+766	0002:00001350	?kuiNormalMapAdderShader$initializer$@@3P6AXXZA	void (__cdecl* kuiNormalMapAdderShader$initializer$)(void)	pcRedWater.obj
+767	0002:00001354	?kuiWaterShader$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterShader$initializer$)(void)	pcRedWater.obj
+768	0002:00001358	?kuiOceanShader$initializer$@@3P6AXXZA	void (__cdecl* kuiOceanShader$initializer$)(void)	pcRedWater.obj
+769	0002:0000135c	?kuiWaterSplashTextureHash$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterSplashTextureHash$initializer$)(void)	pcRedWater.obj
+770	0002:00001360	?kuiWaterSplashShader$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterSplashShader$initializer$)(void)	pcRedWater.obj
+771	0002:00001364	?kuiWaterDistortionRingTextureHash$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterDistortionRingTextureHash$initializer$)(void)	pcRedWater.obj
+772	0002:00001368	?kuiWaterRingTextureHash$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterRingTextureHash$initializer$)(void)	pcRedWater.obj
+773	0002:0000136c	?kuiWaterRingShader$initializer$@@3P6AXXZA	void (__cdecl* kuiWaterRingShader$initializer$)(void)	pcRedWater.obj
+774	0002:00001370	?WATERSPLASH_COLOR$initializer$@@3P6AXXZA	void (__cdecl* WATERSPLASH_COLOR$initializer$)(void)	pcRedWater.obj
+775	0002:00001374	?kuiFilterShader$initializer$@@3P6AXXZA	void (__cdecl* kuiFilterShader$initializer$)(void)	pcShadowQuadRenderable.obj
+776	0002:00001378	?kuiClearShader$initializer$@@3P6AXXZA	void (__cdecl* kuiClearShader$initializer$)(void)	pcShadowQuadRenderable.obj
+777	0002:0000137c	??m_colorFog$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_colorFog$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
+778	0002:00001380	??m_opaqueQueues$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_opaqueQueues$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
+779	0002:00001384	??m_preShadowTransparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_preShadowTransparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
+780	0002:00001388	??m_transparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_transparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
+781	0002:0000138c	??m_posttransparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_posttransparentItems$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
+782	0002:00001390	??m_renderItemPool$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_renderItemPool$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
+783	0002:00001394	??m_aLightingStatePool$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	??m_aLightingStatePool$initializer$@RedRenderer@@2P6AXXZA@@3P6AXXZA	pcRedRenderer.obj
+784	0002:00001398	??s_textureHashTable$initializer$@RedTexture@@2P6AXXZA@@3P6AXXZA	??s_textureHashTable$initializer$@RedTexture@@2P6AXXZA@@3P6AXXZA	pcRedTexture.obj
+785	0002:0000139c	?sStaticVertexBufferHashTable$initializer$@@3P6AXXZA	void (__cdecl* sStaticVertexBufferHashTable$initializer$)(void)	pcRedVertexBuffer.obj
+786	0002:000013a0	?sDynamicVertexBufferHashTable$initializer$@@3P6AXXZA	void (__cdecl* sDynamicVertexBufferHashTable$initializer$)(void)	pcRedVertexBuffer.obj
+787	0002:000013a4	??s_uiRenderTypeHash$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	??s_uiRenderTypeHash$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	pcRefractionShader.obj
+788	0002:000013a8	??s_Factory$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	??s_Factory$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	pcRefractionShader.obj
+789	0002:000013ac	??s_shaderDef$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	??s_shaderDef$initializer$@pcRefractionShader@@0P6AXXZA@@3P6AXXZA	pcRefractionShader.obj
+790	0002:000013b0	?kuiLinearRamp$initializer$@@3P6AXXZA	void (__cdecl* kuiLinearRamp$initializer$)(void)	pcRefractionShader.obj
+791	0002:000013b4	??s_shaderDef$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	??s_shaderDef$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	pcShieldShader.obj
+792	0002:000013b8	?kuiSpecularSpotMap$initializer$@@3P6AXXZA	void (__cdecl* kuiSpecularSpotMap$initializer$)(void)	pcShieldShader.obj
+793	0002:000013bc	??s_uiRenderTypeHash$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	??s_uiRenderTypeHash$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	pcShieldShader.obj
+794	0002:000013c0	??s_Factory$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	??s_Factory$initializer$@pcShieldShader@@0P6AXXZA@@3P6AXXZA	pcShieldShader.obj
+795	0002:000013c4	?kuiLinearRamp$initializer$@@3P6AXXZA	void (__cdecl* kuiLinearRamp$initializer$)(void)	pcShieldShader.obj
+796	0002:000013c8	??s_shaderDef$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	??s_shaderDef$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	pcWaterShader.obj
+797	0002:000013cc	?kuiCubeNormalizationMap$initializer$@@3P6AXXZA	void (__cdecl* kuiCubeNormalizationMap$initializer$)(void)	pcWaterShader.obj
+798	0002:000013d0	?kuiLinearRamp$initializer$@@3P6AXXZA	void (__cdecl* kuiLinearRamp$initializer$)(void)	pcWaterShader.obj
+799	0002:000013d4	??s_uiRenderTypeHash$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	??s_uiRenderTypeHash$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	pcWaterShader.obj
+800	0002:000013d8	??s_Factory$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	??s_Factory$initializer$@pcWaterShader@@0P6AXXZA@@3P6AXXZA	pcWaterShader.obj
+801	0002:000013dc	??BLACK$initializer$@RedAmbientLight@@2P6AXXZA@@3P6AXXZA	??BLACK$initializer$@RedAmbientLight@@2P6AXXZA@@3P6AXXZA	RedAmbientLight.obj
+802	0002:000013e0	??WHITE$initializer$@RedAmbientLight@@2P6AXXZA@@3P6AXXZA	??WHITE$initializer$@RedAmbientLight@@2P6AXXZA@@3P6AXXZA	RedAmbientLight.obj
+803	0002:000013e4	??BLACK$initializer$@RedDirectionalLight@@2P6AXXZA@@3P6AXXZA	??BLACK$initializer$@RedDirectionalLight@@2P6AXXZA@@3P6AXXZA	RedDirectionalLight.obj
+804	0002:000013e8	??_HashTable$initializer$@RedModel@@2P6AXXZA@@3P6AXXZA	??_HashTable$initializer$@RedModel@@2P6AXXZA@@3P6AXXZA	RedModel.obj
+805	0002:000013ec	??sMemoryPool$initializer$@RedOmniLight@@2P6AXXZA@@3P6AXXZA	??sMemoryPool$initializer$@RedOmniLight@@2P6AXXZA@@3P6AXXZA	RedOmniLight.obj
+806	0002:000013f0	??BLACK$initializer$@RedOmniLight@@2P6AXXZA@@3P6AXXZA	??BLACK$initializer$@RedOmniLight@@2P6AXXZA@@3P6AXXZA	RedOmniLight.obj
+807	0002:000013f4	??sMemoryPool$initializer$@Entry@RedShadingPose@@2P6AXXZA@@3P6AXXZA	??sMemoryPool$initializer$@Entry@RedShadingPose@@2P6AXXZA@@3P6AXXZA	RedShadingState.obj
+808	0002:000013f8	??sMemoryPool$initializer$@RedShadingState@@2P6AXXZA@@3P6AXXZA	??sMemoryPool$initializer$@RedShadingState@@2P6AXXZA@@3P6AXXZA	RedShadingState.obj
+809	0002:000013fc	??_HashTable$initializer$@RedSkeleton@@2P6AXXZA@@3P6AXXZA	??_HashTable$initializer$@RedSkeleton@@2P6AXXZA@@3P6AXXZA	RedSkeleton.obj
+810	0002:00001400	??BLACK$initializer$@RedSpotLight@@2P6AXXZA@@3P6AXXZA	??BLACK$initializer$@RedSpotLight@@2P6AXXZA@@3P6AXXZA	RedSpotLight.obj
+811	0002:00001404	??rttiHashRed3DModelAnimator$initializer$@Red3DModelAnimator@@2P6AXXZA@@3P6AXXZA	??rttiHashRed3DModelAnimator$initializer$@Red3DModelAnimator@@2P6AXXZA@@3P6AXXZA	Red3DModelAnimator.obj
+812	0002:00001408	??s_fontHashTable$initializer$@RedFont@@2P6AXXZA@@3P6AXXZA	??s_fontHashTable$initializer$@RedFont@@2P6AXXZA@@3P6AXXZA	RedFont.obj
+813	0002:0000140c	?SQRT3$initializer$@@3P6AXXZA	void (__cdecl* SQRT3$initializer$)(void)	RedHotSpot.obj
+814	0002:00001410	??s_fCotHalfFOVx$initializer$@RedHotSpot@@2P6AXXZA@@3P6AXXZA	??s_fCotHalfFOVx$initializer$@RedHotSpot@@2P6AXXZA@@3P6AXXZA	RedHotSpot.obj
+815	0002:00001414	??s_fCotHalfFOVy$initializer$@RedHotSpot@@2P6AXXZA@@3P6AXXZA	??s_fCotHalfFOVy$initializer$@RedHotSpot@@2P6AXXZA@@3P6AXXZA	RedHotSpot.obj
+816	0002:00001418	??sAllObjectsList$initializer$@RedInterfaceElement@@2P6AXXZA@@3P6AXXZA	??sAllObjectsList$initializer$@RedInterfaceElement@@2P6AXXZA@@3P6AXXZA	RedInterfaceElement.obj
+817	0002:0000141c	??s_screenFull$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??s_screenFull$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
+818	0002:00001420	??s_directionalLight$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??s_directionalLight$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
+819	0002:00001424	??s_lightingState$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??s_lightingState$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
+820	0002:00001428	??sSQRT3$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??sSQRT3$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
+821	0002:0000142c	??sfWidth$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??sfWidth$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
+822	0002:00001430	??sfHeight$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	??sfHeight$initializer$@RedInterfaceScreen@@2P6AXXZA@@3P6AXXZA	RedInterfaceScreen.obj
+823	0002:00001434	?shadowBlobRandom$initializer$@@3P6AXXZA	void (__cdecl* shadowBlobRandom$initializer$)(void)	RedShadowBlob.obj
+824	0002:00001438	??s_aPoints$initializer$@RedVectorElement@@2P6AXXZA@@3P6AXXZA	??s_aPoints$initializer$@RedVectorElement@@2P6AXXZA@@3P6AXXZA	RedVectorElement.obj
+825	0002:0000143c	?displayableSuballoc_$initializer$@pvs@@3P6AXXZA	void (__cdecl* pvs::displayableSuballoc_$initializer$)(void)	Portal.obj
+826	0002:00001440	?g_Enable$initializer$@@3P6AXXZA	void (__cdecl* g_Enable$initializer$)(void)	Portal.obj
+827	0002:00001444	?g_SaveCam$initializer$@@3P6AXXZA	void (__cdecl* g_SaveCam$initializer$)(void)	Portal.obj
+828	0002:00001448	?g_BackFaceCull$initializer$@@3P6AXXZA	void (__cdecl* g_BackFaceCull$initializer$)(void)	Portal.obj
+829	0002:0000144c	?g_ProximityTest$initializer$@@3P6AXXZA	void (__cdecl* g_ProximityTest$initializer$)(void)	Portal.obj
+830	0002:00001450	?g_DebugDraw$initializer$@@3P6AXXZA	void (__cdecl* g_DebugDraw$initializer$)(void)	Portal.obj
+831	0002:00001454	??_HashTable$initializer$@RedAnimation@@2P6AXXZA@@3P6AXXZA	??_HashTable$initializer$@RedAnimation@@2P6AXXZA@@3P6AXXZA	RedAnimation.obj
+832	0002:00001458	?sMasterLocalizeHash$initializer$@@3P6AXXZA	void (__cdecl* sMasterLocalizeHash$initializer$)(void)	RedLocalizeDB.obj
+833	0002:0000145c	??sList$initializer$@RedRegionFactory@@2P6AXXZA@@3P6AXXZA	??sList$initializer$@RedRegionFactory@@2P6AXXZA@@3P6AXXZA	RedRegion.obj
+834	0002:00001460	??sRegionFactory$initializer$@RedRegionFactory@@2P6AXXZA@@3P6AXXZA	??sRegionFactory$initializer$@RedRegionFactory@@2P6AXXZA@@3P6AXXZA	RedRegion.obj
+835	0002:00001464	?gStackAllocator_$initializer$@?A0xffc11138@util@@3P6AXXZA	void (__cdecl* util::`anonymous namespace'::gStackAllocator_$initializer$)(void)	Allocator.obj
+836	0002:00001468	?gStaticAllocator_$initializer$@?A0xffc11138@util@@3P6AXXZA	void (__cdecl* util::`anonymous namespace'::gStaticAllocator_$initializer$)(void)	Allocator.obj
+837	0002:0000146c	?globals$initializer$@util@@3P6AXXZA	void (__cdecl* util::globals$initializer$)(void)	Globals.obj
+838	0002:00001470	?m_joysticks$initializer$@RedInputManager@@3P6AXXZA	void (__cdecl* RedInputManager::m_joysticks$initializer$)(void)	pcRedInputManager.obj
+839	0002:00001474	?m_mouses$initializer$@RedInputManager@@3P6AXXZA	void (__cdecl* RedInputManager::m_mouses$initializer$)(void)	pcRedInputManager.obj
+840	0002:00001478	?m_keyboards$initializer$@RedInputManager@@3P6AXXZA	void (__cdecl* RedInputManager::m_keyboards$initializer$)(void)	pcRedInputManager.obj
+841	0002:0000147c	?gLCDPanels$initializer$@@3P6AXXZA	void (__cdecl* gLCDPanels$initializer$)(void)	pcRedLogitechLCD.obj
+842	0002:00001480	??sRandom$initializer$@Properties@RedMovie@@2P6AXXZA@@3P6AXXZA	??sRandom$initializer$@Properties@RedMovie@@2P6AXXZA@@3P6AXXZA	RedMovie.obj
+843	0002:00001484	??smFreeList$initializer$@Bus@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Bus@Snd@@2P6AXXZA@@3P6AXXZA	sndbus.obj
+844	0002:00001488	??smRootBus$initializer$@Bus@Snd@@2P6AXXZA@@3P6AXXZA	??smRootBus$initializer$@Bus@Snd@@2P6AXXZA@@3P6AXXZA	sndbus.obj
+845	0002:0000148c	??smVoiceVirtualManager$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	??smVoiceVirtualManager$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	sndenginebase.obj
+846	0002:00001490	??smSoundRAMAllocator$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	??smSoundRAMAllocator$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	sndenginebase.obj
+847	0002:00001494	??smListeners$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	??smListeners$initializer$@EngineBase@Snd@@2P6AXXZA@@3P6AXXZA	sndenginebase.obj
+848	0002:00001498	??smQueuedFileOpListLock$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	??smQueuedFileOpListLock$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	sndfile.obj
+849	0002:0000149c	??smQueuedCommands$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	??smQueuedCommands$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	sndfile.obj
+850	0002:000014a0	??smQueuedFileOpList$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	??smQueuedFileOpList$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	sndfile.obj
+851	0002:000014a4	??smFileList$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	??smFileList$initializer$@File@Snd@@2P6AXXZA@@3P6AXXZA	sndfile.obj
+852	0002:000014a8	?sndRandom$initializer$@Snd@@3P6AXXZA	void (__cdecl* Snd::sndRandom$initializer$)(void)	sndglobals.obj
+853	0002:000014ac	??smFreeList$initializer$@I3DL2ReverbPreset@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@I3DL2ReverbPreset@Snd@@2P6AXXZA@@3P6AXXZA	sndi3dl2reverbpreset.obj
+854	0002:000014b0	??smList$initializer$@I3DL2ReverbPreset@Snd@@2P6AXXZA@@3P6AXXZA	??smList$initializer$@I3DL2ReverbPreset@Snd@@2P6AXXZA@@3P6AXXZA	sndi3dl2reverbpreset.obj
+855	0002:000014b4	??smFreeList$initializer$@Node@ObjectList@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Node@ObjectList@Snd@@2P6AXXZA@@3P6AXXZA	sndobjectlist.obj
+856	0002:000014b8	??smFreeList$initializer$@ObjectWeight@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@ObjectWeight@Snd@@2P6AXXZA@@3P6AXXZA	sndobjectweightlist.obj
+857	0002:000014bc	??smFreeList$initializer$@ControlPoint@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@ControlPoint@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	sndparametergraph.obj
+858	0002:000014c0	??smFreeList$initializer$@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	sndparametergraph.obj
+859	0002:000014c4	??smParameterGraphs$initializer$@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	??smParameterGraphs$initializer$@ParameterGraph@Snd@@2P6AXXZA@@3P6AXXZA	sndparametergraph.obj
+860	0002:000014c8	??smSampleBankList$initializer$@SampleBankBase@Snd@@2P6AXXZA@@3P6AXXZA	??smSampleBankList$initializer$@SampleBankBase@Snd@@2P6AXXZA@@3P6AXXZA	sndsamplebankbase.obj
+861	0002:000014cc	??smSource3Ds$initializer$@Sound@Snd@@2P6AXXZA@@3P6AXXZA	??smSource3Ds$initializer$@Sound@Snd@@2P6AXXZA@@3P6AXXZA	sndsound.obj
+862	0002:000014d0	??smFreeList$initializer$@Properties@Sound@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@Sound@Snd@@2P6AXXZA@@3P6AXXZA	sndsound.obj
+863	0002:000014d4	??smPropertyList$initializer$@Properties@Sound@Snd@@2P6AXXZA@@3P6AXXZA	??smPropertyList$initializer$@Properties@Sound@Snd@@2P6AXXZA@@3P6AXXZA	sndsound.obj
+864	0002:000014d8	??smSoundList$initializer$@Sound@Snd@@2P6AXXZA@@3P6AXXZA	??smSoundList$initializer$@Sound@Snd@@2P6AXXZA@@3P6AXXZA	sndsound.obj
+865	0002:000014dc	??smFreeList$initializer$@SoundLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@SoundLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
+866	0002:000014e0	??smFreeList$initializer$@Layer@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Layer@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
+867	0002:000014e4	??smFreeList$initializer$@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
+868	0002:000014e8	??smPropertyList$initializer$@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smPropertyList$initializer$@Properties@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
+869	0002:000014ec	??smActiveList$initializer$@FireForgetLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smActiveList$initializer$@FireForgetLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
+870	0002:000014f0	??smInactiveList$initializer$@FireForgetLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smInactiveList$initializer$@FireForgetLayer@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
+871	0002:000014f4	??smSoundLayeredList$initializer$@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	??smSoundLayeredList$initializer$@SoundLayered@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundlayered.obj
+872	0002:000014f8	??smFreeList$initializer$@Layer@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Layer@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
+873	0002:000014fc	??smFreeList$initializer$@Properties@Controller@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@Controller@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
+874	0002:00001500	??smFreeList$initializer$@Properties@Layer@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@Layer@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
+875	0002:00001504	??smFreeList$initializer$@Properties@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
+876	0002:00001508	??smPropertyList$initializer$@Properties@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smPropertyList$initializer$@Properties@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
+877	0002:0000150c	??smSoundParameterizedList$initializer$@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	??smSoundParameterizedList$initializer$@SoundParameterized@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundparameterized.obj
+878	0002:00001510	??smPropertyList$initializer$@Properties@SoundStream@Snd@@2P6AXXZA@@3P6AXXZA	??smPropertyList$initializer$@Properties@SoundStream@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundstream.obj
+879	0002:00001514	??smFreeList$initializer$@Properties@SoundStream@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Properties@SoundStream@Snd@@2P6AXXZA@@3P6AXXZA	sndsoundstream.obj
+880	0002:00001518	??smFreeList$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	sndsoundstream.obj
+881	0002:0000151c	??smQueue$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	??smQueue$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	sndsoundstream.obj
+882	0002:00001520	??smFree$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	??smFree$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	sndsoundstream.obj
+883	0002:00001524	??smFireForget$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	??smFireForget$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	sndsoundstream.obj
+884	0002:00001528	??smList$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	??smList$initializer$@SoundStream@Snd@@0P6AXXZA@@3P6AXXZA	sndsoundstream.obj
+885	0002:0000152c	??smFreeList$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	sndspace.obj
+886	0002:00001530	??smSpaceList$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	??smSpaceList$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	sndspace.obj
+887	0002:00001534	??smDefaultSpace$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	??smDefaultSpace$initializer$@Space@Snd@@2P6AXXZA@@3P6AXXZA	sndspace.obj
+888	0002:00001538	??smFreeList$initializer$@Connected@Space@Snd@@2P6AXXZA@@3P6AXXZA	??smFreeList$initializer$@Connected@Space@Snd@@2P6AXXZA@@3P6AXXZA	sndspace.obj
+889	0002:0000153c	??smInfoList$initializer$@Info@StreamBase@Snd@@2P6AXXZA@@3P6AXXZA	??smInfoList$initializer$@Info@StreamBase@Snd@@2P6AXXZA@@3P6AXXZA	sndstreambase.obj
+890	0002:00001540	??smList$initializer$@DSBuffer@Snd@@0P6AXXZA@@3P6AXXZA	??smList$initializer$@DSBuffer@Snd@@0P6AXXZA@@3P6AXXZA	snddsbuffer.obj
+891	0002:00001544	??smRendererList$initializer$@DSBufferRenderer@Snd@@2P6AXXZA@@3P6AXXZA	??smRendererList$initializer$@DSBufferRenderer@Snd@@2P6AXXZA@@3P6AXXZA	snddsbufferrenderer.obj
+892	0002:00001548	??smDummySecBuffer$initializer$@Engine@Snd@@2P6AXXZA@@3P6AXXZA	??smDummySecBuffer$initializer$@Engine@Snd@@2P6AXXZA@@3P6AXXZA	sndengine.obj
+893	0002:0000154c	?sndEngineThreadUpdate$initializer$@Snd@@3P6AXXZA	void (__cdecl* Snd::sndEngineThreadUpdate$initializer$)(void)	sndengine.obj
+894	0002:00001550	?smEngineUpdater$initializer$@@3P6AXXZA	void (__cdecl* smEngineUpdater$initializer$)(void)	sndengine.obj
+895	0002:00001554	?_smHighLowPass$initializer$@@3P6AXXZA	void (__cdecl* _smHighLowPass$initializer$)(void)	sndengine.obj
 896	0002:00001558	?kuiDummyRootHash$initializer$@@3P6AXXZA	void (__cdecl* kuiDummyRootHash$initializer$)(void)	ZephyrSkeleton.obj
 897	0002:0000155c	___xc_z	___xc_z	MSVCRT:initializers.obj

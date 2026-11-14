@@ -268,18 +268,6 @@ $script:LayoutTus = [ordered]@{
     'EntityWalker' = @('src\Battlefront2\Source\EntityWalker.cpp')
 }
 
-function Read-ClTlog {
-    if (-not (Test-Path -LiteralPath $tlogFile)) { throw "tlog not found: obj\Win32\$Configuration\BattlefrontII.tlog\cl.command.1.tlog" }
-    $flags = @{}
-    $keys = @()
-    foreach ($l in [IO.File]::ReadAllLines($tlogFile, [Text.Encoding]::Unicode)) {
-        $l = $l.TrimStart([char]0xFEFF)
-        if ($l.StartsWith('^')) { $keys = @($l.Substring(1).Split('|') | ForEach-Object { $_.ToUpperInvariant() }) }
-        elseif ($l -and $keys.Count) { foreach ($k in $keys) { $flags[$k] = $l }; $keys = @() }
-    }
-    return $flags
-}
-
 function Get-LayoutArgs($flagLine, $tuFull, $cls) {
     $f = $flagLine.Trim()
     if ($f.EndsWith($tuFull, [StringComparison]::OrdinalIgnoreCase)) { $f = $f.Substring(0, $f.Length - $tuFull.Length) }
@@ -308,7 +296,7 @@ function Step-Layouts {
     $vcBin = Get-VcBin
     $cl = Join-Path $vcBin 'cl.exe'
     if (-not $env:DXSDK_DIR) { Write-Host 'DXSDK_DIR not set (install the DirectX SDK June 2010).'; exit 2 }
-    $flags = Read-ClTlog
+    $flags = Read-ClTlog @(Get-GameProjects $root $Configuration | ForEach-Object { $_.TlogDir })
     $pairs = New-Object System.Collections.ArrayList
     $seen = @{}
     $cpps = @(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Recurse -Filter '*.cpp' -File)
@@ -326,17 +314,19 @@ function Step-Layouts {
     $layoutDir = Join-Path $OutDir 'layouts'
     New-Item -ItemType Directory -Force -Path $layoutDir | Out-Null
     $index = New-Object System.Collections.Generic.List[string]
-    $problems = New-Object System.Collections.Generic.List[string]
+    $resolved = Resolve-LayoutPairs $pairs $flags $root
+    $problems = $resolved.Problems
     $oldInclude = $env:INCLUDE
-    $env:INCLUDE = (Join-Path (Split-Path $vcBin -Parent) 'include') + ';' + (Join-Path ${env:ProgramFiles(x86)} 'Microsoft SDKs\Windows\v7.1A\Include') + ';' + $env:DXSDK_DIR.TrimEnd('\') + '\Include'
+    $includePath = (& (Find-MSBuild) (Join-Path $root 'BattlefrontII.vcxproj') -getProperty:IncludePath "-p:Configuration=$Configuration" -p:Platform=Win32 -nologo | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $includePath) { throw "IncludePath evaluation failed: $includePath" }
+    $env:INCLUDE = $includePath
     $written = 0
     try {
-        foreach ($pair in $pairs) {
-            $cls = $pair[0]
-            $tu = (Resolve-FullPath $pair[1])
-            $rel = $tu.Substring($root.Length + 1)
-            $fl = $flags[$tu.ToUpperInvariant()]
-            if (-not $fl) { Write-Host "NOTE: $rel not in the tlog, skipped for $cls"; continue }
+        foreach ($w in $resolved.Work) {
+            $cls = $w.Class
+            $tu = $w.Tu
+            $rel = $w.Rel
+            $fl = $w.Flags
             $r = Invoke-Tool $cl (Get-LayoutArgs $fl $tu $cls) $root
             if ($r.Code -ne 0) {
                 $msg = ($r.Out -split "\r?\n" | Where-Object { $_ -match 'error' } | Select-Object -First 1)

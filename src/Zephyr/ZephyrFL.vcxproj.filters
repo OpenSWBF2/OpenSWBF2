@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source"><UniqueIdentifier>{07ED4D43-8637-49FE-81B8-73A36242DE0E}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Source\ZephyrAnim.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrAnimBank.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrAnimBankReader.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrAnimInst.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrAnimJoint.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrEvent.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrFile.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrPoseDyn.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrPoseStatic.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrSkeleton.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrSkeletonShared.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrSkinReader.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\ZephyrSkinShared.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClInclude Include="Source\ZephyrAnim.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrAnimBank.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrAnimBankReader.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrAnimInst.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrAnimJoint.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrEvent.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrFile.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrPoseDyn.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrPoseStatic.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrSkeleton.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrSkeletonShared.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrSkinReader.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrSkinShared.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrCommon.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ZephyrJoint.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

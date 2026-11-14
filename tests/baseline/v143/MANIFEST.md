@@ -19,15 +19,15 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 
 | File | SHA-256 | Produced by |
 |------|---------|-------------|
-| `CAUSES.md` | 40846855FFC01A0986EE218E3221D9F81825BC1082A61D8EF92FC8349964E495 | written by hand from the comparison against `tests/baseline/vs2013/` |
-| `smoke-all.txt` | 4EDE59DF89E2817F0C26F11B2BE354BA38EF9646F349FA6A869F57B373FAB6D2 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
-| `smoke-all-digests.txt` | 5B374005DEDD9EB662A45A8FF4BA0EDDCD24FF039AF8953AFAA6E01C02CCF5F2 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
+| `CAUSES.md` | FB7DF4D51BCD30E253A145F31C3174CE3E059BF8AA1DB8BFB49F048D92E29A73 | written by hand from the comparison against `tests/baseline/vs2013/` |
+| `smoke-all.txt` | D97D3927FBFF9F1609A4F8AF4D5A4ED7E66BC23FA504D0B0130AD07CC5E1B98F | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
+| `smoke-all-digests.txt` | 19CEA63BB35A4F6CD975C5B76BB9A1B90B525F9BC30ABA7AD5CB15BB961FBB81 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `pool-sizes.txt` | A2FA679AC1174C9082D1E3DE216F82FC16B5E20B35A41C09AC4F081CF9643D72 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `mem-peaks.txt` | D24B076240DC0D686B07C7F1D33EF273F88E928C863E9C11878061FF3A7D41B0 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `cloth-headroom.txt` | 7C388EDBA9ADC4CF1D82A8C66FD7409CAF534B023E630AB59F9844312104F720 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
-| `hardening.txt` | D2C74F5DCA5A00E37CC397BD59AE7944E1A758BA1955940571ABB924EA55E99C | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
-| `guard-revert.txt` | 1F53C75E11D455FC7F3900D9435F4B57FC84BA92F623FF4E2431264D59B5DECE | `capture-vs2013.ps1 -Tables` from `guard-revert.ps1` |
-| `offthread.txt` | 994F3F31C1A458C5EF9C1530AE0E53033D6D63345519A72FD7B91BACDF9F4108 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
+| `hardening.txt` | E82BC9D9E4809881593B71B254B649C31B2876E2227BD47021E2F939DF09DA6A | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
+| `guard-revert.txt` | 53DEC42C83223A67019B6A07F431171A1276C468D246077A4CEEBD29483886E9 | `capture-vs2013.ps1 -Tables` from `guard-revert.ps1` |
+| `offthread.txt` | 99464E886C366A3DE747B99589A71F3E1DA3A9533BF696DD8A5DD3054D43F6F7 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
 | `perturb.txt` | 795F0EAC42D40500FD32D4C32FCA9639A3518D2F30F2616819D9624AAAABFDD0 | `capture-vs2013.ps1 -Configuration Test -Tables -PerturbDir` from `run.ps1 -Configuration Test -Smoke Perturb` |
 | `lua-bins.txt` | A6E3FF46D1E8A6D69232061361199590BC6FB0C1AEEF6EFF0A0E19F69DA5936A | `capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All` |
 | `digests-debug.txt` | B0856D73AF662CC495ECC019194E0DE150C71A8BA648B9211A33C29AEB18A122 | `capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug` |
@@ -41,8 +41,8 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 | `factory-hot1g_con.txt` | 21739D89813BFA37EC08B53900C0EDE5AD79CA96D8DFDEBAEDE5692127F3E5D6 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
 | `factory-nab2g_c.txt` | 2192336505D7A03D0ABD400927A962AFB6EF09358AB6E572657AC7A4EC0C94E7 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
 | `factory-spa3c_ass.txt` | 0FDB0B17217BBC000279BBCD49AE05681C8ACB199306878FE0AA8E485714CABF | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `initializers.txt` | C93002CC60FE149F7DBF199205762D9646EE3696D181FEEDB77D2B55FF63C57F | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
-| `initializers-di.txt` | 45C761523D10CBF52D9EA2B3D863CA293D86EA828A83022DFCCA1F34D09CD14C | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
+| `initializers.txt` | 184644E824752C8F2FC0D1CA29ADED564988EBAABE3ADA809E5929A750A2409F | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
+| `initializers-di.txt` | 82389F9235DD1FFFFF1E96064501FDFCDFD19FE21CB5BA1D3F54E0B140B5E9DD | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
 | `initializers-discarded.txt` | 62CCD0A3248EFDA4CCE34E98E8850187AE1618DB20FE583B72B70B327F9499B6 | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
 
 ## Notes
@@ -58,4 +58,5 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 - Phase 41 re-captured `mem-peaks.txt`, `cloth-headroom.txt`, `smoke-all.txt`, `hardening.txt` (Release) and `lua-bins.txt` (Test) from mimalloc runs. `compare-tables.ps1` compares `mem-peaks.txt` (Lua rows included), `cloth-headroom.txt`, `pool-sizes.txt` and `smoke-all-digests.txt` exactly, so the hand-written cloth slack table was deleted.
 - The phase 41 code review re-captured `mem-peaks.txt` and `cloth-headroom.txt` once more: `StickInfo` gained a 4-byte stick key, so its pool rows are 48 bytes and every mission's Runtime heap holds 240 more bytes. No other row moved.
 - Phase 42 (Gametoast 0c1bbd3e) re-captured, with the user's approval, `smoke-all-digests.txt` (the spa3c_ass row only; the `dedicated` row keeps its earlier value, as it is wall-clock and not compared) and `mem-peaks.txt` from `artifacts/tests/20261112-054020` (C-FLYER-REACT), and `initializers*.txt` from the 277bc98c Release map (C-INIT-ORDER-42), all on game commit 277bc98c.
+- Phase 43 (static-library split) re-captured, with the user's approval, `initializers.txt` and `initializers-di.txt` from the 4919bf44 Release map (C-SPLIT-STEAM-INIT), and added the `crash-stickdelete` row to `smoke-all-digests.txt` (the `dedicated` row keeps its pinned value) and the `crt-heap-ban` and `mimalloc-crt-hooks` lines to `hardening.txt` and `smoke-all.txt`. `smoke-all.txt` comes from a Release `-Smoke All` run with the new digest row pinned.
 - `capture-vs2013.ps1 -Archive` and `-Verify` assume the VS2013 build identity and are not used for this directory.

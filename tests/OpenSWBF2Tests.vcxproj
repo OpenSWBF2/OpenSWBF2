@@ -122,6 +122,7 @@
     <ClCompile Include="..\src\Battlefront2\Source\NetComm.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\Tracker.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\CollisionObject.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\StickInfo.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\PathFinder.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\PathManager.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\ControllerManager.cpp" />

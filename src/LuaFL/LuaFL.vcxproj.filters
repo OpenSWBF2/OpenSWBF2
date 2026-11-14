@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <ItemGroup>
+    <Filter Include="src"><UniqueIdentifier>{1D718C4D-EED1-51E5-9B0C-E8E0DB4C7E4E}</UniqueIdentifier></Filter>
+    <Filter Include="src\lib"><UniqueIdentifier>{9C6A2945-A2F4-5086-B044-8324B66E8BFF}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\lapi.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lcode.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\ldebug.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\ldo.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\ldump.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lfunc.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lgc.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lib\lauxlib.cpp"><Filter>src\lib</Filter></ClCompile>
+    <ClCompile Include="src\lib\lbaselib.cpp"><Filter>src\lib</Filter></ClCompile>
+    <ClCompile Include="src\lib\ldblib.cpp"><Filter>src\lib</Filter></ClCompile>
+    <ClCompile Include="src\lib\liolib.cpp"><Filter>src\lib</Filter></ClCompile>
+    <ClCompile Include="src\lib\lmathlib.cpp"><Filter>src\lib</Filter></ClCompile>
+    <ClCompile Include="src\lib\lstrlib.cpp"><Filter>src\lib</Filter></ClCompile>
+    <ClCompile Include="src\lib\ltablib.cpp"><Filter>src\lib</Filter></ClCompile>
+    <ClCompile Include="src\llex.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lmem.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lobject.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lopcodes.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lparser.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lstate.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lstring.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\ltable.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\ltm.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lundump.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lvm.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\lzio.cpp"><Filter>src</Filter></ClCompile>
+  </ItemGroup>
+</Project>

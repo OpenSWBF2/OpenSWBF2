@@ -394,6 +394,50 @@ bool HasText(const std::string& sText, const char* pcNeedle)
     return sText.find(pcNeedle) != std::string::npos;
 }
 
+class HeapStickTarget : public CollisionObject
+{
+public:
+    HeapStickTarget() : CollisionObject(COLL_SOFT, 0, 0, 0) {}
+
+    const PblVector3& GetPosition() const { return mLastPosition; }
+    const PblMatrix& GetMatrix() const
+    {
+        static PblMatrix sMatrix;
+        return sMatrix;
+    }
+};
+
+struct StickPoolGuard
+{
+    explicit StickPoolGuard(unsigned int uCount)
+    {
+        StickInfo::sMemoryPool.Destroy();
+        StickInfo::ClearRegistries();
+        StickInfo::SetupMemoryPool(uCount, sizeof(StickInfo), 2);
+    }
+
+    ~StickPoolGuard()
+    {
+        StickInfo::ClearRegistries();
+        StickInfo::sMemoryPool.Destroy();
+    }
+};
+
+StickInfo* NewStick(CollisionObject* pTarget)
+{
+    StickInfo* pStick = new StickInfo;
+    pStick->mCollObject = pTarget;
+    pStick->mCollBodyID = -1;
+    return pStick;
+}
+
+HeapStickTarget* NewStickTarget()
+{
+    HeapStickTarget* pObject = new HeapStickTarget;
+    pObject->mCollisionModel = 0;
+    return pObject;
+}
+
 int CountOf(const std::string& sText, const char* pcNeedle)
 {
     int iCount = 0;
@@ -754,6 +798,155 @@ TEST_CASE("mine stuck to a deleted prop does not keep its link to a new object a
     CHECK(PrepareCallsFor(kMine, *pReused) == 1);
     CHECK(PrepareCallsFor(*pReused, kMine) == 1);
     pReused->~StickTestObject();
+}
+
+TEST_CASE("deleting a stuck-to collision object clears the stick and the stuck mine parent before the follow read" * doctest::test_suite("regression"))
+{
+    StickPoolGuard kPool(4);
+    StickTestObject kMine;
+    StickTestObject kOtherMine;
+    StickTestObject kElse;
+    HeapStickTarget* pProp = NewStickTarget();
+    StickInfo* pStick = NewStick(pProp);
+    StickInfo* pOtherStick = NewStick(&kElse);
+    kMine.mParent = pProp;
+    kOtherMine.mParent = &kElse;
+    StickInfo::TrackMine(&kMine);
+    StickInfo::TrackMine(&kOtherMine);
+
+    PblMatrix kBody;
+    bool bHasBody = true;
+    CHECK(pStick->FollowTarget(kBody, bHasBody));
+    CHECK(!bHasBody);
+
+    delete pProp;
+    CHECK(!pStick->mCollObject);
+    CHECK(!kMine.mParent);
+    CHECK(pOtherStick->mCollObject == &kElse);
+    CHECK(kOtherMine.mParent == &kElse);
+    CHECK(!pStick->FollowTarget(kBody, bHasBody));
+    CHECK(pOtherStick->FollowTarget(kBody, bHasBody));
+
+    StickInfo::UntrackMine(&kMine);
+    StickInfo::UntrackMine(&kOtherMine);
+    delete pStick;
+    delete pOtherStick;
+}
+
+TEST_CASE("deleting an unrelated collision object leaves every stick unchanged" * doctest::test_suite("regression"))
+{
+    StickPoolGuard kPool(4);
+    StickTestObject kMine;
+    StickTestObject kTarget;
+    HeapStickTarget* pUnrelated = NewStickTarget();
+    StickInfo* pStick = NewStick(&kTarget);
+    kMine.mParent = &kTarget;
+    StickInfo::TrackMine(&kMine);
+
+    delete pUnrelated;
+    CHECK(pStick->mCollObject == &kTarget);
+    CHECK(kMine.mParent == &kTarget);
+
+    StickInfo::UntrackMine(&kMine);
+    delete pStick;
+}
+
+TEST_CASE("a stick deleted before its target leaves no registry entry" * doctest::test_suite("regression"))
+{
+    StickPoolGuard kPool(4);
+    HeapStickTarget* pProp = NewStickTarget();
+    StickInfo* pStick = NewStick(pProp);
+    delete pStick;
+    StickInfo* pNext = NewStick(0);
+    pNext->mCollObject = pProp;
+    delete pNext;
+    StickInfo* pKeep = NewStick(pProp);
+    delete pProp;
+    CHECK(!pKeep->mCollObject);
+    delete pKeep;
+}
+
+TEST_CASE("sticks allocated past the initial stick pool count are all forgotten with their target" * doctest::test_suite("regression"))
+{
+    StickPoolGuard kPool(2);
+    HeapStickTarget* pProp = NewStickTarget();
+    StickInfo* apStick[7];
+    for (int i = 0; i < 7; ++i)
+    {
+        apStick[i] = NewStick(pProp);
+        REQUIRE(apStick[i]);
+    }
+    CHECK(StickInfo::sMemoryPool.GetGrown() > 0);
+    delete pProp;
+    for (int i = 0; i < 7; ++i)
+    {
+        CHECK(!apStick[i]->mCollObject);
+        delete apStick[i];
+    }
+}
+
+TEST_CASE("clearing the stick registries leaves nothing for a later target death" * doctest::test_suite("regression"))
+{
+    StickPoolGuard kPool(4);
+    StickTestObject kMine;
+    HeapStickTarget* pProp = NewStickTarget();
+    StickInfo* pStick = NewStick(pProp);
+    kMine.mParent = pProp;
+    StickInfo::TrackMine(&kMine);
+
+    StickInfo::ClearRegistries();
+    delete pProp;
+    CHECK(pStick->mCollObject == static_cast<CollisionObject*>(pProp));
+    CHECK(kMine.mParent == static_cast<CollisionObject*>(pProp));
+    kMine.mParent = 0;
+    delete pStick;
+}
+
+TEST_CASE("collision object death forgets sticks and the three stick reads go through the follow helper (source pin)" * doctest::test_suite("regression"))
+{
+    std::string sCollision;
+    std::string sMine;
+    std::string sSticky;
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\CollisionObject.cpp", sCollision));
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntityMine.cpp", sMine));
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\OrdnanceSticky.cpp", sSticky));
+    CHECK(HasText(sCollision, "CollisionObject::~CollisionObject()\n{\n    StickInfo::ForgetTarget(this);"));
+    CHECK(CountOf(sMine, "pStick->FollowTarget(mBody, bHasBody)") == 1);
+    CHECK(CountOf(sSticky, "mStickInfo->FollowTarget(mBody, bHasBody)") == 1);
+    CHECK(CountOf(sSticky, "pStick->FollowTarget(mBody, bHasBody)") == 1);
+    CHECK(!HasText(sMine, "->mCollObject;"));
+    CHECK(!HasText(sSticky, "->mCollObject;"));
+    CHECK(!HasText(sSticky, "!pStick->mCollObject"));
+    CHECK(HasText(sMine, "StickInfo::TrackMine(this);"));
+    CHECK(CountOf(sMine, "StickInfo::UntrackMine(this);") == 2);
+    CHECK(!HasText(sMine, "StickInfo::sMemoryPool.Free("));
+}
+
+TEST_CASE("stick registries are cleared with the live entity set" * doctest::test_suite("regression"))
+{
+    std::string sState;
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\GameState.cpp", sState));
+    const std::string::size_type uiStart = sState.find("void GameState::PostStateCleanup(bool bMission)\n{");
+    REQUIRE(uiStart != std::string::npos);
+    const std::string::size_type uiEnd = sState.find("\n}\n", uiStart);
+    REQUIRE(uiEnd != std::string::npos);
+    const std::string::size_type uiAt = sState.find("    EntityEx::sLive.Clear();\n    StickInfo::ClearRegistries();\n", uiStart);
+    CHECK(uiAt != std::string::npos);
+    CHECK(uiAt < uiEnd);
+    CHECK(CountOf(sState, "StickInfo::ClearRegistries();") == 1);
+}
+
+TEST_CASE("client stick restore needs a named object and a mine re-stick reuses its stick (source pin)" * doctest::test_suite("regression"))
+{
+    std::string sNet;
+    std::string sMine;
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetState.cpp", sNet));
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntityMine.cpp", sMine));
+    CHECK(HasText(sNet, "GameObject* pObject = ReadObjectPtr(group);"));
+    CHECK(CountOf(sNet, "if (pObject && !mStickInfo && StickInfo::sMemoryPool.mUsed < StickInfo::sMemoryPool.mCount)") == 1);
+    CHECK(CountOf(sMine, "(mStickInfo || StickInfo::sMemoryPool.mUsed < StickInfo::sMemoryPool.mCount))") == 1);
+    CHECK(CountOf(sMine, "        if (!mStickInfo)\n        {\n            mStickInfo = new StickInfo;\n        }\n") == 1);
+    CHECK(CountOf(sMine, "new StickInfo") == 1);
 }
 
 TEST_CASE("a cloth that dies while cloth is disabled leaves its bank" * doctest::test_suite("regression"))

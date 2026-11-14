@@ -40,4 +40,20 @@ TEST_CASE("deprecated winsock calls are allowed only in nonport" * doctest::test
     const size_t uiItem = ItemAt(sText, "src\\GameSpyFL\\nonport.c");
     CHECK(sText.rfind("<ClCompile Include=\"", uiDefine) == uiItem);
     CHECK(sText.find("</ClCompile>", uiItem) > uiDefine);
+
+    const char* const apcShared[] = {
+        "OpenSWBF2.Game.props",
+        "src\\LuaFL\\LuaFL.vcxproj",
+        "src\\RedEngineFL\\RedEngineFL.vcxproj",
+        "src\\mimalloc\\mimalloc.vcxproj",
+        "src\\SoundFL\\SoundFL.vcxproj",
+        "src\\Zephyr\\ZephyrFL.vcxproj",
+        "src\\ZlibFL\\ZLibFL.vcxproj",
+    };
+    for (const char* pcPath : apcShared)
+    {
+        std::string sShared;
+        REQUIRE_MESSAGE(ReadRepoText(pcPath, sShared), pcPath);
+        CHECK_MESSAGE(sShared.find(sDefine) == std::string::npos, pcPath);
+    }
 }

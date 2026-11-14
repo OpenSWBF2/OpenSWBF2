@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <ItemGroup>
+    <Filter Include="src"><UniqueIdentifier>{F395F2CF-C908-5E2E-A12B-E905D71A3F68}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="compress.c"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="crc32.c"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="deflate.c"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="inffast.c"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="inflate.c"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="inftrees.c"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="trees.c"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="zutil.c"><Filter>src</Filter></ClCompile>
+  </ItemGroup>
+</Project>

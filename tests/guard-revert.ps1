@@ -307,7 +307,7 @@ try {
         Hashes = (Get-GuardHashes)
         TestsReads = (Read-ClReadTlog (Join-Path $root "obj\Tests\$script:TestsConfiguration\OpenSWBF2Tests.tlog\CL.read.1.tlog") $tlogRoot)
         AsanReads = (Read-ClReadTlog (Join-Path $root 'obj\Tests\Asan\OpenSWBF2Tests.tlog\CL.read.1.tlog') $tlogRoot)
-        GameReads = (Read-ClReadTlog (Join-Path $root "obj\Win32\$script:GameConfiguration\BattlefrontII.tlog\CL.read.1.tlog") $tlogRoot)
+        GameReads = (Read-ClReadTlogs @(Get-GameProjects $root $script:GameConfiguration | ForEach-Object { Join-Path $_.TlogDir 'CL.read.1.tlog' }) $tlogRoot)
         TestsProjectGameTUs = (Get-TestsProjectGameTUs)
         TestSources = $testInfo.Sources
         TestLiterals = $testInfo.Literals
@@ -581,12 +581,12 @@ try {
                 if ($project -eq 'tests') { return (Build-Tests $wt $logPath) }
                 return (Build-Game $wt $logPath)
             }
-            $tlogDirs = @{ game = (Join-Path $wt "obj\Win32\$script:GameConfiguration\BattlefrontII.tlog"); tests = (Join-Path $wt "obj\Tests\$script:TestsConfiguration\OpenSWBF2Tests.tlog") }
+            $tlogDirs = @{ game = @(Get-GameProjects $wt $script:GameConfiguration | ForEach-Object { $_.TlogDir }); tests = (Join-Path $wt "obj\Tests\$script:TestsConfiguration\OpenSWBF2Tests.tlog") }
             $getFlag = {
                 param($name)
                 $game = $null
                 $tests = $null
-                if (Test-Path -LiteralPath $tlogDirs.game) { $game = Get-ClTlogCounts $tlogDirs.game }
+                if (@($tlogDirs.game | Where-Object { Test-Path -LiteralPath $_ }).Count) { $game = Get-ClTlogCounts $tlogDirs.game }
                 if (Test-Path -LiteralPath $tlogDirs.tests) { $tests = Get-ClTlogCounts $tlogDirs.tests }
                 return (Get-FlagChecks $game $tests $script:GameConfiguration $script:TestsConfiguration | Where-Object { $_.Name -eq $name })
             }
@@ -610,7 +610,7 @@ try {
                 if (-not $ctlChk.Ok) { $ctl = 'FAIL' }
                 try {
                     $orig = Set-Anchor $path $r.Anchor $r.Replacement
-                    Get-ChildItem -LiteralPath $tlogDirs[$r.Project] -Filter 'cl.command*.tlog' -ErrorAction SilentlyContinue | Remove-Item -Force
+                    foreach ($td in @($tlogDirs[$r.Project])) { Get-ChildItem -LiteralPath $td -Filter 'cl.command*.tlog' -ErrorAction SilentlyContinue | Remove-Item -Force }
                     $built = & $buildProj $r.Project (Join-Path $OutDir "build-$($r.Id).log")
                     $fresh = (Get-ClTlogCounts $tlogDirs[$r.Project]).Total
                     if ($built -or $fresh -gt 0) {

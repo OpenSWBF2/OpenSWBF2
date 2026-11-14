@@ -2314,7 +2314,7 @@ void EntityMine::ReadObject(NetPktGroup& group, NetObjState*)
             group.ReadBits(body, 4);
             ReadPositionVector(group, position);
             ReadQuaternion(group, rotation);
-            if (!mStickInfo)
+            if (pObject && !mStickInfo && StickInfo::sMemoryPool.mUsed < StickInfo::sMemoryPool.mCount)
             {
                 mStickInfo = new StickInfo;
                 mStickInfo->mCollObject = pObject->GetCollisionObject();

@@ -8,6 +8,7 @@
 #include "Controllable.h"
 #include "GameObject.h"
 #include "Restrictor.h"
+#include "StickInfo.h"
 #include <new>
 #include "PebbleFL/Common/PblList.h"
 
@@ -275,6 +276,7 @@ void CollisionObject::AddShieldToCollisionManager()
 // FUNCTION: SWBF2 0x00463ba0
 CollisionObject::~CollisionObject()
 {
+    StickInfo::ForgetTarget(this);
     RemoveFromCollisionManager();
 }
 
