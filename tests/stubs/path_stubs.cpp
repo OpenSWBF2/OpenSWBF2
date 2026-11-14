@@ -114,7 +114,7 @@ unsigned char AILowLevel::GetPathQueueDepth() { return 0; }
 void AIVisRegionManager::UpdateNextRegion() {}
 void AI::VOHelper::Update() {}
 void VehicleManager::Update() {}
-void* AIPath::operator new(unsigned int uSize) { return malloc(uSize); }
+void* AIPath::operator new(size_t uSize) { return malloc(uSize); }
 
 PblHash EntitySoldier::rttiHashEntitySoldier("EntitySoldier");
 PblHash PlayerController::rttiHashPlayerController("PlayerController");

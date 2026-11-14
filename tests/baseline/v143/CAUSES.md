@@ -1635,6 +1635,49 @@ check), Test `-Smoke Perturb` (`serial equal runs=56/56`, rows equal to `perturb
 - Factory: Phase 42 re-check: all six factory logs are byte-identical between e9a7cc62 and the
   branch.
 
+## Phase 43: static-library split and stick target against 0352ab66
+
+Phase 43 split the single game project into the exe and six static libraries linked as object
+inputs, made a collision object's death clear every stick and stuck mine that names it, and fixed
+the client stick restore. The reference is 0352ab66, the Phase 42 result (P42). The measurement is
+on the reviewed tree: two Release `-Smoke All` runs (`artifacts/tests/20261113-211209` and
+`-212946`, tables byte-equal apart from the wall-clock `dedicated` row), `-Collect`, `-Map`,
+`-Hardening`, Debug `-Smoke Twice`, Test `-Smoke All` (lua-bins, off-thread) and Test
+`-Smoke Perturb`, each compared with this directory.
+
+Digests, final scores, CLOTH, mem-peaks, pool-sizes, lua-bins, Perturb, Debug digests, the four
+factory logs and the four 1600-turn digest traces are equal to P42 on every mission. The only moved
+rows are in `initializers.txt` and `initializers-di.txt` (below). New rows (the `crash-stickdelete`
+case, the `mimalloc-crt-hooks` hardening line and the off-thread rows of four crash cases) are
+additions, not moves. The `crt-heap-ban` line that `hardening.txt` and `smoke-all.txt` also lack is
+not from Phase 43: e9a7cc62 (Phase 41) added the check after f1090621 last captured both files, and
+the P42 runs already print it.
+
+### C-SPLIT-STEAM-INIT
+
+- No digest row moved. Only `initializers.txt` and `initializers-di.txt` change; no check reads
+  them.
+- Cause: at P42 the single project listed `src\Steam\gfGalaxy.cpp`, `gfSteamAuth.cpp` and
+  `src\lglcd\lgLcd.cpp` last, after the zlib items. With library objects linked as inputs every exe
+  object precedes every library object, so `gfSteamAuth.obj` now initializes after `PblTime.obj`
+  and before `RedWater.obj`, the first library initializer. `gfGalaxy.obj` and `lgLcd.obj` have no
+  initializers; PebbleFL, GameSpyFL and Battlefront2 objects preceded every library object at P42
+  too.
+- `initializers.txt`: 898 rows on both, the same (symbol, object) multiset. The
+  `gEncryptedAppTicket` and `gFriendConnectionStrings` initializer pointers of `gfSteamAuth.obj`
+  move from rows 895-896 to 748-749, and the 147 rows between shift by 8 bytes. No spelling change.
+- `initializers-di.txt`: 903 rows on both, the same multiset. The same two dynamic initializers
+  move from rows 901-902 to 632-633; 272 rows change code address (the two moved functions and 270
+  library functions whose `.text` now follows every exe object). No spelling change.
+- Safety: `gEncryptedAppTicket` is a default `std::string` and allocates nothing.
+  `gFriendConnectionStrings` is a default `std::unordered_map` that allocates through the global
+  `operator new`. The heap is already built at both positions by `PblHeap.obj`'s `test`
+  initializer (row 742 in both trees), whose first `operator new[]` runs `Startup_RedInitHeap`, and
+  no library initializer or atexit destructor writes allocator state. mimalloc's hooks stay in
+  `.CRT$XIB`/`.CRT$XLB`/`.CRT$XLY` at P42's addresses. The two globals are read only by Steam
+  callbacks and shell queries after `WinMain`.
+- Status: re-pinned with user approval 2026-11-13.
+
 ## Policy
 
 The v143 files in `tests/corpus/` and this directory are the reference from now on. The digest

@@ -24,6 +24,7 @@ bool CollisionManager::AddShieldBody(CollisionObject*) { return true; }
 bool CollisionManager::RemoveBody(CollisionObject*) { return true; }
 
 int CollisionModel::GetNumBodies() const { return 0; }
+PblMatrix CollisionModel::GetWorldMatrix(int, const PblMatrix& matrix, const RedPose*) const { return matrix; }
 int gPrepareCollisionCalls;
 
 bool CollisionModel::PrepareCollision(CollisionObject*, const CollisionModel*, CollisionObject*,

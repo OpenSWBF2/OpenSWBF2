@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{4F910B28-63C7-4E59-BA94-035643220A73}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>ZephyrFL</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="..\..\OpenSWBF2.Game.props" />
+  <ItemGroup>
+    <ClCompile Include="Source\ZephyrAnim.cpp" />
+    <ClCompile Include="Source\ZephyrAnimBank.cpp" />
+    <ClCompile Include="Source\ZephyrAnimBankReader.cpp" />
+    <ClCompile Include="Source\ZephyrAnimInst.cpp" />
+    <ClCompile Include="Source\ZephyrAnimJoint.cpp" />
+    <ClCompile Include="Source\ZephyrEvent.cpp" />
+    <ClCompile Include="Source\ZephyrFile.cpp" />
+    <ClCompile Include="Source\ZephyrPoseDyn.cpp" />
+    <ClCompile Include="Source\ZephyrPoseStatic.cpp" />
+    <ClCompile Include="Source\ZephyrSkeleton.cpp" />
+    <ClCompile Include="Source\ZephyrSkeletonShared.cpp" />
+    <ClCompile Include="Source\ZephyrSkinReader.cpp" />
+    <ClCompile Include="Source\ZephyrSkinShared.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Source\ZephyrAnim.h" />
+    <ClInclude Include="Source\ZephyrAnimBank.h" />
+    <ClInclude Include="Source\ZephyrAnimBankReader.h" />
+    <ClInclude Include="Source\ZephyrAnimInst.h" />
+    <ClInclude Include="Source\ZephyrAnimJoint.h" />
+    <ClInclude Include="Source\ZephyrEvent.h" />
+    <ClInclude Include="Source\ZephyrFile.h" />
+    <ClInclude Include="Source\ZephyrPoseDyn.h" />
+    <ClInclude Include="Source\ZephyrPoseStatic.h" />
+    <ClInclude Include="Source\ZephyrSkeleton.h" />
+    <ClInclude Include="Source\ZephyrSkeletonShared.h" />
+    <ClInclude Include="Source\ZephyrSkinReader.h" />
+    <ClInclude Include="Source\ZephyrSkinShared.h" />
+    <ClInclude Include="Source\ZephyrCommon.h" />
+    <ClInclude Include="Source\ZephyrJoint.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

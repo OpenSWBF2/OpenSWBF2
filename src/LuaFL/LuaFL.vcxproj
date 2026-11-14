@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{DD72C068-B8B9-5F2D-9E36-3960F2129E79}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>LuaFL</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="..\..\OpenSWBF2.Game.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(OpenSWBF2Root)src;$(OpenSWBF2Root)src\LuaFL\include;$(OpenSWBF2Root)src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\lapi.cpp" />
+    <ClCompile Include="src\lcode.cpp" />
+    <ClCompile Include="src\ldebug.cpp" />
+    <ClCompile Include="src\ldo.cpp" />
+    <ClCompile Include="src\ldump.cpp" />
+    <ClCompile Include="src\lfunc.cpp" />
+    <ClCompile Include="src\lgc.cpp" />
+    <ClCompile Include="src\lib\lauxlib.cpp" />
+    <ClCompile Include="src\lib\lbaselib.cpp" />
+    <ClCompile Include="src\lib\ldblib.cpp" />
+    <ClCompile Include="src\lib\liolib.cpp" />
+    <ClCompile Include="src\lib\lmathlib.cpp" />
+    <ClCompile Include="src\lib\lstrlib.cpp" />
+    <ClCompile Include="src\lib\ltablib.cpp" />
+    <ClCompile Include="src\llex.cpp" />
+    <ClCompile Include="src\lmem.cpp" />
+    <ClCompile Include="src\lobject.cpp" />
+    <ClCompile Include="src\lopcodes.cpp" />
+    <ClCompile Include="src\lparser.cpp" />
+    <ClCompile Include="src\lstate.cpp" />
+    <ClCompile Include="src\lstring.cpp" />
+    <ClCompile Include="src\ltable.cpp" />
+    <ClCompile Include="src\ltm.cpp" />
+    <ClCompile Include="src\lundump.cpp" />
+    <ClCompile Include="src\lvm.cpp" />
+    <ClCompile Include="src\lzio.cpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

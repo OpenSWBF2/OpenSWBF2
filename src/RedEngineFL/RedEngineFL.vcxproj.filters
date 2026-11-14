@@ -1,0 +1,890 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <ItemGroup>
+    <Filter Include="Application">
+      <UniqueIdentifier>{E0B0AD2B-C80E-5E48-80E1-CF774133334B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Application\pc">
+      <UniqueIdentifier>{9CE190A1-E691-5557-BD31-6B5AE7A59F9C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics">
+      <UniqueIdentifier>{6520FA87-72B3-593E-B639-215B53FB9A91}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics\PC">
+      <UniqueIdentifier>{722AE3EC-7A09-539A-A8C2-4BFB7973CE91}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics\PC\Shaders">
+      <UniqueIdentifier>{95861A35-0455-5D4A-85D9-2014DF6D0950}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Interface">
+      <UniqueIdentifier>{0CF2B2C5-709A-5E29-BB05-BAE688017439}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Interface\pc">
+      <UniqueIdentifier>{8C69E913-B1E2-5670-9381-FF28ADA0689B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Memory">
+      <UniqueIdentifier>{ED0A20BF-D35A-5865-98D2-FBC7AE57C3D6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Portals">
+      <UniqueIdentifier>{21F1C6B7-D13B-5A56-AFA3-A70AFA3A26E3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Util">
+      <UniqueIdentifier>{4CE096C0-72F6-53DC-BF77-30FFAAD4EE08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Util\ext">
+      <UniqueIdentifier>{453403C8-A9AB-5BDA-9A6C-295EDC70388A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Util\pc">
+      <UniqueIdentifier>{50E82E64-1B5F-5A23-984D-BB3AF755F116}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="geometry">
+      <UniqueIdentifier>{27AC66A2-0C9F-5A9C-A969-31F21DF25A5C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="input">
+      <UniqueIdentifier>{2A1BA3E7-FE3F-570B-939E-617F09161F17}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="input\pc">
+      <UniqueIdentifier>{7DF0C13F-4DE9-519F-B055-F2F7B4A37FA3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="movie">
+      <UniqueIdentifier>{59493DCF-56D2-5F15-A8A2-F2BCA67A68EF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="movie\pc">
+      <UniqueIdentifier>{C67EDDB4-E62A-52A8-B394-ADE8C092AA78}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Application\RedPath.cpp">
+      <Filter>Application</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\RedTerrain.cpp">
+      <Filter>Application</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\RedWater.cpp">
+      <Filter>Application</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\Renderable.cpp">
+      <Filter>Application</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedShader.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcFLRender.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcRedDebug.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcRedDropShadow.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcRedParticle.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcRedShadowProxy.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcRedTerrain.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcRedWater.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcShadowQuadRenderable.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcClearShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcDecalShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcFilterCopyShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcFlareShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcHDRShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcInterfaceShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcLightBeamShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcNormalMapAdderShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcNormalShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcOceanShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcParticleShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcPerPixelDiffuseLightingShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcPerVertexDiffuseLightingShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcPreReflectionShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcRainShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcRefractionShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcSampleShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcShadowQuadShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcShieldShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcSkyFogShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcSpecularLightingShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcStencilShadowShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcTerrainShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcTerrainShader2.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcWaterShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\Shaders\pcZPrepassShader.cpp">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\StateManager_DX.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedAutoSettings.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedDeviceEnumerator.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedIndexBuffer.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedPixelShader.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedPrimitive.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedRenderer.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedSegment.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedStencilShadow.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedTexture.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcRedFootprint.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedVertexBuffer.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedVertexCache.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedVertexFormat.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcRedVertexShader.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedAmbientLight.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedCamera.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedColor.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedDirectionalLight.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedLight.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedModel.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedOmniLight.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedPose.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedShadingState.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedShadowRegion.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedSkeleton.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\RedSpotLight.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\Red3DModelAnimator.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\Red3DModelElement.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\Red3DModelElementLite.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedBitmapElement.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedBorderElement.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedFont.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedGlyphMemoryManager.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedGroupElement.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedHotSpot.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedIFScreen.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedInterfaceElement.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedInterfaceScreen.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedShadowBlob.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedTextElement.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\RedVectorElement.cpp">
+      <Filter>Interface</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\pc\pcRedBitmapElement.cpp">
+      <Filter>Interface\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\pc\pcRedGlyphCacheElement.cpp">
+      <Filter>Interface\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\pc\pcRedMaskedBitmapElement.cpp">
+      <Filter>Interface\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Interface\pc\pcRedVectorElement.cpp">
+      <Filter>Interface\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Memory\RedMemory.cpp">
+      <Filter>Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Memory\RedMemoryPool.cpp">
+      <Filter>Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Portals\Portal.cpp">
+      <Filter>Portals</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedAnimation.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedCommandConsole.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedConsole.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedLocalizeDB.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedLodManager.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedMissionLog.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedRegion.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedSceneManager.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedSceneObject.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedScreenShot.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedStack.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedWarning.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\ext\Allocator.cpp">
+      <Filter>Util\ext</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\ext\Globals.cpp">
+      <Filter>Util\ext</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\ext\ListAllocator.cpp">
+      <Filter>Util\ext</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\pc\pcRedProfile.cpp">
+      <Filter>Util\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="geometry\IntersectionOps.cpp">
+      <Filter>geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="geometry\PolyPolyTest2D.cpp">
+      <Filter>geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="geometry\Primitives.cpp">
+      <Filter>geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="input\RedInputEventHandler.cpp">
+      <Filter>input</Filter>
+    </ClCompile>
+    <ClCompile Include="input\pc\pcRedInputManager.cpp">
+      <Filter>input\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="input\pc\pcRedJoystick.cpp">
+      <Filter>input\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="input\pc\pcRedKeyboard.cpp">
+      <Filter>input\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="input\pc\pcRedMouse.cpp">
+      <Filter>input\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="movie\RedCircularBuffer.cpp">
+      <Filter>movie</Filter>
+    </ClCompile>
+    <ClCompile Include="movie\RedFileAsync.cpp">
+      <Filter>movie</Filter>
+    </ClCompile>
+    <ClCompile Include="movie\RedMovie.cpp">
+      <Filter>movie</Filter>
+    </ClCompile>
+    <ClCompile Include="movie\RedMoviePlayerBase.cpp">
+      <Filter>movie</Filter>
+    </ClCompile>
+    <ClCompile Include="movie\RedMoviePlayerRenderer.cpp">
+      <Filter>movie</Filter>
+    </ClCompile>
+    <ClCompile Include="movie\pc\pcRedMoviePlayer.cpp">
+      <Filter>movie\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="input\pc\pcRedLogitechLCD.cpp">
+      <Filter>input\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\crtLibrary.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcDisplaySettings.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcDisplayLogic.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics\PC\pcGammaPass.cpp">
+      <Filter>Graphics\PC</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcFrameLimiter.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcWindow.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\pc\pcMessageDrain.cpp">
+      <Filter>Application\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="Memory\RedMemoryMi.cpp">
+      <Filter>Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Memory\RedMemoryReport.cpp">
+      <Filter>Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\RedLog.cpp">
+      <Filter>Util</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Application\RedPath.h">
+      <Filter>Application</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\RedTerrain.h">
+      <Filter>Application</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\RedWater.h">
+      <Filter>Application</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\Renderable.h">
+      <Filter>Application</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\crtNames.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\pcFLRender.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\pcRedDebug.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\RedDropShadow.h">
+      <Filter>Application</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\pcRedParticle.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\pcRedShadowProxy.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\pcRedShape.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\pcRenderHelpers.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\pcRenderStateHelpers.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\pcShadowQuadRenderable.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcClearShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcDecalShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcFilterCopyShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcFlareShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcHDRShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcInterfaceShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcLightBeamShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcNormalMapAdderShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcNormalShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcOceanShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcParticleShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcPerPixelDiffuseLightingShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcPerVertexDiffuseLightingShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcPreReflectionShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcRainShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcRefractionShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcSampleShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcShadowQuadShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcShieldShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcSkyFogShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcSpecularLightingShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcStencilShadowShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcTerrainShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcTerrainShader2.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcWaterShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\Shaders\pcZPrepassShader.h">
+      <Filter>Graphics\PC\Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\StateManager_DX.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedAutoSettings.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedDeviceEnumerator.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedIndexBuffer.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedPixelShader.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedPrimitive.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedRenderer.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedSegment.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedShader.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedStencilShadow.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedTexture.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedVertexBuffer.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedVertexFormat.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedVertexShader.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedAmbientLight.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedCamera.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedColor.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedDirectionalLight.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedLight.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedMaterial.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedModel.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedOmniLight.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedPose.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedSegment.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedShadingState.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedShadowRegion.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedSkeleton.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedSpotLight.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\RedTextureTransform.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\Red3DModelAnimator.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\Red3DModelElement.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\Red3DModelElementLite.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedBitmapElement.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedBorderElement.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedFont.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedGlyphCacheElement.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedGlyphMemoryManager.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedGroupElement.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedHotSpot.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedIFScreen.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedInterfaceElement.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedInterfaceScreen.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedMaskedBitmapElement.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedShadowBlob.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedTextElement.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedVectorElement.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\RedMemory.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\RedMemoryPool.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\engineAlloc.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Portals\BaseDisplayable.h">
+      <Filter>Portals</Filter>
+    </ClInclude>
+    <ClInclude Include="Portals\Portal.h">
+      <Filter>Portals</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedAnimation.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedCommandConsole.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedConsole.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedLocalizeDB.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedLodManager.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedRegion.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedSceneManager.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedSceneObject.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedScreenShot.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedStack.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedWarning.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\Allocator.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\BaseString.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\Globals.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\IAllocator.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\ListAllocator.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\SubAllocator.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\basearray.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\baselist.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\basevector.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\hashtable.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\heap.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\ext\types.h">
+      <Filter>Util\ext</Filter>
+    </ClInclude>
+    <ClInclude Include="geometry\Primitives.h">
+      <Filter>geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="geometry\TransformOps.h">
+      <Filter>geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="geometry\basics.h">
+      <Filter>geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="geometry\polygons.h">
+      <Filter>geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="geometry\vector.h">
+      <Filter>geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="input\RedInputEventHandler.h">
+      <Filter>input</Filter>
+    </ClInclude>
+    <ClInclude Include="input\RedJoystick.h">
+      <Filter>input</Filter>
+    </ClInclude>
+    <ClInclude Include="input\RedKeyboard.h">
+      <Filter>input</Filter>
+    </ClInclude>
+    <ClInclude Include="input\RedMouse.h">
+      <Filter>input</Filter>
+    </ClInclude>
+    <ClInclude Include="input\pc\pcRedInputManager.h">
+      <Filter>input\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\RedCircularBuffer.h">
+      <Filter>movie</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\RedFileAsync.h">
+      <Filter>movie</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\RedMovie.h">
+      <Filter>movie</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\RedMoviePlayerBase.h">
+      <Filter>movie</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\RedMoviePlayerRenderer.h">
+      <Filter>movie</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\pc\pcRedMoviePlayer.h">
+      <Filter>movie\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\redpipe.h">
+      <Filter>movie</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcDisplaySettings.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcDisplayLogic.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcGammaPass.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcGammaPassPS.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\pcFrameLimiter.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\pcWindow.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\pc\pcMessageDrain.h">
+      <Filter>Application\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\PC\pcRedPoolMath.h">
+      <Filter>Graphics\PC</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\RedMagicStrings.h">
+      <Filter>Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="Interface\pc\pcGlyphCacheCount.h">
+      <Filter>Interface\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\RedMemoryMi.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\RedMemoryReport.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\RedScriptLimits.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedLog.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\RedMissionLog.h">
+      <Filter>Util</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Graphics\PC\pcGammaPass.hlsl">
+      <Filter>Graphics\PC</Filter>
+    </None>
+  </ItemGroup>
+</Project>

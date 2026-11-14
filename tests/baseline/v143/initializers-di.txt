@@ -629,275 +629,275 @@
 628	0001:00004ea0	??__E?sList@PblRegion@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle PblRegion::sList''(void)	PblRegion.obj
 629	0001:00004eb0	??__EpblTime@@YAXXZ	void __cdecl `dynamic initializer for 'pblTime''(void)	PblTime.obj
 630	0001:00004ef0	??__EsStartupWordCopy@@YAXXZ	void __cdecl `dynamic initializer for 'sStartupWordCopy''(void)	PblTime.obj
-631	0001:00004f00	??__E?_UnderWaterRenderable@RedWater@@2VUnderWaterRenderable@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class UnderWaterRenderable RedWater::_UnderWaterRenderable''(void)	RedWater.obj
-632	0001:00004f30	??__E?_WaterRenderable@RedWater@@2VWaterRenderable@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class WaterRenderable RedWater::_WaterRenderable''(void)	RedWater.obj
-633	0001:00004f60	??__E_RenderableLists@FLRenderer@@YAXXZ	void __cdecl FLRenderer::`dynamic initializer for '_RenderableLists''(void)	pcFLRender.obj
-634	0001:00004fa0	??__E_enableReflection@@YAXXZ	void __cdecl `dynamic initializer for '_enableReflection''(void)	pcFLRender.obj
-635	0001:00004fd0	??__EcvReflectionsDraw@@YAXXZ	void __cdecl `dynamic initializer for 'cvReflectionsDraw''(void)	pcFLRender.obj
-636	0001:00005000	??__EcvReflectionsEnable@@YAXXZ	void __cdecl `dynamic initializer for 'cvReflectionsEnable''(void)	pcFLRender.obj
-637	0001:00005030	??__EcvarNearScenePushInf@@YAXXZ	void __cdecl `dynamic initializer for 'cvarNearScenePushInf''(void)	pcFLRender.obj
-638	0001:00005060	??__Eg_Enable@@YAXXZ	void __cdecl `dynamic initializer for 'g_Enable''(void)	pcFLRender.obj
-639	0001:00005090	??__EmCursorGroup@FLRenderer@@YAXXZ	void __cdecl FLRenderer::`dynamic initializer for 'mCursorGroup''(void)	pcFLRender.obj
-640	0001:000050b0	??__EmCursorImage@FLRenderer@@YAXXZ	void __cdecl FLRenderer::`dynamic initializer for 'mCursorImage''(void)	pcFLRender.obj
-641	0001:000050d0	??__Es_cvRenderFarScene@@YAXXZ	void __cdecl `dynamic initializer for 's_cvRenderFarScene''(void)	pcFLRender.obj
-642	0001:00005100	??__E?_PrintfColor@RedDebug@@0VRedColor@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedColor RedDebug::_PrintfColor''(void)	pcRedDebug.obj
-643	0001:00005110	??__E?_ScreenGroup@RedDebug@@0VRedScreenGroupElement@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedScreenGroupElement RedDebug::_ScreenGroup''(void)	pcRedDebug.obj
-644	0001:00005130	??__E?_aMarkers3D@RedDebug@@0PAVRedTetrahedronShape@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedTetrahedronShape * RedDebug::_aMarkers3D''(void)	pcRedDebug.obj
-645	0001:00005160	??__E?_aSpheres@RedDebug@@0PAVRedSphereShape@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedSphereShape * RedDebug::_aSpheres''(void)	pcRedDebug.obj
-646	0001:00005190	??__E?_aText3D@RedDebug@@0PAUText3D@1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static struct RedDebug::Text3D * RedDebug::_aText3D''(void)	pcRedDebug.obj
-647	0001:000051c0	??__E?_aTextLines@RedDebug@@0PAVRedTextElement@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedTextElement * RedDebug::_aTextLines''(void)	pcRedDebug.obj
-648	0001:000051f0	??__E?_kStaticRenderable@RedDebug@@0VRedDebugRenderable@1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedDebug::RedDebugRenderable RedDebug::_kStaticRenderable''(void)	pcRedDebug.obj
-649	0001:00005220	??__EkuiShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiShader''(void)	pcRedDropShadow.obj
-650	0001:00005240	??__E?_FarInstance@RedParticleRenderer@@2VRenderable@1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedParticleRenderer::Renderable RedParticleRenderer::_FarInstance''(void)	pcRedParticle.obj
-651	0001:00005260	??__E?_Instance@RedParticleRenderer@@2VRenderable@1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedParticleRenderer::Renderable RedParticleRenderer::_Instance''(void)	pcRedParticle.obj
-652	0001:00005280	??__EkuiParticleShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiParticleShader''(void)	pcRedParticle.obj
-653	0001:000052a0	??__E_TerrainRenderable@@YAXXZ	void __cdecl `dynamic initializer for '_TerrainRenderable''(void)	pcRedTerrain.obj
-654	0001:00005360	??__EcvForceFullDetail@@YAXXZ	void __cdecl `dynamic initializer for 'cvForceFullDetail''(void)	pcRedTerrain.obj
-655	0001:00005390	??__EWATERSPLASH_COLOR@@YAXXZ	void __cdecl `dynamic initializer for 'WATERSPLASH_COLOR''(void)	pcRedWater.obj
-656	0001:000053a0	??__EkuiNormalMapAdderShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiNormalMapAdderShader''(void)	pcRedWater.obj
-657	0001:000053c0	??__EkuiOceanShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiOceanShader''(void)	pcRedWater.obj
-658	0001:000053e0	??__EkuiPreReflectionShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiPreReflectionShader''(void)	pcRedWater.obj
-659	0001:00005400	??__EkuiUnderWaterShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiUnderWaterShader''(void)	pcRedWater.obj
-660	0001:00005420	??__EkuiWaterDistortionRingTextureHash@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterDistortionRingTextureHash''(void)	pcRedWater.obj
-661	0001:00005440	??__EkuiWaterRingShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterRingShader''(void)	pcRedWater.obj
-662	0001:00005460	??__EkuiWaterRingTextureHash@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterRingTextureHash''(void)	pcRedWater.obj
-663	0001:00005480	??__EkuiWaterShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterShader''(void)	pcRedWater.obj
-664	0001:000054a0	??__EkuiWaterSplashShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterSplashShader''(void)	pcRedWater.obj
-665	0001:000054c0	??__EkuiWaterSplashTextureHash@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterSplashTextureHash''(void)	pcRedWater.obj
-666	0001:000054e0	??__EkuiClearShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiClearShader''(void)	pcShadowQuadRenderable.obj
-667	0001:00005500	??__EkuiFilterShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiFilterShader''(void)	pcShadowQuadRenderable.obj
-668	0001:00005520	??__E?s_ShaderFactoryByRenderType@pcRedShader@@2V?$PblHashTable@$$CBVpcRedShader@@$0BAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class pcRedShader const ,256> pcRedShader::s_ShaderFactoryByRenderType''(void)	pcRedShader.obj
-669	0001:00005540	??__Es_pcClearShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcClearShaderLinked''(void)	pcRedShader.obj
-670	0001:00005560	??__Es_pcDecalShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcDecalShaderLinked''(void)	pcRedShader.obj
-671	0001:00005580	??__Es_pcFilterCopyShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcFilterCopyShaderLinked''(void)	pcRedShader.obj
-672	0001:000055a0	??__Es_pcFlareShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcFlareShaderLinked''(void)	pcRedShader.obj
-673	0001:000055c0	??__Es_pcHDRShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcHDRShaderLinked''(void)	pcRedShader.obj
-674	0001:000055e0	??__Es_pcInterfaceShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcInterfaceShaderLinked''(void)	pcRedShader.obj
-675	0001:00005600	??__Es_pcLightBeamShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcLightBeamShaderLinked''(void)	pcRedShader.obj
-676	0001:00005620	??__Es_pcNormalMapAdderShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcNormalMapAdderShaderLinked''(void)	pcRedShader.obj
-677	0001:00005640	??__Es_pcNormalShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcNormalShaderLinked''(void)	pcRedShader.obj
-678	0001:00005660	??__Es_pcOceanShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcOceanShaderLinked''(void)	pcRedShader.obj
-679	0001:00005680	??__Es_pcParticleShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcParticleShaderLinked''(void)	pcRedShader.obj
-680	0001:000056a0	??__Es_pcPerPixelDiffuseLightingShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcPerPixelDiffuseLightingShaderLinked''(void)	pcRedShader.obj
-681	0001:000056c0	??__Es_pcPerVertexDiffuseLightingShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcPerVertexDiffuseLightingShaderLinked''(void)	pcRedShader.obj
-682	0001:000056e0	??__Es_pcPreReflectionShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcPreReflectionShaderLinked''(void)	pcRedShader.obj
-683	0001:00005700	??__Es_pcRainShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcRainShaderLinked''(void)	pcRedShader.obj
-684	0001:00005720	??__Es_pcRefractionShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcRefractionShaderLinked''(void)	pcRedShader.obj
-685	0001:00005740	??__Es_pcSampleShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcSampleShaderLinked''(void)	pcRedShader.obj
-686	0001:00005760	??__Es_pcShadowQuadShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcShadowQuadShaderLinked''(void)	pcRedShader.obj
-687	0001:00005780	??__Es_pcShieldShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcShieldShaderLinked''(void)	pcRedShader.obj
-688	0001:000057a0	??__Es_pcSkyFogShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcSkyFogShaderLinked''(void)	pcRedShader.obj
-689	0001:000057c0	??__Es_pcSpecularLightingShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcSpecularLightingShaderLinked''(void)	pcRedShader.obj
-690	0001:000057e0	??__Es_pcStencilShadowShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcStencilShadowShaderLinked''(void)	pcRedShader.obj
-691	0001:00005800	??__Es_pcTerrainShader2Linked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcTerrainShader2Linked''(void)	pcRedShader.obj
-692	0001:00005820	??__Es_pcTerrainShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcTerrainShaderLinked''(void)	pcRedShader.obj
-693	0001:00005840	??__Es_pcWaterShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcWaterShaderLinked''(void)	pcRedShader.obj
-694	0001:00005860	??__Es_pcZPrepassShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcZPrepassShaderLinked''(void)	pcRedShader.obj
-695	0001:00005880	??__EsCustomRenderPresets@RedAutoSettings@@YAXXZ	void __cdecl RedAutoSettings::`dynamic initializer for 'sCustomRenderPresets''(void)	pcRedAutoSettings.obj
-696	0001:00005910	??__E?m_aLightingStatePool@RedRenderer@@2PAURedLightingState@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static struct RedLightingState * RedRenderer::m_aLightingStatePool''(void)	pcRedRenderer.obj
-697	0001:00005940	??__E?m_colorFog@RedRenderer@@2VRedColor@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedColor RedRenderer::m_colorFog''(void)	pcRedRenderer.obj
-698	0001:00005950	??__E?m_opaqueQueues@RedRenderer@@2V?$Vector@VSortHeap@RedRenderer@@V?$BaseArray@VSortHeap@RedRenderer@@V?$TNewArrayAlloc@VSortHeap@RedRenderer@@@util@@@util@@@util@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class util::Vector<class RedRenderer::SortHeap,class util::BaseArray<class RedRenderer::SortHeap,class util::TNewArrayAlloc<class RedRenderer::SortHeap> > > RedRenderer::m_opaqueQueues''(void)	pcRedRenderer.obj
-699	0001:00005960	??__E?m_posttransparentItems@RedRenderer@@2V?$TransparentHeap@PAURenderItem@@I@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class TransparentHeap<struct RenderItem *,unsigned int> RedRenderer::m_posttransparentItems''(void)	pcRedRenderer.obj
-700	0001:00005980	??__E?m_preShadowTransparentItems@RedRenderer@@2V?$TransparentHeap@PAURenderItem@@I@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class TransparentHeap<struct RenderItem *,unsigned int> RedRenderer::m_preShadowTransparentItems''(void)	pcRedRenderer.obj
-701	0001:000059a0	??__E?m_renderItemPool@RedRenderer@@2PAURenderItem@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static struct RenderItem * RedRenderer::m_renderItemPool''(void)	pcRedRenderer.obj
-702	0001:000059d0	??__E?m_transparentItems@RedRenderer@@2V?$TransparentHeap@PAURenderItem@@I@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class TransparentHeap<struct RenderItem *,unsigned int> RedRenderer::m_transparentItems''(void)	pcRedRenderer.obj
-703	0001:000059f0	??__E?s_textureHashTable@RedTexture@@2V?$PblHashTable@VRedTexture@@$0BAAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedTexture,4096> RedTexture::s_textureHashTable''(void)	pcRedTexture.obj
-704	0001:00005a10	??__EsDynamicVertexBufferHashTable@@YAXXZ	void __cdecl `dynamic initializer for 'sDynamicVertexBufferHashTable''(void)	pcRedVertexBuffer.obj
-705	0001:00005a30	??__EsStaticVertexBufferHashTable@@YAXXZ	void __cdecl `dynamic initializer for 'sStaticVertexBufferHashTable''(void)	pcRedVertexBuffer.obj
-706	0001:00005a50	??__E?s_Factory@pcClearShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcClearShader pcClearShader::s_Factory''(void)	pcClearShader.obj
-707	0001:00005b40	??__E?s_shaderDef@pcClearShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcClearShader::s_shaderDef''(void)	pcClearShader.obj
-708	0001:00005b60	??__E?s_uiRenderTypeHash@pcClearShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcClearShader::s_uiRenderTypeHash''(void)	pcClearShader.obj
-709	0001:00005b80	??__E?s_Factory@pcDecalShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcDecalShader pcDecalShader::s_Factory''(void)	pcDecalShader.obj
-710	0001:00005c90	??__E?s_shaderDef@pcDecalShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcDecalShader::s_shaderDef''(void)	pcDecalShader.obj
-711	0001:00005cb0	??__E?s_uiRenderTypeHash@pcDecalShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcDecalShader::s_uiRenderTypeHash''(void)	pcDecalShader.obj
-712	0001:00005cd0	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcDecalShader.obj
-713	0001:00005cf0	??__E?s_Factory@pcFilterCopyShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcFilterCopyShader pcFilterCopyShader::s_Factory''(void)	pcFilterCopyShader.obj
-714	0001:00005e00	??__E?s_shaderDef@pcFilterCopyShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcFilterCopyShader::s_shaderDef''(void)	pcFilterCopyShader.obj
-715	0001:00005e20	??__E?s_uiRenderTypeHash@pcFilterCopyShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcFilterCopyShader::s_uiRenderTypeHash''(void)	pcFilterCopyShader.obj
-716	0001:00005e40	??__E?s_Factory@pcFlareShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcFlareShader pcFlareShader::s_Factory''(void)	pcFlareShader.obj
-717	0001:00005f50	??__E?s_shaderDef@pcFlareShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcFlareShader::s_shaderDef''(void)	pcFlareShader.obj
-718	0001:00005f70	??__E?s_uiRenderTypeHash@pcFlareShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcFlareShader::s_uiRenderTypeHash''(void)	pcFlareShader.obj
-719	0001:00005f90	??__E?s_Factory@pcHDRShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcHDRShader pcHDRShader::s_Factory''(void)	pcHDRShader.obj
-720	0001:000060a0	??__E?s_shaderDef@pcHDRShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcHDRShader::s_shaderDef''(void)	pcHDRShader.obj
-721	0001:000060c0	??__E?s_uiRenderTypeHash@pcHDRShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcHDRShader::s_uiRenderTypeHash''(void)	pcHDRShader.obj
-722	0001:000060e0	??__E?s_Factory@pcInterfaceShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcInterfaceShader pcInterfaceShader::s_Factory''(void)	pcInterfaceShader.obj
-723	0001:000061f0	??__E?s_shaderDef@pcInterfaceShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcInterfaceShader::s_shaderDef''(void)	pcInterfaceShader.obj
-724	0001:00006210	??__E?s_uiRenderTypeHash@pcInterfaceShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcInterfaceShader::s_uiRenderTypeHash''(void)	pcInterfaceShader.obj
-725	0001:00006230	??__E?s_Factory@pcLightBeamShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcLightBeamShader pcLightBeamShader::s_Factory''(void)	pcLightBeamShader.obj
-726	0001:00006340	??__E?s_shaderDef@pcLightBeamShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcLightBeamShader::s_shaderDef''(void)	pcLightBeamShader.obj
-727	0001:00006360	??__E?s_uiRenderTypeHash@pcLightBeamShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcLightBeamShader::s_uiRenderTypeHash''(void)	pcLightBeamShader.obj
-728	0001:00006380	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcLightBeamShader.obj
-729	0001:000063a0	??__E?s_Factory@pcNormalMapAdderShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcNormalMapAdderShader pcNormalMapAdderShader::s_Factory''(void)	pcNormalMapAdderShader.obj
-730	0001:000064c0	??__E?s_shaderDef@pcNormalMapAdderShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcNormalMapAdderShader::s_shaderDef''(void)	pcNormalMapAdderShader.obj
-731	0001:000064e0	??__E?s_uiRenderTypeHash@pcNormalMapAdderShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcNormalMapAdderShader::s_uiRenderTypeHash''(void)	pcNormalMapAdderShader.obj
-732	0001:00006500	??__EkuiHemisphereNormalizationMap@@YAXXZ	void __cdecl `dynamic initializer for 'kuiHemisphereNormalizationMap''(void)	pcNormalMapAdderShader.obj
-733	0001:00006520	??__E?s_Factory@pcNormalShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcNormalShader pcNormalShader::s_Factory''(void)	pcNormalShader.obj
-734	0001:00006640	??__E?s_shaderDef@pcNormalShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcNormalShader::s_shaderDef''(void)	pcNormalShader.obj
-735	0001:00006660	??__E?s_uiRenderTypeHash@pcNormalShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcNormalShader::s_uiRenderTypeHash''(void)	pcNormalShader.obj
-736	0001:00006680	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcNormalShader.obj
-737	0001:000066a0	??__E?s_Factory@pcOceanShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcOceanShader pcOceanShader::s_Factory''(void)	pcOceanShader.obj
-738	0001:000067c0	??__E?s_shaderDef@pcOceanShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcOceanShader::s_shaderDef''(void)	pcOceanShader.obj
-739	0001:000067e0	??__E?s_uiRenderTypeHash@pcOceanShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcOceanShader::s_uiRenderTypeHash''(void)	pcOceanShader.obj
-740	0001:00006800	??__EkuiCubeNormalizationMap@@YAXXZ	void __cdecl `dynamic initializer for 'kuiCubeNormalizationMap''(void)	pcOceanShader.obj
-741	0001:00006820	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcOceanShader.obj
-742	0001:00006840	??__E?s_Factory@pcParticleShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcParticleShader pcParticleShader::s_Factory''(void)	pcParticleShader.obj
-743	0001:00006950	??__E?s_shaderDef@pcParticleShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcParticleShader::s_shaderDef''(void)	pcParticleShader.obj
-744	0001:00006970	??__E?s_uiRenderTypeHash@pcParticleShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcParticleShader::s_uiRenderTypeHash''(void)	pcParticleShader.obj
-745	0001:00006990	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcParticleShader.obj
-746	0001:000069b0	??__E?s_Factory@pcPerPixelDiffuseLightingShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcPerPixelDiffuseLightingShader pcPerPixelDiffuseLightingShader::s_Factory''(void)	pcPerPixelDiffuseLightingShader.obj
-747	0001:00006ac0	??__E?s_shaderDef@pcPerPixelDiffuseLightingShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcPerPixelDiffuseLightingShader::s_shaderDef''(void)	pcPerPixelDiffuseLightingShader.obj
-748	0001:00006ae0	??__E?s_uiRenderTypeHash@pcPerPixelDiffuseLightingShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcPerPixelDiffuseLightingShader::s_uiRenderTypeHash''(void)	pcPerPixelDiffuseLightingShader.obj
-749	0001:00006b00	??__Es_uiDefaultSpotLightMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiDefaultSpotLightMapHash''(void)	pcPerPixelDiffuseLightingShader.obj
-750	0001:00006b20	??__Es_uiLightVolumeMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiLightVolumeMapHash''(void)	pcPerPixelDiffuseLightingShader.obj
-751	0001:00006b40	??__Es_uiNormalizationCubeMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiNormalizationCubeMapHash''(void)	pcPerPixelDiffuseLightingShader.obj
-752	0001:00006b60	??__E?s_Factory@pcPerVertexDiffuseLightingShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcPerVertexDiffuseLightingShader pcPerVertexDiffuseLightingShader::s_Factory''(void)	pcPerVertexDiffuseLightingShader.obj
-753	0001:00006c70	??__E?s_shaderDef@pcPerVertexDiffuseLightingShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcPerVertexDiffuseLightingShader::s_shaderDef''(void)	pcPerVertexDiffuseLightingShader.obj
-754	0001:00006c90	??__E?s_uiRenderTypeHash@pcPerVertexDiffuseLightingShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcPerVertexDiffuseLightingShader::s_uiRenderTypeHash''(void)	pcPerVertexDiffuseLightingShader.obj
-755	0001:00006cb0	??__E?s_Factory@pcPreReflectionShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcPreReflectionShader pcPreReflectionShader::s_Factory''(void)	pcPreReflectionShader.obj
-756	0001:00006dc0	??__E?s_shaderDef@pcPreReflectionShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcPreReflectionShader::s_shaderDef''(void)	pcPreReflectionShader.obj
-757	0001:00006de0	??__E?s_uiRenderTypeHash@pcPreReflectionShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcPreReflectionShader::s_uiRenderTypeHash''(void)	pcPreReflectionShader.obj
-758	0001:00006e00	??__E?s_Factory@pcRainShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRainShader pcRainShader::s_Factory''(void)	pcRainShader.obj
-759	0001:00006f10	??__E?s_shaderDef@pcRainShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcRainShader::s_shaderDef''(void)	pcRainShader.obj
-760	0001:00006f30	??__E?s_uiRenderTypeHash@pcRainShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcRainShader::s_uiRenderTypeHash''(void)	pcRainShader.obj
-761	0001:00006f50	??__E?s_Factory@pcRefractionShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRefractionShader pcRefractionShader::s_Factory''(void)	pcRefractionShader.obj
-762	0001:00007080	??__E?s_shaderDef@pcRefractionShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcRefractionShader::s_shaderDef''(void)	pcRefractionShader.obj
-763	0001:000070a0	??__E?s_uiRenderTypeHash@pcRefractionShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcRefractionShader::s_uiRenderTypeHash''(void)	pcRefractionShader.obj
-764	0001:000070c0	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcRefractionShader.obj
-765	0001:000070e0	??__E?s_Factory@pcSampleShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcSampleShader pcSampleShader::s_Factory''(void)	pcSampleShader.obj
-766	0001:000071f0	??__E?s_shaderDef@pcSampleShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcSampleShader::s_shaderDef''(void)	pcSampleShader.obj
-767	0001:00007210	??__E?s_uiRenderTypeHash@pcSampleShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcSampleShader::s_uiRenderTypeHash''(void)	pcSampleShader.obj
-768	0001:00007230	??__E?s_Factory@pcShadowQuadShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcShadowQuadShader pcShadowQuadShader::s_Factory''(void)	pcShadowQuadShader.obj
-769	0001:00007340	??__E?s_shaderDef@pcShadowQuadShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcShadowQuadShader::s_shaderDef''(void)	pcShadowQuadShader.obj
-770	0001:00007360	??__E?s_uiRenderTypeHash@pcShadowQuadShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcShadowQuadShader::s_uiRenderTypeHash''(void)	pcShadowQuadShader.obj
-771	0001:00007380	??__E?s_Factory@pcShieldShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcShieldShader pcShieldShader::s_Factory''(void)	pcShieldShader.obj
-772	0001:00007490	??__E?s_shaderDef@pcShieldShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcShieldShader::s_shaderDef''(void)	pcShieldShader.obj
-773	0001:000074b0	??__E?s_uiRenderTypeHash@pcShieldShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcShieldShader::s_uiRenderTypeHash''(void)	pcShieldShader.obj
-774	0001:000074d0	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcShieldShader.obj
-775	0001:000074f0	??__EkuiSpecularSpotMap@@YAXXZ	void __cdecl `dynamic initializer for 'kuiSpecularSpotMap''(void)	pcShieldShader.obj
-776	0001:00007510	??__E?s_Factory@pcSkyFogShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcSkyFogShader pcSkyFogShader::s_Factory''(void)	pcSkyFogShader.obj
-777	0001:00007620	??__E?s_shaderDef@pcSkyFogShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcSkyFogShader::s_shaderDef''(void)	pcSkyFogShader.obj
-778	0001:00007640	??__E?s_uiRenderTypeHash@pcSkyFogShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcSkyFogShader::s_uiRenderTypeHash''(void)	pcSkyFogShader.obj
-779	0001:00007660	??__E?s_Factory@pcSpecularLightingShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcSpecularLightingShader pcSpecularLightingShader::s_Factory''(void)	pcSpecularLightingShader.obj
-780	0001:00007770	??__E?s_shaderDef@pcSpecularLightingShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcSpecularLightingShader::s_shaderDef''(void)	pcSpecularLightingShader.obj
-781	0001:00007790	??__E?s_uiRenderTypeHash@pcSpecularLightingShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcSpecularLightingShader::s_uiRenderTypeHash''(void)	pcSpecularLightingShader.obj
-782	0001:000077b0	??__EkfSpecSizeInvDefault@@YAXXZ	void __cdecl `dynamic initializer for 'kfSpecSizeInvDefault''(void)	pcSpecularLightingShader.obj
-783	0001:000077f0	??__Es_uiLightVolumeMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiLightVolumeMapHash''(void)	pcSpecularLightingShader.obj
-784	0001:00007810	??__Es_uiNormalizationCubeMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiNormalizationCubeMapHash''(void)	pcSpecularLightingShader.obj
-785	0001:00007830	??__Es_uiSpecularCubeMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiSpecularCubeMapHash''(void)	pcSpecularLightingShader.obj
-786	0001:00007850	??__Es_uiSpecularSpotMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiSpecularSpotMapHash''(void)	pcSpecularLightingShader.obj
-787	0001:00007870	??__E?s_Factory@pcStencilShadowShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcStencilShadowShader pcStencilShadowShader::s_Factory''(void)	pcStencilShadowShader.obj
-788	0001:00007980	??__E?s_shaderDef@pcStencilShadowShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcStencilShadowShader::s_shaderDef''(void)	pcStencilShadowShader.obj
-789	0001:000079a0	??__E?s_uiRenderTypeHash@pcStencilShadowShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcStencilShadowShader::s_uiRenderTypeHash''(void)	pcStencilShadowShader.obj
-790	0001:000079c0	??__E?s_Factory@pcTerrainShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcTerrainShader pcTerrainShader::s_Factory''(void)	pcTerrainShader.obj
-791	0001:00007ad0	??__E?s_shaderDef@pcTerrainShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcTerrainShader::s_shaderDef''(void)	pcTerrainShader.obj
-792	0001:00007af0	??__E?s_uiRenderTypeHash@pcTerrainShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcTerrainShader::s_uiRenderTypeHash''(void)	pcTerrainShader.obj
-793	0001:00007b10	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcTerrainShader.obj
-794	0001:00007b30	??__E?s_Factory@pcTerrainShader2@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcTerrainShader2 pcTerrainShader2::s_Factory''(void)	pcTerrainShader2.obj
-795	0001:00007c40	??__E?s_shaderDef@pcTerrainShader2@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcTerrainShader2::s_shaderDef''(void)	pcTerrainShader2.obj
-796	0001:00007c60	??__E?s_uiRenderTypeHash@pcTerrainShader2@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcTerrainShader2::s_uiRenderTypeHash''(void)	pcTerrainShader2.obj
-797	0001:00007c80	??__E?s_Factory@pcWaterShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcWaterShader pcWaterShader::s_Factory''(void)	pcWaterShader.obj
-798	0001:00007e10	??__E?s_shaderDef@pcWaterShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcWaterShader::s_shaderDef''(void)	pcWaterShader.obj
-799	0001:00007e30	??__E?s_uiRenderTypeHash@pcWaterShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcWaterShader::s_uiRenderTypeHash''(void)	pcWaterShader.obj
-800	0001:00007e50	??__EkuiCubeNormalizationMap@@YAXXZ	void __cdecl `dynamic initializer for 'kuiCubeNormalizationMap''(void)	pcWaterShader.obj
-801	0001:00007e70	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcWaterShader.obj
-802	0001:00007e90	??__E?s_Factory@pcZPrepassShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcZPrepassShader pcZPrepassShader::s_Factory''(void)	pcZPrepassShader.obj
-803	0001:00007fb0	??__E?s_shaderDef@pcZPrepassShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcZPrepassShader::s_shaderDef''(void)	pcZPrepassShader.obj
-804	0001:00007fd0	??__E?s_uiRenderTypeHash@pcZPrepassShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcZPrepassShader::s_uiRenderTypeHash''(void)	pcZPrepassShader.obj
-805	0001:00007ff0	??__E?BLACK@RedAmbientLight@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedAmbientLight RedAmbientLight::BLACK''(void)	RedAmbientLight.obj
-806	0001:00008020	??__E?WHITE@RedAmbientLight@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedAmbientLight RedAmbientLight::WHITE''(void)	RedAmbientLight.obj
-807	0001:00008050	??__E?BLACK@RedDirectionalLight@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedDirectionalLight RedDirectionalLight::BLACK''(void)	RedDirectionalLight.obj
-808	0001:00008090	??__E?_HashTable@RedModel@@2V?$PblHashTable@VRedModel@@$0EAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedModel,1024> RedModel::_HashTable''(void)	RedModel.obj
-809	0001:000080b0	??__E?BLACK@RedOmniLight@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedOmniLight RedOmniLight::BLACK''(void)	RedOmniLight.obj
-810	0001:00008290	??__E?sMemoryPool@RedOmniLight@@2VMemoryPool@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class MemoryPool RedOmniLight::sMemoryPool''(void)	RedOmniLight.obj
-811	0001:000082b0	??__E?sMemoryPool@Entry@RedShadingPose@@2VMemoryPool@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class MemoryPool RedShadingPose::Entry::sMemoryPool''(void)	RedShadingState.obj
-812	0001:000082d0	??__E?sMemoryPool@RedShadingState@@2VMemoryPool@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class MemoryPool RedShadingState::sMemoryPool''(void)	RedShadingState.obj
-813	0001:000082f0	??__E?_HashTable@RedSkeleton@@2V?$PblHashTable@VRedSkeleton@@$0CAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedSkeleton,512> RedSkeleton::_HashTable''(void)	RedSkeleton.obj
-814	0001:00008310	??__E?BLACK@RedSpotLight@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedSpotLight RedSpotLight::BLACK''(void)	RedSpotLight.obj
-815	0001:00008350	??__E?rttiHashRed3DModelAnimator@Red3DModelAnimator@@2VPblHash@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHash Red3DModelAnimator::rttiHashRed3DModelAnimator''(void)	Red3DModelAnimator.obj
-816	0001:00008360	??__E?s_fontHashTable@RedFont@@2V?$PblHashTable@VRedFont@@$0BA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedFont,16> RedFont::s_fontHashTable''(void)	RedFont.obj
-817	0001:00008380	??__E?s_fCotHalfFOVx@RedHotSpot@@2MA@@YAXXZ	void __cdecl `dynamic initializer for 'public: static float RedHotSpot::s_fCotHalfFOVx''(void)	RedHotSpot.obj
-818	0001:000083a0	??__E?s_fCotHalfFOVy@RedHotSpot@@2MA@@YAXXZ	void __cdecl `dynamic initializer for 'public: static float RedHotSpot::s_fCotHalfFOVy''(void)	RedHotSpot.obj
-819	0001:000083c0	??__ESQRT3@@YAXXZ	void __cdecl `dynamic initializer for 'SQRT3''(void)	RedHotSpot.obj
-820	0001:00008400	??__E?sAllObjectsList@RedInterfaceElement@@2V?$PblHashTable@VRedInterfaceElement@@$0IAAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedInterfaceElement,32768> RedInterfaceElement::sAllObjectsList''(void)	RedInterfaceElement.obj
-821	0001:00008420	??__E?sSQRT3@RedInterfaceScreen@@2MA@@YAXXZ	void __cdecl `dynamic initializer for 'public: static float RedInterfaceScreen::sSQRT3''(void)	RedInterfaceScreen.obj
-822	0001:00008460	??__E?s_directionalLight@RedInterfaceScreen@@2PAVRedDirectionalLight@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedDirectionalLight * RedInterfaceScreen::s_directionalLight''(void)	RedInterfaceScreen.obj
-823	0001:00008490	??__E?s_lightingState@RedInterfaceScreen@@2URedLightingState@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static struct RedLightingState RedInterfaceScreen::s_lightingState''(void)	RedInterfaceScreen.obj
-824	0001:00008520	??__E?s_screenFull@RedInterfaceScreen@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedInterfaceScreen RedInterfaceScreen::s_screenFull''(void)	RedInterfaceScreen.obj
-825	0001:000085a0	??__E?sfHeight@RedInterfaceScreen@@2MA@@YAXXZ	void __cdecl `dynamic initializer for 'public: static float RedInterfaceScreen::sfHeight''(void)	RedInterfaceScreen.obj
-826	0001:000085c0	??__E?sfWidth@RedInterfaceScreen@@2MA@@YAXXZ	void __cdecl `dynamic initializer for 'public: static float RedInterfaceScreen::sfWidth''(void)	RedInterfaceScreen.obj
-827	0001:000085e0	??__EshadowBlobRandom@@YAXXZ	void __cdecl `dynamic initializer for 'shadowBlobRandom''(void)	RedShadowBlob.obj
-828	0001:00008620	??__E?s_aPoints@RedVectorElement@@2PAUPoint@1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static struct RedVectorElement::Point * RedVectorElement::s_aPoints''(void)	RedVectorElement.obj
-829	0001:00008650	??__EdisplayableSuballoc_@pvs@@YAXXZ	void __cdecl pvs::`dynamic initializer for 'displayableSuballoc_''(void)	Portal.obj
-830	0001:000086d0	??__Eg_BackFaceCull@@YAXXZ	void __cdecl `dynamic initializer for 'g_BackFaceCull''(void)	Portal.obj
-831	0001:00008700	??__Eg_DebugDraw@@YAXXZ	void __cdecl `dynamic initializer for 'g_DebugDraw''(void)	Portal.obj
-832	0001:00008730	??__Eg_Enable@@YAXXZ	void __cdecl `dynamic initializer for 'g_Enable''(void)	Portal.obj
-833	0001:00008760	??__Eg_ProximityTest@@YAXXZ	void __cdecl `dynamic initializer for 'g_ProximityTest''(void)	Portal.obj
-834	0001:00008790	??__Eg_SaveCam@@YAXXZ	void __cdecl `dynamic initializer for 'g_SaveCam''(void)	Portal.obj
-835	0001:000087c0	??__E?_HashTable@RedAnimation@@2V?$PblHashTable@VRedAnimation@@$0EAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedAnimation,1024> RedAnimation::_HashTable''(void)	RedAnimation.obj
-836	0001:000087e0	??__EsMasterLocalizeHash@@YAXXZ	void __cdecl `dynamic initializer for 'sMasterLocalizeHash''(void)	RedLocalizeDB.obj
-837	0001:00008800	??__E?sList@RedRegionFactory@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle RedRegionFactory::sList''(void)	RedRegion.obj
-838	0001:00008810	??__E?sRegionFactory@RedRegionFactory@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedRegionFactory RedRegionFactory::sRegionFactory''(void)	RedRegion.obj
-839	0001:00008820	??__EgStackAllocator_@?A0xffc11138@util@@YAXXZ	void __cdecl util::`anonymous namespace'::`dynamic initializer for 'gStackAllocator_''(void)	Allocator.obj
-840	0001:00008830	??__EgStaticAllocator_@?A0xffc11138@util@@YAXXZ	void __cdecl util::`anonymous namespace'::`dynamic initializer for 'gStaticAllocator_''(void)	Allocator.obj
-841	0001:00008840	??__Eglobals@util@@YAXXZ	void __cdecl util::`dynamic initializer for 'globals''(void)	Globals.obj
-842	0001:000088e0	??__Em_joysticks@RedInputManager@@YAXXZ	void __cdecl RedInputManager::`dynamic initializer for 'm_joysticks''(void)	pcRedInputManager.obj
-843	0001:00008910	??__Em_keyboards@RedInputManager@@YAXXZ	void __cdecl RedInputManager::`dynamic initializer for 'm_keyboards''(void)	pcRedInputManager.obj
-844	0001:00008940	??__Em_mouses@RedInputManager@@YAXXZ	void __cdecl RedInputManager::`dynamic initializer for 'm_mouses''(void)	pcRedInputManager.obj
-845	0001:00008970	??__EgLCDPanels@@YAXXZ	void __cdecl `dynamic initializer for 'gLCDPanels''(void)	pcRedLogitechLCD.obj
-846	0001:000089a0	??__E?sRandom@Properties@RedMovie@@2VPblRandom@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblRandom RedMovie::Properties::sRandom''(void)	RedMovie.obj
-847	0001:000089e0	??__E?smFreeList@Bus@Snd@@2VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::Bus::smFreeList''(void)	sndbus.obj
-848	0001:00008a00	??__E?smRootBus@Bus@Snd@@2V12@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Bus Snd::Bus::smRootBus''(void)	sndbus.obj
-849	0001:00008a10	??__E?smListeners@EngineBase@Snd@@2PAVListener@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Listener * Snd::EngineBase::smListeners''(void)	sndenginebase.obj
-850	0001:00008a40	??__E?smSoundRAMAllocator@EngineBase@Snd@@2VMemoryBitmap@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::MemoryBitmap Snd::EngineBase::smSoundRAMAllocator''(void)	sndenginebase.obj
-851	0001:00008a50	??__E?smVoiceVirtualManager@EngineBase@Snd@@2VVoiceVirtualManager@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::VoiceVirtualManager Snd::EngineBase::smVoiceVirtualManager''(void)	sndenginebase.obj
-852	0001:00008a60	??__E?smFileList@File@Snd@@2VPblListDoubleSorted@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDoubleSorted Snd::File::smFileList''(void)	sndfile.obj
-853	0001:00008a70	??__E?smQueuedCommands@File@Snd@@2VSemaphore@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Semaphore Snd::File::smQueuedCommands''(void)	sndfile.obj
-854	0001:00008a80	??__E?smQueuedFileOpList@File@Snd@@2VPblListDoubleSorted@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDoubleSorted Snd::File::smQueuedFileOpList''(void)	sndfile.obj
-855	0001:00008a90	??__E?smQueuedFileOpListLock@File@Snd@@2VSemaphore@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Semaphore Snd::File::smQueuedFileOpListLock''(void)	sndfile.obj
-856	0001:00008aa0	??__EsndRandom@Snd@@YAXXZ	void __cdecl Snd::`dynamic initializer for 'sndRandom''(void)	sndglobals.obj
-857	0001:00008ae0	??__E?smFreeList@I3DL2ReverbPreset@Snd@@2VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::I3DL2ReverbPreset::smFreeList''(void)	sndi3dl2reverbpreset.obj
-858	0001:00008b00	??__E?smList@I3DL2ReverbPreset@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::I3DL2ReverbPreset::smList''(void)	sndi3dl2reverbpreset.obj
-859	0001:00008b10	??__E?smFreeList@Node@ObjectList@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::ObjectList::Node::smFreeList''(void)	sndobjectlist.obj
-860	0001:00008b30	??__E?smFreeList@ObjectWeight@Snd@@2VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::ObjectWeight::smFreeList''(void)	sndobjectweightlist.obj
-861	0001:00008b50	??__E?smFreeList@ControlPoint@ParameterGraph@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::ParameterGraph::ControlPoint::smFreeList''(void)	sndparametergraph.obj
-862	0001:00008b70	??__E?smFreeList@ParameterGraph@Snd@@2VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::ParameterGraph::smFreeList''(void)	sndparametergraph.obj
-863	0001:00008b90	??__E?smParameterGraphs@ParameterGraph@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::ParameterGraph::smParameterGraphs''(void)	sndparametergraph.obj
-864	0001:00008ba0	??__E?smSampleBankList@SampleBankBase@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::SampleBankBase::smSampleBankList''(void)	sndsamplebankbase.obj
-865	0001:00008bb0	??__E?smFreeList@Properties@Sound@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::Sound::Properties::smFreeList''(void)	sndsound.obj
-866	0001:00008bd0	??__E?smPropertyList@Properties@Sound@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::Sound::Properties::smPropertyList''(void)	sndsound.obj
-867	0001:00008be0	??__E?smSoundList@Sound@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::Sound::smSoundList''(void)	sndsound.obj
-868	0001:00008bf0	??__E?smSource3Ds@Sound@Snd@@2PAVSource3D@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Source3D * Snd::Sound::smSource3Ds''(void)	sndsound.obj
-869	0001:00008c20	??__E?smActiveList@FireForgetLayer@SoundLayered@Snd@@2VPblListDouble@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDouble Snd::SoundLayered::FireForgetLayer::smActiveList''(void)	sndsoundlayered.obj
-870	0001:00008c30	??__E?smFreeList@Layer@Properties@SoundLayered@Snd@@2VFreeList@4@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundLayered::Properties::Layer::smFreeList''(void)	sndsoundlayered.obj
-871	0001:00008c50	??__E?smFreeList@Properties@SoundLayered@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundLayered::Properties::smFreeList''(void)	sndsoundlayered.obj
-872	0001:00008c70	??__E?smFreeList@SoundLayer@SoundLayered@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundLayered::SoundLayer::smFreeList''(void)	sndsoundlayered.obj
-873	0001:00008c90	??__E?smInactiveList@FireForgetLayer@SoundLayered@Snd@@2VPblListDouble@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDouble Snd::SoundLayered::FireForgetLayer::smInactiveList''(void)	sndsoundlayered.obj
-874	0001:00008ca0	??__E?smPropertyList@Properties@SoundLayered@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::SoundLayered::Properties::smPropertyList''(void)	sndsoundlayered.obj
-875	0001:00008cb0	??__E?smSoundLayeredList@SoundLayered@Snd@@2VPblListDouble@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDouble Snd::SoundLayered::smSoundLayeredList''(void)	sndsoundlayered.obj
-876	0001:00008cc0	??__E?smFreeList@Layer@SoundParameterized@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundParameterized::Layer::smFreeList''(void)	sndsoundparameterized.obj
-877	0001:00008ce0	??__E?smFreeList@Properties@Controller@SoundParameterized@Snd@@2VFreeList@4@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundParameterized::Controller::Properties::smFreeList''(void)	sndsoundparameterized.obj
-878	0001:00008d00	??__E?smFreeList@Properties@Layer@SoundParameterized@Snd@@2VFreeList@4@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundParameterized::Layer::Properties::smFreeList''(void)	sndsoundparameterized.obj
-879	0001:00008d20	??__E?smFreeList@Properties@SoundParameterized@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundParameterized::Properties::smFreeList''(void)	sndsoundparameterized.obj
-880	0001:00008d40	??__E?smPropertyList@Properties@SoundParameterized@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::SoundParameterized::Properties::smPropertyList''(void)	sndsoundparameterized.obj
-881	0001:00008d50	??__E?smSoundParameterizedList@SoundParameterized@Snd@@2VPblListDouble@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDouble Snd::SoundParameterized::smSoundParameterizedList''(void)	sndsoundparameterized.obj
-882	0001:00008d60	??__E?smFireForget@SoundStream@Snd@@0PAVFireForget@12@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class Snd::SoundStream::FireForget * Snd::SoundStream::smFireForget''(void)	sndsoundstream.obj
-883	0001:00008d90	??__E?smFree@SoundStream@Snd@@0VPblListDoubleSorted@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class PblListDoubleSorted Snd::SoundStream::smFree''(void)	sndsoundstream.obj
-884	0001:00008da0	??__E?smFreeList@Properties@SoundStream@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundStream::Properties::smFreeList''(void)	sndsoundstream.obj
-885	0001:00008dc0	??__E?smFreeList@SoundStream@Snd@@0VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class Snd::FreeList Snd::SoundStream::smFreeList''(void)	sndsoundstream.obj
-886	0001:00008de0	??__E?smList@SoundStream@Snd@@0VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class PblListSingle Snd::SoundStream::smList''(void)	sndsoundstream.obj
-887	0001:00008df0	??__E?smPropertyList@Properties@SoundStream@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::SoundStream::Properties::smPropertyList''(void)	sndsoundstream.obj
-888	0001:00008e00	??__E?smQueue@SoundStream@Snd@@0PAVPblListDoubleSorted@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class PblListDoubleSorted * Snd::SoundStream::smQueue''(void)	sndsoundstream.obj
-889	0001:00008e30	??__E?smDefaultSpace@Space@Snd@@2V12@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Space Snd::Space::smDefaultSpace''(void)	sndspace.obj
-890	0001:00008e80	??__E?smFreeList@Connected@Space@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::Space::Connected::smFreeList''(void)	sndspace.obj
-891	0001:00008ea0	??__E?smFreeList@Space@Snd@@2VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::Space::smFreeList''(void)	sndspace.obj
-892	0001:00008ec0	??__E?smSpaceList@Space@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::Space::smSpaceList''(void)	sndspace.obj
-893	0001:00008ed0	??__E?smInfoList@Info@StreamBase@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::StreamBase::Info::smInfoList''(void)	sndstreambase.obj
-894	0001:00008ee0	??__E?smList@DSBuffer@Snd@@0VPblListDouble@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class PblListDouble Snd::DSBuffer::smList''(void)	snddsbuffer.obj
-895	0001:00008ef0	??__E?smRendererList@DSBufferRenderer@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::DSBufferRenderer::smRendererList''(void)	snddsbufferrenderer.obj
-896	0001:00008f00	??__E?smDummySecBuffer@Engine@Snd@@2VDSBuffer@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::DSBuffer Snd::Engine::smDummySecBuffer''(void)	sndengine.obj
-897	0001:00008f20	??__E_smHighLowPass@@YAXXZ	void __cdecl `dynamic initializer for '_smHighLowPass''(void)	sndengine.obj
-898	0001:00008f40	??__EsmEngineUpdater@@YAXXZ	void __cdecl `dynamic initializer for 'smEngineUpdater''(void)	sndengine.obj
-899	0001:00008f60	??__EsndEngineThreadUpdate@Snd@@YAXXZ	void __cdecl Snd::`dynamic initializer for 'sndEngineThreadUpdate''(void)	sndengine.obj
-900	0001:00008f80	??__EgEncryptedAppTicket@@YAXXZ	void __cdecl `dynamic initializer for 'gEncryptedAppTicket''(void)	gfSteamAuth.obj
-901	0001:00008f90	??__EgFriendConnectionStrings@@YAXXZ	void __cdecl `dynamic initializer for 'gFriendConnectionStrings''(void)	gfSteamAuth.obj
-902	0001:00009040	??__EkuiDummyRootHash@@YAXXZ	void __cdecl `dynamic initializer for 'kuiDummyRootHash''(void)	ZephyrSkeleton.obj
+631	0001:00004f00	??__EgEncryptedAppTicket@@YAXXZ	void __cdecl `dynamic initializer for 'gEncryptedAppTicket''(void)	gfSteamAuth.obj
+632	0001:00004f10	??__EgFriendConnectionStrings@@YAXXZ	void __cdecl `dynamic initializer for 'gFriendConnectionStrings''(void)	gfSteamAuth.obj
+633	0001:00004fc0	??__E?_UnderWaterRenderable@RedWater@@2VUnderWaterRenderable@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class UnderWaterRenderable RedWater::_UnderWaterRenderable''(void)	RedWater.obj
+634	0001:00005000	??__E?_WaterRenderable@RedWater@@2VWaterRenderable@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class WaterRenderable RedWater::_WaterRenderable''(void)	RedWater.obj
+635	0001:00005030	??__E_RenderableLists@FLRenderer@@YAXXZ	void __cdecl FLRenderer::`dynamic initializer for '_RenderableLists''(void)	pcFLRender.obj
+636	0001:00005070	??__E_enableReflection@@YAXXZ	void __cdecl `dynamic initializer for '_enableReflection''(void)	pcFLRender.obj
+637	0001:000050a0	??__EcvReflectionsDraw@@YAXXZ	void __cdecl `dynamic initializer for 'cvReflectionsDraw''(void)	pcFLRender.obj
+638	0001:000050d0	??__EcvReflectionsEnable@@YAXXZ	void __cdecl `dynamic initializer for 'cvReflectionsEnable''(void)	pcFLRender.obj
+639	0001:00005100	??__EcvarNearScenePushInf@@YAXXZ	void __cdecl `dynamic initializer for 'cvarNearScenePushInf''(void)	pcFLRender.obj
+640	0001:00005130	??__Eg_Enable@@YAXXZ	void __cdecl `dynamic initializer for 'g_Enable''(void)	pcFLRender.obj
+641	0001:00005160	??__EmCursorGroup@FLRenderer@@YAXXZ	void __cdecl FLRenderer::`dynamic initializer for 'mCursorGroup''(void)	pcFLRender.obj
+642	0001:00005180	??__EmCursorImage@FLRenderer@@YAXXZ	void __cdecl FLRenderer::`dynamic initializer for 'mCursorImage''(void)	pcFLRender.obj
+643	0001:000051a0	??__Es_cvRenderFarScene@@YAXXZ	void __cdecl `dynamic initializer for 's_cvRenderFarScene''(void)	pcFLRender.obj
+644	0001:000051d0	??__E?_PrintfColor@RedDebug@@0VRedColor@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedColor RedDebug::_PrintfColor''(void)	pcRedDebug.obj
+645	0001:000051e0	??__E?_ScreenGroup@RedDebug@@0VRedScreenGroupElement@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedScreenGroupElement RedDebug::_ScreenGroup''(void)	pcRedDebug.obj
+646	0001:00005200	??__E?_aMarkers3D@RedDebug@@0PAVRedTetrahedronShape@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedTetrahedronShape * RedDebug::_aMarkers3D''(void)	pcRedDebug.obj
+647	0001:00005230	??__E?_aSpheres@RedDebug@@0PAVRedSphereShape@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedSphereShape * RedDebug::_aSpheres''(void)	pcRedDebug.obj
+648	0001:00005260	??__E?_aText3D@RedDebug@@0PAUText3D@1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static struct RedDebug::Text3D * RedDebug::_aText3D''(void)	pcRedDebug.obj
+649	0001:00005290	??__E?_aTextLines@RedDebug@@0PAVRedTextElement@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedTextElement * RedDebug::_aTextLines''(void)	pcRedDebug.obj
+650	0001:000052c0	??__E?_kStaticRenderable@RedDebug@@0VRedDebugRenderable@1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class RedDebug::RedDebugRenderable RedDebug::_kStaticRenderable''(void)	pcRedDebug.obj
+651	0001:000052f0	??__EkuiShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiShader''(void)	pcRedDropShadow.obj
+652	0001:00005310	??__E?_FarInstance@RedParticleRenderer@@2VRenderable@1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedParticleRenderer::Renderable RedParticleRenderer::_FarInstance''(void)	pcRedParticle.obj
+653	0001:00005330	??__E?_Instance@RedParticleRenderer@@2VRenderable@1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedParticleRenderer::Renderable RedParticleRenderer::_Instance''(void)	pcRedParticle.obj
+654	0001:00005350	??__EkuiParticleShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiParticleShader''(void)	pcRedParticle.obj
+655	0001:00005370	??__E_TerrainRenderable@@YAXXZ	void __cdecl `dynamic initializer for '_TerrainRenderable''(void)	pcRedTerrain.obj
+656	0001:00005430	??__EcvForceFullDetail@@YAXXZ	void __cdecl `dynamic initializer for 'cvForceFullDetail''(void)	pcRedTerrain.obj
+657	0001:00005460	??__EWATERSPLASH_COLOR@@YAXXZ	void __cdecl `dynamic initializer for 'WATERSPLASH_COLOR''(void)	pcRedWater.obj
+658	0001:00005470	??__EkuiNormalMapAdderShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiNormalMapAdderShader''(void)	pcRedWater.obj
+659	0001:00005490	??__EkuiOceanShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiOceanShader''(void)	pcRedWater.obj
+660	0001:000054b0	??__EkuiPreReflectionShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiPreReflectionShader''(void)	pcRedWater.obj
+661	0001:000054d0	??__EkuiUnderWaterShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiUnderWaterShader''(void)	pcRedWater.obj
+662	0001:000054f0	??__EkuiWaterDistortionRingTextureHash@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterDistortionRingTextureHash''(void)	pcRedWater.obj
+663	0001:00005510	??__EkuiWaterRingShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterRingShader''(void)	pcRedWater.obj
+664	0001:00005530	??__EkuiWaterRingTextureHash@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterRingTextureHash''(void)	pcRedWater.obj
+665	0001:00005550	??__EkuiWaterShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterShader''(void)	pcRedWater.obj
+666	0001:00005570	??__EkuiWaterSplashShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterSplashShader''(void)	pcRedWater.obj
+667	0001:00005590	??__EkuiWaterSplashTextureHash@@YAXXZ	void __cdecl `dynamic initializer for 'kuiWaterSplashTextureHash''(void)	pcRedWater.obj
+668	0001:000055b0	??__EkuiClearShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiClearShader''(void)	pcShadowQuadRenderable.obj
+669	0001:000055d0	??__EkuiFilterShader@@YAXXZ	void __cdecl `dynamic initializer for 'kuiFilterShader''(void)	pcShadowQuadRenderable.obj
+670	0001:000055f0	??__E?s_ShaderFactoryByRenderType@pcRedShader@@2V?$PblHashTable@$$CBVpcRedShader@@$0BAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class pcRedShader const ,256> pcRedShader::s_ShaderFactoryByRenderType''(void)	pcRedShader.obj
+671	0001:00005610	??__Es_pcClearShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcClearShaderLinked''(void)	pcRedShader.obj
+672	0001:00005630	??__Es_pcDecalShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcDecalShaderLinked''(void)	pcRedShader.obj
+673	0001:00005650	??__Es_pcFilterCopyShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcFilterCopyShaderLinked''(void)	pcRedShader.obj
+674	0001:00005670	??__Es_pcFlareShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcFlareShaderLinked''(void)	pcRedShader.obj
+675	0001:00005690	??__Es_pcHDRShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcHDRShaderLinked''(void)	pcRedShader.obj
+676	0001:000056b0	??__Es_pcInterfaceShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcInterfaceShaderLinked''(void)	pcRedShader.obj
+677	0001:000056d0	??__Es_pcLightBeamShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcLightBeamShaderLinked''(void)	pcRedShader.obj
+678	0001:000056f0	??__Es_pcNormalMapAdderShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcNormalMapAdderShaderLinked''(void)	pcRedShader.obj
+679	0001:00005710	??__Es_pcNormalShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcNormalShaderLinked''(void)	pcRedShader.obj
+680	0001:00005730	??__Es_pcOceanShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcOceanShaderLinked''(void)	pcRedShader.obj
+681	0001:00005750	??__Es_pcParticleShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcParticleShaderLinked''(void)	pcRedShader.obj
+682	0001:00005770	??__Es_pcPerPixelDiffuseLightingShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcPerPixelDiffuseLightingShaderLinked''(void)	pcRedShader.obj
+683	0001:00005790	??__Es_pcPerVertexDiffuseLightingShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcPerVertexDiffuseLightingShaderLinked''(void)	pcRedShader.obj
+684	0001:000057b0	??__Es_pcPreReflectionShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcPreReflectionShaderLinked''(void)	pcRedShader.obj
+685	0001:000057d0	??__Es_pcRainShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcRainShaderLinked''(void)	pcRedShader.obj
+686	0001:000057f0	??__Es_pcRefractionShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcRefractionShaderLinked''(void)	pcRedShader.obj
+687	0001:00005810	??__Es_pcSampleShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcSampleShaderLinked''(void)	pcRedShader.obj
+688	0001:00005830	??__Es_pcShadowQuadShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcShadowQuadShaderLinked''(void)	pcRedShader.obj
+689	0001:00005850	??__Es_pcShieldShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcShieldShaderLinked''(void)	pcRedShader.obj
+690	0001:00005870	??__Es_pcSkyFogShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcSkyFogShaderLinked''(void)	pcRedShader.obj
+691	0001:00005890	??__Es_pcSpecularLightingShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcSpecularLightingShaderLinked''(void)	pcRedShader.obj
+692	0001:000058b0	??__Es_pcStencilShadowShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcStencilShadowShaderLinked''(void)	pcRedShader.obj
+693	0001:000058d0	??__Es_pcTerrainShader2Linked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcTerrainShader2Linked''(void)	pcRedShader.obj
+694	0001:000058f0	??__Es_pcTerrainShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcTerrainShaderLinked''(void)	pcRedShader.obj
+695	0001:00005910	??__Es_pcWaterShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcWaterShaderLinked''(void)	pcRedShader.obj
+696	0001:00005930	??__Es_pcZPrepassShaderLinked@@YAXXZ	void __cdecl `dynamic initializer for 's_pcZPrepassShaderLinked''(void)	pcRedShader.obj
+697	0001:00005950	??__EsCustomRenderPresets@RedAutoSettings@@YAXXZ	void __cdecl RedAutoSettings::`dynamic initializer for 'sCustomRenderPresets''(void)	pcRedAutoSettings.obj
+698	0001:000059e0	??__E?m_aLightingStatePool@RedRenderer@@2PAURedLightingState@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static struct RedLightingState * RedRenderer::m_aLightingStatePool''(void)	pcRedRenderer.obj
+699	0001:00005a10	??__E?m_colorFog@RedRenderer@@2VRedColor@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedColor RedRenderer::m_colorFog''(void)	pcRedRenderer.obj
+700	0001:00005a20	??__E?m_opaqueQueues@RedRenderer@@2V?$Vector@VSortHeap@RedRenderer@@V?$BaseArray@VSortHeap@RedRenderer@@V?$TNewArrayAlloc@VSortHeap@RedRenderer@@@util@@@util@@@util@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class util::Vector<class RedRenderer::SortHeap,class util::BaseArray<class RedRenderer::SortHeap,class util::TNewArrayAlloc<class RedRenderer::SortHeap> > > RedRenderer::m_opaqueQueues''(void)	pcRedRenderer.obj
+701	0001:00005a30	??__E?m_posttransparentItems@RedRenderer@@2V?$TransparentHeap@PAURenderItem@@I@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class TransparentHeap<struct RenderItem *,unsigned int> RedRenderer::m_posttransparentItems''(void)	pcRedRenderer.obj
+702	0001:00005a50	??__E?m_preShadowTransparentItems@RedRenderer@@2V?$TransparentHeap@PAURenderItem@@I@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class TransparentHeap<struct RenderItem *,unsigned int> RedRenderer::m_preShadowTransparentItems''(void)	pcRedRenderer.obj
+703	0001:00005a70	??__E?m_renderItemPool@RedRenderer@@2PAURenderItem@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static struct RenderItem * RedRenderer::m_renderItemPool''(void)	pcRedRenderer.obj
+704	0001:00005aa0	??__E?m_transparentItems@RedRenderer@@2V?$TransparentHeap@PAURenderItem@@I@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class TransparentHeap<struct RenderItem *,unsigned int> RedRenderer::m_transparentItems''(void)	pcRedRenderer.obj
+705	0001:00005ac0	??__E?s_textureHashTable@RedTexture@@2V?$PblHashTable@VRedTexture@@$0BAAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedTexture,4096> RedTexture::s_textureHashTable''(void)	pcRedTexture.obj
+706	0001:00005ae0	??__EsDynamicVertexBufferHashTable@@YAXXZ	void __cdecl `dynamic initializer for 'sDynamicVertexBufferHashTable''(void)	pcRedVertexBuffer.obj
+707	0001:00005b00	??__EsStaticVertexBufferHashTable@@YAXXZ	void __cdecl `dynamic initializer for 'sStaticVertexBufferHashTable''(void)	pcRedVertexBuffer.obj
+708	0001:00005b20	??__E?s_Factory@pcClearShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcClearShader pcClearShader::s_Factory''(void)	pcClearShader.obj
+709	0001:00005c10	??__E?s_shaderDef@pcClearShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcClearShader::s_shaderDef''(void)	pcClearShader.obj
+710	0001:00005c30	??__E?s_uiRenderTypeHash@pcClearShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcClearShader::s_uiRenderTypeHash''(void)	pcClearShader.obj
+711	0001:00005c50	??__E?s_Factory@pcDecalShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcDecalShader pcDecalShader::s_Factory''(void)	pcDecalShader.obj
+712	0001:00005d60	??__E?s_shaderDef@pcDecalShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcDecalShader::s_shaderDef''(void)	pcDecalShader.obj
+713	0001:00005d80	??__E?s_uiRenderTypeHash@pcDecalShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcDecalShader::s_uiRenderTypeHash''(void)	pcDecalShader.obj
+714	0001:00005da0	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcDecalShader.obj
+715	0001:00005dc0	??__E?s_Factory@pcFilterCopyShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcFilterCopyShader pcFilterCopyShader::s_Factory''(void)	pcFilterCopyShader.obj
+716	0001:00005ed0	??__E?s_shaderDef@pcFilterCopyShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcFilterCopyShader::s_shaderDef''(void)	pcFilterCopyShader.obj
+717	0001:00005ef0	??__E?s_uiRenderTypeHash@pcFilterCopyShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcFilterCopyShader::s_uiRenderTypeHash''(void)	pcFilterCopyShader.obj
+718	0001:00005f20	??__E?s_Factory@pcFlareShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcFlareShader pcFlareShader::s_Factory''(void)	pcFlareShader.obj
+719	0001:00006030	??__E?s_shaderDef@pcFlareShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcFlareShader::s_shaderDef''(void)	pcFlareShader.obj
+720	0001:00006050	??__E?s_uiRenderTypeHash@pcFlareShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcFlareShader::s_uiRenderTypeHash''(void)	pcFlareShader.obj
+721	0001:00006070	??__E?s_Factory@pcHDRShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcHDRShader pcHDRShader::s_Factory''(void)	pcHDRShader.obj
+722	0001:00006180	??__E?s_shaderDef@pcHDRShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcHDRShader::s_shaderDef''(void)	pcHDRShader.obj
+723	0001:000061a0	??__E?s_uiRenderTypeHash@pcHDRShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcHDRShader::s_uiRenderTypeHash''(void)	pcHDRShader.obj
+724	0001:000061c0	??__E?s_Factory@pcInterfaceShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcInterfaceShader pcInterfaceShader::s_Factory''(void)	pcInterfaceShader.obj
+725	0001:000062d0	??__E?s_shaderDef@pcInterfaceShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcInterfaceShader::s_shaderDef''(void)	pcInterfaceShader.obj
+726	0001:000062f0	??__E?s_uiRenderTypeHash@pcInterfaceShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcInterfaceShader::s_uiRenderTypeHash''(void)	pcInterfaceShader.obj
+727	0001:00006310	??__E?s_Factory@pcLightBeamShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcLightBeamShader pcLightBeamShader::s_Factory''(void)	pcLightBeamShader.obj
+728	0001:00006420	??__E?s_shaderDef@pcLightBeamShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcLightBeamShader::s_shaderDef''(void)	pcLightBeamShader.obj
+729	0001:00006440	??__E?s_uiRenderTypeHash@pcLightBeamShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcLightBeamShader::s_uiRenderTypeHash''(void)	pcLightBeamShader.obj
+730	0001:00006460	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcLightBeamShader.obj
+731	0001:00006480	??__E?s_Factory@pcNormalMapAdderShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcNormalMapAdderShader pcNormalMapAdderShader::s_Factory''(void)	pcNormalMapAdderShader.obj
+732	0001:000065a0	??__E?s_shaderDef@pcNormalMapAdderShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcNormalMapAdderShader::s_shaderDef''(void)	pcNormalMapAdderShader.obj
+733	0001:000065c0	??__E?s_uiRenderTypeHash@pcNormalMapAdderShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcNormalMapAdderShader::s_uiRenderTypeHash''(void)	pcNormalMapAdderShader.obj
+734	0001:000065e0	??__EkuiHemisphereNormalizationMap@@YAXXZ	void __cdecl `dynamic initializer for 'kuiHemisphereNormalizationMap''(void)	pcNormalMapAdderShader.obj
+735	0001:00006600	??__E?s_Factory@pcNormalShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcNormalShader pcNormalShader::s_Factory''(void)	pcNormalShader.obj
+736	0001:00006720	??__E?s_shaderDef@pcNormalShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcNormalShader::s_shaderDef''(void)	pcNormalShader.obj
+737	0001:00006740	??__E?s_uiRenderTypeHash@pcNormalShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcNormalShader::s_uiRenderTypeHash''(void)	pcNormalShader.obj
+738	0001:00006760	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcNormalShader.obj
+739	0001:00006780	??__E?s_Factory@pcOceanShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcOceanShader pcOceanShader::s_Factory''(void)	pcOceanShader.obj
+740	0001:000068a0	??__E?s_shaderDef@pcOceanShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcOceanShader::s_shaderDef''(void)	pcOceanShader.obj
+741	0001:000068c0	??__E?s_uiRenderTypeHash@pcOceanShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcOceanShader::s_uiRenderTypeHash''(void)	pcOceanShader.obj
+742	0001:000068e0	??__EkuiCubeNormalizationMap@@YAXXZ	void __cdecl `dynamic initializer for 'kuiCubeNormalizationMap''(void)	pcOceanShader.obj
+743	0001:00006900	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcOceanShader.obj
+744	0001:00006920	??__E?s_Factory@pcParticleShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcParticleShader pcParticleShader::s_Factory''(void)	pcParticleShader.obj
+745	0001:00006a30	??__E?s_shaderDef@pcParticleShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcParticleShader::s_shaderDef''(void)	pcParticleShader.obj
+746	0001:00006a50	??__E?s_uiRenderTypeHash@pcParticleShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcParticleShader::s_uiRenderTypeHash''(void)	pcParticleShader.obj
+747	0001:00006a70	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcParticleShader.obj
+748	0001:00006a90	??__E?s_Factory@pcPerPixelDiffuseLightingShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcPerPixelDiffuseLightingShader pcPerPixelDiffuseLightingShader::s_Factory''(void)	pcPerPixelDiffuseLightingShader.obj
+749	0001:00006ba0	??__E?s_shaderDef@pcPerPixelDiffuseLightingShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcPerPixelDiffuseLightingShader::s_shaderDef''(void)	pcPerPixelDiffuseLightingShader.obj
+750	0001:00006bc0	??__E?s_uiRenderTypeHash@pcPerPixelDiffuseLightingShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcPerPixelDiffuseLightingShader::s_uiRenderTypeHash''(void)	pcPerPixelDiffuseLightingShader.obj
+751	0001:00006be0	??__Es_uiDefaultSpotLightMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiDefaultSpotLightMapHash''(void)	pcPerPixelDiffuseLightingShader.obj
+752	0001:00006c00	??__Es_uiLightVolumeMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiLightVolumeMapHash''(void)	pcPerPixelDiffuseLightingShader.obj
+753	0001:00006c20	??__Es_uiNormalizationCubeMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiNormalizationCubeMapHash''(void)	pcPerPixelDiffuseLightingShader.obj
+754	0001:00006c40	??__E?s_Factory@pcPerVertexDiffuseLightingShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcPerVertexDiffuseLightingShader pcPerVertexDiffuseLightingShader::s_Factory''(void)	pcPerVertexDiffuseLightingShader.obj
+755	0001:00006d50	??__E?s_shaderDef@pcPerVertexDiffuseLightingShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcPerVertexDiffuseLightingShader::s_shaderDef''(void)	pcPerVertexDiffuseLightingShader.obj
+756	0001:00006d70	??__E?s_uiRenderTypeHash@pcPerVertexDiffuseLightingShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcPerVertexDiffuseLightingShader::s_uiRenderTypeHash''(void)	pcPerVertexDiffuseLightingShader.obj
+757	0001:00006d90	??__E?s_Factory@pcPreReflectionShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcPreReflectionShader pcPreReflectionShader::s_Factory''(void)	pcPreReflectionShader.obj
+758	0001:00006ea0	??__E?s_shaderDef@pcPreReflectionShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcPreReflectionShader::s_shaderDef''(void)	pcPreReflectionShader.obj
+759	0001:00006ec0	??__E?s_uiRenderTypeHash@pcPreReflectionShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcPreReflectionShader::s_uiRenderTypeHash''(void)	pcPreReflectionShader.obj
+760	0001:00006ee0	??__E?s_Factory@pcRainShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRainShader pcRainShader::s_Factory''(void)	pcRainShader.obj
+761	0001:00006ff0	??__E?s_shaderDef@pcRainShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcRainShader::s_shaderDef''(void)	pcRainShader.obj
+762	0001:00007010	??__E?s_uiRenderTypeHash@pcRainShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcRainShader::s_uiRenderTypeHash''(void)	pcRainShader.obj
+763	0001:00007030	??__E?s_Factory@pcRefractionShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRefractionShader pcRefractionShader::s_Factory''(void)	pcRefractionShader.obj
+764	0001:00007160	??__E?s_shaderDef@pcRefractionShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcRefractionShader::s_shaderDef''(void)	pcRefractionShader.obj
+765	0001:00007180	??__E?s_uiRenderTypeHash@pcRefractionShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcRefractionShader::s_uiRenderTypeHash''(void)	pcRefractionShader.obj
+766	0001:000071a0	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcRefractionShader.obj
+767	0001:000071c0	??__E?s_Factory@pcSampleShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcSampleShader pcSampleShader::s_Factory''(void)	pcSampleShader.obj
+768	0001:000072d0	??__E?s_shaderDef@pcSampleShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcSampleShader::s_shaderDef''(void)	pcSampleShader.obj
+769	0001:000072f0	??__E?s_uiRenderTypeHash@pcSampleShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcSampleShader::s_uiRenderTypeHash''(void)	pcSampleShader.obj
+770	0001:00007310	??__E?s_Factory@pcShadowQuadShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcShadowQuadShader pcShadowQuadShader::s_Factory''(void)	pcShadowQuadShader.obj
+771	0001:00007420	??__E?s_shaderDef@pcShadowQuadShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcShadowQuadShader::s_shaderDef''(void)	pcShadowQuadShader.obj
+772	0001:00007440	??__E?s_uiRenderTypeHash@pcShadowQuadShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcShadowQuadShader::s_uiRenderTypeHash''(void)	pcShadowQuadShader.obj
+773	0001:00007460	??__E?s_Factory@pcShieldShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcShieldShader pcShieldShader::s_Factory''(void)	pcShieldShader.obj
+774	0001:00007570	??__E?s_shaderDef@pcShieldShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcShieldShader::s_shaderDef''(void)	pcShieldShader.obj
+775	0001:00007590	??__E?s_uiRenderTypeHash@pcShieldShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcShieldShader::s_uiRenderTypeHash''(void)	pcShieldShader.obj
+776	0001:000075b0	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcShieldShader.obj
+777	0001:000075d0	??__EkuiSpecularSpotMap@@YAXXZ	void __cdecl `dynamic initializer for 'kuiSpecularSpotMap''(void)	pcShieldShader.obj
+778	0001:000075f0	??__E?s_Factory@pcSkyFogShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcSkyFogShader pcSkyFogShader::s_Factory''(void)	pcSkyFogShader.obj
+779	0001:00007700	??__E?s_shaderDef@pcSkyFogShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcSkyFogShader::s_shaderDef''(void)	pcSkyFogShader.obj
+780	0001:00007720	??__E?s_uiRenderTypeHash@pcSkyFogShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcSkyFogShader::s_uiRenderTypeHash''(void)	pcSkyFogShader.obj
+781	0001:00007740	??__E?s_Factory@pcSpecularLightingShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcSpecularLightingShader pcSpecularLightingShader::s_Factory''(void)	pcSpecularLightingShader.obj
+782	0001:00007850	??__E?s_shaderDef@pcSpecularLightingShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcSpecularLightingShader::s_shaderDef''(void)	pcSpecularLightingShader.obj
+783	0001:00007870	??__E?s_uiRenderTypeHash@pcSpecularLightingShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcSpecularLightingShader::s_uiRenderTypeHash''(void)	pcSpecularLightingShader.obj
+784	0001:00007890	??__EkfSpecSizeInvDefault@@YAXXZ	void __cdecl `dynamic initializer for 'kfSpecSizeInvDefault''(void)	pcSpecularLightingShader.obj
+785	0001:000078d0	??__Es_uiLightVolumeMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiLightVolumeMapHash''(void)	pcSpecularLightingShader.obj
+786	0001:000078f0	??__Es_uiNormalizationCubeMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiNormalizationCubeMapHash''(void)	pcSpecularLightingShader.obj
+787	0001:00007910	??__Es_uiSpecularCubeMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiSpecularCubeMapHash''(void)	pcSpecularLightingShader.obj
+788	0001:00007930	??__Es_uiSpecularSpotMapHash@@YAXXZ	void __cdecl `dynamic initializer for 's_uiSpecularSpotMapHash''(void)	pcSpecularLightingShader.obj
+789	0001:00007950	??__E?s_Factory@pcStencilShadowShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcStencilShadowShader pcStencilShadowShader::s_Factory''(void)	pcStencilShadowShader.obj
+790	0001:00007a60	??__E?s_shaderDef@pcStencilShadowShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcStencilShadowShader::s_shaderDef''(void)	pcStencilShadowShader.obj
+791	0001:00007a80	??__E?s_uiRenderTypeHash@pcStencilShadowShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcStencilShadowShader::s_uiRenderTypeHash''(void)	pcStencilShadowShader.obj
+792	0001:00007aa0	??__E?s_Factory@pcTerrainShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcTerrainShader pcTerrainShader::s_Factory''(void)	pcTerrainShader.obj
+793	0001:00007bb0	??__E?s_shaderDef@pcTerrainShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcTerrainShader::s_shaderDef''(void)	pcTerrainShader.obj
+794	0001:00007bd0	??__E?s_uiRenderTypeHash@pcTerrainShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcTerrainShader::s_uiRenderTypeHash''(void)	pcTerrainShader.obj
+795	0001:00007bf0	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcTerrainShader.obj
+796	0001:00007c10	??__E?s_Factory@pcTerrainShader2@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcTerrainShader2 pcTerrainShader2::s_Factory''(void)	pcTerrainShader2.obj
+797	0001:00007d20	??__E?s_shaderDef@pcTerrainShader2@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcTerrainShader2::s_shaderDef''(void)	pcTerrainShader2.obj
+798	0001:00007d40	??__E?s_uiRenderTypeHash@pcTerrainShader2@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcTerrainShader2::s_uiRenderTypeHash''(void)	pcTerrainShader2.obj
+799	0001:00007d60	??__E?s_Factory@pcWaterShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcWaterShader pcWaterShader::s_Factory''(void)	pcWaterShader.obj
+800	0001:00007ef0	??__E?s_shaderDef@pcWaterShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcWaterShader::s_shaderDef''(void)	pcWaterShader.obj
+801	0001:00007f10	??__E?s_uiRenderTypeHash@pcWaterShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcWaterShader::s_uiRenderTypeHash''(void)	pcWaterShader.obj
+802	0001:00007f30	??__EkuiCubeNormalizationMap@@YAXXZ	void __cdecl `dynamic initializer for 'kuiCubeNormalizationMap''(void)	pcWaterShader.obj
+803	0001:00007f50	??__EkuiLinearRamp@@YAXXZ	void __cdecl `dynamic initializer for 'kuiLinearRamp''(void)	pcWaterShader.obj
+804	0001:00007f80	??__E?s_Factory@pcZPrepassShader@@0V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcZPrepassShader pcZPrepassShader::s_Factory''(void)	pcZPrepassShader.obj
+805	0001:000080a0	??__E?s_shaderDef@pcZPrepassShader@@0VpcRedShaderDef@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class pcRedShaderDef pcZPrepassShader::s_shaderDef''(void)	pcZPrepassShader.obj
+806	0001:000080c0	??__E?s_uiRenderTypeHash@pcZPrepassShader@@0IA@@YAXXZ	void __cdecl `dynamic initializer for 'private: static unsigned int pcZPrepassShader::s_uiRenderTypeHash''(void)	pcZPrepassShader.obj
+807	0001:000080e0	??__E?BLACK@RedAmbientLight@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedAmbientLight RedAmbientLight::BLACK''(void)	RedAmbientLight.obj
+808	0001:00008110	??__E?WHITE@RedAmbientLight@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedAmbientLight RedAmbientLight::WHITE''(void)	RedAmbientLight.obj
+809	0001:00008140	??__E?BLACK@RedDirectionalLight@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedDirectionalLight RedDirectionalLight::BLACK''(void)	RedDirectionalLight.obj
+810	0001:00008180	??__E?_HashTable@RedModel@@2V?$PblHashTable@VRedModel@@$0EAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedModel,1024> RedModel::_HashTable''(void)	RedModel.obj
+811	0001:000081a0	??__E?BLACK@RedOmniLight@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedOmniLight RedOmniLight::BLACK''(void)	RedOmniLight.obj
+812	0001:00008380	??__E?sMemoryPool@RedOmniLight@@2VMemoryPool@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class MemoryPool RedOmniLight::sMemoryPool''(void)	RedOmniLight.obj
+813	0001:000083a0	??__E?sMemoryPool@Entry@RedShadingPose@@2VMemoryPool@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class MemoryPool RedShadingPose::Entry::sMemoryPool''(void)	RedShadingState.obj
+814	0001:000083c0	??__E?sMemoryPool@RedShadingState@@2VMemoryPool@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class MemoryPool RedShadingState::sMemoryPool''(void)	RedShadingState.obj
+815	0001:000083e0	??__E?_HashTable@RedSkeleton@@2V?$PblHashTable@VRedSkeleton@@$0CAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedSkeleton,512> RedSkeleton::_HashTable''(void)	RedSkeleton.obj
+816	0001:00008400	??__E?BLACK@RedSpotLight@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedSpotLight RedSpotLight::BLACK''(void)	RedSpotLight.obj
+817	0001:00008440	??__E?rttiHashRed3DModelAnimator@Red3DModelAnimator@@2VPblHash@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHash Red3DModelAnimator::rttiHashRed3DModelAnimator''(void)	Red3DModelAnimator.obj
+818	0001:00008450	??__E?s_fontHashTable@RedFont@@2V?$PblHashTable@VRedFont@@$0BA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedFont,16> RedFont::s_fontHashTable''(void)	RedFont.obj
+819	0001:00008470	??__E?s_fCotHalfFOVx@RedHotSpot@@2MA@@YAXXZ	void __cdecl `dynamic initializer for 'public: static float RedHotSpot::s_fCotHalfFOVx''(void)	RedHotSpot.obj
+820	0001:00008490	??__E?s_fCotHalfFOVy@RedHotSpot@@2MA@@YAXXZ	void __cdecl `dynamic initializer for 'public: static float RedHotSpot::s_fCotHalfFOVy''(void)	RedHotSpot.obj
+821	0001:000084b0	??__ESQRT3@@YAXXZ	void __cdecl `dynamic initializer for 'SQRT3''(void)	RedHotSpot.obj
+822	0001:000084f0	??__E?sAllObjectsList@RedInterfaceElement@@2V?$PblHashTable@VRedInterfaceElement@@$0IAAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedInterfaceElement,32768> RedInterfaceElement::sAllObjectsList''(void)	RedInterfaceElement.obj
+823	0001:00008510	??__E?sSQRT3@RedInterfaceScreen@@2MA@@YAXXZ	void __cdecl `dynamic initializer for 'public: static float RedInterfaceScreen::sSQRT3''(void)	RedInterfaceScreen.obj
+824	0001:00008550	??__E?s_directionalLight@RedInterfaceScreen@@2PAVRedDirectionalLight@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedDirectionalLight * RedInterfaceScreen::s_directionalLight''(void)	RedInterfaceScreen.obj
+825	0001:00008580	??__E?s_lightingState@RedInterfaceScreen@@2URedLightingState@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static struct RedLightingState RedInterfaceScreen::s_lightingState''(void)	RedInterfaceScreen.obj
+826	0001:00008610	??__E?s_screenFull@RedInterfaceScreen@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedInterfaceScreen RedInterfaceScreen::s_screenFull''(void)	RedInterfaceScreen.obj
+827	0001:00008690	??__E?sfHeight@RedInterfaceScreen@@2MA@@YAXXZ	void __cdecl `dynamic initializer for 'public: static float RedInterfaceScreen::sfHeight''(void)	RedInterfaceScreen.obj
+828	0001:000086b0	??__E?sfWidth@RedInterfaceScreen@@2MA@@YAXXZ	void __cdecl `dynamic initializer for 'public: static float RedInterfaceScreen::sfWidth''(void)	RedInterfaceScreen.obj
+829	0001:000086d0	??__EshadowBlobRandom@@YAXXZ	void __cdecl `dynamic initializer for 'shadowBlobRandom''(void)	RedShadowBlob.obj
+830	0001:00008710	??__E?s_aPoints@RedVectorElement@@2PAUPoint@1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static struct RedVectorElement::Point * RedVectorElement::s_aPoints''(void)	RedVectorElement.obj
+831	0001:00008740	??__EdisplayableSuballoc_@pvs@@YAXXZ	void __cdecl pvs::`dynamic initializer for 'displayableSuballoc_''(void)	Portal.obj
+832	0001:000087c0	??__Eg_BackFaceCull@@YAXXZ	void __cdecl `dynamic initializer for 'g_BackFaceCull''(void)	Portal.obj
+833	0001:000087f0	??__Eg_DebugDraw@@YAXXZ	void __cdecl `dynamic initializer for 'g_DebugDraw''(void)	Portal.obj
+834	0001:00008820	??__Eg_Enable@@YAXXZ	void __cdecl `dynamic initializer for 'g_Enable''(void)	Portal.obj
+835	0001:00008850	??__Eg_ProximityTest@@YAXXZ	void __cdecl `dynamic initializer for 'g_ProximityTest''(void)	Portal.obj
+836	0001:00008880	??__Eg_SaveCam@@YAXXZ	void __cdecl `dynamic initializer for 'g_SaveCam''(void)	Portal.obj
+837	0001:000088b0	??__E?_HashTable@RedAnimation@@2V?$PblHashTable@VRedAnimation@@$0EAA@@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblHashTable<class RedAnimation,1024> RedAnimation::_HashTable''(void)	RedAnimation.obj
+838	0001:000088d0	??__EsMasterLocalizeHash@@YAXXZ	void __cdecl `dynamic initializer for 'sMasterLocalizeHash''(void)	RedLocalizeDB.obj
+839	0001:000088f0	??__E?sList@RedRegionFactory@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle RedRegionFactory::sList''(void)	RedRegion.obj
+840	0001:00008900	??__E?sRegionFactory@RedRegionFactory@@2V1@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class RedRegionFactory RedRegionFactory::sRegionFactory''(void)	RedRegion.obj
+841	0001:00008910	??__EgStackAllocator_@?A0xffc11138@util@@YAXXZ	void __cdecl util::`anonymous namespace'::`dynamic initializer for 'gStackAllocator_''(void)	Allocator.obj
+842	0001:00008920	??__EgStaticAllocator_@?A0xffc11138@util@@YAXXZ	void __cdecl util::`anonymous namespace'::`dynamic initializer for 'gStaticAllocator_''(void)	Allocator.obj
+843	0001:00008930	??__Eglobals@util@@YAXXZ	void __cdecl util::`dynamic initializer for 'globals''(void)	Globals.obj
+844	0001:000089d0	??__Em_joysticks@RedInputManager@@YAXXZ	void __cdecl RedInputManager::`dynamic initializer for 'm_joysticks''(void)	pcRedInputManager.obj
+845	0001:00008a00	??__Em_keyboards@RedInputManager@@YAXXZ	void __cdecl RedInputManager::`dynamic initializer for 'm_keyboards''(void)	pcRedInputManager.obj
+846	0001:00008a30	??__Em_mouses@RedInputManager@@YAXXZ	void __cdecl RedInputManager::`dynamic initializer for 'm_mouses''(void)	pcRedInputManager.obj
+847	0001:00008a60	??__EgLCDPanels@@YAXXZ	void __cdecl `dynamic initializer for 'gLCDPanels''(void)	pcRedLogitechLCD.obj
+848	0001:00008a90	??__E?sRandom@Properties@RedMovie@@2VPblRandom@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblRandom RedMovie::Properties::sRandom''(void)	RedMovie.obj
+849	0001:00008ad0	??__E?smFreeList@Bus@Snd@@2VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::Bus::smFreeList''(void)	sndbus.obj
+850	0001:00008af0	??__E?smRootBus@Bus@Snd@@2V12@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Bus Snd::Bus::smRootBus''(void)	sndbus.obj
+851	0001:00008b00	??__E?smListeners@EngineBase@Snd@@2PAVListener@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Listener * Snd::EngineBase::smListeners''(void)	sndenginebase.obj
+852	0001:00008b30	??__E?smSoundRAMAllocator@EngineBase@Snd@@2VMemoryBitmap@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::MemoryBitmap Snd::EngineBase::smSoundRAMAllocator''(void)	sndenginebase.obj
+853	0001:00008b40	??__E?smVoiceVirtualManager@EngineBase@Snd@@2VVoiceVirtualManager@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::VoiceVirtualManager Snd::EngineBase::smVoiceVirtualManager''(void)	sndenginebase.obj
+854	0001:00008b50	??__E?smFileList@File@Snd@@2VPblListDoubleSorted@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDoubleSorted Snd::File::smFileList''(void)	sndfile.obj
+855	0001:00008b60	??__E?smQueuedCommands@File@Snd@@2VSemaphore@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Semaphore Snd::File::smQueuedCommands''(void)	sndfile.obj
+856	0001:00008b70	??__E?smQueuedFileOpList@File@Snd@@2VPblListDoubleSorted@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDoubleSorted Snd::File::smQueuedFileOpList''(void)	sndfile.obj
+857	0001:00008b80	??__E?smQueuedFileOpListLock@File@Snd@@2VSemaphore@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Semaphore Snd::File::smQueuedFileOpListLock''(void)	sndfile.obj
+858	0001:00008b90	??__EsndRandom@Snd@@YAXXZ	void __cdecl Snd::`dynamic initializer for 'sndRandom''(void)	sndglobals.obj
+859	0001:00008bd0	??__E?smFreeList@I3DL2ReverbPreset@Snd@@2VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::I3DL2ReverbPreset::smFreeList''(void)	sndi3dl2reverbpreset.obj
+860	0001:00008bf0	??__E?smList@I3DL2ReverbPreset@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::I3DL2ReverbPreset::smList''(void)	sndi3dl2reverbpreset.obj
+861	0001:00008c00	??__E?smFreeList@Node@ObjectList@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::ObjectList::Node::smFreeList''(void)	sndobjectlist.obj
+862	0001:00008c20	??__E?smFreeList@ObjectWeight@Snd@@2VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::ObjectWeight::smFreeList''(void)	sndobjectweightlist.obj
+863	0001:00008c40	??__E?smFreeList@ControlPoint@ParameterGraph@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::ParameterGraph::ControlPoint::smFreeList''(void)	sndparametergraph.obj
+864	0001:00008c60	??__E?smFreeList@ParameterGraph@Snd@@2VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::ParameterGraph::smFreeList''(void)	sndparametergraph.obj
+865	0001:00008c80	??__E?smParameterGraphs@ParameterGraph@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::ParameterGraph::smParameterGraphs''(void)	sndparametergraph.obj
+866	0001:00008c90	??__E?smSampleBankList@SampleBankBase@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::SampleBankBase::smSampleBankList''(void)	sndsamplebankbase.obj
+867	0001:00008ca0	??__E?smFreeList@Properties@Sound@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::Sound::Properties::smFreeList''(void)	sndsound.obj
+868	0001:00008cc0	??__E?smPropertyList@Properties@Sound@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::Sound::Properties::smPropertyList''(void)	sndsound.obj
+869	0001:00008cd0	??__E?smSoundList@Sound@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::Sound::smSoundList''(void)	sndsound.obj
+870	0001:00008ce0	??__E?smSource3Ds@Sound@Snd@@2PAVSource3D@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Source3D * Snd::Sound::smSource3Ds''(void)	sndsound.obj
+871	0001:00008d10	??__E?smActiveList@FireForgetLayer@SoundLayered@Snd@@2VPblListDouble@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDouble Snd::SoundLayered::FireForgetLayer::smActiveList''(void)	sndsoundlayered.obj
+872	0001:00008d20	??__E?smFreeList@Layer@Properties@SoundLayered@Snd@@2VFreeList@4@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundLayered::Properties::Layer::smFreeList''(void)	sndsoundlayered.obj
+873	0001:00008d40	??__E?smFreeList@Properties@SoundLayered@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundLayered::Properties::smFreeList''(void)	sndsoundlayered.obj
+874	0001:00008d60	??__E?smFreeList@SoundLayer@SoundLayered@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundLayered::SoundLayer::smFreeList''(void)	sndsoundlayered.obj
+875	0001:00008d80	??__E?smInactiveList@FireForgetLayer@SoundLayered@Snd@@2VPblListDouble@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDouble Snd::SoundLayered::FireForgetLayer::smInactiveList''(void)	sndsoundlayered.obj
+876	0001:00008d90	??__E?smPropertyList@Properties@SoundLayered@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::SoundLayered::Properties::smPropertyList''(void)	sndsoundlayered.obj
+877	0001:00008da0	??__E?smSoundLayeredList@SoundLayered@Snd@@2VPblListDouble@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDouble Snd::SoundLayered::smSoundLayeredList''(void)	sndsoundlayered.obj
+878	0001:00008db0	??__E?smFreeList@Layer@SoundParameterized@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundParameterized::Layer::smFreeList''(void)	sndsoundparameterized.obj
+879	0001:00008dd0	??__E?smFreeList@Properties@Controller@SoundParameterized@Snd@@2VFreeList@4@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundParameterized::Controller::Properties::smFreeList''(void)	sndsoundparameterized.obj
+880	0001:00008df0	??__E?smFreeList@Properties@Layer@SoundParameterized@Snd@@2VFreeList@4@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundParameterized::Layer::Properties::smFreeList''(void)	sndsoundparameterized.obj
+881	0001:00008e10	??__E?smFreeList@Properties@SoundParameterized@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundParameterized::Properties::smFreeList''(void)	sndsoundparameterized.obj
+882	0001:00008e30	??__E?smPropertyList@Properties@SoundParameterized@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::SoundParameterized::Properties::smPropertyList''(void)	sndsoundparameterized.obj
+883	0001:00008e40	??__E?smSoundParameterizedList@SoundParameterized@Snd@@2VPblListDouble@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListDouble Snd::SoundParameterized::smSoundParameterizedList''(void)	sndsoundparameterized.obj
+884	0001:00008e50	??__E?smFireForget@SoundStream@Snd@@0PAVFireForget@12@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class Snd::SoundStream::FireForget * Snd::SoundStream::smFireForget''(void)	sndsoundstream.obj
+885	0001:00008e80	??__E?smFree@SoundStream@Snd@@0VPblListDoubleSorted@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class PblListDoubleSorted Snd::SoundStream::smFree''(void)	sndsoundstream.obj
+886	0001:00008e90	??__E?smFreeList@Properties@SoundStream@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::SoundStream::Properties::smFreeList''(void)	sndsoundstream.obj
+887	0001:00008eb0	??__E?smFreeList@SoundStream@Snd@@0VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class Snd::FreeList Snd::SoundStream::smFreeList''(void)	sndsoundstream.obj
+888	0001:00008ed0	??__E?smList@SoundStream@Snd@@0VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class PblListSingle Snd::SoundStream::smList''(void)	sndsoundstream.obj
+889	0001:00008ee0	??__E?smPropertyList@Properties@SoundStream@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::SoundStream::Properties::smPropertyList''(void)	sndsoundstream.obj
+890	0001:00008ef0	??__E?smQueue@SoundStream@Snd@@0PAVPblListDoubleSorted@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class PblListDoubleSorted * Snd::SoundStream::smQueue''(void)	sndsoundstream.obj
+891	0001:00008f20	??__E?smDefaultSpace@Space@Snd@@2V12@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::Space Snd::Space::smDefaultSpace''(void)	sndspace.obj
+892	0001:00008f70	??__E?smFreeList@Connected@Space@Snd@@2VFreeList@3@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::Space::Connected::smFreeList''(void)	sndspace.obj
+893	0001:00008f90	??__E?smFreeList@Space@Snd@@2VFreeList@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::FreeList Snd::Space::smFreeList''(void)	sndspace.obj
+894	0001:00008fb0	??__E?smSpaceList@Space@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::Space::smSpaceList''(void)	sndspace.obj
+895	0001:00008fc0	??__E?smInfoList@Info@StreamBase@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::StreamBase::Info::smInfoList''(void)	sndstreambase.obj
+896	0001:00008fd0	??__E?smList@DSBuffer@Snd@@0VPblListDouble@@A@@YAXXZ	void __cdecl `dynamic initializer for 'private: static class PblListDouble Snd::DSBuffer::smList''(void)	snddsbuffer.obj
+897	0001:00008fe0	??__E?smRendererList@DSBufferRenderer@Snd@@2VPblListSingle@@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class PblListSingle Snd::DSBufferRenderer::smRendererList''(void)	snddsbufferrenderer.obj
+898	0001:00008ff0	??__E?smDummySecBuffer@Engine@Snd@@2VDSBuffer@2@A@@YAXXZ	void __cdecl `dynamic initializer for 'public: static class Snd::DSBuffer Snd::Engine::smDummySecBuffer''(void)	sndengine.obj
+899	0001:00009010	??__E_smHighLowPass@@YAXXZ	void __cdecl `dynamic initializer for '_smHighLowPass''(void)	sndengine.obj
+900	0001:00009030	??__EsmEngineUpdater@@YAXXZ	void __cdecl `dynamic initializer for 'smEngineUpdater''(void)	sndengine.obj
+901	0001:00009050	??__EsndEngineThreadUpdate@Snd@@YAXXZ	void __cdecl Snd::`dynamic initializer for 'sndEngineThreadUpdate''(void)	sndengine.obj
+902	0001:00009070	??__EkuiDummyRootHash@@YAXXZ	void __cdecl `dynamic initializer for 'kuiDummyRootHash''(void)	ZephyrSkeleton.obj

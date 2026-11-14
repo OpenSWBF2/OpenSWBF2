@@ -62,7 +62,7 @@ Parallel workers run from fixed paths under `artifacts\smoke-workers\<Config>\`.
 | `Twice` | the same missions twice with a fixed seed; the results and digest traces must match |
 | `Dedicated` | dedicated-server cases |
 | `Crash` | deliberate faults through `-crashtest <kind>`, including `crash-capexhaust`, `pool-full` and `pool-full-strict`; each must leave the expected exit code, log line and dump |
-| `All` | every mission in `tests\smoke\missions-all.txt` (`<mission> [<class>] [<seconds>]`), plus Dedicated and Crash; a Release run then compares digests, mem-peaks, pool-sizes and CLOTH exactly against the tables in `tests\baseline\v143` through `compare-tables.ps1` and fails on any moved row; a Test run compares the Lua pool bins, spill counts included, against `lua-bins.txt` |
+| `All` | every mission in `tests\smoke\missions-all.txt` (`<mission> [<class>] [<seconds>]`), plus Dedicated and Crash; a Release run then compares digests, mem-peaks, pool-sizes and CLOTH exactly against the tables in `tests\baseline\v143` through `compare-tables.ps1` and fails on any moved row; a Test run compares the Lua pool bins, spill counts included, against `lua-bins.txt` and the main section of `offthread.txt` (source thread ids ignored) |
 | `Perturb` | Test or Asan only: seven digest missions, each as a base run, under `-perturbheap` pad/fill/pool (seeds 1 and 2), `-hogaddrspace` and `-repeatmission`; each run is traced for the whole mission and every turn must equal its base line for line; writes `perturb.tsv` |
 
 A case fails on any Error, Bug or Fatal line in its `run.log` unless a regex in `tests\smoke\expected-errors.txt` covers it. In T1, declare an expected error with `ExpectLog("text")` or `ExpectEnsure("text")`.
@@ -130,11 +130,11 @@ A weekly and on-demand `full` job runs the milestone tier from the gate tiers ta
 
 ## Hardening
 
-The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/GS`, `/sdl`), its imports (`import-modules` fails on a DLL outside `$script:ImportModuleAllow` in `smoke.ps1`), the required and banned compiler flags, the `static.c` mimalloc defines for each configuration, and these source patterns:
+The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/GS`, `/sdl`), its imports (`import-modules` fails on a DLL outside `$script:ImportModuleAllow` in `smoke.ps1`), the required and banned compiler flags in the exe and every library project, the `static.c` mimalloc defines for each configuration, that mimalloc's CRT hooks sit in `.CRT$XIB`/`.CRT$XLB`/`.CRT$XLY` in the map (`mimalloc-crt-hooks`), and these source patterns:
 
 | Check | Fails on |
 |-------|----------|
-| `new-size-t` | `operator new`/`delete` with a 32-bit size type |
+| `new-size-t` | `operator new`/`delete` with a 32-bit size type, in `src` or `tests` |
 | `win32-callbacks` | casts to Win32 callback types, or window procs with the wrong signature |
 | `galaxy-vtable` | hand-written vtable math under `src\Steam` |
 | `fastcall-edx` | dummy EDX parameters on `__fastcall` functions, not in `$script:FastcallAllow` (`smoke.ps1`) |
@@ -171,5 +171,5 @@ By default it re-runs only the rows whose dependencies changed since their recor
 - `tests\x64-census.ps1 -Name census-N` counts x64 warnings and errors on scratch copies of the projects. The output goes to `tests\baseline\census`.
 - `tests\laa-compare.ps1` compares runs with and without `/LARGEADDRESSAWARE`.
 - `tests\baseline\capture-vs2013.ps1` captured the VS2013 reference before the move to v143.
-- `tests\baseline\compare-tables.ps1 -Tables <dir>` compares captured digests, mem-peaks, pool-sizes and CLOTH exactly against `tests\baseline\v143`.
+- `tests\baseline\compare-tables.ps1 -Tables <dir>` compares captured digests, mem-peaks, pool-sizes and CLOTH exactly against `tests\baseline\v143`; `-LuaBins` and `-OffThread` compare those tables instead.
 - `tests\corpus\README.md` describes the float-parse and math corpora.

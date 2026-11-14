@@ -66,6 +66,7 @@
 #include "PauseMenu.h"
 #include "SoldierAnimatorClass.h"
 #include "StatusDisplay.h"
+#include "StickInfo.h"
 #include "Thread.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
@@ -1715,6 +1716,7 @@ void GameState::PostStateCleanup(bool bMission)
 
     Factory<Entity, EntityClass, EntityDesc>::Reset();
     EntityEx::sLive.Clear();
+    StickInfo::ClearRegistries();
     Factory<Weapon, WeaponClass, WeaponDesc>::Reset();
     Factory<Ordnance, OrdnanceClass, OrdnanceDesc>::Reset();
     Factory<Ordnance, ExplosionClass, OrdnanceDesc>::Reset();

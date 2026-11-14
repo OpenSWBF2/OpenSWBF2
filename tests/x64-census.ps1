@@ -24,8 +24,9 @@ if (-not $Scratch.StartsWith($artifacts + '\', [StringComparison]::OrdinalIgnore
 $codes = 'C4311', 'C4312', 'C4302', 'C4267', 'C4244'
 $platforms = 'Win32', 'x64'
 $msNs = 'http://schemas.microsoft.com/developer/msbuild/2003'
-$projects = @(
-    @{ Name = 'BattlefrontII'; Path = Join-Path $root 'BattlefrontII.vcxproj' },
+$propsName = 'OpenSWBF2.Game.props'
+$projects = @(Get-GameProjects $root 'Release' | ForEach-Object { @{ Name = $_.Name; Path = $_.Vcxproj } })
+$projects += @(
     @{ Name = 'LuaCompiler'; Path = Join-Path $root 'LuaCompiler.vcxproj' },
     @{ Name = 'OpenSWBF2Tests'; Path = Join-Path $root 'tests\OpenSWBF2Tests.vcxproj' }
 )
@@ -61,6 +62,49 @@ function ConvertTo-IncludeDirs([string]$value, [string]$dir) {
     return ($out -join ';')
 }
 
+function Add-X64Configuration($xml, $ns) {
+    $cfgGroup = $xml.SelectSingleNode("//m:ItemGroup[@Label='ProjectConfigurations']", $ns)
+    if (-not $cfgGroup) { return }
+    $pc = $xml.CreateElement('ProjectConfiguration', $msNs)
+    $pc.SetAttribute('Include', 'Release|x64')
+    foreach ($kv in @(@('Configuration', 'Release'), @('Platform', 'x64'))) {
+        $e = $xml.CreateElement($kv[0], $msNs)
+        $e.InnerText = $kv[1]
+        [void]$pc.AppendChild($e)
+    }
+    [void]$cfgGroup.AppendChild($pc)
+}
+
+function Set-Level4($xml, $ns) {
+    foreach ($n in @($xml.SelectNodes('//m:WarningLevel', $ns))) { $n.InnerText = 'Level4' }
+    foreach ($cc in @($xml.SelectNodes('//m:ItemDefinitionGroup/m:ClCompile', $ns))) {
+        if (-not $cc.SelectSingleNode('m:WarningLevel', $ns)) {
+            $e = $xml.CreateElement('WarningLevel', $msNs)
+            $e.InnerText = 'Level4'
+            [void]$cc.AppendChild($e)
+        }
+    }
+}
+
+function New-PropsCopy {
+    $src = Join-Path $root $propsName
+    $xml = New-Object xml
+    $xml.Load($src)
+    $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
+    $ns.AddNamespace('m', $msNs)
+    foreach ($n in @($xml.SelectNodes('//m:OpenSWBF2Root', $ns))) { $n.InnerText = $root + '\' }
+    foreach ($n in @($xml.SelectNodes('//m:ObjectFileName', $ns))) { [void]$n.ParentNode.RemoveChild($n) }
+    foreach ($n in @($xml.SelectNodes('//m:AdditionalIncludeDirectories', $ns))) { $n.InnerText = ConvertTo-IncludeDirs $n.InnerText $root }
+    foreach ($n in @($xml.SelectNodes('//m:OutDir', $ns))) { $n.InnerText = '$(MSBuildProjectDirectory)\bin\$(Platform)\' }
+    foreach ($n in @($xml.SelectNodes('//m:IntDir', $ns))) { $n.InnerText = '$(MSBuildProjectDirectory)\obj\$(Platform)\' }
+    Add-X64Configuration $xml $ns
+    Set-Level4 $xml $ns
+    $copyPath = Join-Path $Scratch $propsName
+    if ($copyPath -eq $src) { throw "refusing to overwrite $src" }
+    $xml.Save($copyPath)
+    return $copyPath
+}
+
 function New-ProjectCopy($proj) {
     $src = $proj.Path
     $dir = Split-Path $src -Parent
@@ -83,25 +127,12 @@ function New-ProjectCopy($proj) {
     foreach ($n in @($xml.SelectNodes('//m:AdditionalIncludeDirectories', $ns))) { $n.InnerText = ConvertTo-IncludeDirs $n.InnerText $dir }
     foreach ($n in @($xml.SelectNodes('//m:OutDir', $ns))) { $n.InnerText = "$copyDir\bin\`$(Platform)\" }
     foreach ($n in @($xml.SelectNodes('//m:IntDir', $ns))) { $n.InnerText = "$copyDir\obj\`$(Platform)\" }
-
-    $cfgGroup = $xml.SelectSingleNode("//m:ItemGroup[@Label='ProjectConfigurations']", $ns)
-    $pc = $xml.CreateElement('ProjectConfiguration', $msNs)
-    $pc.SetAttribute('Include', 'Release|x64')
-    foreach ($kv in @(@('Configuration', 'Release'), @('Platform', 'x64'))) {
-        $e = $xml.CreateElement($kv[0], $msNs)
-        $e.InnerText = $kv[1]
-        [void]$pc.AppendChild($e)
+    foreach ($n in @($xml.SelectNodes('//m:Import[@Project]', $ns))) {
+        if ((Split-Path $n.GetAttribute('Project') -Leaf) -eq $propsName) { $n.SetAttribute('Project', $script:PropsCopy) }
     }
-    [void]$cfgGroup.AppendChild($pc)
 
-    foreach ($n in @($xml.SelectNodes('//m:WarningLevel', $ns))) { $n.InnerText = 'Level4' }
-    foreach ($cc in @($xml.SelectNodes('//m:ItemDefinitionGroup/m:ClCompile', $ns))) {
-        if (-not $cc.SelectSingleNode('m:WarningLevel', $ns)) {
-            $e = $xml.CreateElement('WarningLevel', $msNs)
-            $e.InnerText = 'Level4'
-            [void]$cc.AppendChild($e)
-        }
-    }
+    Add-X64Configuration $xml $ns
+    Set-Level4 $xml $ns
 
     $tus = New-Object System.Collections.Generic.List[string]
     foreach ($n in @($xml.SelectNodes('//m:ItemGroup/m:ClCompile[@Include]', $ns))) {
@@ -181,6 +212,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $root 'artifacts') | Out-Nu
 Set-Content -Path (Join-Path $root 'artifacts\.gitignore') -Value '*' -Encoding ASCII
 New-Item -ItemType Directory -Force -Path $Scratch | Out-Null
 
+$script:PropsCopy = New-PropsCopy
 $copies = foreach ($p in $projects) { New-ProjectCopy $p }
 
 $warn = @{}
@@ -255,7 +287,7 @@ if ($dirty.Count -gt 0) { $clean = 'no' }
 $md = New-Object System.Collections.Generic.List[string]
 $md.Add("# x64 census: $Name")
 $md.Add('')
-$md.Add('Generated by `tests\x64-census.ps1`. Compile-only (`/t:ClCompile`) builds of throwaway copies of BattlefrontII, LuaCompiler and OpenSWBF2Tests; the real projects and solution are not changed. Counts are unique (file, line, code) sites.')
+$md.Add('Generated by `tests\x64-census.ps1`. Compile-only (`/t:ClCompile`) builds of throwaway copies of ' + (($projects | ForEach-Object { $_.Name }) -join ', ') + ' and the shared props; the real projects and solution are not changed. Counts are unique (file, line, code) sites.')
 $md.Add('')
 $md.Add('| Key | Value |')
 $md.Add('|-----|-------|')

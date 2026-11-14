@@ -1,4 +1,4 @@
-# commit 0066d30985a8391a8ed8331c0753d58b43b2cc70
+# commit a24dd88f1fdf1d345f50200d346012b6959815b9
 case	count	sources	dropped
 case	tid	heap	size	count	frame0..frame7
 cor1c_c	0	0	0
@@ -16,6 +16,8 @@ crash-applymodesmall	0	0	0
 crash-applypresentfail	0	0	0
 crash-applytargetfail	0	0	0
 crash-arenaoom	0	0	0
+crash-buildheapfail	0	0	0
+crash-capexhaust	0	0	0
 crash-check	0	0	0
 crash-debugbreak	0	0	0
 crash-debugheapoom	0	0	0
@@ -37,6 +39,7 @@ crash-menuorder	0	0	0
 crash-menuorderrev	0	0	0
 crash-menurevertsave	0	0	0
 crash-menusavefail	0	0	0
+crash-midoublefree	0	0	0
 crash-nullderef	0	0	0
 crash-poolcount	0	0	0
 crash-resetfatal	0	0	0
@@ -46,6 +49,7 @@ crash-resetlaterinit	0	0	0
 crash-resetrecover	0	0	0
 crash-shellstretch	0	0	0
 crash-stackoverflow	0	0	0
+crash-stickdelete	0	0	0
 dag1c_con	0	0	0
 dag1c_ctf	0	0	0
 dag1g_con	0	0	0

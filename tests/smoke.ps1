@@ -626,6 +626,12 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             Twice = 0; Timeout = 0
         }
         $cases += New-Object PSObject -Property @{
+            Name = 'crash-stickdelete'
+            Args = "spa3c_ass $tail -crashtest stickdelete"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 STICKDELETE prop=1 gameobject=0 stuck=1 cleared=1 fell=1', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0; Timeout = 0
+        }
+        $cases += New-Object PSObject -Property @{
             Name = 'crash-luaoom'
             Args = "$standard $tail -crashtest luaoom"
             Expect = @{ Class = 'Pass'; LogRx = 'Lua out of memory' }
@@ -1225,7 +1231,82 @@ function Get-ImportChecks($imp) {
     return $rows
 }
 
-function Get-ClTlogCounts($objDir) {
+function Get-GameProjects([string]$root, [string]$config) {
+    $root = $root.TrimEnd('\')
+    $exe = Join-Path $root 'BattlefrontII.vcxproj'
+    $objDir = Join-Path $root "obj\Win32\$config"
+    $list = @(New-Object PSObject -Property @{ Name = 'BattlefrontII'; Vcxproj = $exe; IntDir = $objDir; TlogDir = (Join-Path $objDir 'BattlefrontII.tlog') })
+    $xml = New-Object xml
+    $xml.Load($exe)
+    $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
+    $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
+    foreach ($r in @($xml.SelectNodes('//m:ItemGroup/m:ProjectReference', $ns))) {
+        $use = $r.SelectSingleNode('m:UseLibraryDependencyInputs', $ns)
+        if (-not $use -or $use.InnerText.Trim() -ne 'true') { continue }
+        $path = [IO.Path]::GetFullPath((Join-Path $root $r.GetAttribute('Include')))
+        $name = [IO.Path]::GetFileNameWithoutExtension($path)
+        $int = Join-Path $objDir "lib\$name"
+        $list += New-Object PSObject -Property @{ Name = $name; Vcxproj = $path; IntDir = $int; TlogDir = (Join-Path $int "$name.tlog") }
+    }
+    return $list
+}
+
+function Get-GameClCompileItems([string]$root, [string]$config) {
+    $root = $root.TrimEnd('\')
+    $items = @()
+    foreach ($p in (Get-GameProjects $root $config)) {
+        $xml = New-Object xml
+        $xml.Load($p.Vcxproj)
+        $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
+        $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
+        $dir = Split-Path $p.Vcxproj -Parent
+        foreach ($n in @($xml.SelectNodes('//m:ItemGroup/m:ClCompile[@Include]', $ns))) {
+            $inc = $n.GetAttribute('Include')
+            $rel = [IO.Path]::GetFullPath((Join-Path $dir $inc)).Substring($root.Length + 1)
+            $items += New-Object PSObject -Property @{ Project = $p; Include = $inc; Rel = $rel }
+        }
+    }
+    return $items
+}
+
+function Read-ClTlog($tlogDirs) {
+    $flags = @{}
+    foreach ($d in @($tlogDirs)) {
+        $files = @(Get-ChildItem -LiteralPath $d -Filter 'cl.command*.tlog' -File -ErrorAction SilentlyContinue)
+        if ($files.Count -eq 0) { throw "cl command tlog not found in $d" }
+        foreach ($f in $files) {
+            $keys = @()
+            foreach ($l in [IO.File]::ReadAllLines($f.FullName, [Text.Encoding]::Unicode)) {
+                $l = $l.TrimStart([char]0xFEFF)
+                if ($l.StartsWith('^')) { $keys = @($l.Substring(1).Split('|') | ForEach-Object { $_.ToUpperInvariant() }) }
+                elseif ($l -and $keys.Count) { foreach ($k in $keys) { $flags[$k] = $l }; $keys = @() }
+            }
+        }
+    }
+    return $flags
+}
+
+function Resolve-LayoutPairs($pairs, $flags, [string]$root) {
+    $work = New-Object System.Collections.Generic.List[object]
+    $problems = New-Object System.Collections.Generic.List[string]
+    foreach ($pair in $pairs) {
+        $tu = [IO.Path]::GetFullPath($pair[1])
+        $rel = $tu.Substring($root.TrimEnd('\').Length + 1)
+        $fl = $flags[$tu.ToUpperInvariant()]
+        if (-not $fl) { $problems.Add("$($pair[0])@$rel not in any game tlog"); continue }
+        $work.Add((New-Object PSObject -Property @{ Class = $pair[0]; Tu = $tu; Rel = $rel; Flags = $fl }))
+    }
+    return New-Object PSObject -Property @{ Work = $work; Problems = $problems }
+}
+
+function Get-ClTlogCounts($objDirs) {
+    $missing = New-Object System.Collections.Generic.List[string]
+    $files = @()
+    foreach ($objDir in @($objDirs)) {
+        $found = @(Get-ChildItem -LiteralPath $objDir -Filter 'cl.command*.tlog' -Recurse -ErrorAction SilentlyContinue)
+        if ($found.Count -eq 0) { $missing.Add((Split-Path $objDir -Leaf)) }
+        $files += $found
+    }
     $total = 0
     $gsMinus = 0
     $sdl = 0
@@ -1237,7 +1318,7 @@ function Get-ClTlogCounts($objDir) {
     $fpFast = 0
     $fpContract = 0
     $miLines = New-Object System.Collections.Generic.List[string]
-    foreach ($f in Get-ChildItem -LiteralPath $objDir -Filter 'cl.command*.tlog' -Recurse -ErrorAction SilentlyContinue) {
+    foreach ($f in $files) {
         $isMi = $false
         foreach ($l in (Get-Content -LiteralPath $f.FullName)) {
             if ($l -and $l.StartsWith('^')) {
@@ -1261,8 +1342,27 @@ function Get-ClTlogCounts($objDir) {
     return New-Object PSObject -Property @{
         Total = $total; GsMinus = $gsMinus; Sdl = $sdl
         AlignedNewOff = $alignedNewOff; InlineOff = $inlineOff; InlineOn = $inlineOn; ThrowingNew = $throwingNew
-        Gl = $gl; FpFast = $fpFast; FpContract = $fpContract; MiLines = $miLines.ToArray()
+        Gl = $gl; FpFast = $fpFast; FpContract = $fpContract; MiLines = $miLines.ToArray(); Missing = $missing.ToArray()
     }
+}
+
+function Get-MiCrtHookCheck([string]$mapText) {
+    $bad = @()
+    if (-not $mapText) { $bad += 'no map' }
+    else {
+        foreach ($want in @(@('.CRT$XIB', '__mi_crt_callback_init'), @('.CRT$XLB', '__mi_tls_callback_pre'), @('.CRT$XLY', '__mi_tls_callback_post'))) {
+            $sec = [regex]::Match($mapText, '(?m)^ ([0-9a-f]{4}):([0-9a-f]{8}) ([0-9a-f]{8})H ' + [regex]::Escape($want[0]) + '\s')
+            $sym = [regex]::Match($mapText, '(?m)^ ([0-9a-f]{4}):([0-9a-f]{8})\s+' + [regex]::Escape($want[1]) + '\s+[0-9a-f]{8}\s+(\S+)\s*$')
+            if (-not $sec.Success) { $bad += "$($want[0]) missing"; continue }
+            if (-not $sym.Success) { $bad += "$($want[1]) missing"; continue }
+            $start = [Convert]::ToInt64($sec.Groups[2].Value, 16)
+            $end = $start + [Convert]::ToInt64($sec.Groups[3].Value, 16)
+            $at = [Convert]::ToInt64($sym.Groups[2].Value, 16)
+            if ($sym.Groups[1].Value -ne $sec.Groups[1].Value -or $at -lt $start -or $at -ge $end) { $bad += "$($want[1]) outside $($want[0])" }
+            elseif ($sym.Groups[3].Value -notmatch '(^|:)static\.obj$') { $bad += "$($want[1]) from $($sym.Groups[3].Value)" }
+        }
+    }
+    return New-Object PSObject -Property @{ Name = 'mimalloc-crt-hooks'; Ok = ($bad.Count -eq 0); Detail = ($bad -join '; ') }
 }
 
 $script:MiDefines = @{
@@ -1274,15 +1374,18 @@ $script:MiDefines = @{
 
 function Get-FlagChecks($game, $tests, [string]$gameConfig, [string]$testsConfig) {
     $checks = @()
+    $gameMissing = @($game.Missing | Where-Object { $_ })
+    $missTail = ''
+    if ($gameMissing.Count) { $missTail = '; no cl tlog in ' + ($gameMissing -join ' ') }
     $checks += New-Object PSObject -Property @{
         Name = 'flag-alignednew'
-        Ok = ($game.Total -gt 0 -and $game.AlignedNewOff -eq $game.Total)
-        Detail = ('cl entries={0} /Zc:alignedNew-={1}' -f $game.Total, $game.AlignedNewOff)
+        Ok = ($game.Total -gt 0 -and $game.AlignedNewOff -eq $game.Total -and $gameMissing.Count -eq 0)
+        Detail = ('cl entries={0} /Zc:alignedNew-={1}' -f $game.Total, $game.AlignedNewOff) + $missTail
     }
     $checks += New-Object PSObject -Property @{
         Name = 'flag-inline'
-        Ok = ($game.Total -gt 0 -and $game.InlineOn -eq $game.Total -and $game.InlineOff -eq 0)
-        Detail = ('cl entries={0} /Zc:inline={1} /Zc:inline-={2}' -f $game.Total, $game.InlineOn, $game.InlineOff)
+        Ok = ($game.Total -gt 0 -and $game.InlineOn -eq $game.Total -and $game.InlineOff -eq 0 -and $gameMissing.Count -eq 0)
+        Detail = ('cl entries={0} /Zc:inline={1} /Zc:inline-={2}' -f $game.Total, $game.InlineOn, $game.InlineOff) + $missTail
     }
     $bags = @($game)
     if ($tests) {
@@ -1539,7 +1642,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     $aoP = '(?:this|(?:\w+(?:\.|->))*m?_?p{1,2}[A-Z]\w*)'
     $aoC = '(?:const\s+)?(?:unsigned\s+|signed\s+)?(?:char|void)\s*\*\s*(?:const\s*)?'
     $defs = @(
-        @{ Name = 'new-size-t'; Path = $null; Rx = @(
+        @{ Name = 'new-size-t'; Path = $null; Tests = $true; Rx = @(
             '\boperator\s*(new|delete)\s*(\[\s*\])?\s*\(\s*(?:void\s*\*\s*\w*\s*,\s*)?(?:unsigned(?:\s+int)?|UINT|uint32_t|unsigned\s+__int32)\b') },
         @{ Name = 'win32-callbacks'; Path = $null; Rx = @(
             '\(\s*(?:[A-Z_]*PROC[A-Z]*|L?P?THREAD_START_ROUTINE|PAPCFUNC|PTIMERAPCROUTINE)\s*\)',
@@ -1621,6 +1724,11 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     if ($runDefs.Count -or $doSpacer -or $doOffset) {
         $srcFiles = @($allFiles | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL|mimalloc)\\' })
     }
+    $testsDir = Join-Path $root 'tests'
+    $testFiles = @()
+    if (((& $want 't1-suite') -or @($runDefs | Where-Object { $_.Tests }).Count) -and (Test-Path -LiteralPath $testsDir)) {
+        $testFiles = @(Get-ChildItem -LiteralPath $testsDir -Recurse -File | Where-Object { $script:SourceExtensions -contains $_.Extension -and $_.FullName -notmatch '\\tests\\third_party\\' })
+    }
     if ($doSerial) {
         foreach ($f in @($allFiles | Sort-Object FullName)) {
             $text = [IO.File]::ReadAllText($f.FullName)
@@ -1635,10 +1743,11 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
             }
         }
     }
-    foreach ($f in $srcFiles) {
+    foreach ($f in (@($srcFiles) + @($testFiles))) {
         $text = [IO.File]::ReadAllText($f.FullName)
         $rel = $f.FullName.Substring($root.Length + 1)
-        if ($doSpacer) {
+        $isTest = $rel.StartsWith('tests\', [StringComparison]::OrdinalIgnoreCase)
+        if ($doSpacer -and -not $isTest) {
             foreach ($b in (Get-ByteArrayDecls $text)) {
                 if (-not (Test-ByteSpacer $b)) { continue }
                 $key = '{0}|{1}|{2}' -f $rel, $b.Name, $b.Size
@@ -1646,7 +1755,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
                 $spacerHits.Add(('{0}:{1}' -f $rel, $b.Line))
             }
         }
-        if ($doOffset) {
+        if ($doOffset -and -not $isTest) {
             $blank = $script:ByteCommentRx.Replace($text, { param($m) if ($m.Value[0] -eq '/') { [regex]::Replace($m.Value, '[^\r\n]', ' ') } else { $m.Value } })
             $spans = @()
             foreach ($rx in $script:OffsetRx) {
@@ -1662,6 +1771,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
             }
         }
         foreach ($d in $runDefs) {
+            if ($isTest -and -not $d.Tests) { continue }
             if ($d.Path -and $f.FullName -notmatch $d.Path) { continue }
             $spans = @()
             foreach ($rx in $d.Rx) {
@@ -1690,10 +1800,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     $suiteHits = New-Object System.Collections.Generic.List[string]
     $suiteOk = '\*\s*doctest::(?:skip\(\s*\)|test_suite\(\s*"(?:' + ((@($script:T1Suites) + 'asan_canary') -join '|') + ')"\s*\))'
     $caseRx = New-Object regex '\GTEST_CASE\s*\(\s*"(?:[^"\\]|\\.)*"((?:[^()"]|"(?:[^"\\]|\\.)*"|\((?:[^()"]|"(?:[^"\\]|\\.)*"|\([^()]*\))*\))*)\)'
-    $testFiles = @()
-    if (& $want 't1-suite') {
-        $testFiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'tests') -Recurse -File | Where-Object { $script:SourceExtensions -contains $_.Extension -and $_.FullName -notmatch '\\tests\\third_party\\' })
-    }
+    if (-not (& $want 't1-suite')) { $testFiles = @() }
     foreach ($f in $testFiles) {
         $text = [IO.File]::ReadAllText($f.FullName)
         $rel = $f.FullName.Substring($root.Length + 1)

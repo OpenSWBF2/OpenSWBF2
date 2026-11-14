@@ -536,6 +536,93 @@ foreach ($sc in $miScenarios) {
         Remove-Item -Recurse -Force $miDir -ErrorAction SilentlyContinue
     }
 }
+$libGood = '/c /Zc:alignedNew- /Zc:inline /sdl /GS C:\X\LIB\B.CPP'
+$libScenarios = @(
+    @('library tlog all good passes', $libGood, @()),
+    @('library tlog /Zc:inline- fails flag-inline', $libGood.Replace('/Zc:inline ', '/Zc:inline- '), @('flag-inline')),
+    @('library tlog /GS- fails flag-banned and gs', $libGood.Replace('/GS ', '/GS- '), @('flag-banned', 'gs')),
+    @('library tlog without /sdl fails sdl', $libGood.Replace('/sdl ', ''), @('sdl')),
+    @('library tlog without /Zc:alignedNew- fails flag-alignednew', $libGood.Replace('/Zc:alignedNew- ', ''), @('flag-alignednew')),
+    @('missing mimalloc tlog dir fails mimalloc-defines', $libGood, @('mimalloc-defines', 'flag-alignednew', 'flag-inline'))
+)
+foreach ($sc in $libScenarios) {
+    $n++
+    $libRoot = Join-Path $env:TEMP ("openswbf2-libtlog-" + [guid]::NewGuid().ToString('N'))
+    try {
+        $exeTl = Join-Path $libRoot 'BattlefrontII.tlog'
+        $libTl = Join-Path $libRoot 'lib\SoundFL\SoundFL.tlog'
+        $miTl = Join-Path $libRoot 'lib\mimalloc\mimalloc.tlog'
+        New-Item -ItemType Directory -Force -Path $exeTl, $libTl | Out-Null
+        Set-Content -Encoding Unicode -Path (Join-Path $exeTl 'CL.command.1.tlog') -Value @('^C:\X\A.CPP', '/c /Zc:alignedNew- /Zc:inline /sdl /GS C:\X\A.CPP')
+        Set-Content -Encoding Unicode -Path (Join-Path $libTl 'CL.command.1.tlog') -Value @('^C:\X\LIB\B.CPP', $sc[1])
+        if ($sc[0] -notmatch 'missing mimalloc') {
+            New-Item -ItemType Directory -Force -Path $miTl | Out-Null
+            Set-Content -Encoding Unicode -Path (Join-Path $miTl 'CL.command.1.tlog') -Value @('^C:\X\SRC\MIMALLOC\SRC\STATIC.C', '/c /Zc:alignedNew- /Zc:inline /sdl /GS /D MI_DEBUG=2 /D MI_SECURE=0 /D MI_NO_GETENV=1 /D MI_USE_RTLGENRANDOM C:\X\SRC\MIMALLOC\SRC\STATIC.C')
+        }
+        $bag = Get-ClTlogCounts @($exeTl, $libTl, $miTl)
+        $got = @(Get-FlagChecks $bag $null 'Debug' 'Debug') + @(Get-HardeningChecks $goodHdr $goodCfg $bag.Total $bag.GsMinus $bag.Sdl)
+        $why = $null
+        foreach ($c in $got) {
+            if (@('flag-alignednew', 'flag-inline', 'flag-banned', 'mimalloc-defines', 'gs', 'sdl') -notcontains $c.Name) { continue }
+            $want = $sc[2] -notcontains $c.Name
+            if ($c.Ok -ne $want) { $why = "$($c.Name) ok=$($c.Ok): $($c.Detail)" }
+        }
+        if ($why) { $failed++; Write-Host "FAILED ${n}: $($sc[0]): $why" }
+        else { Write-Host "OK $n $($sc[0])" }
+    }
+    finally {
+        Remove-Item -Recurse -Force $libRoot -ErrorAction SilentlyContinue
+    }
+}
+$n++
+$mapGood = @(
+    ' 0002:0000156c 00000004H .CRT$XIB                DATA',
+    ' 0002:00001578 00000004H .CRT$XLB                DATA',
+    ' 0002:0000157c 00000004H .CRT$XLY                DATA',
+    ' 0002:0000156c       __mi_crt_callback_init     0085456c     static.obj',
+    ' 0002:00001578       __mi_tls_callback_pre      00854578     static.obj',
+    ' 0002:0000157c       __mi_tls_callback_post     0085457c     static.obj'
+) -join "`r`n"
+$hookCases = @(
+    @('good map', $mapGood, $true),
+    @('no __mi_crt_callback_init', ($mapGood -replace '(?m)^.*__mi_crt_callback_init.*\r?\n', ''), $false),
+    @('XIB symbol outside .CRT$XIB', $mapGood.Replace('0002:0000156c       __mi_crt_callback_init', '0002:00001570       __mi_crt_callback_init'), $false),
+    @('XLY symbol from another object', $mapGood.Replace('0085457c     static.obj', '0085457c     other.obj'), $false),
+    @('no map', $null, $false)
+)
+$why = $null
+foreach ($hc in $hookCases) {
+    $r = Get-MiCrtHookCheck $hc[1]
+    if ($r.Name -ne 'mimalloc-crt-hooks' -or $r.Ok -ne $hc[2]) { $why = "$($hc[0]) ok=$($r.Ok) $($r.Detail)" }
+}
+if ($why) { $failed++; Write-Host "FAILED ${n}: mimalloc-crt-hooks map fixtures: $why" }
+else { Write-Host "OK $n mimalloc-crt-hooks passes the three static.obj hooks and fails a missing, misplaced or foreign hook" }
+$n++
+$layRoot = 'C:\X'
+$layFlags = @{ 'C:\X\SRC\A.CPP' = '/c /Zc:inline C:\X\SRC\A.CPP' }
+$lay = Resolve-LayoutPairs @(@('Alpha', 'C:\X\src\A.cpp'), @('Beta', 'C:\X\src\RedEngineFL\B.cpp')) $layFlags $layRoot
+if ($lay.Work.Count -ne 1 -or $lay.Work[0].Class -ne 'Alpha' -or $lay.Problems.Count -ne 1 -or $lay.Problems[0] -ne 'Beta@src\RedEngineFL\B.cpp not in any game tlog') { $failed++; Write-Host "FAILED ${n}: layout pairs with a TU in no game tlog: work=$($lay.Work.Count) problems=$($lay.Problems -join '; ')" }
+else { Write-Host "OK $n layout capture reports a class whose TU is in no game tlog as a problem" }
+$n++
+. (Join-Path $PSScriptRoot 'guardrevert\select.ps1')
+$gpRoot = Split-Path $PSScriptRoot -Parent
+$gp = @(Get-GameProjects $gpRoot $Configuration)
+$gpHave = @($gp | ForEach-Object { $_.Vcxproj.ToLowerInvariant() } | Sort-Object)
+$gpWant = @(@((Join-Path $gpRoot 'BattlefrontII.vcxproj')) + @(Get-ChildItem -LiteralPath (Join-Path $gpRoot 'src') -Recurse -Filter '*.vcxproj' -File | ForEach-Object { $_.FullName }) | ForEach-Object { $_.ToLowerInvariant() } | Sort-Object)
+$gpWhy = $null
+if (($gpHave -join '|') -ne ($gpWant -join '|')) { $gpWhy = "projects $($gpHave -join ', ') differ from disk $($gpWant -join ', ')" }
+elseif (@($gp | Select-Object -ExpandProperty TlogDir -Unique).Count -ne $gp.Count) { $gpWhy = 'two projects share a tlog dir' }
+else {
+    foreach ($p in $gp) {
+        $rel = $p.Vcxproj.Substring($gpRoot.Length + 1)
+        foreach ($t in @($rel, "$rel.filters")) {
+            if ((Test-Path -LiteralPath (Join-Path $gpRoot $t)) -and $script:GuardGlobalTriggers -notcontains $t) { $gpWhy = "$t is not a guard-revert global trigger" }
+        }
+    }
+    if ($script:GuardGlobalTriggers -notcontains 'OpenSWBF2.Game.props') { $gpWhy = 'OpenSWBF2.Game.props is not a guard-revert global trigger' }
+}
+if ($gpWhy) { $failed++; Write-Host "FAILED ${n}: Get-GameProjects covers every game project: $gpWhy" }
+else { Write-Host "OK $n Get-GameProjects returns the exe and every src vcxproj, and each is a guard-revert trigger" }
 $n++
 $addrDir = Join-Path $env:TEMP ("openswbf2-addrorder-" + [guid]::NewGuid().ToString('N'))
 try {
@@ -590,6 +677,23 @@ finally {
     Remove-Item -Recurse -Force $miApiDir -ErrorAction SilentlyContinue
 }
 $n++
+$newSizeDir = Join-Path $env:TEMP ("openswbf2-newsize-" + [guid]::NewGuid().ToString('N'))
+try {
+    foreach ($d in 'src\Foo', 'tests\stubs', 'tests\third_party') { New-Item -ItemType Directory -Path (Join-Path $newSizeDir $d) | Out-Null }
+    Set-Content -Encoding ASCII -Path (Join-Path $newSizeDir 'src\Foo\a.cpp') -Value @('void* Foo::operator new(size_t uSize);')
+    Set-Content -Encoding ASCII -Path (Join-Path $newSizeDir 'tests\stubs\s.cpp') -Value @('int x;', 'void* AIPath::operator new(unsigned int uSize) { return 0; }')
+    Set-Content -Encoding ASCII -Path (Join-Path $newSizeDir 'tests\third_party\t.h') -Value @('void* operator new(unsigned int n);')
+    $bad = @(Get-SourceChecks $newSizeDir -Only 'new-size-t')
+    Set-Content -Encoding ASCII -Path (Join-Path $newSizeDir 'tests\stubs\s.cpp') -Value @('int x;', 'void* AIPath::operator new(size_t uSize) { return 0; }')
+    $good = @(Get-SourceChecks $newSizeDir -Only 'new-size-t')
+    if ($bad.Count -ne 1 -or $bad[0].Ok -or $bad[0].Detail -ne 'tests\stubs\s.cpp:2') { $failed++; Write-Host "FAILED ${n}: new-size-t flags operator new(unsigned int in tests outside tests\third_party: $($bad.Detail)" }
+    elseif ($good.Count -ne 1 -or -not $good[0].Ok) { $failed++; Write-Host "FAILED ${n}: new-size-t flags operator new(unsigned int in tests outside tests\third_party: size_t flagged $($good.Detail)" }
+    else { Write-Host "OK $n new-size-t flags operator new(unsigned int in tests outside tests\third_party" }
+}
+finally {
+    Remove-Item -Recurse -Force $newSizeDir -ErrorAction SilentlyContinue
+}
+$n++
 $impGood = "Dump of file C:\X\BattlefrontII.exe`n`n  Section contains the following imports:`n`n    KERNEL32.dll`n              1000 Import Address Table`n                 1A0 GetTickCount`n`n    api-ms-win-crt-environment-l1-1-0.dll`n                   0 getenv`n"
 $impBad = $impGood + "`n    bcrypt.dll`n                   0 BCryptGenRandom`n"
 $okGood = @(Get-ImportChecks $impGood | Where-Object { $_.Name -eq 'import-modules' })
@@ -626,8 +730,8 @@ elseif ('FATAL: exception 0xC0000005 at 0x658FA553 (d3dx9_43.dll+0x1BA553) build
 elseif ($byName['bar1c_con'].Expect.Class -ne 'Pass' -or $byName['quux1c_con'].Expect.Class -ne 'Pass') { $why = 'missing or Pass class must be Pass' }
 elseif ($byName['foo2c_con'].Expect.Class -ne 'Pass' -or $byName['foo2c_con'].Timeout -ne 240 -or $byName['bar1c_con'].Timeout -ne 0 -or $byName['quux1c_con'].Timeout -ne 0) { $why = 'third token must set the case timeout' }
 elseif ($rejected -ne 5) { $why = 'unknown classes, GsFailure, non-integer timeouts and Pass flag or assault lines without a digest row must be rejected' }
-elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 42 -or $byName.ContainsKey('crash-buildheapfail') -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
-elseif (@($testAllCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 43 -or @($testAllCases | Where-Object { $_.Name -eq 'crash-buildheapfail' }).Count -ne 1) { $why = 'Test crash cases changed' }
+elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 43 -or $byName.ContainsKey('crash-buildheapfail') -or -not $byName.ContainsKey('fatal-init') -or $byName['dedicated'].Timeout -ne 0) { $why = 'dedicated or crash cases changed' }
+elseif (@($testAllCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 44 -or @($testAllCases | Where-Object { $_.Name -eq 'crash-buildheapfail' }).Count -ne 1) { $why = 'Test crash cases changed' }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
 else { Write-Host "OK $n all-missions parsing" }
 $n++
@@ -1531,6 +1635,42 @@ try {
     }
     if ($lbWhy) { $failed++; Write-Host "FAILED ${n}: compare-tables lua-bins: $lbWhy" }
     else { Write-Host "OK $n compare-tables -LuaBins passes an equal lua-bins table and fails a 1-count spill change" }
+    $n++
+    $otLines = [IO.File]::ReadAllLines((Join-Path $cbBase 'offthread.txt'))
+    $otSound = [Array]::IndexOf($otLines, '## sound-on')
+    $otRow = -1
+    for ($i = 0; $i -lt $otLines.Count; $i++) { if ($otLines[$i] -cmatch "^[^`t#]+`t0`t0`t0$") { $otRow = $i; break } }
+    $otWhy = $null
+    if ($otSound -lt 0 -or $otRow -lt 0 -or $otRow -gt $otSound) { $otWhy = 'no main row or no ## sound-on in offthread.txt' }
+    else {
+        $otSrcBase = "$(($otLines[$otRow] -split "`t")[0])`t111`tRuntime`t16`t1`tFoo::Bar"
+        $otCases = @(
+            @{ Name = 'same'; Edit = { param($l) }; Code = 0; Want = '\[PASS\] tables:offthread' },
+            @{ Name = 'soundon'; Edit = { param($l) for ($i = $otSound + 1; $i -lt $l.Count; $i++) { $l[$i] = $l[$i] -replace 'sound=opened', 'sound=not opened' -replace "`t0`t0`t0$", "`t9`t9`t9" }; $l.Add("zzz9c_xl`t1`t1`t1") }; Code = 0; Want = '\[PASS\] tables:offthread' },
+            @{ Name = 'changed'; Edit = { param($l) $l[$otRow] = $l[$otRow] -replace "`t0`t0`t0$", "`t1`t1`t0" }; Code = 1; Want = '\[FAIL\] tables:offthread' },
+            @{ Name = 'missing'; Edit = { param($l) $l.RemoveAt($otRow) }; Code = 1; Want = 'missing from tables' },
+            @{ Name = 'extra'; Edit = { param($l) $l.Insert($otSound, "zzz9c_con`t0`t0`t0") }; Code = 1; Want = 'zzz9c_con not in baseline' },
+            @{ Name = 'tid'; Base = { param($l) $l.Insert($otRow + 1, $otSrcBase) }; Edit = { param($l) $l.Insert($otRow + 1, ($otSrcBase -replace "`t111`t", "`t222`t")) }; Code = 0; Want = '\[PASS\] tables:offthread' },
+            @{ Name = 'srcsize'; Base = { param($l) $l.Insert($otRow + 1, $otSrcBase) }; Edit = { param($l) $l.Insert($otRow + 1, ($otSrcBase -replace "`t16`t", "`t32`t")) }; Code = 1; Want = '\[FAIL\] tables:offthread' }
+        )
+        foreach ($c in $otCases) {
+            $tb = Join-Path $cbTmp "ot-$($c.Name)"
+            $bb = Join-Path $cbTmp "otb-$($c.Name)"
+            New-Item -ItemType Directory -Force -Path $tb, $bb | Out-Null
+            $bl = [System.Collections.Generic.List[string]]::new([string[]]$otLines)
+            if ($c.Base) { & $c.Base $bl }
+            [IO.File]::WriteAllLines((Join-Path $bb 'offthread.txt'), $bl)
+            $tl = [System.Collections.Generic.List[string]]::new([string[]]$otLines)
+            & $c.Edit $tl
+            [IO.File]::WriteAllLines((Join-Path $tb 'offthread.txt'), $tl)
+            $out = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $tb -Baseline $bb -OffThread 2>&1 | Out-String }
+            if ($LASTEXITCODE -ne $c.Code) { $otWhy = "$($c.Name) gave exit $LASTEXITCODE"; break }
+            if ($out -notmatch $c.Want) { $otWhy = "$($c.Name) output lacks '$($c.Want)'"; break }
+            if ($out -match 'tables:(?:lua-bins|mem-peaks)') { $otWhy = "$($c.Name) ran another table"; break }
+        }
+    }
+    if ($otWhy) { $failed++; Write-Host "FAILED ${n}: compare-tables offthread: $otWhy" }
+    else { Write-Host "OK $n compare-tables -OffThread compares the main section only, ignores the source tid and fails a changed, missing or extra row and a changed source row" }
     $n++
 }
 catch { $failed++; Write-Host "FAILED: compare-tables block threw: $_" }

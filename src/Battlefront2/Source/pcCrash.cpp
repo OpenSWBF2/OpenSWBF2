@@ -20,6 +20,12 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/input/pc/pcRedInputManager.h"
 #include "PlayerProfile.h"
+#include "CollisionModel.h"
+#include "EntityMine.h"
+#include "EntityProp.h"
+#include "Factory.h"
+#include "LuaCallbacks_Mission.h"
+#include "StickInfo.h"
 
 typedef BOOL (WINAPI* MiniDumpWriteDumpFn)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
     PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
@@ -1046,6 +1052,80 @@ static void PoolFullTest()
     }
 }
 
+static EntityClass* FindEntityClassOfRtti(unsigned int uRtti, unsigned int uExclude)
+{
+    typedef Factory<Entity, EntityClass, EntityDesc> EntityFactory;
+    for (PblList<EntityFactory>::Itor it(EntityFactory::sList.GetFirst()); it; ++it)
+    {
+        EntityClass* pClass = (EntityClass*)(&*it);
+        if (it->mParent && pClass->IsRtti(uRtti) && !pClass->IsRtti(uExclude))
+        {
+            return pClass;
+        }
+    }
+    return 0;
+}
+
+static Entity* BuildEntity(EntityClass* pClass)
+{
+    EntityDesc desc;
+    return pClass->Build(desc);
+}
+
+static void LuaDeleteEntity(Entity* pEntity)
+{
+    lua_State* L = LuaHelper::mState;
+    lua_pushcfunction(L, Lua_Callbacks::DeleteEntity);
+    lua_pushlightuserdata(L, pEntity);
+    if (lua_pcall(L, 1, 0, 0) != 0)
+    {
+        lua_pop(L, 1);
+    }
+}
+
+static void StickDeleteTest()
+{
+    EntityClass* pPropClass = FindEntityClassOfRtti(EntityPropClass::rttiHashEntityPropClass,
+                                                    GameObjectClass::rttiHashGameObjectClass);
+    EntityClass* pMineClass = FindEntityClassOfRtti(EntityMineClass::rttiHashEntityMineClass, 0);
+    if (!pPropClass || !pMineClass)
+    {
+        LOG(LogCore, Warning, "OPENSWBF2 STICKDELETE no class prop=%d mine=%d", pPropClass != 0, pMineClass != 0);
+        return;
+    }
+    Entity* pPropEntity = BuildEntity(pPropClass);
+    Entity* pMineEntity = BuildEntity(pMineClass);
+    if (!pPropEntity || !pMineEntity)
+    {
+        LOG(LogCore, Warning, "OPENSWBF2 STICKDELETE build failed prop=%d mine=%d", pPropEntity != 0, pMineEntity != 0);
+        return;
+    }
+    EntityGeometry* pProp = static_cast<EntityGeometry*>(pPropEntity);
+    EntityMine* pMine = static_cast<EntityMine*>(pMineEntity);
+    CollisionObject* pTarget = pProp;
+    const bool bPropClass = pPropClass->IsRtti(EntityPropClass::rttiHashEntityPropClass);
+    const bool bGameObject = pTarget->GetGameObject() != 0;
+
+    CollisionResult kResult;
+    memset(&kResult, 0, sizeof(kResult));
+    kResult.mSeparationNormal = PblVector3(0.0f, 1.0f, 0.0f);
+    kResult.mReceiverId = 0;
+    pMine->CollisionCallback(&kResult, pTarget, 0);
+    const bool bStuck = pMine->mStickInfo != 0 && pMine->mStickInfo->mCollObject == pTarget &&
+                        pMine->mParent == pTarget;
+    pMine->Update(1.0f / 30.0f);
+
+    StickInfo* pStick = pMine->mStickInfo;
+    LuaDeleteEntity(pPropEntity);
+    const bool bCleared = pStick != 0 && pMine->mStickInfo == pStick && pStick->mCollObject == 0 &&
+                          pMine->mParent == 0;
+    pMine->Update(1.0f / 30.0f);
+    const bool bFell = pMine->mStickInfo == 0;
+    LuaDeleteEntity(pMineEntity);
+    LOG(LogCore, Inform, "OPENSWBF2 STICKDELETE prop=%d gameobject=%d stuck=%d cleared=%d fell=%d", bPropClass,
+        bGameObject, bStuck, bCleared, bFell);
+}
+
 void pcCrash::RunMissionCrashTest()
 {
     static bool sbRan;
@@ -1151,6 +1231,11 @@ void pcCrash::RunMissionCrashTest()
         sbRan = true;
         PoolFullTest();
     }
+    else if (strcmp(gCrashKind, "stickdelete") == 0)
+    {
+        sbRan = true;
+        StickDeleteTest();
+    }
     else
     {
         sbRan = true;
@@ -1166,7 +1251,7 @@ void pcCrash::SetCrashTest(char const* pcKind)
         "applytargetfail", "gammapass", "gammafallback", "gammadrawfail",
         "gammalost", "menuconfirm", "menukeep", "menusavefail", "adaptercancel",
         "adapteraccept", "shellstretch", "menuorder", "menuorderrev",
-        "menurevertsave", "menuapplyfail", "poolcount", "poolfull" };
+        "menurevertsave", "menuapplyfail", "poolcount", "poolfull", "stickdelete" };
     if (pcKind == 0)
     {
         return;

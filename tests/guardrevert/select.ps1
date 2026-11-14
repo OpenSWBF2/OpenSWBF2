@@ -2,6 +2,19 @@ $script:GuardGlobalTriggers = @(
     'BattlefrontII.vcxproj',
     'BattlefrontII.vcxproj.filters',
     'BattlefrontII.sln',
+    'OpenSWBF2.Game.props',
+    'src\LuaFL\LuaFL.vcxproj',
+    'src\LuaFL\LuaFL.vcxproj.filters',
+    'src\RedEngineFL\RedEngineFL.vcxproj',
+    'src\RedEngineFL\RedEngineFL.vcxproj.filters',
+    'src\mimalloc\mimalloc.vcxproj',
+    'src\mimalloc\mimalloc.vcxproj.filters',
+    'src\SoundFL\SoundFL.vcxproj',
+    'src\SoundFL\SoundFL.vcxproj.filters',
+    'src\Zephyr\ZephyrFL.vcxproj',
+    'src\Zephyr\ZephyrFL.vcxproj.filters',
+    'src\ZlibFL\ZLibFL.vcxproj',
+    'src\ZlibFL\ZLibFL.vcxproj.filters',
     'LuaCompiler.vcxproj',
     'tests\OpenSWBF2Tests.vcxproj',
     'tests\OpenSWBF2Tests.vcxproj.filters',
@@ -105,6 +118,38 @@ function Read-ClReadTlog([string]$Path, [string]$Root)
         }
     }
     [pscustomobject]@{ Path = $Path; Root = $Root; Time = $time; Sets = $sets; Stale = $stale }
+}
+
+function Read-ClReadTlogs([string[]]$Paths, [string]$Root)
+{
+    $merged = $null
+    foreach ($p in $Paths)
+    {
+        $r = Read-ClReadTlog $p $Root
+        if ($null -eq $r)
+        {
+            return $null
+        }
+        if ($null -eq $merged)
+        {
+            $merged = $r
+            continue
+        }
+        foreach ($kv in $r.Sets.GetEnumerator())
+        {
+            $set = $null
+            if ($merged.Sets.TryGetValue($kv.Key, [ref]$set))
+            {
+                $set.UnionWith($kv.Value)
+            }
+            else
+            {
+                $merged.Sets[$kv.Key] = $kv.Value
+            }
+        }
+        $merged.Stale.UnionWith($r.Stale)
+    }
+    $merged
 }
 
 function Get-GuardRowHash($Row)

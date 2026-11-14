@@ -1,72 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Test|Win32">
-      <Configuration>Test</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Asan|Win32">
-      <Configuration>Asan</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{F303D4E6-ED54-5075-A41B-A8829D3D67C5}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>BattlefrontII</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
-    <WholeProgramOptimization>false</WholeProgramOptimization>
-    <CharacterSet>NotSet</CharacterSet>
-    <EnableASAN Condition="'$(Configuration)'=='Asan'">true</EnableASAN>
     <CopyAsanBinariesToOutDir Condition="'$(Configuration)'=='Asan'">true</CopyAsanBinariesToOutDir>
   </PropertyGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="OpenSWBF2.Game.props" />
   <PropertyGroup>
     <TargetName>BattlefrontII</TargetName>
     <LinkIncremental>false</LinkIncremental>
     <GenerateManifest>false</GenerateManifest>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(DXSDK_DIR)Include</IncludePath>
-    <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);$(DXSDK_DIR)Lib\x86</LibraryPath>
     <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <ItemDefinitionGroup>
-    <ClCompile>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-      <Optimization>MaxSpeed</Optimization>
-      <OmitFramePointers>false</OmitFramePointers>
-      <DebugInformationFormat>OldStyle</DebugInformationFormat>
-      <WarningLevel>Level3</WarningLevel>
-      <ExceptionHandling>Sync</ExceptionHandling>
-      <RuntimeTypeInfo>true</RuntimeTypeInfo>
-      <AdditionalIncludeDirectories>src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <SDLCheck>true</SDLCheck>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-      <ConformanceMode>false</ConformanceMode>
-      <RemoveUnreferencedCodeData>true</RemoveUnreferencedCodeData>
-      <AdditionalOptions>/Zc:alignedNew- %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <IntrinsicFunctions>false</IntrinsicFunctions>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
-    </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -83,17 +37,6 @@
       <MapFileName>$(IntDir)$(TargetName).map</MapFileName>
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;lib\binkw32.lib;lib\steam_api.lib;lib\Galaxy.lib</AdditionalDependencies>
     </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
-    <ClCompile>
-      <Optimization>Disabled</Optimization>
-      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Test' or '$(Configuration)'=='Asan'">
-    <ClCompile>
-      <PreprocessorDefinitions>OPENSWBF2_TEST;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\PebbleFL\pc\pcPblMatrix.cpp" />
@@ -600,84 +543,6 @@
     <ClCompile Include="src\GameSpyFL\nonport.c">
       <PreprocessorDefinitions>_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lapi.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lcode.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\ldebug.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\ldo.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\ldump.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lfunc.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lgc.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lib\lauxlib.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lib\lbaselib.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lib\ldblib.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lib\liolib.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lib\lmathlib.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lib\lstrlib.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lib\ltablib.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\llex.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lmem.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lobject.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lopcodes.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lparser.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lstate.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lstring.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\ltable.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\ltm.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lundump.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lvm.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <ClCompile Include="src\LuaFL\src\lzio.cpp">
-      <AdditionalIncludeDirectories>src;src\LuaFL\include;src\LuaFL\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
     <ClCompile Include="src\PebbleFL\Common\PblBuildType.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblCatmullRom.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblChunk.cpp" />
@@ -702,271 +567,8 @@
     <ClCompile Include="src\PebbleFL\Common\PblUnicode.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblValues.cpp" />
     <ClCompile Include="src\PebbleFL\Common\PblVector.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\RedPath.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\RedTerrain.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\RedWater.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\Renderable.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\crtLibrary.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcFLRender.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-    </ClCompile>
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcRedDebug.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcRedDropShadow.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcRedFootprint.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcRedParticle.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcRedShadowProxy.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcRedTerrain.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcRedWater.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcShadowQuadRenderable.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcClearShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcDecalShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcFilterCopyShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcFlareShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcHDRShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcInterfaceShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcLightBeamShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcNormalMapAdderShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcNormalShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcOceanShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcParticleShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcPerPixelDiffuseLightingShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcPerVertexDiffuseLightingShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcPreReflectionShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcRainShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcRefractionShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcSampleShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcShadowQuadShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcShieldShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcSkyFogShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcSpecularLightingShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcStencilShadowShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcTerrainShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcTerrainShader2.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcWaterShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\Shaders\pcZPrepassShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\StateManager_DX.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedAutoSettings.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcGammaPass.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcFrameLimiter.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcWindow.cpp" />
-    <ClCompile Include="src\RedEngineFL\Application\pc\pcMessageDrain.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedDeviceEnumerator.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedIndexBuffer.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedPixelShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedPrimitive.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedRenderer.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-    </ClCompile>
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedSegment.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedStencilShadow.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedTexture.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexBuffer.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexCache.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexFormat.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\PC\pcRedVertexShader.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\RedAmbientLight.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\RedCamera.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-    </ClCompile>
-    <ClCompile Include="src\RedEngineFL\Graphics\RedColor.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\RedDirectionalLight.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-    </ClCompile>
-    <ClCompile Include="src\RedEngineFL\Graphics\RedLight.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\RedModel.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\RedOmniLight.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-    </ClCompile>
-    <ClCompile Include="src\RedEngineFL\Graphics\RedPose.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\RedShadingState.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\RedShadowRegion.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\RedSkeleton.cpp" />
-    <ClCompile Include="src\RedEngineFL\Graphics\RedSpotLight.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-    </ClCompile>
-    <ClCompile Include="src\RedEngineFL\Interface\Red3DModelAnimator.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\Red3DModelElement.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\Red3DModelElementLite.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\RedBitmapElement.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\RedBorderElement.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\RedFont.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\RedGlyphMemoryManager.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\RedGroupElement.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\RedHotSpot.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\RedIFScreen.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\RedInterfaceElement.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\RedInterfaceScreen.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-    </ClCompile>
-    <ClCompile Include="src\RedEngineFL\Interface\RedShadowBlob.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\RedTextElement.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\RedVectorElement.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\pc\pcRedBitmapElement.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\pc\pcRedGlyphCacheElement.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\pc\pcRedMaskedBitmapElement.cpp" />
-    <ClCompile Include="src\RedEngineFL\Interface\pc\pcRedVectorElement.cpp" />
-    <ClCompile Include="src\RedEngineFL\Memory\RedMemory.cpp" />
-    <ClCompile Include="src\RedEngineFL\Memory\RedMemoryMi.cpp" />
-    <ClCompile Include="src\mimalloc\src\static.c">
-      <CompileAs>CompileAsCpp</CompileAs>
-      <AdditionalIncludeDirectories>src;src\mimalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">MI_DEBUG=2;MI_SECURE=0;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">MI_DEBUG=0;MI_SECURE=4;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)'=='Test'">MI_DEBUG=1;MI_SECURE=4;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)'=='Asan'">MI_DEBUG=0;MI_SECURE=0;MI_TRACK_ASAN=1;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <ClCompile Include="src\RedEngineFL\Memory\RedMemoryPool.cpp" />
-    <ClCompile Include="src\RedEngineFL\Memory\RedMemoryReport.cpp" />
-    <ClCompile Include="src\RedEngineFL\Portals\Portal.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedAnimation.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedCommandConsole.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedConsole.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedLocalizeDB.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedLodManager.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedMissionLog.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedRegion.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedSceneManager.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedSceneObject.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedScreenShot.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedStack.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedLog.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\RedWarning.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\ext\Allocator.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\ext\Globals.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\ext\ListAllocator.cpp" />
-    <ClCompile Include="src\RedEngineFL\Util\pc\pcRedProfile.cpp" />
-    <ClCompile Include="src\RedEngineFL\geometry\IntersectionOps.cpp" />
-    <ClCompile Include="src\RedEngineFL\geometry\PolyPolyTest2D.cpp" />
-    <ClCompile Include="src\RedEngineFL\geometry\Primitives.cpp" />
-    <ClCompile Include="src\RedEngineFL\input\RedInputEventHandler.cpp" />
-    <ClCompile Include="src\RedEngineFL\input\pc\pcRedInputManager.cpp" />
-    <ClCompile Include="src\RedEngineFL\input\pc\pcRedJoystick.cpp" />
-    <ClCompile Include="src\RedEngineFL\input\pc\pcRedKeyboard.cpp" />
-    <ClCompile Include="src\RedEngineFL\input\pc\pcRedLogitechLCD.cpp" />
-    <ClCompile Include="src\RedEngineFL\input\pc\pcRedMouse.cpp" />
-    <ClCompile Include="src\RedEngineFL\movie\RedCircularBuffer.cpp" />
-    <ClCompile Include="src\RedEngineFL\movie\RedFileAsync.cpp" />
-    <ClCompile Include="src\RedEngineFL\movie\RedMovie.cpp" />
-    <ClCompile Include="src\RedEngineFL\movie\RedMoviePlayerBase.cpp" />
-    <ClCompile Include="src\RedEngineFL\movie\RedMoviePlayerRenderer.cpp" />
-    <ClCompile Include="src\RedEngineFL\movie\pc\pcRedMoviePlayer.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndallocbitmap.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndbufferio.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndbus.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-    </ClCompile>
-    <ClCompile Include="src\SoundFL\source\snddsp.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-    </ClCompile>
-    <ClCompile Include="src\SoundFL\source\sndenginebase.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndfile.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndfileplatformbase.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndfreelist.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndglobals.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndgsm.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndi3dl2reverb.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndi3dl2reverbpreset.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndlistenerbase.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndobjectlist.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndobjectweightlist.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-    </ClCompile>
-    <ClCompile Include="src\SoundFL\source\sndparametergraph.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndqueue.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndqueuelock.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsamplebankbase.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsampleinfo.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsound.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsoundlayered.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsoundparameterized.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsoundproperties.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsoundstream.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsource.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsource2d.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsource2d3d.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsource3d.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsourcebus.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsourcei3dl2.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsourcetransport.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsourcetransportcontrol.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsourcevariation.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsourcevirtual.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndspace.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamagc.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreambase.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamcapturesourcebase.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamcodec.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamconsumer.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamformat.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamgsmdecoder.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamgsmencoder.cpp" />
-    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\gsm_decode.c" />
-    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\gsm_encode.c" />
-    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\gsm_option.c" />
-    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\long_term.c" />
-    <ClCompile Include="src\SoundFL\source\gsm-1.0.10\short_term.c" />
-    <ClCompile Include="src\SoundFL\source\sndstreamhighlowpass.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamimaadpcmdecoder.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreammixer.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamnode.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreampacketio.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamresampler.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamsource.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamsourcememory.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamsourceproducer.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamsplitter.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndstreamvad.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndsubstreamsplitter.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndthreadupdate.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndvoicebase.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndvoicehardware.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndvoicevirtual.cpp" />
-    <ClCompile Include="src\SoundFL\source\sndvoicevirtualmanager.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\snddsbuffer.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\snddsbufferrenderer.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\snddsdeviceenumerator.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\snddsdmo.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\snddsmediabuffer.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndengine.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndfileplatform.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndlistener.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndsample.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndsamplebank.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndsemaphore.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndsoftoutput.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndstream.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndstreamauxrenderer.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndstreamcapturesource.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndstreamdsdmo.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndstreamrenderer.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndthread.cpp" />
-    <ClCompile Include="src\SoundFL\source\win\sndvoice.cpp" />
     <ClCompile Include="src\Steam\gfGalaxy.cpp" />
     <ClCompile Include="src\Steam\gfSteamAuth.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrAnim.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrAnimBank.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrAnimBankReader.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrAnimInst.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrAnimJoint.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrEvent.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrFile.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrPoseDyn.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrPoseStatic.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrSkeleton.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrSkeletonShared.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrSkinReader.cpp" />
-    <ClCompile Include="src\Zephyr\Source\ZephyrSkinShared.cpp" />
-    <ClCompile Include="src\ZlibFL\compress.c" />
-    <ClCompile Include="src\ZlibFL\crc32.c" />
-    <ClCompile Include="src\ZlibFL\deflate.c" />
-    <ClCompile Include="src\ZlibFL\inffast.c" />
-    <ClCompile Include="src\ZlibFL\inflate.c" />
-    <ClCompile Include="src\ZlibFL\inftrees.c" />
-    <ClCompile Include="src\ZlibFL\trees.c" />
-    <ClCompile Include="src\ZlibFL\zutil.c" />
     <ClCompile Include="src\lglcd\lgLcd.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -1258,16 +860,7 @@
     <ClInclude Include="src\Battlefront2\Source\NetWire.h" />
     <ClInclude Include="src\Battlefront2\Source\LocalLimits.h" />
     <ClInclude Include="src\Battlefront2\Source\LocalizedFormatArgs.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplaySettings.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcDisplayLogic.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcGammaPass.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcGammaPassPS.h" />
-    <None Include="src\RedEngineFL\Graphics\PC\pcGammaPass.hlsl" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcColorRamp.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcFrameLimiter.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcWindow.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcMessageDrain.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedPoolMath.h" />
     <ClInclude Include="src\Battlefront2\Source\NetPredict.h" />
     <ClInclude Include="src\Battlefront2\Source\NetSetup.h" />
     <ClInclude Include="src\Battlefront2\Source\NetState.h" />
@@ -1509,144 +1102,6 @@
     <ClInclude Include="src\PebbleFL\pc\pcPblMath.h" />
     <ClInclude Include="src\PebbleFL\pc\pcPblMatrix.inl" />
     <ClInclude Include="src\PebbleFL\pc\pcPblVector.inl" />
-    <ClInclude Include="src\RedEngineFL\Application\RedDropShadow.h" />
-    <ClInclude Include="src\RedEngineFL\Application\RedPath.h" />
-    <ClInclude Include="src\RedEngineFL\Application\RedTerrain.h" />
-    <ClInclude Include="src\RedEngineFL\Application\RedWater.h" />
-    <ClInclude Include="src\RedEngineFL\Application\Renderable.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\crtNames.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcFLRender.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcRedDebug.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcRedParticle.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcRedShadowProxy.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcRedShape.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcRenderHelpers.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcRenderStateHelpers.h" />
-    <ClInclude Include="src\RedEngineFL\Application\pc\pcShadowQuadRenderable.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcClearShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcDecalShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcFilterCopyShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcFlareShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcHDRShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcInterfaceShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcLightBeamShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcNormalMapAdderShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcNormalShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcOceanShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcParticleShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcPerPixelDiffuseLightingShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcPerVertexDiffuseLightingShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcPreReflectionShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcRainShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcRefractionShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcSampleShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcShadowQuadShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcShieldShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcSkyFogShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcSpecularLightingShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcStencilShadowShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcTerrainShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcTerrainShader2.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcWaterShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\Shaders\pcZPrepassShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\StateManager_DX.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedAutoSettings.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedDeviceEnumerator.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedIndexBuffer.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedPixelShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedPrimitive.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedRenderer.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedSegment.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedStencilShadow.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedTexture.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedVertexBuffer.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedVertexFormat.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\PC\pcRedVertexShader.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedAmbientLight.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedCamera.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedColor.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedDirectionalLight.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedLight.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedMaterial.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedModel.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedOmniLight.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedPose.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedSegment.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedShadingState.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedShadowRegion.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedSkeleton.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedSpotLight.h" />
-    <ClInclude Include="src\RedEngineFL\Graphics\RedTextureTransform.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\Red3DModelAnimator.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\Red3DModelElement.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\Red3DModelElementLite.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedBitmapElement.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedBorderElement.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedFont.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedGlyphCacheElement.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedGlyphMemoryManager.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedGroupElement.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedHotSpot.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedIFScreen.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedInterfaceElement.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedInterfaceScreen.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedMagicStrings.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedMaskedBitmapElement.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedShadowBlob.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedTextElement.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\RedVectorElement.h" />
-    <ClInclude Include="src\RedEngineFL\Interface\pc\pcGlyphCacheCount.h" />
-    <ClInclude Include="src\RedEngineFL\Memory\RedMemory.h" />
-    <ClInclude Include="src\RedEngineFL\Memory\RedMemoryMi.h" />
-    <ClInclude Include="src\RedEngineFL\Memory\RedMemoryPool.h" />
-    <ClInclude Include="src\RedEngineFL\Memory\RedMemoryReport.h" />
-    <ClInclude Include="src\RedEngineFL\Memory\RedScriptLimits.h" />
-    <ClInclude Include="src\RedEngineFL\Memory\engineAlloc.h" />
-    <ClInclude Include="src\RedEngineFL\Portals\BaseDisplayable.h" />
-    <ClInclude Include="src\RedEngineFL\Portals\Portal.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedAnimation.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedCommandConsole.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedConsole.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedLocalizeDB.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedLodManager.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedRegion.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedSceneManager.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedSceneObject.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedScreenShot.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedStack.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedLog.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedMissionLog.h" />
-    <ClInclude Include="src\RedEngineFL\Util\RedWarning.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\Allocator.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\BaseString.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\Globals.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\IAllocator.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\ListAllocator.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\SubAllocator.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\basearray.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\baselist.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\basevector.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\hashtable.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\heap.h" />
-    <ClInclude Include="src\RedEngineFL\Util\ext\types.h" />
-    <ClInclude Include="src\RedEngineFL\geometry\Primitives.h" />
-    <ClInclude Include="src\RedEngineFL\geometry\TransformOps.h" />
-    <ClInclude Include="src\RedEngineFL\geometry\basics.h" />
-    <ClInclude Include="src\RedEngineFL\geometry\polygons.h" />
-    <ClInclude Include="src\RedEngineFL\geometry\vector.h" />
-    <ClInclude Include="src\RedEngineFL\input\RedInputEventHandler.h" />
-    <ClInclude Include="src\RedEngineFL\input\RedJoystick.h" />
-    <ClInclude Include="src\RedEngineFL\input\RedKeyboard.h" />
-    <ClInclude Include="src\RedEngineFL\input\RedMouse.h" />
-    <ClInclude Include="src\RedEngineFL\input\pc\pcRedInputManager.h" />
-    <ClInclude Include="src\RedEngineFL\movie\RedCircularBuffer.h" />
-    <ClInclude Include="src\RedEngineFL\movie\RedFileAsync.h" />
-    <ClInclude Include="src\RedEngineFL\movie\RedMovie.h" />
-    <ClInclude Include="src\RedEngineFL\movie\RedMoviePlayerBase.h" />
-    <ClInclude Include="src\RedEngineFL\movie\RedMoviePlayerRenderer.h" />
-    <ClInclude Include="src\RedEngineFL\movie\pc\pcRedMoviePlayer.h" />
-    <ClInclude Include="src\RedEngineFL\movie\redpipe.h" />
     <ClInclude Include="src\SoundFL\source\sndallocator.h" />
     <ClInclude Include="src\SoundFL\source\sndallocbitmap.h" />
     <ClInclude Include="src\SoundFL\source\sndbufferio.h" />
@@ -1741,21 +1196,6 @@
     <ClInclude Include="src\Steam\gfSteamAuth.h" />
     <ClInclude Include="src\Steam\steamworks.h" />
     <ClInclude Include="src\Steam\utf8.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrAnim.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrAnimBank.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrAnimBankReader.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrAnimInst.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrAnimJoint.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrCommon.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrEvent.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrFile.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrJoint.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrPoseDyn.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrPoseStatic.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrSkeleton.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrSkeletonShared.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrSkinReader.h" />
-    <ClInclude Include="src\Zephyr\Source\ZephyrSkinShared.h" />
     <ClInclude Include="src\ZlibFL\crc32.h" />
     <ClInclude Include="src\ZlibFL\deflate.h" />
     <ClInclude Include="src\ZlibFL\inffast.h" />
@@ -1772,6 +1212,36 @@
     <ProjectReference Include="LuaCompiler.vcxproj">
       <Project>{8E0BC5D7-03D1-5947-AEC7-5EAA5F25A967}</Project>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <ProjectReference Include="src\LuaFL\LuaFL.vcxproj">
+      <Project>{DD72C068-B8B9-5F2D-9E36-3960F2129E79}</Project>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
+    </ProjectReference>
+    <ProjectReference Include="src\RedEngineFL\RedEngineFL.vcxproj">
+      <Project>{C3E30B7D-A395-5FA0-9B64-F5CA244C6B92}</Project>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
+    </ProjectReference>
+    <ProjectReference Include="src\mimalloc\mimalloc.vcxproj">
+      <Project>{FF98CC3F-9704-496E-AC24-B07C0F85FED1}</Project>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
+    </ProjectReference>
+    <ProjectReference Include="src\SoundFL\SoundFL.vcxproj">
+      <Project>{6CD3DE5F-38F0-5AC0-84EB-1DA25BBE595B}</Project>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
+    </ProjectReference>
+    <ProjectReference Include="src\Zephyr\ZephyrFL.vcxproj">
+      <Project>{4F910B28-63C7-4E59-BA94-035643220A73}</Project>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
+    </ProjectReference>
+    <ProjectReference Include="src\ZlibFL\ZLibFL.vcxproj">
+      <Project>{F23372A9-3077-54F3-998E-5DA6B2228447}</Project>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

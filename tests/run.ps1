@@ -265,7 +265,8 @@ if ($hardenActive) {
         $bad++
     }
     elseif (Test-Path -LiteralPath $gameExe) {
-        $tl = Get-ClTlogCounts (Join-Path $root "obj\Win32\$SmokeConfiguration\BattlefrontII.tlog")
+        $gameProjects = @(Get-GameProjects $root $SmokeConfiguration)
+        $tl = Get-ClTlogCounts @($gameProjects | ForEach-Object { $_.TlogDir })
         foreach ($c in (Get-HardeningChecks $hdr $cfg $tl.Total $tl.GsMinus $tl.Sdl)) {
             if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
             else {
@@ -277,7 +278,10 @@ if ($hardenActive) {
         $tt = $null
         if (Test-Path -LiteralPath $ttDir) { $tt = Get-ClTlogCounts $ttDir }
         else { Add-SmokeResult '[SKIP] hardening:flag-alignednew-tests - tests not built' 'SKIP' }
-        foreach ($c in (Get-FlagChecks $tl $tt $SmokeConfiguration $Configuration)) {
+        $mapPath = Join-Path $gameProjects[0].IntDir 'BattlefrontII.map'
+        $mapText = $null
+        if (Test-Path -LiteralPath $mapPath) { $mapText = [IO.File]::ReadAllText($mapPath) }
+        foreach ($c in @(Get-FlagChecks $tl $tt $SmokeConfiguration $Configuration) + @(Get-MiCrtHookCheck $mapText)) {
             if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
             else {
                 Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
@@ -522,6 +526,20 @@ if ($smokeActive -and $Smoke -eq 'All' -and $SmokeConfiguration -eq 'Test' -and 
     }
     Write-Host $luaLine
     Add-Content -Path (Join-Path $outDir 'results.txt') -Value $luaLine -Encoding ASCII
+    $offDir = Join-Path $outDir 'offthread'
+    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\capture-vs2013.ps1') -Configuration Test -Tables -OffThreadDir $outDir -OutDir $offDir
+    $offCode = $LASTEXITCODE
+    if ($offCode -eq 0) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Tables $offDir -OffThread
+        $offCode = $LASTEXITCODE
+    }
+    $offLine = '[PASS] tables:offthread'
+    if ($offCode -ne 0) {
+        $offLine = "[FAIL] tables:offthread exit $offCode"
+        $bad++
+    }
+    Write-Host $offLine
+    Add-Content -Path (Join-Path $outDir 'results.txt') -Value $offLine -Encoding ASCII
 }
 
 if ($bad -gt 0) { exit 1 }

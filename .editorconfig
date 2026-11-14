@@ -17,7 +17,7 @@ end_of_line = lf
 charset = utf-8-bom
 indent_style = tab
 
-[*.{vcxproj,vcxproj.filters}]
+[*.{vcxproj,vcxproj.filters,props}]
 indent_size = 2
 
 [*.{lib,ico}]

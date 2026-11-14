@@ -283,7 +283,9 @@ bool OrdnanceSticky::Update(float fDeltaTime)
         return OrdnanceShell::Update(fDeltaTime);
     }
 
-    if (mStickInfo->mCollHandle.IsDeadHandle())
+    PblMatrix mBody;
+    bool bHasBody = false;
+    if (mStickInfo->mCollHandle.IsDeadHandle() || !mStickInfo->FollowTarget(mBody, bHasBody))
     {
         delete mStickInfo;
         mStickInfo = 0;
@@ -292,12 +294,8 @@ bool OrdnanceSticky::Update(float fDeltaTime)
 
     mOldPosition = mPosition;
     mPosition = mStickInfo->mLocalPosition;
-    CollisionObject* pObject = mStickInfo->mCollObject;
-    CollisionModel* pModel = pObject->mCollisionModel;
-    if (pModel)
+    if (bHasBody)
     {
-        PblMatrix mBody = pModel->GetWorldMatrix(mStickInfo->mCollBodyID,
-                                                 pObject->GetMatrix(), pObject->GetPose());
         PblVector3 vWorld;
         D3DXVec3TransformCoord(reinterpret_cast<D3DXVECTOR3*>(&vWorld), reinterpret_cast<const D3DXVECTOR3*>(&mPosition), reinterpret_cast<const D3DXMATRIX*>(&mBody));
         mPosition = vWorld;
@@ -324,7 +322,9 @@ void OrdnanceSticky::Render(unsigned char ucViewport, float fDist, unsigned int 
     StickInfo* pStick = mStickInfo;
     if (pStick)
     {
-        if (!pStick->mCollObject)
+        PblMatrix mBody;
+        bool bHasBody = false;
+        if (!pStick->FollowTarget(mBody, bHasBody))
         {
             return;
         }
@@ -337,13 +337,10 @@ void OrdnanceSticky::Render(unsigned char ucViewport, float fDist, unsigned int 
             mat = mRot;
         }
 
-        CollisionObject* pObject = mStickInfo->mCollObject;
-        CollisionModel* pModel = pObject->mCollisionModel;
-        if (pModel)
+        if (bHasBody)
         {
             D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mat), reinterpret_cast<const D3DXMATRIX*>(&mat),
-                               reinterpret_cast<const D3DXMATRIX*>(&pModel->GetWorldMatrix(mStickInfo->mCollBodyID,
-                                                                                            pObject->GetMatrix(), pObject->GetPose())));
+                               reinterpret_cast<const D3DXMATRIX*>(&mBody));
         }
     }
     else if (pClass->mAlignVertical)
