@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "pcCrash.h"
+#include "Battlefront2/Platform/Pc/pcProgress.h"
 #include "CommandLine.h"
 #include "GameMemory.h"
 #include "LuaHelper.h"
@@ -55,6 +56,12 @@ static volatile LONG gTicks;
 extern bool gIsQuitting;
 static unsigned int guiHangTimeout = 60;
 static bool gbWatchdog;
+static bool gbSupervised;
+
+static DWORD DumpWaitMs()
+{
+    return (gbSupervised || gCrashKind[0] != 0) ? INFINITE : 30000;
+}
 
 static void TerminateNow(int iCode)
 {
@@ -108,6 +115,29 @@ static void BuildDumpPath()
         (unsigned int)GetCurrentProcessId());
 }
 
+static BOOL CALLBACK DumpProgress(PVOID, PMINIDUMP_CALLBACK_INPUT pInput, PMINIDUMP_CALLBACK_OUTPUT pOutput)
+{
+    pcProgress::Step();
+    if (pInput == 0 || pOutput == 0)
+    {
+        return FALSE;
+    }
+    switch (pInput->CallbackType)
+    {
+    case ModuleCallback:
+    case ThreadCallback:
+    case ThreadExCallback:
+    case IncludeThreadCallback:
+    case IncludeModuleCallback:
+        return TRUE;
+    case IncludeVmRegionCallback:
+        pOutput->Continue = TRUE;
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
 static void WriteDump()
 {
     gDumpPath[0] = 0;
@@ -125,14 +155,17 @@ static void WriteDump()
     }
     MINIDUMP_TYPE eFull = (MINIDUMP_TYPE)(MiniDumpNormal | MiniDumpWithDataSegs | MiniDumpWithThreadInfo);
     PMINIDUMP_EXCEPTION_INFORMATION pExc = gDumpInfo.ExceptionPointers ? &gDumpInfo : 0;
+    MINIDUMP_CALLBACK_INFORMATION kCallback;
+    kCallback.CallbackRoutine = DumpProgress;
+    kCallback.CallbackParam = 0;
     BOOL bOk = gpfnMiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, eFull, pExc,
-        0, 0);
+        0, &kCallback);
     if (!bOk)
     {
         SetFilePointer(hFile, 0, 0, FILE_BEGIN);
         SetEndOfFile(hFile);
         bOk = gpfnMiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, MiniDumpNormal,
-            pExc, 0, 0);
+            pExc, 0, &kCallback);
     }
     CloseHandle(hFile);
     if (!bOk)
@@ -269,7 +302,7 @@ long pcCrash::Filter(struct _EXCEPTION_POINTERS* pInfo)
         gDumpInfo.ExceptionPointers = pInfo;
         gDumpInfo.ClientPointers = FALSE;
         SetEvent(ghFaultEvent);
-        WaitForSingleObject(ghDoneEvent, 30000);
+        WaitForSingleObject(ghDoneEvent, DumpWaitMs());
     }
     WriteFatalLine(pInfo);
     TerminateNow(3);
@@ -327,6 +360,7 @@ void pcCrash::Install()
         return;
     }
     gbInstalled = true;
+    pcProgress::Open();
 
     wchar_t awcSys[MAX_PATH];
     UINT uiSysLen = GetSystemDirectoryW(awcSys, MAX_PATH - 16);
@@ -401,17 +435,60 @@ void pcCrash::Tick()
     InterlockedIncrement(&gTicks);
 }
 
-void pcCrash::SetHangTimeout(int iSeconds)
+bool pcCrash::SetHangTimeout(int iSeconds)
 {
+    if (iSeconds == 0)
+    {
+        gbSupervised = true;
+        return true;
+    }
     if (iSeconds >= 1 && iSeconds <= 3600)
     {
         guiHangTimeout = (unsigned int)iSeconds;
+        return true;
     }
+    return false;
 }
 
 char const* pcCrash::GetBuildId()
 {
     return gBuildId;
+}
+
+static void HangExit()
+{
+    if (InterlockedExchange(&gFaultGuard, 1) == 1)
+    {
+        return;
+    }
+    gFaultThreadId = GetCurrentThreadId();
+    HwCursor::ReleaseClip();
+    gDumpPath[0] = 0;
+    gDumpInfo.ExceptionPointers = 0;
+    if (ghFaultEvent != 0 && ghDoneEvent != 0)
+    {
+        SetEvent(ghFaultEvent);
+        WaitForSingleObject(ghDoneEvent, DumpWaitMs());
+    }
+    char acPath[MAX_PATH * 3];
+    lstrcpyA(acPath, "none");
+    if (gDumpPath[0] != 0 && WideCharToMultiByte(CP_ACP, 0, gDumpPath, -1, acPath, sizeof(acPath), 0, 0) == 0)
+    {
+        lstrcpyA(acPath, "none");
+    }
+    if (gbSupervised)
+    {
+        wsprintfA(gFatalLine, "FATAL: hang (supervisor saw no progress, last frame %d) build %s dump %.400s\r\n",
+            RedLog::gFrame, gBuildId, acPath);
+    }
+    else
+    {
+        wsprintfA(gFatalLine, "FATAL: hang (no frame update for %u s, last frame %d) build %s dump %.400s\r\n",
+            guiHangTimeout, RedLog::gFrame, gBuildId, acPath);
+    }
+    AppendLog(gFatalLine);
+    WriteEnsureSummary();
+    TerminateNow(5);
 }
 
 static DWORD WINAPI WatchdogThread(LPVOID)
@@ -421,6 +498,15 @@ static DWORD WINAPI WatchdogThread(LPVOID)
     for (;;)
     {
         Sleep(500);
+        if (gbSupervised)
+        {
+            if (pcProgress::StallRequested())
+            {
+                HangExit();
+                return 0;
+            }
+            continue;
+        }
         LONG iNow = gTicks;
         DWORD uiNow = GetTickCount();
         if (iNow != iLast || gIsQuitting)
@@ -430,32 +516,15 @@ static DWORD WINAPI WatchdogThread(LPVOID)
         }
         else if ((DWORD)(uiNow - uiChanged) >= guiHangTimeout * 1000)
         {
-            if (InterlockedExchange(&gFaultGuard, 1) == 1)
-            {
-                return 0;
-            }
-            gFaultThreadId = GetCurrentThreadId();
-            HwCursor::ReleaseClip();
-            gDumpPath[0] = 0;
-            gDumpInfo.ExceptionPointers = 0;
-            if (ghFaultEvent != 0 && ghDoneEvent != 0)
-            {
-                SetEvent(ghFaultEvent);
-                WaitForSingleObject(ghDoneEvent, 30000);
-            }
-            char acPath[MAX_PATH * 3];
-            lstrcpyA(acPath, "none");
-            if (gDumpPath[0] != 0 && WideCharToMultiByte(CP_ACP, 0, gDumpPath, -1, acPath, sizeof(acPath), 0, 0) == 0)
-            {
-                lstrcpyA(acPath, "none");
-            }
-            wsprintfA(gFatalLine, "FATAL: hang (no frame update for %u s, last frame %d) build %s dump %.400s\r\n",
-                guiHangTimeout, RedLog::gFrame, gBuildId, acPath);
-            AppendLog(gFatalLine);
-            WriteEnsureSummary();
-            TerminateNow(5);
+            HangExit();
+            return 0;
         }
     }
+}
+
+bool pcCrash::Supervised()
+{
+    return gbSupervised;
 }
 
 void pcCrash::StartWatchdog()
@@ -490,7 +559,7 @@ void pcCrash::FatalReset(long hr, unsigned int uiFailures, unsigned int uiElapse
     if (ghFaultEvent != 0 && ghDoneEvent != 0)
     {
         SetEvent(ghFaultEvent);
-        WaitForSingleObject(ghDoneEvent, 30000);
+        WaitForSingleObject(ghDoneEvent, DumpWaitMs());
     }
     char acPath[MAX_PATH * 3];
     lstrcpyA(acPath, "none");

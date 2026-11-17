@@ -4,24 +4,10 @@
 #include <stdio.h>
 #include <string>
 
+#include "testutil.h"
+
 namespace
 {
-
-std::string RepoRoot()
-{
-    char acExe[MAX_PATH];
-    DWORD uLen = GetModuleFileNameA(0, acExe, sizeof(acExe));
-    REQUIRE(uLen > 0);
-    REQUIRE(uLen < sizeof(acExe));
-    std::string sPath(acExe, uLen);
-    for (int i = 0; i < 4; ++i)
-    {
-        size_t uiSlash = sPath.find_last_of("\\/");
-        REQUIRE(uiSlash != std::string::npos);
-        sPath.erase(uiSlash);
-    }
-    return sPath;
-}
 
 std::string ReadSource(const std::string& sPath)
 {

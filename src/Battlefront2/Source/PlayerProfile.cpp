@@ -25,6 +25,7 @@
 #include "NetGame.h"
 #include "PropCluster.h"
 #include "VoiceChatNode.h"
+#include "pcCrash.h"
 #include "RedEngineFL/movie/RedMovie.h"
 #include "SoundFL/source/win/sndengine.h"
 
@@ -718,7 +719,11 @@ void PlayerProfile::ApplyLiveDisplay()
 
 static DWORD ConfirmClock()
 {
-    return GetTickCount() + sConfirmSkewMs;
+    if (pcCrash::GetCrashTest()[0] != 0)
+    {
+        return sConfirmSkewMs;
+    }
+    return GetTickCount();
 }
 
 static unsigned int ConfirmElapsed()

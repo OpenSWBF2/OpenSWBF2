@@ -1,9 +1,9 @@
-$script:VsTools = $null
+$script:VsToolsByPlatform = @{}
 $T1Runtimes = 'd3dx9_43.dll', 'vcruntime140.dll', 'msvcp140.dll'
 $GameRuntimes = $T1Runtimes + 'msvcr120.dll', 'msvcp120.dll'
 
-function Get-VsTools {
-    $tools = Find-VsTools
+function Get-VsTools([ValidateSet('Win32','x64')][string]$Platform = 'Win32') {
+    $tools = Find-VsTools $Platform
     if (-not $tools) {
         Write-Host 'Visual Studio 2022 with the C++ x86/x64 build tools not found.'
         exit 2
@@ -11,8 +11,13 @@ function Get-VsTools {
     return $tools
 }
 
-function Find-VsTools {
-    if ($script:VsTools) { return $script:VsTools }
+function Get-VsToolsTarget([ValidateSet('Win32','x64')][string]$Platform) {
+    if ($Platform -eq 'x64') { return 'x64' }
+    return 'x86'
+}
+
+function Find-VsTools([ValidateSet('Win32','x64')][string]$Platform = 'Win32') {
+    if ($script:VsToolsByPlatform.ContainsKey($Platform)) { return $script:VsToolsByPlatform[$Platform] }
     $vs = $null
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     if (Test-Path -LiteralPath $vswhere) {
@@ -26,23 +31,23 @@ function Find-VsTools {
             $tools = New-Object PSObject -Property @{
                 Install = $vs
                 ToolsVersion = $ver
-                Bin = Join-Path $vs "VC\Tools\MSVC\$ver\bin\HostX86\x86"
+                Bin = Join-Path $vs "VC\Tools\MSVC\$ver\bin\HostX86\$(Get-VsToolsTarget $Platform)"
                 MSBuild = Join-Path $vs 'MSBuild\Current\Bin\MSBuild.exe'
             }
         }
     }
     if (-not $tools -or -not (Test-Path -LiteralPath $tools.Bin) -or -not (Test-Path -LiteralPath $tools.MSBuild)) { return $null }
-    $script:VsTools = $tools
+    $script:VsToolsByPlatform[$Platform] = $tools
     return $tools
 }
 
 function Find-MSBuild { return (Get-VsTools).MSBuild }
 
-function Find-VcBin { return (Get-VsTools).Bin }
+function Find-VcBin([ValidateSet('Win32','x64')][string]$Platform = 'Win32') { return (Get-VsTools $Platform).Bin }
 
-function Find-Dumpbin { return (Join-Path (Find-VcBin) 'dumpbin.exe') }
+function Find-Dumpbin([ValidateSet('Win32','x64')][string]$Platform = 'Win32') { return (Join-Path (Find-VcBin $Platform) 'dumpbin.exe') }
 
-function Find-Editbin { return (Join-Path (Find-VcBin) 'editbin.exe') }
+function Find-Editbin([ValidateSet('Win32','x64')][string]$Platform = 'Win32') { return (Join-Path (Find-VcBin $Platform) 'editbin.exe') }
 
 function Get-MissingRuntimes([string]$dir, [string[]]$dlls) {
     return @($dlls | Where-Object { -not (Test-Path -LiteralPath (Join-Path $dir $_)) })
@@ -56,12 +61,28 @@ function Assert-Runtimes([string[]]$dlls) {
     }
 }
 
-function Write-ToolBanner {
-    $t = Get-VsTools
+function Get-SystemDllDir([ValidateSet('Win32','x64')][string]$Platform = 'Win32') {
+    if ($Platform -eq 'Win32') { return Join-Path $env:windir 'SysWOW64' }
+    if ([Environment]::Is64BitProcess) { return Join-Path $env:windir 'System32' }
+    return Join-Path $env:windir 'Sysnative'
+}
+
+function Get-ToolchainInfo([ValidateSet('Win32','x64')][string]$Platform = 'Win32') {
+    $t = Get-VsTools $Platform
     $cl = Join-Path $t.Bin 'cl.exe'
-    $banner = @(& cmd /c "`"$cl`" 2>&1" | Where-Object { $_ -and $_.Trim() }) | Select-Object -First 1
-    Write-Host "toolchain: $banner (MSVC $($t.ToolsVersion))"
-    Write-Host "ucrtbase: $((Get-Item -LiteralPath (Join-Path $env:windir 'SysWOW64\ucrtbase.dll')).VersionInfo.FileVersion)"
+    $banner = [string](@(& cmd /c "`"$cl`" 2>&1" | Where-Object { $_ -and $_.Trim() }) | Select-Object -First 1)
+    $clVersion = ''
+    if ($banner -match 'Version (\S+)') { $clVersion = $Matches[1] }
+    $ucrt = Join-Path (Get-SystemDllDir $Platform) 'ucrtbase.dll'
+    $ucrtVersion = ''
+    if (Test-Path -LiteralPath $ucrt) { $ucrtVersion = (Get-Item -LiteralPath $ucrt).VersionInfo.FileVersion }
     $nt = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
-    Write-Host "windows: $($nt.CurrentBuild).$($nt.UBR)"
+    New-Object PSObject -Property @{ Banner = $banner; Cl = $clVersion; ToolsVersion = $t.ToolsVersion; Ucrt = $ucrtVersion; Windows = "$($nt.CurrentBuild).$($nt.UBR)" }
+}
+
+function Write-ToolBanner([ValidateSet('Win32','x64')][string]$Platform = 'Win32') {
+    $i = Get-ToolchainInfo $Platform
+    Write-Host "toolchain: $($i.Banner) (MSVC $($i.ToolsVersion))"
+    Write-Host "ucrtbase: $($i.Ucrt)"
+    Write-Host "windows: $($i.Windows)"
 }

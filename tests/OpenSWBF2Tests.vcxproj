@@ -41,8 +41,8 @@
     <GenerateManifest>false</GenerateManifest>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(DXSDK_DIR)Include</IncludePath>
     <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);$(DXSDK_DIR)Lib\x86</LibraryPath>
-    <OutDir>$(MSBuildThisFileDirectory)..\bin\Tests\$(Configuration)\</OutDir>
-    <IntDir>$(MSBuildThisFileDirectory)..\obj\Tests\$(Configuration)\</IntDir>
+    <OutDir>$(MSBuildThisFileDirectory)..\bin\Tests\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(MSBuildThisFileDirectory)..\obj\Tests\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -54,7 +54,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <ConformanceMode>false</ConformanceMode>
       <AdditionalOptions>/Zc:alignedNew- %(AdditionalOptions)</AdditionalOptions>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <WarningLevel>Level3</WarningLevel>
       <ExceptionHandling>Sync</ExceptionHandling>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
@@ -109,6 +109,7 @@
     <ClCompile Include="..\src\RedEngineFL\Graphics\PC\pcDisplaySettings.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp" />
     <ClCompile Include="..\src\Battlefront2\Platform\Pc\pcColorRamp.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Platform\Pc\pcProgress.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Application\pc\pcFrameLimiter.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Application\pc\pcMessageDrain.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Util\RedLog.cpp" />

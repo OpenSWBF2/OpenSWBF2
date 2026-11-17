@@ -241,6 +241,7 @@
 #include "GameVoiceChat.h"
 #include "GameVoiceChatNode.h"
 #include "PebbleFL/Common/PblJournal.h"
+#include "Battlefront2/Platform/Pc/pcProgress.h"
 
 namespace std
 {
@@ -703,6 +704,7 @@ bool GameState::Update()
 // FUNCTION: SWBF2 0x0053adc0
 void GameState::_SetState(State* pState)
 {
+    pcProgress::Step();
     State* pOld = _pCurrentState;
     if (pOld)
     {

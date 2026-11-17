@@ -114,22 +114,6 @@ TEST_CASE("lua matrix argument accepts only pushed matrices" * doctest::test_sui
 namespace
 {
 
-std::string RepoRoot()
-{
-    char acExe[MAX_PATH];
-    DWORD uLen = GetModuleFileNameA(0, acExe, sizeof(acExe));
-    REQUIRE(uLen > 0);
-    REQUIRE(uLen < sizeof(acExe));
-    std::string sPath(acExe, uLen);
-    for (int i = 0; i < 4; ++i)
-    {
-        size_t uiSlash = sPath.find_last_of("\\/");
-        REQUIRE(uiSlash != std::string::npos);
-        sPath.erase(uiSlash);
-    }
-    return sPath;
-}
-
 int CountOf(const std::string& sText, const char* pcNeedle)
 {
     int iCount = 0;

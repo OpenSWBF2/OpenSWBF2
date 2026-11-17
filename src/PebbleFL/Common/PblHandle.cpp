@@ -45,12 +45,18 @@ unsigned int HandleHome(const void* pKey, unsigned int uMask)
     return h & uMask;
 }
 
-unsigned int HandleLocate(const PblHandled* pKey)
+unsigned int HandleLocate(const PblHandled* pKey, unsigned int* puProbes = 0)
 {
     unsigned int uSlot = HandleHome(pKey, sMask);
+    unsigned int uProbes = 1;
     while (sSlots[uSlot].pKey && sSlots[uSlot].pKey != pKey)
     {
         uSlot = (uSlot + 1) & sMask;
+        ++uProbes;
+    }
+    if (puProbes)
+    {
+        *puProbes = uProbes;
     }
     return uSlot;
 }
@@ -285,6 +291,17 @@ unsigned int PblHandleRegistry::GetCapacity()
 unsigned int PblHandleRegistry::HomeSlot(const void* pKey)
 {
     return sSlots ? HandleHome(pKey, sMask) : 0;
+}
+
+unsigned int PblHandleRegistry::ProbeCount(const void* pKey)
+{
+    if (!pKey || !sSlots)
+    {
+        return 0;
+    }
+    unsigned int uProbes = 0;
+    HandleLocate((const PblHandled*)pKey, &uProbes);
+    return uProbes;
 }
 
 #ifdef OPENSWBF2_TEST

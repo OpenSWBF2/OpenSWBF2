@@ -7,6 +7,7 @@
 #include "SoundFL/source/win/sndengine.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Util/RedLog.h"
+#include "Battlefront2/Platform/Pc/pcProgress.h"
 
 void __cdecl PblTraceP(const char* Format, ...);
 
@@ -285,6 +286,7 @@ void RedMoviePlayer::EndFrame()
 {
     RedMoviePlayerRenderer::EndFrame();
     PumpWaitingMessages();
+    pcProgress::Step();
 }
 
 // FUNCTION: SWBF2 0x006f4730

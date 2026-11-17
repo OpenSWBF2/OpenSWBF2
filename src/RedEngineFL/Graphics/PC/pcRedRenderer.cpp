@@ -41,6 +41,7 @@
 #include "RedEngineFL/Util/ext/Globals.h"
 #include "Battlefront2/Source/LoadUtil.h"
 #include "Battlefront2/Source/pcCrash.h"
+#include "Battlefront2/Platform/Pc/pcProgress.h"
 #include "RedEngineFL/Graphics/PC/pcGammaPass.h"
 #include "Battlefront2/Source/ColorControl.h"
 
@@ -577,7 +578,12 @@ static void ResetScriptInit()
 
 static DWORD ResetClock()
 {
-    return GetTickCount() + gResetScript.dwSkewMs;
+    const ResetScript& s = GetResetScript();
+    if (s.eKind != kResetKindNone)
+    {
+        return s.dwSkewMs;
+    }
+    return GetTickCount();
 }
 
 static IDirect3DSurface9* AcquireTracked(FakeD3DSurface*& pSurface, FakeD3DSurface& store)
@@ -3875,6 +3881,7 @@ void RedRenderer::Init()
         {
             PumpWaitingMessages();
             pcCrash::Tick();
+            pcProgress::Step();
             Sleep(10);
         }
     }

@@ -1,0 +1,628 @@
+$script:SmokeStandardMission = 'geo1c_con'
+$script:SoakShortTurns = 9300
+$script:SoakLongTurns = 617300
+$script:SmokeTurnCap = $script:SoakLongTurns
+$script:PerturbSoakTurns = 100000
+$script:SmokeCapRx = '(?s)\A(?!.*OPENSWBF2 SOAK turns=)'
+$script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-check', 'crash-hang', 'crash-stall', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat', 'crash-capexhaust')
+$script:SmokeAddrSpaceRx = 'OPENSWBF2 ADDRSPACE arena=0x[89A-F][0-9A-F]{7} arena_end=0x[0-9A-F]{8} laa=1 steam=1 steam_api=0x(?!0{8})[0-9A-F]{8} Galaxy=0x(?!0{8})[0-9A-F]{8} GalaxyPeer=0x[0-9A-F]{8} binkw32=0x(?!0{8})[0-9A-F]{8}'
+$script:ImportModuleAllow = @(
+    'advapi32.dll',
+    'api-ms-win-crt-convert-l1-1-0.dll',
+    'api-ms-win-crt-environment-l1-1-0.dll',
+    'api-ms-win-crt-filesystem-l1-1-0.dll',
+    'api-ms-win-crt-heap-l1-1-0.dll',
+    'api-ms-win-crt-locale-l1-1-0.dll',
+    'api-ms-win-crt-math-l1-1-0.dll',
+    'api-ms-win-crt-runtime-l1-1-0.dll',
+    'api-ms-win-crt-stdio-l1-1-0.dll',
+    'api-ms-win-crt-string-l1-1-0.dll',
+    'api-ms-win-crt-time-l1-1-0.dll',
+    'api-ms-win-crt-utility-l1-1-0.dll',
+    'binkw32.dll',
+    'd3d9.dll',
+    'd3dx9_43.dll',
+    'dinput8.dll',
+    'dsound.dll',
+    'galaxy.dll',
+    'gdi32.dll',
+    'kernel32.dll',
+    'msvcp140.dll',
+    'ole32.dll',
+    'steam_api.dll',
+    'user32.dll',
+    'vcruntime140.dll',
+    'winmm.dll',
+    'ws2_32.dll'
+)
+$script:MiDefines = @{
+    Debug = @('MI_DEBUG=2', 'MI_SECURE=0')
+    Release = @('MI_DEBUG=0', 'MI_SECURE=4')
+    Test = @('MI_DEBUG=1', 'MI_SECURE=4')
+    Asan = @('MI_DEBUG=0', 'MI_SECURE=0', 'MI_TRACK_ASAN=1')
+}
+$script:SpacerAllow = @(
+    'src\Battlefront2\Source\CommandFlyer.h|_tailPad|[0x7]',
+    'src\Battlefront2\Source\CommandHover.h|_tailPad|[0x8]',
+    'src\Battlefront2\Source\CommandLine.cpp|szCmdLine|[0x800]',
+    'src\Battlefront2\Source\CommandLine.cpp|szArgv0|[0x100]',
+    'src\Battlefront2\Source\CommandLine.cpp|acBuf|[0x80]',
+    'src\Battlefront2\Source\CollisionMesh.h|buffer|[sizeof(T)*N]',
+    'src\Battlefront2\Source\CommandWalker.h|_tailPad|[0xc]',
+    'src\Battlefront2\Source\CustomContent.cpp|source|[0x4000]',
+    'src\Battlefront2\Source\CustomContent.cpp|unusedPath|[64]',
+    'src\Battlefront2\Source\EntityBuildingAnimatedArmed.h|mTailPadding|[0xc]',
+    'src\Battlefront2\Source\EntityFlyer.h|_flightFlagPadding|[3]',
+    'src\Battlefront2\Source\EntityFlyer.h|_turretPadding|[3]',
+    'src\Battlefront2\Source\EntityFlyer.h|_renderPadding|[3]',
+    'src\Battlefront2\Source\EntityCarrier.h|_tailPad|[0xc]',
+    'src\Battlefront2\Source\EntityPortableTurret.h|_tailPad|[6]',
+    'src\Battlefront2\Source\EntityPropAnimated.cpp|acUnused|[256]',
+    'src\Battlefront2\Source\FLJoystick.h|mReservedAfterFlip|[3]',
+    'src\Battlefront2\Source\FLJoystick.h|mReservedBeforeGuiInputs|[2]',
+    'src\Battlefront2\Source\FLJoystick.h|mReservedBeforeProcessDestination|[3]',
+    'src\Battlefront2\Source\FLJoystick.h|mReservedBeforeMouse|[2]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeTextTimer|[2]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeJoysticks|[4]',
+    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeMissingPort|[3]',
+    'src\Battlefront2\Source\gamespyStatsManager.cpp|sStatsMatchData|[0x40]',
+    'src\Battlefront2\Source\gamespyStatsManager.cpp|sStatsMatchData|[0x40]',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gDecoderStorage|[sizeof(Decoder)+4]',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gNodeStorage|[sizeof(Node)+4]',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gEncoderStorage|[sizeof(Encoder)+4]',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|pad|[3]',
+    'src\Battlefront2\Source\HUDEvent.cpp|acName|[0x400]',
+    'src\Battlefront2\Source\HUDManager.cpp|acName|[0x400]',
+    'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp|aSerialized|[0x10000]',
+    'src\Battlefront2\Source\LuaCallbacks_Net.cpp|padding|[3]',
+    'src\Battlefront2\Source\LuaCallbacks_Net.cpp|padding|[3]',
+    'src\Battlefront2\Source\LuaCallbacks_Options.cpp|kSha512Padding|[128]',
+    'src\Battlefront2\Source\NetAdmin.cpp|remoteResponse|[0x1800]',
+    'src\Battlefront2\Source\NetAdmin.cpp|remoteResponse|[0x1800]',
+    'src\Battlefront2\Source\NetAdmin.h|pad|[3]',
+    'src\GameSpyFL\md5c.c|md5Padding|[64]',
+    'src\Battlefront2\Source\NetSetup.cpp|sStatsMatchData|[0x40]',
+    'src\Battlefront2\Source\NetSetup.h|mQueryWaitPadding|[3]',
+    'src\Battlefront2\Source\NetState.h|mInvisibilityStateStorage|[0x258-0x22c]',
+    'src\Battlefront2\Source\ParticleSystem.cpp|pool|[301*sizeof(PblHeap<unsignedint,float>::RECORD)]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeDifficulty|[2]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeUnlockState|[3]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[61]',
+    'src\Battlefront2\Source\PlayerProfile.h|mTailAlignment|[2]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[63]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeMustBeZero|[2]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[64]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[32]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[128]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeGameOptions|[3]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeAccumPoints|[2]',
+    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[96]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeBonus|[3]',
+    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeCRC|[3]',
+    'src\Battlefront2\Source\VisionManager.cpp|heapMem|[(150+1)*sizeof(VisHeap::RECORD)]',
+    'src\Battlefront2\Source\WeaponGrenade.h|mUnmodeledTail|[0x120-0x118]',
+    'src\Battlefront2\Source\WeaponLauncher.h|mUnmodeledTail|[8]',
+    'src\Battlefront2\Source\WeaponRepair.h|mUnmodeledTail|[0x120-0x111]',
+    'src\lglcd\lgLcd.cpp|Data|[0x104]',
+    'src\RedEngineFL\Application\pc\pcFLRender.h|unknown04|[20]',
+    'src\RedEngineFL\Graphics\PC\pcRedRenderer.h|mReservedAfterDistortion|[2]',
+    'src\RedEngineFL\Graphics\PC\pcRedRenderer.h|mReservedAfterHDR|[3]',
+    'src\RedEngineFL\Graphics\PC\pcRedRenderer.h|mReservedAfterBumpMapping|[3]',
+    'src\RedEngineFL\Graphics\PC\StateManager_DX.h|pad_40932|[2]',
+    'src\RedEngineFL\Interface\RedBorderElement.h|mOtherPositionAttributes|[0x0c-0x08]',
+    'src\RedEngineFL\Interface\RedBorderElement.h|mOtherTextureAttributes|[0x1c-0x14]',
+    'src\RedEngineFL\Interface\RedBorderElement.h|mReservedTail|[0x260-0x254]',
+    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.h|pad1c|[0xd0-0x1c]',
+    'src\SoundFL\source\sndenginebase.h|smVoiceStorage|[0xA800]',
+    'src\SoundFL\source\sndenginebase.h|smStreamStorage|[0x1446A68]',
+    'src\SoundFL\source\sndglobals.cpp|acMessage|[0x800]',
+    'src\SoundFL\source\sndsound.h|smVoiceVirtualStorage|[12800]',
+    'src\SoundFL\source\sndsoundlayered.h|smFireForgetLayerStorage|[5888]',
+    'src\SoundFL\source\win\sndengine.cpp|gSoftOutputStorage|[2288]',
+    'src\SoundFL\source\win\sndengine.h|smSampleRAMBitmap|[0x8000]',
+    'src\SoundFL\source\win\sndstreamrenderer.h|mHardwareRendererStorage|[416]'
+)
+$script:OffsetAllow = @(
+    'src\Battlefront2\Source\CollisionMesh.cpp|(unsigned short*)(memblock + iBytes - 2 * iIndices)',
+    'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(Snd::StreamPacket*)(mEncoderBuffer + uiAlignedEncoded)',
+    'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(VoiceChat::AudioPacket*)(mEncoderPackets + 1)',
+    'src\Battlefront2\Source\HUDManager.cpp|(char*)HUD::gEditHeapMem + 0xFFFFF',
+    'src\Battlefront2\Source\NetSetup.cpp|(char*)(fileNames + iCount)',
+    'src\Battlefront2\Source\pcMain.cpp|(char*)p + 0x300000',
+    'src\Battlefront2\Source\PlayerPreferences.cpp|(PlayerProfile::tProfile**)((char*)&mDefaultProfile + 0x10)',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(SendMetrics*)(pPerNode + uiNodes * sizeof(ReceiveMetrics))',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(AudioPacket*)(mReceiveStreams + uiNodes)',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(char*)mBitmap + 1',
+    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
+    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
+    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + tangentOffset)',
+    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + binormalOffset)',
+    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + i * mSize)',
+    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + (mCount - 1) * mSize)',
+    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mFree + i * mSize)',
+    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mFree + (mGrow - 1) * mSize)',
+    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.cpp|(RedBitmapElement**)(pBlock + 16 * uiNumTextures + uiBufferSize)',
+    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.cpp|(RedTexture**)(pBlock + uiBufferSize)',
+    'src\RedEngineFL\Util\RedLocalizeDB.cpp|(FLLocalizeEntry*)((char*)pEntry + pEntry->mEntryLen)',
+    'src\RedEngineFL\Util\RedScreenShot.cpp|(const unsigned int*)((unsigned char*)rect.pBits + rect.Pitch * y)',
+    'src\SoundFL\source\sndbufferio.cpp|(void*)(mOffset + (char*)mBuffer)',
+    'src\SoundFL\source\sndfreelist.cpp|(Block*)(pEntries + mEntriesPerBlock * mEntrySize)',
+    'src\SoundFL\source\sndsamplebankbase.cpp|(Sample*)((char*)pMemory + sizeof(SampleBank))',
+    'src\SoundFL\source\sndsoundlayered.cpp|(FireForgetLayer*)(smFireForgetLayerStorage + i * sizeof(FireForgetLayer))',
+    'src\SoundFL\source\sndstreambase.cpp|(Segment*)((char*)pMem + sizeof(Info))',
+    'src\SoundFL\source\sndstreammixer.cpp|(int*)((char*)mMixBuffer + mMixBufferOffsets[uiInput])',
+    'src\SoundFL\source\sndstreamresampler.cpp|(short*)((char*)pDst + mBufferSize)',
+    'src\SoundFL\source\win\snddsbufferrenderer.cpp|(short*)((unsigned char*)pData + uiWritten)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimD*)(pkBlock + 1)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimBlockHeader*)(pkAnimD + u16NumAnims)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimJointD*)(pkBlock + 1)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimBlockHeader*)((const char*)pkJointD + 48 * u32NumTotalJoints)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(char*)(pkAnims + u16NumAnims)',
+    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimJointD*)((const char*)pkJointD + 48 * u16NumJoints)',
+    'src\Zephyr\Source\ZephyrSkeletonShared.cpp|(ZephyrJointShared*)((char*)this + kOffsets.m_uJoints)',
+    'src\Zephyr\Source\ZephyrSkeletonShared.cpp|(unsigned int*)(i + 1)',
+    'src\Zephyr\Source\ZephyrSkinShared.cpp|(ZephyrJointSet*)((char*)this + kOffsets.m_uJointSets)',
+    'src\Zephyr\Source\ZephyrSkinShared.cpp|(ZephyrSkeletonShared*)((char*)this + kOffsets.m_uSkeleton)'
+)
+$script:SerialAllow = @(
+    'src\Battlefront2\Source\CollisionObject.cpp|static unsigned int sCollisionSerialNext = 0;',
+    'src\Battlefront2\Source\CollisionObject.cpp|mCollisionSerial = sCollisionSerialNext < 0x3FFFFFFF ? ++sCollisionSerialNext : sCollisionSerialNext;',
+    'src\Battlefront2\Source\CollisionObject.cpp|sCollisionSerialNext = 0;',
+    'src\Battlefront2\Source\CollisionObject.h|unsigned int mCollisionSerial : 30;',
+    'src\Battlefront2\Source\CollisionObject.h|return PblSerialAfter(pA->mCollisionSerial, pB->mCollisionSerial);',
+    'src\Battlefront2\Source\CollisionObject.h|if (pA->mCollisionSerial == pB->mCollisionSerial)',
+    'src\Battlefront2\Source\CollisionObject.h|return pObject->mCollisionSerial;',
+    'src\Battlefront2\Source\Thread.cpp|static unsigned int sThreadActivationKey = 0;',
+    'src\Battlefront2\Source\Thread.cpp|return (int)(sThreadActivationKey < 0x7FFFFFFF ? sThreadActivationKey++ : sThreadActivationKey);',
+    'src\Battlefront2\Source\Thread.cpp|sThreadActivationKey = 0;'
+)
+$script:AddrOrderAllow = @(
+    'src\Battlefront2\Source\Combo.cpp|if (m_pCatchState >= pOld && m_pCatchState < pOld + uiCount)',
+    'src\Battlefront2\Source\Combo.cpp|if (m_pTakeKneeState >= pOld && m_pTakeKneeState < pOld + uiCount)',
+    'src\Battlefront2\Source\LoadUtil.cpp|if ((unsigned int)pRegion > 1)',
+    'src\Battlefront2\Source\SoldierAnimatorLowRes.cpp|fTime = (float)(int)(this - pPool->m_apAnimator) * (float)(iNumFrames - 1) /',
+    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pOut >= pEnd || !lua_checkstack(L, 3))',
+    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pData >= pEnd || !lua_checkstack(L, 3))',
+    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pRead >= pEnd)',
+    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pRead >= pEnd)',
+    'src\Battlefront2\Source\VOHelper.cpp|if (pB > pA)',
+    'src\Battlefront2\Source\VOHelper.cpp|if (pB < pA)',
+    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
+    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
+    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
+    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
+    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)'
+)
+$script:FastcallAllow = @(
+    'src\Battlefront2\Source\CameraManager.cpp|typedef const PblVector3& (__fastcall *ObjectVelocityFn)(GameObject* pThis, void*);',
+    'src\Battlefront2\Source\CameraManager.cpp|typedef Controllable* (__fastcall *ObjectControllableFn)(GameObject* pThis, void*);',
+    'src\Battlefront2\Source\ChaseCamera.cpp|typedef const PblVector3& (__fastcall *GetVelocityFn)(GameObject* pThis, void*);',
+    'src\Battlefront2\Source\LuaCallbacks_Net.cpp|bool __fastcall IsFriendBuddy(int ignored, int iPlayer);',
+    'src\Battlefront2\Source\SkyDome.cpp|typedef void(__fastcall* SceneObjectFn)(void* pThis, void*);'
+)
+
+function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $false, $soak = 'Short') {
+    $soakTurns = $null
+    if ($soak -eq 'Short') { $soakTurns = $script:SoakShortTurns }
+    elseif ($soak -eq 'Long') { $soakTurns = $script:SoakLongTurns }
+    else { throw "unknown soak '$soak'" }
+    $standard = $script:SmokeStandardMission
+    $render = '-norender'
+    if ($movies) { $render = '' }
+    $tail = (("$render -nosound -fixedrate 30 -nowait -logfinalscore -DecompCONMinutes 5 -seed 1 -exitongameover -nofocuspause -log ""{CASEDIR}\run.log"" -hangtimeout 0") -replace '^\s+', '')
+    $htail = $tail
+    $pass = @{ Class = 'Pass' }
+    $hrx = @()
+    if ($hog) {
+        $htail = "$tail -hogaddrspace"
+        $hrx = @($script:SmokeAddrSpaceRx)
+        $pass = @{ Class = 'Pass'; LogRx = $hrx }
+    }
+    $cases = @()
+
+    $allCase = {
+        param($m, $class)
+        $x = $pass
+        if ($class -eq 'TimeOut') { $x = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=1500 ', 'OPENSWBF2 SOAK turns=') + $hrx) } }
+        elseif ($class -eq 'Fatal') {
+            $x = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = (@('FATAL: exception 0xC0000005 at 0x[0-9A-F]+ \(d3dx9_43\.dll\+0x1BA553\)') + $hrx) }
+        }
+        elseif ($class -ne 'Pass') { throw "unknown expected class '$class' for $m in missions file" }
+        $mArgs = "$m $htail -logcmds ""LogMemory Verbose"""
+        if ($m -match '_(1flag|ctf|ass)$' -and $null -eq (Get-DigestExpected $m) -and $class -eq 'Pass') { throw "$m has no digest row and runs with -novictory, so it cannot Pass" }
+        if ($m -match '_(1flag|ctf|ass)$' -and $null -eq (Get-DigestExpected $m) -and $class -eq 'TimeOut') {
+            $mArgs += ' -novictory'
+            $x = $x.Clone()
+            $x.LogRx = @($x.LogRx | Where-Object { $_ }) + '(?m)OPENSWBF2 NOVICTORY\r?$'
+        }
+        if ($class -eq 'TimeOut') { $mArgs += " -soakturns $soakTurns" }
+        New-Object PSObject -Property @{ Name = $m; Args = $mArgs; Expect = $x; Twice = 0 }
+    }
+
+    if ($which -eq 'Standard') {
+        $memRx = @('OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT heap=Runtime cap=\d+ peak=\d+ used=\d+ allocs=\d+ failed=\d+', 'OPENSWBF2 MEMREPORT heap=Lua ', 'OPENSWBF2 MEMREPORT heap=Application ', 'OPENSWBF2 MEMREPORT heap=Artist ', 'OPENSWBF2 MEMREPORT heap=Gamespy ', 'OPENSWBF2 MEMREPORT heap=Debug ', 'OPENSWBF2 MEMREPORT pool=\S+ count=\d+ size=\d+ peak=\d+ grown=\d+', 'OPENSWBF2 MEMREPORT pool=Lua\d+ ', 'OPENSWBF2 MEMREPORT pool=Weapon ', 'OPENSWBF2 CLOTH free=-?\d+ enabled=[01] low=\d+ high=\d+')
+        if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') { $memRx += 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0' }
+        $memRx += @('OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=0 timer=none', 'OPENSWBF2 DPI awareness=(pmv2|pm|system|none) dpi=\d+', 'OPENSWBF2 GAMMA path=ramp reason=norender', '(?s)\A(?!.*OPENSWBF2 GAMMA FAKE)', '(?s)\A(?!.*OPENSWBF2 GAMMA path=pass)', 'OPENSWBF2 CURSOR mode=hw image=skipped')
+        $cases += New-Object PSObject -Property @{ Name = $standard; Args = "$standard $htail"; Expect = @{ Class = 'Pass'; LogRx = ($memRx + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'heapcap'; Args = "$standard $htail -heapcap Runtime=1M -heapcap Runtime=96M -heapcap Bogus=1M -heapcap Runtime=12x"; Expect = @{ Class = 'Pass'; SameRunAs = $standard; LogRx = (@('OPENSWBF2 MEMREPORT heap=Runtime cap=100663296 ', '-heapcap needs <Name>=<bytes>\[K\|M\], ignored: Bogus=1M', '-heapcap needs <Name>=<bytes>\[K\|M\], ignored: Runtime=12x') + $hrx) }; Twice = 0 }
+    }
+    if ($which -eq 'Standard') {
+        $t1rx = '(?m)OPENSWBF2 SOAK turns=1\r?$'
+        $cases += New-Object PSObject -Property @{ Name = 'display-switches'; Args = "$standard $htail -borderless -adapter 0 -refresh 60 -vsync half -fps 120 -nowaitquery -nodpi -soakturns 1"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=120 vsync=on interval=0x00000000 waitquery=0 timer=none', 'pacing: fps cap 120 is above 80', 'vsync: requested interval not supported here, using on', 'OPENSWBF2 DPI awareness=off', $t1rx) + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'cursor-sw'; Args = "$standard $htail -swcursor -soakturns 1"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 CURSOR mode=sw image=skipped', '(?s)\A(?!.*OPENSWBF2 CURSOR mode=hw)', $t1rx) + $hrx) }; Twice = 0 }
+        $swIni = Join-Path $PSScriptRoot 'display-swcursor.ini'
+        $cases += New-Object PSObject -Property @{ Name = 'cursor-sw-ini'; Args = "$standard $htail -displayini `"$swIni`" -soakturns 1"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 CURSOR mode=sw image=skipped', '(?s)\A(?!.*OPENSWBF2 CURSOR mode=hw)', $t1rx) + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'window-borderless-headless'; Args = "$standard $htail -borderless -adapter 5 -soakturns 1"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 DPI awareness=(pmv2|pm|system|none) dpi=\d+', $t1rx) + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'fps-0'; Args = "$standard $htail -fps 0 -soakturns 1"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=0 ', 'pacing: fps cap is uncapped', $t1rx) + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'fps-30'; Args = "$standard $htail -fps 30 -soakturns 1"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=30 ', $t1rx) + $hrx) }; Twice = 0 }
+        $rtTail = $htail -replace ' -fixedrate 30', ''
+        $cases += New-Object PSObject -Property @{ Name = 'pacing-realtime'; Args = "nab2g_c $rtTail -fps 30 -soakturns 300"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 PACING fps=30 ', 'OPENSWBF2 SOAK turns=') + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'pacing-realtime-uncapped'; Args = "nab2g_c $rtTail -fps 0 -soakturns 300"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 PACING fps=0 ', 'OPENSWBF2 SOAK turns=') + $hrx) }; Twice = 0 }
+        $badIni = Join-Path $PSScriptRoot 'display-bad.ini'
+        $cases += New-Object PSObject -Property @{ Name = 'display-badini'; Args = "$standard $htail -adapter abc -refresh 99999 -displayini `"$badIni`" -soakturns 1"; Expect = @{ Class = 'Pass'; LogRx = (@($t1rx) + $hrx) }; Twice = 0 }
+        $waitIni = Join-Path $PSScriptRoot 'display-waitquery.ini'
+        $cases += New-Object PSObject -Property @{ Name = 'pacing-waitquery-ini'; Args = "$standard $htail -displayini `"$waitIni`" -soakturns 1"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=1 timer=none', $t1rx) + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'digest-dag1c_ctf'; Args = "dag1c_ctf $htail"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=') + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'novictory-con'; Args = "$standard $htail -novictory -digesttrace 9300 -soakturns 18500"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 NOVICTORY\r?$', 'OPENSWBF2 DIGEST TRACE turn=9300 ', 'OPENSWBF2 SOAK turns=') + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'digest-kas2c_uber'; Args = "kas2c_uber $htail"; Expect = $pass; Twice = 0 }
+        if ($script:SmokeDigestConfiguration -eq 'Asan') {
+            foreach ($m in 'hot1g_con', 'spa3c_ass') {
+                $cases += New-Object PSObject -Property @{ Name = "asan-$m"; Args = "$m $htail"; Expect = $pass; Twice = 0 }
+            }
+        }
+        if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') {
+            $scanRx = @('OPENSWBF2 HANDLESCAN state=shell live=0 dead=0', 'OPENSWBF2 HANDLESCAN state=mission live=0 dead=0', '(?s)\A(?!.*OPENSWBF2 HANDLESCAN (live |dead |state=\w+ (?!live=0 dead=0\b)))')
+            $cases += New-Object PSObject -Property @{ Name = 'shell-first'; Args = "$standard $htail -shellfirst"; Expect = @{ Class = 'Pass'; SameDigests = 1; LogRx = (@('OPENSWBF2 SHELLFIRST to_mission mission=' + $standard) + $scanRx + $hrx) }; Twice = 0 }
+            $cases += New-Object PSObject -Property @{ Name = 'commit-flat'; Args = "$standard $htail -repeatmission 16"; Expect = @{ Class = 'Pass'; SameDigests = 17; CommitFlat = 0; CommitCycles = 16; CommitSettled = 8; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $hrx) }; Twice = 0 }
+            if ($script:SmokeDigestConfiguration -eq 'Test') {
+                $mvTail = (($htail -replace '(^| )-norender(?= )', '') -replace '(^| )-nosound(?= )', '') -replace '^\s+', ''
+                $cases += New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = "nab2g_c $mvTail -win -exitonmovieclose"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', 'OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0') + $hrx) }; Twice = 0 }
+            }
+            $cases += New-Object PSObject -Property @{ Name = 'repeat-water'; Args = "nab2g_c $htail -repeatmission -soakturns 1501"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 REPEAT to_shell mission=nab2g_c\r?$', '(?m)OPENSWBF2 REPEAT to_mission mission=nab2g_c\r?$', 'OPENSWBF2 SIM DIGEST turns=', 'OPENSWBF2 SOAK turns=') + $hrx) }; Twice = 0 }
+            $cases += New-Object PSObject -Property @{ Name = 'repeat-digest'; Args = "$standard $htail -repeatmission"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $scanRx + $hrx) }; Twice = 0 }
+        }
+    }
+    if ($which -eq 'All') {
+        foreach ($line in $missions) {
+            $tok = @($line.Trim() -split '\s+')
+            if ($tok[0]) {
+                $class = 'Pass'
+                if ($tok.Count -gt 1) { $class = $tok[1] }
+                if ($tok.Count -gt 2) { throw "missions file line '$($line.Trim())' has more than a mission and a class" }
+                $cases += & $allCase $tok[0] $class
+            }
+        }
+    }
+    if ($which -eq 'Dedicated' -or $which -eq 'All') {
+        $dm = $standard
+        if ($dedicatedSpec) { $dm = $dedicatedSpec }
+        $cases += New-Object PSObject -Property @{
+            Name = 'dedicated'
+            Args = "/autonet dedicated -lan -nopregame -playercount 0 $dm 100 100 $htail"
+            Expect = $pass
+            Twice = 0
+        }
+    }
+    if ($which -eq 'Crash' -or $which -eq 'All') {
+        foreach ($kind in 'nullderef', 'divzero', 'stackoverflow', 'debugbreak', 'abort', 'invalidparam') {
+            $cases += New-Object PSObject -Property @{
+                Name = "crash-$kind"
+                Args = "$standard $tail -crashtest $kind"
+                Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = 'FATAL:.*\.dmp' }
+                Twice = 0
+            }
+        }
+        $ff = @{ Class = 'GsFailure'; Code = 3221226505 }
+        $werKey = $script:SmokeWerKey
+        if ($null -eq $werKey) { $werKey = Test-WerKey }
+        if ($werKey) { $ff.MinDumps = 1 }
+        $cases += New-Object PSObject -Property @{ Name = 'crash-fastfail'; Args = "$standard $tail -crashtest fastfail"; Expect = $ff; Twice = 0 }
+        $cases += New-Object PSObject -Property @{
+            Name = 'fatal-init'
+            Args = "no_such_mission $tail"
+            Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = 'FATAL: initialization failed' }
+            Twice = 0
+        }
+        foreach ($kind in 'arenaoom', 'debugheapoom') {
+            $cases += New-Object PSObject -Property @{
+                Name = "crash-$kind"
+                Args = "$standard $tail -crashtest $kind"
+                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = ('FATAL: out of memory allocating ' + $(if ($kind -eq 'arenaoom') { 'application heap' } else { 'debug heap' }) + ' \(\d+ bytes\) load \d+% phys \d+ MB virt \d+ MB') }
+                Twice = 0
+            }
+        }
+        if ($script:SmokeDigestConfiguration -eq 'Test') {
+            $cases += New-Object PSObject -Property @{
+                Name = 'crash-buildheapfail'
+                Args = "$standard $tail -crashtest buildheapfail"
+                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = 'FATAL: out of memory allocating Lua heap \(16777216 bytes\) load \d+% phys \d+ MB virt \d+ MB' }
+                Twice = 0
+            }
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-heapfail'
+            Args = "$standard $tail -crashtest heapfail"
+            Expect = @{ Class = 'Pass'; LogRx = 'alloc failure heap \S+ \(\d+\) size \d+ free \d+ load \d+% phys \d+ MB virt \d+ MB used \d+ cap \d+ peak \d+ largestfree \d+' }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-capexhaust'
+            Args = "$standard $tail -heapcap Runtime=512M -crashtest capexhaust"
+            Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('alloc failure heap Runtime \(\d+\) size 1048576 .* cap 536870912 ', 'FATAL: '); ErrorRx = @('alloc failure heap Runtime \(\d+\) size 1048576') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-midoublefree'
+            Args = "$standard $tail -crashtest midoublefree"
+            Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('OPENSWBF2 MIERROR err=11', 'FATAL: '); ErrorRx = @('OPENSWBF2 MIERROR err=11') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-poolcount'
+            Args = "$standard $tail -crashtest poolcount"
+            Expect = @{ Class = 'Pass'; LogRx = @('LogMemory Warning RedEngineFL\\Memory\\RedScriptLimits\.h:\d+: SetMemoryPoolSize\(crashtestpool\): script value 2147483647 clamped to \d+', 'LogMemory Warning RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "crashtesthuge" refused count 1073741825 size 16') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'pool-full'
+            Args = "$standard $tail -crashtest poolfull"
+            Expect = @{ Class = 'Pass'; LogRx = @('LogMemory Warning RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "crashtestpool" is full; raise count to at least 3', '(?s)\A(?!.*crashtestpool" is full.*crashtestpool" is full)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'pool-full-strict'
+            Args = "$standard $tail -crashtest poolfull -poolerrors"
+            Expect = @{ Class = 'Pass'; LogRx = @('LogMemory Error RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "crashtestpool" is full; raise count to at least 3'); ErrorRx = @('^\[t=\d+\.\d{3}\] \[f=\d+\] LogMemory Error RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "[^"]*" is full; raise count to at least \d+$') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-stickdelete'
+            Args = "spa3c_ass $tail -crashtest stickdelete"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 STICKDELETE prop=1 gameobject=0 stuck=1 cleared=1 fell=1', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-luaoom'
+            Args = "$standard $tail -crashtest luaoom"
+            Expect = @{ Class = 'Pass'; LogRx = 'Lua out of memory' }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-luapanic'
+            Args = "$standard $tail -crashtest luapanic"
+            Expect = @{ Class = 'Fatal'; Code = 4; MaxDumps = 0; LogRx = 'FATAL: lua panic' }
+            Twice = 0
+        }
+    }
+    if ($which -eq 'Crash' -or $which -eq 'All') {
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-hang'
+            Args = "$standard $($tail.Replace(' -hangtimeout 0', '')) -crashtest hang -hangtimeout 5"
+            Expect = @{ Class = 'Fatal'; Code = 5; MinDumps = 1; MaxDumps = 1; LogRx = 'FATAL: hang' }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-stall'
+            Args = "$standard $tail -crashtest hang"
+            Expect = @{ Class = 'Fatal'; Code = 5; MinDumps = 1; MaxDumps = 1; Stall = 1; LogRx = 'FATAL: hang \(supervisor saw no progress' }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-check'
+            Args = "$standard $tail -crashtest check"
+            Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('FATAL: check failed', 'ensure summary: 1 failures at 1 sites') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-resetinitlost'
+            Args = "$standard $tail -crashtest resetinitlost"
+            Expect = @{ Class = 'Pass'; LogRx = 'OPENSWBF2 RESET recovered after 4 attempts' }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-resetrecover'
+            Args = "$standard $tail -crashtest resetrecover"
+            Expect = @{ Class = 'Pass'; LogRx = 'OPENSWBF2 RESET recovered after 4 attempts' }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-resetflap'
+            Args = "$standard $tail -crashtest resetflap"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 RESET recovered after 25 attempts', '(?s)\A(?!.*OPENSWBF2 RESET failed.*OPENSWBF2 RESET failed)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-resetlaterinit'
+            Args = "$standard $tail -crashtest resetlaterinit"
+            Expect = @{ Class = 'InitFailure'; Code = 0; MaxDumps = 0; LogRx = '(?s)OPENSWBF2 MISSION RUNNING.*OPENSWBF2 CLOSE deferred until loading finishes.*OPENSWBF2 RESET recovered after 2 attempts' }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-resetfatal'
+            Args = "$standard $tail -crashtest resetfatal"
+            Expect = @{ Class = 'Fatal'; Code = 1; MinDumps = 1; MaxDumps = 1; LogRx = '(?s)\A(?:(?!FATAL:).)*OPENSWBF2 RESET reverting asked=\d+x\d+ windowed=\d used=\d+x\d+ windowed=\d(?:(?!FATAL:).)*FATAL: device reset failed hr=0x8876086C(?:(?!FATAL:).)*\z' }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-applymode'
+            Args = "$standard $tail -crashtest applymode"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY applied \d+x\d+ mode=', 'OPENSWBF2 APPLY TARGETS alive=\d+ fresh=(?:[2-9]|[1-9]\d+) stale=0 buffers=3/3 moved=1 ', '(?s)OPENSWBF2 DISPLAY applied (\d+)x(\d+) .*OPENSWBF2 DISPLAY relayout generation=\d+ screen=\1x\2 view=\1x\2 hud=\1x\2 aspect=(\d+\.\d{4}) camera=\3\b', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-applymodesmall'
+            Args = "$standard $tail -crashtest applymodesmall"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY applied 320x240 mode=', 'OPENSWBF2 APPLY TARGETS alive=\d+ fresh=(?:[3-9]|[1-9]\d+) stale=0 buffers=3/3 moved=3 ', '(?s)OPENSWBF2 DISPLAY applied (\d+)x(\d+) .*OPENSWBF2 DISPLAY relayout generation=\d+ screen=\1x\2 view=\1x\2 hud=\1x\2 ', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-applyfail'
+            Args = "$standard $tail -crashtest applyfail"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY reverted asked=(\d+)x(\d+) mode=\d+ used=(?!\1x\2 )', '(?s)OPENSWBF2 DISPLAY reverted .*OPENSWBF2 RESET recovered after \d+ attempts', '(?s)OPENSWBF2 DISPLAY reverted .*OPENSWBF2 DISPLAY profile restored ', '(?s)\A(?!.*FATAL:)', '(?s)\A(?!.*OPENSWBF2 DISPLAY applied)', '(?s)\A(?!.*OPENSWBF2 DISPLAY relayout)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-applypresentfail'
+            Args = "$standard $tail -crashtest applypresentfail"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY reverted asked=(\d+)x(\d+) mode=\d+ used=(?!\1x\2 )', '(?s)\A(?!.*FATAL:)', '(?s)\A(?!.*OPENSWBF2 DISPLAY applied)', '(?s)OPENSWBF2 DISPLAY reverted asked=\d+x\d+ mode=\d+ used=(\d+)x(\d+) .*OPENSWBF2 DISPLAY relayout generation=\d+ screen=\1x\2 view=\1x\2 hud=\1x\2 (?!.*OPENSWBF2 DISPLAY relayout)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-applytargetfail'
+            Args = "$standard $tail -crashtest applytargetfail"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY reverted asked=(\d+)x(\d+) mode=\d+ used=(?!\1x\2 )\d+x\d+ mode=\d+ hr=0x8876017C', '(?s)\A(?!.*FATAL:)', '(?s)\A(?!.*OPENSWBF2 DISPLAY applied)', '(?s)OPENSWBF2 DISPLAY reverted asked=\d+x\d+ mode=\d+ used=(\d+)x(\d+) .*OPENSWBF2 DISPLAY relayout generation=\d+ screen=\1x\2 view=\1x\2 hud=\1x\2 (?!.*OPENSWBF2 DISPLAY relayout)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-gammapass'
+            Args = "$standard $tail -crashtest gammapass"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 GAMMA path=pass', '(?s)OPENSWBF2 GAMMA FAKE target=(\d+)x(\d+) alive=1 bb=\1x\2 draws=[1-9]\d* ramp_nonid=0.*OPENSWBF2 DISPLAY applied \1x\2 ', '(?s)OPENSWBF2 RESET recovered after \d+ attempts.*OPENSWBF2 GAMMA FAKE target=(\d+)x(\d+) alive=1 bb=\1x\2 draws=[1-9]\d* ramp_nonid=0', '(?s)\A(?!.*ramp_nonid=[1-9])', '(?s)\A(?!.*OPENSWBF2 GAMMA fallback)', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-gammafallback'
+            Args = "$standard $tail -crashtest gammafallback"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 GAMMA path=ramp reason=createfail hr=0x8876017C', 'OPENSWBF2 GAMMA FAKE target=\d+x\d+ alive=0 bb=\d+x\d+ draws=0 ramp_nonid=[1-9]', '(?s)\A(?!.*OPENSWBF2 GAMMA path=pass)', '(?s)\A(?!.*draws=[1-9])', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-gammalost'
+            Args = "$standard $tail -crashtest gammalost"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 GAMMA path=pass', 'OPENSWBF2 GAMMA FAKE target=(\d+)x(\d+) alive=1 bb=\1x\2 draws=[1-9]\d* ramp_nonid=0', '(?s)\A(?!.*OPENSWBF2 GAMMA path=ramp)', '(?s)\A(?!.*OPENSWBF2 GAMMA fallback)', '(?s)\A(?!.*ramp_nonid=[1-9])', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-shellstretch'
+            Args = "$standard $tail -crashtest shellstretch"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY shell stretch linear (\d+)x(\d+)->(\d+)x(\d+)', '(?s)OPENSWBF2 SHELLSTRETCH FAKE chain=\d+x\d+ presents=[1-9]\d* filter=linear.*OPENSWBF2 RESET recovered after \d+ attempts.*OPENSWBF2 SHELLSTRETCH FAKE chain=\d+x\d+ presents=[1-9]\d* filter=linear', '(?s)\A(?!.*shell stretch unavailable)', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-gammadrawfail'
+            Args = "$standard $tail -crashtest gammadrawfail"
+            Expect = @{ Class = 'Pass'; LogRx = @('(?s)OPENSWBF2 GAMMA path=pass.*OPENSWBF2 GAMMA fallback to ramp reason=drawfail hr=0x8876086C', 'OPENSWBF2 GAMMA FAKE target=\d+x\d+ alive=0 bb=\d+x\d+ draws=0 ramp_nonid=[1-9]', '(?s)\A(?!.*OPENSWBF2 GAMMA fallback.*OPENSWBF2 GAMMA fallback)', '(?s)\A(?!.*draws=[1-9])', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-applyadapter'
+            Args = "$standard $tail -crashtest applyadapter -displayini ""{CASEDIR}\display.ini"""
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY adapter=1 invalid', 'OPENSWBF2 DISPLAY adapter=0 pending, running adapter unchanged', '(?s)\A(?!.*OPENSWBF2 DISPLAY adapter=\d+ saved)', '(?s)\A(?!.*FATAL:)'); NoIni = $true }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-adaptercancel'
+            Args = "$standard $tail -crashtest adaptercancel -displayini ""{CASEDIR}\display.ini"""
+            Expect = @{ Class = 'Pass'; LogRx = @('(?s)OPENSWBF2 DISPLAY adapter=0 pending.*OPENSWBF2 DISPLAY menu cancel restored.*OPENSWBF2 DISPLAY adaptertest save=0', '(?s)\A(?!.*OPENSWBF2 DISPLAY adapter=\d+ saved)', '(?s)\A(?!.*FATAL:)'); NoIni = $true }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-adapteraccept'
+            Args = "$standard $tail -crashtest adapteraccept -displayini ""{CASEDIR}\display.ini"""
+            Expect = @{ Class = 'Pass'; LogRx = @('(?s)OPENSWBF2 DISPLAY adapter=0 pending, running adapter unchanged.*OPENSWBF2 DISPLAY adapter=0 saved, running adapter unchanged.*OPENSWBF2 DISPLAY menutest save=1', 'OPENSWBF2 DISPLAY confirm timeout, reverting', 'OPENSWBF2 DISPLAY menutest done result=2', '(?s)\A(?!.*FATAL:)'); IniRx = @('(?m)^Adapter=0\r?$', '(?s)\A(?!.*\bVsync=)(?!.*\bAdapter=1)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-menuconfirm'
+            Args = "$standard $tail -crashtest menuconfirm"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY confirm pending 15s', '(?s)OPENSWBF2 DISPLAY confirm pending 15s.*OPENSWBF2 DISPLAY menutest plain vsync=\d.*OPENSWBF2 DISPLAY confirm timeout, reverting to ', '(?s)OPENSWBF2 DISPLAY menutest base (\d+x\d+).*OPENSWBF2 DISPLAY confirm timeout, reverting to \1 mode=', '(?s)OPENSWBF2 DISPLAY confirm timeout, reverting to (\d+x\d+) .*OPENSWBF2 DISPLAY applied \1 ', '(?s)OPENSWBF2 DISPLAY menutest base \d+x\d+.*?OPENSWBF2 DISPLAY applied \d+x\d+ mode=\w+ refresh=\S+ vsync=(\w+) .*OPENSWBF2 DISPLAY confirm timeout, reverting to .*?OPENSWBF2 DISPLAY applied \d+x\d+ mode=\w+ refresh=\S+ vsync=\1 ', '(?s)OPENSWBF2 DISPLAY menutest plain vsync=\d.*?OPENSWBF2 DISPLAY applied \d+x\d+ mode=\w+ refresh=\S+ vsync=(\w+) .*OPENSWBF2 DISPLAY confirm timeout, reverting to .*?OPENSWBF2 DISPLAY applied \d+x\d+ mode=\w+ refresh=\S+ vsync=(?!\1 )', 'OPENSWBF2 DISPLAY menutest done result=2', '(?s)OPENSWBF2 DISPLAY menutest base \d+x\d+ fps=(\d+) waitquery=(\d)\b.*OPENSWBF2 DISPLAY confirm timeout, reverting to \d+x\d+ mode=\w+ fps=\1 waitquery=\2\b.*OPENSWBF2 DISPLAY menutest done result=2 fps=\1 waitquery=\2\b','(?s)\A(?!.*OPENSWBF2 DISPLAY confirm kept)', '(?s)\A(?!.*FATAL:)', 'OPENSWBF2 DISPLAY menu options built adapters=\d+', '(?s)\A(?!.*OPENSWBF2 LUA error)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-menukeep'
+            Args = "$standard $tail -crashtest menukeep -displayini ""{CASEDIR}\display.ini"""
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY confirm pending 15s', 'OPENSWBF2 DISPLAY confirm kept', 'OPENSWBF2 DISPLAY menutest done result=1', 'OPENSWBF2 DISPLAY menutest save=1', 'OPENSWBF2 DISPLAY menu save deferred until the confirm ends', '(?s)OPENSWBF2 DISPLAY confirm kept.*OPENSWBF2 DISPLAY menu saved keys=0x', 'menutest done result=1 fps=\d+ waitquery=\d keepsave=0', '(?s)\A(?!.*OPENSWBF2 DISPLAY confirm timeout)', '(?s)\A(?!.*FATAL:)'); IniRx = @('(?m)^Vsync=2\r?$', '(?s)\A(?!.*\bFps=)(?!.*\bRefresh=)(?!.*\bNoWaitQuery=)(?!.*\bBorderless=)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-menusavefail'
+            Args = "$standard $tail -crashtest menusavefail -displayini ""{CASEDIR}\display.ini"""
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY menutest save=1', '(?s)OPENSWBF2 DISPLAY confirm kept.*OPENSWBF2 DISPLAY menu save failed', 'OPENSWBF2 DISPLAY menutest save=2', 'menutest done result=1 fps=\d+ waitquery=\d keepsave=2', '(?s)\A(?!.*FATAL:)'); IniRx = @('(?s)\A(?!.*\bVsync=)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-menuorder'
+            Args = "$standard $tail -crashtest menuorder"
+            Expect = @{ Class = 'Pass'; LogRx = @('(?s)OPENSWBF2 DISPLAY menutest order=legacy-menu(?:(?!OPENSWBF2 DISPLAY applied ).)*OPENSWBF2 DISPLAY applied (?:(?!OPENSWBF2 DISPLAY applied ).)*OPENSWBF2 DISPLAY confirm pending 15s', 'OPENSWBF2 DISPLAY confirm timeout, reverting to ', 'OPENSWBF2 DISPLAY menutest done result=2', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-menuorderrev'
+            Args = "$standard $tail -crashtest menuorderrev"
+            Expect = @{ Class = 'Pass'; LogRx = @('(?s)OPENSWBF2 DISPLAY menutest order=menu-legacy(?:(?!OPENSWBF2 DISPLAY applied ).)*OPENSWBF2 DISPLAY applied (?:(?!OPENSWBF2 DISPLAY applied ).)*OPENSWBF2 DISPLAY confirm pending 15s', 'OPENSWBF2 DISPLAY confirm timeout, reverting to ', 'OPENSWBF2 DISPLAY menutest done result=2', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-menurevertsave'
+            Args = "$standard $tail -crashtest menurevertsave -displayini ""{CASEDIR}\display.ini"""
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY menutest save=1', '(?s)OPENSWBF2 DISPLAY confirm pending 15s.*OPENSWBF2 DISPLAY confirm timeout, reverting to .*OPENSWBF2 DISPLAY menu saved keys=0x10\b.*OPENSWBF2 DISPLAY menu cancel restored', '(?s)OPENSWBF2 DISPLAY menutest prior vsync=(\d+) fps=(\d+)\b.*OPENSWBF2 DISPLAY menutest restored vsync=\1 fps=(?!\2\b)\d+', 'OPENSWBF2 DISPLAY menutest done result=2 fps=\d+ waitquery=\d keepsave=0', '(?s)\A(?!.*FATAL:)'); IniRx = @('(?m)^Fps=(?:30|60)\r?$', '(?s)\A(?!.*\bVsync=)(?!.*\bBorderless=)(?!.*\bRefresh=)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-menuapplyfail'
+            Args = "$standard $tail -crashtest menuapplyfail -displayini ""{CASEDIR}\display.ini"""
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY menutest save=1', '(?s)OPENSWBF2 DISPLAY menutest base \d+x\d+ fps=\d+ waitquery=(\d)\b.*OPENSWBF2 DISPLAY menutest prior vsync=\d+ fps=\d+ accept=(\d+)\b.*OPENSWBF2 DISPLAY reverted asked=.*OPENSWBF2 DISPLAY profile restored \d+x\d+ windowed=\d vsync=\d fps=\2 waitquery=\1\b.*OPENSWBF2 DISPLAY menu saved keys=0x10\b.*OPENSWBF2 DISPLAY menutest done result=0 fps=\2 waitquery=\1 keepsave=0', '(?s)\A(?!.*OPENSWBF2 DISPLAY confirm pending)', '(?s)\A(?!.*OPENSWBF2 DISPLAY applied)', '(?s)\A(?!.*FATAL:)'); IniRx = @('(?m)^Fps=(?:30|60)\r?$', '(?s)\A(?!.*\bVsync=)(?!.*\bBorderless=)(?!.*\bRefresh=)(?!.*\bNoWaitQuery=)') }
+            Twice = 0
+        }
+    }
+    if ($which -eq 'Twice') {
+        foreach ($i in 1, 2) {
+            $cases += New-Object PSObject -Property @{ Name = "twice-$i"; Args = "$standard $htail"; Expect = $pass; Twice = $i }
+        }
+        $digestExpect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=', 'OPENSWBF2 SOAK turns=') + $hrx) }
+        foreach ($i in 1, 2) {
+            $cases += New-Object PSObject -Property @{ Name = "twice-digest-$i"; Args = "nab2g_c $htail -soakturns 1501"; Expect = $digestExpect; Twice = 2 + $i }
+        }
+        foreach ($m in 'hot1g_con', 'spa3c_ass') {
+            $cases += New-Object PSObject -Property @{ Name = "digest-$m"; Args = "$m $htail"; Expect = $pass; Twice = 0 }
+        }
+        $traceExpect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 DIGEST TRACE turn=1500 ') + $hrx) }
+        foreach ($i in 1, 2) {
+            $ttail = $htail.Replace('-seed 1 ', "-seed $i ")
+            $cases += New-Object PSObject -Property @{ Name = "trace-seed-$i"; Args = "hot1g_con $ttail -digesttrace 1600"; Expect = $traceExpect; Twice = 0 }
+        }
+    }
+    if ($which -eq 'Soak') {
+        $cases += New-Object PSObject -Property @{ Name = 'asan-soak'; Args = "nab2g_c $htail -soakturns 815800"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=', 'OPENSWBF2 SOAK turns=') + $hrx) }; Twice = 0 }
+    }
+    if ($which -eq 'Perturb') {
+        $all = @('geo1c_con', 'nab2g_c', 'hot1g_con', 'spa3c_ass', 'dag1c_ctf', 'kas2c_uber', 'tan1g_con')
+        $pm = $all
+        if ($env:OPENSWBF2_PERTURB_MISSIONS) {
+            $pm = @($env:OPENSWBF2_PERTURB_MISSIONS -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            foreach ($m in $pm) { if ($all -notcontains $m) { throw "OPENSWBF2_PERTURB_MISSIONS: '$m' is not a Perturb mission" } }
+        }
+        foreach ($m in $pm) {
+            $s = 0
+            for ($i = 0; $i -lt $all.Count; $i++) { if ($all[$i] -eq $m) { $s = 1 + ($i % 2) } }
+            $runs = @(@{ Mode = 'base'; Seed = 0; Extra = '' })
+            foreach ($mode in 'pad', 'fill', 'pool') { $runs += @{ Mode = $mode; Seed = $s; Extra = " -perturbheap ${s}:$mode" } }
+            $runs += @{ Mode = 'hog'; Seed = 0; Extra = ' -hogaddrspace' }
+            $runs += @{ Mode = 'repeat'; Seed = 0; Extra = ' -repeatmission' }
+            foreach ($r in $runs) {
+                $rx = @('(?s)\A(?!.*OPENSWBF2 PERTURB )')
+                if ($r.Seed -gt 0) { $rx = @("(?m)OPENSWBF2 PERTURB seed=$($r.Seed) modes=$($r.Mode)\r?$") }
+                $soakArg = ''
+                if ($r.Mode -eq 'hog') { $rx += $script:SmokeAddrSpaceRx }
+                if ($r.Mode -eq 'repeat') {
+                    $rx += @("(?m)OPENSWBF2 REPEAT to_shell mission=$m\r?$", "(?m)OPENSWBF2 REPEAT to_mission mission=$m\r?$")
+                }
+                if ($m -eq 'nab2g_c') {
+                    $soakArg = " -soakturns $script:PerturbSoakTurns"
+                    $rx += 'OPENSWBF2 SOAK turns='
+                }
+                $name = "perturb-$m-$($r.Mode)"
+                if ($r.Seed -gt 0) { $name = "$name-$($r.Seed)" }
+                $x = @{ Class = 'Pass'; LogRx = $rx; Perturb = @{ Mission = $m; Mode = $r.Mode; Seed = $r.Seed } }
+                $cases += New-Object PSObject -Property @{ Name = $name; Args = "$m $tail -digesttrace 100000$($r.Extra)$soakArg"; Expect = $x; Twice = 0 }
+            }
+        }
+    }
+    foreach ($c in $cases) {
+        if ($c.Args -match '(^| )-soakturns ') { continue }
+        $c.Args += " -soakturns $script:SmokeTurnCap"
+        $x = $c.Expect.Clone()
+        $x.LogRx = @(@($x.LogRx) | Where-Object { $_ }) + $script:SmokeCapRx
+        $c.Expect = $x
+    }
+    return $cases
+}

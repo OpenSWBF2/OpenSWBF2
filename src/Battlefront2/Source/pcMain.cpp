@@ -495,6 +495,10 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         RedWarning::SetSuppressDialogs(true);
         pcCrash::StartWatchdog();
     }
+    else if (pcCrash::Supervised())
+    {
+        pcCrash::StartWatchdog();
+    }
     if (gSeedSet)
     {
         srand(gSeed);

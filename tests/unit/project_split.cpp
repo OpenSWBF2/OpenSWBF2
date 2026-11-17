@@ -61,19 +61,6 @@ bool StartsWith(const std::string& s, const std::string& sPrefix)
     return Lower(s).compare(0, sPrefix.size(), Lower(sPrefix)) == 0;
 }
 
-std::string RepoRoot()
-{
-    char acExe[MAX_PATH];
-    const DWORD uLen = GetModuleFileNameA(0, acExe, sizeof(acExe));
-    REQUIRE((uLen != 0 && uLen < sizeof(acExe)));
-    std::string sPath(acExe, uLen);
-    for (int i = 0; i < 4; ++i)
-    {
-        sPath.erase(sPath.find_last_of("\\/"));
-    }
-    return sPath;
-}
-
 void FindProjects(const std::string& sRoot, const std::string& sRel, std::vector<std::string>& vOut)
 {
     WIN32_FIND_DATAA kData;
@@ -122,8 +109,8 @@ TEST_CASE("game projects together compile every game TU exactly once" * doctest:
             ++uiCount;
         }
     }
-    CHECK(uiCount == 777);
-    CHECK(kSeen.size() == 777);
+    CHECK(uiCount == 778);
+    CHECK(kSeen.size() == 778);
 }
 
 TEST_CASE("adler32 links only from unzip.cpp as the one copy in the retail exe" * doctest::test_suite("regression"))

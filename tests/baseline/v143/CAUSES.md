@@ -2,6 +2,9 @@
 
 Every difference between the v143 Release build and `tests/baseline/vs2013/`, with its cause.
 
+`tests/baseline/repin.ps1` copies a row only when a cause entry below holds the line
+`row: <table> <key>` for it, where `<key>` is the row's key columns joined by `/`.
+
 ## Toolchain
 
 | Key | VS2013 | v143 |
@@ -1677,6 +1680,72 @@ the P42 runs already print it.
   `.CRT$XIB`/`.CRT$XLB`/`.CRT$XLY` at P42's addresses. The two globals are read only by Steam
   callbacks and shell queries after `WinMain`.
 - Status: re-pinned with user approval 2026-11-13.
+
+## Phase 44: test speed-up against 7bb63e16
+
+### C-HARDEN-TESTS-EXE
+
+- No digest row moved. `hardening.txt` gains one row, `[PASS] hardening:aslr-pe-tests`; no
+  other row moves.
+- Cause: `run.ps1` printed `aslr-pe-tests` only when the same call also ran T1, so
+  `run.ps1 -Configuration Release -NoBuild -Hardening` printed 38 lines and a call with T1 printed
+  39. `compare-tables.ps1 -Hardening` now compares the lines exactly, so the check reads the tests
+  exe at its path (`bin\Tests\<configuration>\OpenSWBF2Tests.exe`, or `OPENSWBF2_TEST_EXE`) whether
+  or not T1 ran, the same way `flag-alignednew-tests` already reads the tests tlog, and prints a
+  SKIP row when the tests exe is not built.
+- Captured from `run.ps1 -Configuration Release -NoBuild -Hardening` with
+  `capture-vs2013.ps1 -Tables -HardeningDir`.
+
+### C-HARDEN-BASEREAD
+
+- No digest row moved. `hardening.txt` gains one row, `[PASS] hardening:baseline-readers`; no
+  other row moves.
+- Cause: a new source check. `baseline-readers` fails when a file under `tests\baseline\v143` has
+  no entry in the reader map in `compare-tables.ps1`, or an entry names a reader that does not
+  read it. The source checks print one line each, so the hardening output has one more line.
+- Captured from `run.ps1 -Configuration Release -NoBuild -Hardening` with
+  `capture-vs2013.ps1 -Tables -HardeningDir`.
+
+### C-INIT-ADDR
+
+- No digest row moved. `initializers.txt`, `initializers-di.txt` and `initializers-discarded.txt`
+  lose their second column, the section:offset address; every other byte is unchanged.
+- What moved: plan 44-18 adds the progress section (`pcProgress.cpp`). The Release exe now imports
+  `CreateFileMappingA` and `MapViewOfFile`; the import address table sits at the start of `.rdata`,
+  ahead of `.CRT$XCA..XCZ`, so every `initializers.txt` offset grew by 0xC. `.text` grew to
+  0x45213A bytes, 0x13A past a page boundary, so `.rdata` starts one page later and every
+  `initializers-discarded.txt` offset (`.text` symbols written relative to `.rdata`) fell by 0x1000.
+  `initializers-di.txt` did not move only because the new code links after every `??__E` function.
+- Proof: in all 898 `initializers.txt` rows and all 8 `initializers-discarded.txt` rows the index,
+  symbol, demangled name and object are identical to the pinned files, and only the address
+  differs (+0xC and -0x1000 on every row); the 903 `initializers-di.txt` rows were byte-identical.
+  The re-capture (`capture-vs2013.ps1 -NoBuild -Map`) of all three files equals the previous pinned
+  file with its second column removed, byte for byte.
+- Why the address is not compared: what these tables protect is initializer order and membership,
+  the property C-INIT-ORDER-42 and C-SPLIT-STEAM-INIT reason about (which objects initialize, in
+  which order, and what runs before `gMatrixIdentity` or the heap). The address records link
+  layout, which any new import or any `.text` growth across a page moves without changing a single
+  initializer. The capture still sorts by address, so the row order is the initializer order, and
+  `compare-tables.ps1 -Map` still compares the files byte for byte: a reordered, added, removed or
+  renamed initializer fails (selftest fixture `map compare fails a reordered, added or removed
+  initializer`). `tests/baseline/vs2013/initializers*.txt` keep their address column: no compare
+  reads them, only `-Verify` checks their manifest hashes.
+- Status: check change and re-capture approved by the user 2026-11-15.
+
+### C-CASE-CRASHSTALL
+
+- No digest row moved. `smoke-all-digests.txt` and `offthread.txt` each gain one row for the new
+  Crash case `crash-stall`; no other row moves.
+- Cause: a new smoke case. `crash-stall` runs the standard mission with `-crashtest hang` under the
+  supervised watchdog, so the harness sees no progress, sets the stall flag and the game writes its
+  own hang dump and exits 5. The hang starts at frame 1, before the first turn, so it logs no SIM
+  DIGEST line (`none none`, the same as `crash-hang`) and no off-thread allocation (`0 0 0`).
+- Captured from `run.ps1 -Configuration Release -NoBuild -Smoke All -Soak Short`
+  (`smoke-all-digests.txt`) and `run.ps1 -Configuration Test -NoBuild -Smoke All -Soak Short`
+  (`offthread.txt`); the pinned files equal those captures apart from the rows no compare reads
+  (the wall-clock `dedicated` row, the `# commit` line and the `sound-on` section).
+  - row: smoke-all-digests crash-stall
+  - row: offthread crash-stall
 
 ## Policy
 

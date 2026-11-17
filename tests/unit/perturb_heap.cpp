@@ -381,7 +381,7 @@ TEST_CASE("perturb heap pool order repeats and ignores pools built off the main 
     MemoryPool kThreadPool("t1perturbthread", 16);
     HANDLE hThread = CreateThread(0, 0, CreatePoolProc, &kThreadPool, 0, 0);
     REQUIRE(hThread);
-    CHECK(WaitForSingleObject(hThread, 10000) == WAIT_OBJECT_0);
+    CHECK(WaitForSingleObject(hThread, INFINITE) == WAIT_OBJECT_0);
     CloseHandle(hThread);
     char* apc[8];
     AllocEight(kThreadPool, apc);

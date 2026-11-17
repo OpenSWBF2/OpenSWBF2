@@ -67,6 +67,7 @@
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcOrdnanceGrapplingHook.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcOrdnanceTowCable.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcPblFile.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcProgress.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcSaveDevice.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcSaveFile.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcScopeBlurEffect.cpp" />
@@ -579,6 +580,7 @@
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcDynamicSprite.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcFLJoystick.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcLightBeam.h" />
+    <ClInclude Include="src\Battlefront2\Platform\Pc\pcProgress.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSaveDevice.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSaveFile.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSpawnDisplay.h" />

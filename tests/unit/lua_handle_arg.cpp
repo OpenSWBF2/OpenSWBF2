@@ -334,22 +334,6 @@ TEST_CASE("event node tree membership" * doctest::test_suite("regression"))
 namespace
 {
 
-std::string HandleRepoRoot()
-{
-    char acExe[MAX_PATH];
-    DWORD uLen = GetModuleFileNameA(0, acExe, sizeof(acExe));
-    REQUIRE(uLen > 0);
-    REQUIRE(uLen < sizeof(acExe));
-    std::string sPath(acExe, uLen);
-    for (int i = 0; i < 4; ++i)
-    {
-        size_t uiSlash = sPath.find_last_of("\\/");
-        REQUIRE(uiSlash != std::string::npos);
-        sPath.erase(uiSlash);
-    }
-    return sPath;
-}
-
 int HandleCountOf(const std::string& sText, const char* pcNeedle)
 {
     int iCount = 0;
@@ -428,8 +412,8 @@ TEST_CASE("lua handle sites route through validation" * doctest::test_suite("reg
 {
     const std::string sRel = "src\\Battlefront2\\Source\\";
     std::vector<std::string> vFiles;
-    HandleListSources(HandleRepoRoot() + "\\" + sRel, "*.cpp", vFiles);
-    HandleListSources(HandleRepoRoot() + "\\" + sRel, "*.h", vFiles);
+    HandleListSources(RepoRoot() + "\\" + sRel, "*.cpp", vFiles);
+    HandleListSources(RepoRoot() + "\\" + sRel, "*.h", vFiles);
     REQUIRE(vFiles.size() > 100);
 
     const char* const apcCompareOnly[] = {

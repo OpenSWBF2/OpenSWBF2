@@ -30,22 +30,6 @@ std::string HardenBody(const std::string& sText, const char* pcSignature)
     return sText.substr(uiStart, uiEnd + 2 - uiStart);
 }
 
-std::string PinRepoRoot()
-{
-    char acExe[MAX_PATH];
-    DWORD uLen = GetModuleFileNameA(0, acExe, sizeof(acExe));
-    REQUIRE(uLen > 0);
-    REQUIRE(uLen < sizeof(acExe));
-    std::string sPath(acExe, uLen);
-    for (int i = 0; i < 4; ++i)
-    {
-        size_t uiSlash = sPath.find_last_of("\\/");
-        REQUIRE(uiSlash != std::string::npos);
-        sPath.erase(uiSlash);
-    }
-    return sPath;
-}
-
 void PinListSources(const std::string& sDir, const char* pcPattern, std::vector<std::string>& vOut)
 {
     WIN32_FIND_DATAA kFind;
@@ -274,7 +258,7 @@ TEST_CASE("script-size-clamp: lua memory sinks route through the shared clamp" *
 {
     const std::string sRel = "src\\Battlefront2\\Source\\";
     std::vector<std::string> vFiles;
-    PinListSources(PinRepoRoot() + "\\" + sRel, "LuaCallbacks*.cpp", vFiles);
+    PinListSources(RepoRoot() + "\\" + sRel, "LuaCallbacks*.cpp", vFiles);
     vFiles.push_back("LuaMemoryArgs.cpp");
     REQUIRE(vFiles.size() >= 8);
 
@@ -424,7 +408,7 @@ TEST_CASE("gated pools: IsFull and IsSufficientSpace sites match the pinned list
     REQUIRE(kPinned.size() == 28);
     CHECK(kPinnedClasses.size() == 23);
 
-    const std::string sRoot = PinRepoRoot();
+    const std::string sRoot = RepoRoot();
     std::vector<std::string> vFiles;
     PinWalkSources(sRoot, "src\\", vFiles);
     REQUIRE(vFiles.size() > 1000);

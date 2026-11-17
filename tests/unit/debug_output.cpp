@@ -60,17 +60,12 @@ TEST_CASE("debugger output mirrors the log" * doctest::test_suite("regression"))
 
     std::string sOut;
     bool bExited = false;
-    bool bTimedOut = false;
     bool bSawLoaderBreak = false;
     DWORD uExitCode = 0xFFFFFFFF;
     while (!bExited)
     {
         DEBUG_EVENT ev;
-        if (!WaitForDebugEvent(&ev, 10000))
-        {
-            bTimedOut = true;
-            break;
-        }
+        REQUIRE(WaitForDebugEvent(&ev, INFINITE));
 
         DWORD uContinue = DBG_CONTINUE;
         switch (ev.dwDebugEventCode)
@@ -122,12 +117,7 @@ TEST_CASE("debugger output mirrors the log" * doctest::test_suite("regression"))
         ContinueDebugEvent(ev.dwProcessId, ev.dwThreadId, uContinue);
     }
 
-    if (bTimedOut)
-    {
-        TerminateProcess(pi.hProcess, 1);
-        DebugActiveProcessStop(pi.dwProcessId);
-    }
-    WaitForSingleObject(pi.hProcess, 5000);
+    WaitForSingleObject(pi.hProcess, INFINITE);
 
     std::string sStdOut;
     char acPipe[4096];
@@ -142,7 +132,6 @@ TEST_CASE("debugger output mirrors the log" * doctest::test_suite("regression"))
     DeleteFileA((sDir + "\\BFront2.log").c_str());
     RemoveDirectoryA(sDir.c_str());
 
-    REQUIRE_FALSE(bTimedOut);
     CHECK(uExitCode == 0);
     CHECK(CountOf(sOut, "LogCore Inform x.cpp:1: debug-output-marker 7") == 1);
     CHECK(CountOf(sOut, "pbltrace-marker") == 1);

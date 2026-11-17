@@ -118,6 +118,82 @@ TEST_CASE("command line sets -novictory and keeps parsing after it" * doctest::t
     gNoVictory = false;
 }
 
+TEST_CASE("command line -soakturns takes a positive turn count and rejects the rest" * doctest::test_suite("regression"))
+{
+    {
+        LogCapture capture;
+        Parse("-soakturns 9300 geo1c_con");
+        CHECK(gSoakTurns == 9300);
+        CHECK(Mission() == "geo1c_con");
+
+        Parse("-soakturns 1500 geo1c_con");
+        CHECK(gSoakTurns == 1500);
+        CHECK(Mission() == "geo1c_con");
+
+        Parse("-soakturns 1 geo1c_con");
+        CHECK(gSoakTurns == 1);
+        CHECK(Mission() == "geo1c_con");
+
+        Parse("-soakturns 2147483647 geo1c_con");
+        CHECK(gSoakTurns == 2147483647);
+        CHECK(capture.Count("-soakturns needs a positive turn count, ignored") == 0);
+
+        Parse("-soakturns 0 geo1c_con");
+        CHECK(gSoakTurns == 0);
+        CHECK(Mission() == "geo1c_con");
+        CHECK(capture.Count("-soakturns needs a positive turn count, ignored") == 1);
+    }
+
+    Parse("-soakturns -5 geo1c_con");
+    CHECK(gSoakTurns == 0);
+
+    Parse("-soakturns abc geo1c_con");
+    CHECK(gSoakTurns == 0);
+
+    Parse("-soakturns 99999999999 geo1c_con");
+    CHECK(gSoakTurns == 0);
+    CHECK(Mission() == "geo1c_con");
+
+    Parse("-soakturns 2147483648 geo1c_con");
+    CHECK(gSoakTurns == 0);
+
+    Parse("-soakturns");
+    CHECK(gSoakTurns == 0);
+
+    Parse("geo1c_con");
+    CHECK(gSoakTurns == 0);
+}
+
+extern int gStubHangTimeout;
+
+TEST_CASE("command line -hangtimeout passes only a whole number" * doctest::test_suite("regression"))
+{
+    const char* pcWarn = "-hangtimeout needs 0 or a whole number of seconds from 1 to 3600, ignored";
+    const char* apcGood[] = { "-hangtimeout 0 geo1c_con", "-hangtimeout 5 geo1c_con", "-hangtimeout -5 geo1c_con" };
+    const int aiGood[] = { 0, 5, -5 };
+    const int aiWarn[] = { 0, 0, 1 };
+    for (int n = 0; n < 3; ++n)
+    {
+        LogCapture capture;
+        gStubHangTimeout = 99;
+        Parse(apcGood[n]);
+        CHECK(gStubHangTimeout == aiGood[n]);
+        CHECK(Mission() == "geo1c_con");
+        CHECK(capture.Count(pcWarn) == aiWarn[n]);
+    }
+    const char* apcBad[] = { "-hangtimeout abc geo1c_con", "-hangtimeout 0x geo1c_con", "-hangtimeout 5s geo1c_con",
+        "geo1c_con -hangtimeout" };
+    for (int n = 0; n < 4; ++n)
+    {
+        LogCapture capture;
+        gStubHangTimeout = 99;
+        Parse(apcBad[n]);
+        CHECK(gStubHangTimeout == 99);
+        CHECK(Mission() == "geo1c_con");
+        CHECK(capture.Count(pcWarn) == 1);
+    }
+}
+
 TEST_CASE("-novictory has no effect in a network game and says so once" * doctest::test_suite("regression"))
 {
     const bool bInShell = netInShell;
