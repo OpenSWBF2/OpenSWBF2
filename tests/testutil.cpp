@@ -191,23 +191,33 @@ void HarnessError(const char* pcReason)
     _exit(3);
 }
 
-bool ReadRepoText(const char* pcRelPath, std::string& sOut)
+std::string RepoRoot()
 {
     char acExe[MAX_PATH];
     DWORD uLen = GetModuleFileNameA(0, acExe, sizeof(acExe));
     if (uLen == 0 || uLen >= sizeof(acExe))
     {
-        return false;
+        return std::string();
     }
     std::string sPath(acExe, uLen);
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 5; ++i)
     {
         size_t uiSlash = sPath.find_last_of("\\/");
         if (uiSlash == std::string::npos)
         {
-            return false;
+            return std::string();
         }
         sPath.erase(uiSlash);
+    }
+    return sPath;
+}
+
+bool ReadRepoText(const char* pcRelPath, std::string& sOut)
+{
+    std::string sPath = RepoRoot();
+    if (sPath.empty())
+    {
+        return false;
     }
     sPath += "\\";
     sPath += pcRelPath;

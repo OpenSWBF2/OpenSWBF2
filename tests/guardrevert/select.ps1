@@ -20,8 +20,7 @@ $script:GuardGlobalTriggers = @(
     'tests\OpenSWBF2Tests.vcxproj.filters',
     'tests\guard-revert.ps1',
     'tests\guardrevert\select.ps1',
-    'tests\smoke.ps1',
-    'tests\run.ps1',
+    'tests\common.ps1',
     'tests\vstools.ps1',
     'tests\main.cpp',
     'tests\testutil.cpp',
@@ -49,6 +48,227 @@ function Get-GuardSha([string]$Text)
         $sha.Dispose()
     }
     ([BitConverter]::ToString($b) -replace '-', '').ToLowerInvariant()
+}
+
+function Get-GuardTestInfo([string]$Root)
+{
+    $root = $Root.TrimEnd('\')
+    $sources = @{}
+    $dups = @{}
+    $literals = @{}
+    foreach ($f in (Get-ChildItem -LiteralPath (Join-Path $root 'tests') -Recurse -File -Filter '*.cpp' | Where-Object { $_.FullName -notmatch '\\tests\\third_party\\' }))
+    {
+        $rel = $f.FullName.Substring($root.Length + 1)
+        $text = [IO.File]::ReadAllText($f.FullName)
+        foreach ($m in [regex]::Matches($text, 'TEST_CASE\s*\(\s*"((?:[^"\\]|\\.)*)"'))
+        {
+            $name = $m.Groups[1].Value -replace '\\(.)', '$1'
+            if ($sources.ContainsKey($name) -and $sources[$name] -ne $rel)
+            {
+                $dups[$name] = $true
+            }
+            $sources[$name] = $rel
+        }
+        $lits = New-Object System.Collections.Generic.List[string]
+        foreach ($m in [regex]::Matches($text, '"((?:[^"\\\r\n]|\\.)*)"'))
+        {
+            $v = $m.Groups[1].Value
+            if ($v -match '^(?:src\\\\|src/|\.\./src/|data\\\\|data/|\.\./data/|tests\\\\|tests/|\.\./tests/)')
+            {
+                $lits.Add((($v -replace '^\.\./', '').Replace('\\', '\').Replace('/', '\')))
+            }
+            elseif ($v -match '^corpus(?:$|\\\\|/)')
+            {
+                $lits.Add('tests\' + $v.Replace('\\', '\').Replace('/', '\'))
+            }
+        }
+        if ($lits.Count)
+        {
+            $literals[$rel] = @($lits | Select-Object -Unique)
+        }
+    }
+    foreach ($name in $dups.Keys)
+    {
+        $sources.Remove($name)
+    }
+    @{ Sources = $sources; Literals = $literals }
+}
+
+function ConvertTo-GuardSorted($Value, [string]$Prefix)
+{
+    if ($null -eq $Value)
+    {
+        return $null
+    }
+    if ($Value -is [string])
+    {
+        if ($Prefix)
+        {
+            return [regex]::Replace($Value, [regex]::Escape($Prefix), '<root>\', 'IgnoreCase')
+        }
+        return $Value
+    }
+    if ($Value -is [Collections.IDictionary])
+    {
+        $o = [ordered]@{}
+        $keys = [string[]]@($Value.Keys)
+        [Array]::Sort($keys, [StringComparer]::Ordinal)
+        foreach ($k in $keys)
+        {
+            $o[$k] = ConvertTo-GuardSorted $Value[$k] $Prefix
+        }
+        return $o
+    }
+    if ($Value -is [Management.Automation.PSCustomObject])
+    {
+        $o = [ordered]@{}
+        $keys = [string[]]@($Value.PSObject.Properties | ForEach-Object { $_.Name })
+        [Array]::Sort($keys, [StringComparer]::Ordinal)
+        foreach ($k in $keys)
+        {
+            $o[$k] = ConvertTo-GuardSorted $Value.$k $Prefix
+        }
+        return $o
+    }
+    if ($Value -is [Collections.IEnumerable])
+    {
+        $list = New-Object Collections.ArrayList
+        foreach ($x in $Value)
+        {
+            [void]$list.Add((ConvertTo-GuardSorted $x $Prefix))
+        }
+        return , $list.ToArray()
+    }
+    $Value
+}
+
+function Get-GuardCaseData([string]$Path)
+{
+    if (-not [IO.File]::Exists($Path))
+    {
+        return $null
+    }
+    $errs = $null
+    $ast = [Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$errs)
+    if (@($errs).Count)
+    {
+        return $null
+    }
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($b in @($ast.ParamBlock, $ast.DynamicParamBlock, $ast.BeginBlock, $ast.ProcessBlock))
+    {
+        if ($null -ne $b)
+        {
+            $parts.Add($b.Extent.Text)
+        }
+    }
+    if ($null -ne $ast.EndBlock)
+    {
+        foreach ($s in $ast.EndBlock.Statements)
+        {
+            if ($s -is [Management.Automation.Language.FunctionDefinitionAst] -and $s.Name -eq 'Get-SmokeCases')
+            {
+                continue
+            }
+            $parts.Add($s.Extent.Text)
+        }
+    }
+    ($parts -join "`n") -replace "`r`n", "`n"
+}
+
+function Get-GuardCaseTexts($Rows, [string]$DefaultConfig, [string]$Root)
+{
+    $prefix = $Root.TrimEnd('\') + '\'
+    $texts = @{}
+    $sets = @{}
+    $savedConfig = $script:SmokeDigestConfiguration
+    $savedPerturb = $env:OPENSWBF2_PERTURB_MISSIONS
+    try
+    {
+        foreach ($row in $Rows)
+        {
+            $kind = Get-GuardRowKind $row
+            $cases = @()
+            if ($kind -eq 'Smoke')
+            {
+                $cfg = [string]$row.Config
+                if (-not $cfg)
+                {
+                    $cfg = $DefaultConfig
+                }
+                if (-not $sets.ContainsKey($cfg))
+                {
+                    $script:SmokeDigestConfiguration = $cfg
+                    $set = @{}
+                    foreach ($w in 'Crash', 'Standard')
+                    {
+                        foreach ($c in (Get-SmokeCases $w @() $false $null))
+                        {
+                            $set[$c.Name] = $c
+                        }
+                    }
+                    $sets[$cfg] = $set
+                }
+                $c = $sets[$cfg][[string]$row.Case]
+                if ($null -ne $c)
+                {
+                    $cases = @($c)
+                }
+            }
+            elseif ($kind -eq 'Perturb')
+            {
+                $script:SmokeDigestConfiguration = 'Test'
+                $env:OPENSWBF2_PERTURB_MISSIONS = @($row.Missions) -join ','
+                try
+                {
+                    $cases = @(Add-MiOptionsExpect @(Add-SerialTieExpect @(Get-SmokeCases 'Perturb' @() $false $null)) -1)
+                }
+                catch
+                {
+                    $cases = @()
+                }
+            }
+            else
+            {
+                continue
+            }
+            if ($cases.Count -eq 0)
+            {
+                continue
+            }
+            $lines = New-Object 'System.Collections.Generic.List[string]'
+            foreach ($c in $cases)
+            {
+                $lines.Add("case`t" + (ConvertTo-Json (ConvertTo-GuardSorted $c $prefix) -Compress -Depth 20))
+                $lines.Add("digest`t" + [string](Get-DigestExpected $c.Name))
+                foreach ($a in @(Get-SmokeAllowed $c.Name))
+                {
+                    $lines.Add("allowed`t$a")
+                }
+                foreach ($m in [regex]::Matches([string]$c.Args, '(?:^| )-displayini\s+(?:"([^"]*)"|(\S+))'))
+                {
+                    $p = $m.Groups[2].Value
+                    if ($m.Groups[1].Success)
+                    {
+                        $p = $m.Groups[1].Value
+                    }
+                    $h = '-'
+                    if ($p -notmatch '\{CASEDIR\}' -and [IO.File]::Exists($p))
+                    {
+                        $h = Get-GuardSha ([Convert]::ToBase64String([IO.File]::ReadAllBytes($p)))
+                    }
+                    $lines.Add("displayini`t" + (ConvertTo-GuardSorted $p $prefix) + "`t$h")
+                }
+            }
+            $texts[[string]$row.Id] = $lines -join "`n"
+        }
+    }
+    finally
+    {
+        $script:SmokeDigestConfiguration = $savedConfig
+        $env:OPENSWBF2_PERTURB_MISSIONS = $savedPerturb
+    }
+    $texts
 }
 
 function Read-ClReadTlog([string]$Path, [string]$Root)
@@ -272,6 +492,7 @@ function Select-GuardRows($In)
         $triggers = $script:GuardGlobalTriggers
     }
     $toolset = [string]$In.Toolset
+    $platform = [string]$In.Platform
     $asanReads = $In.AsanReads
     if (-not $In.ContainsKey('AsanReads'))
     {
@@ -292,6 +513,17 @@ function Select-GuardRows($In)
     if ($null -eq $testLiterals)
     {
         $testLiterals = @{}
+    }
+    $caseTexts = $In.CaseTexts
+    if ($null -eq $caseTexts)
+    {
+        $caseTexts = @{}
+    }
+    $caseData = $In.CaseData
+    $caseDataDigest = $null
+    if ($null -ne $caseData)
+    {
+        $caseDataDigest = Get-GuardSha (([string]$caseData) -replace "`r`n", "`n")
     }
     $ctx = @{ Hashes = $hashes; Keys = [string[]]@($hashes.Keys); Under = @{}; Users = @{}; Tu = @{} }
 
@@ -331,6 +563,8 @@ function Select-GuardRows($In)
         $unmappedLit = $null
         $unknownTest = $null
         $noTlog = $null
+        $unknownCase = $null
+        $extra = New-Object 'System.Collections.Generic.List[string]'
         [void]$files.Add($file)
 
         $reads = $null
@@ -425,11 +659,43 @@ function Select-GuardRows($In)
                 }
             }
         }
-        elseif ($kind -eq 'Hardening' -or $kind -eq 'Smoke' -or $kind -eq 'Perturb')
+        elseif ($kind -eq 'Hardening' -or $kind -eq 'Smoke' -or $kind -eq 'Perturb' -or $kind -eq 'Tlog')
         {
+            [void]$files.Add('tests\smoke.ps1')
+            if ($null -eq $caseDataDigest)
+            {
+                $unknownCase = 'case data'
+            }
+            else
+            {
+                $extra.Add("casedata`t$caseDataDigest")
+            }
+            if ($kind -eq 'Smoke' -or $kind -eq 'Perturb')
+            {
+                $ct = $caseTexts[[string]$row.Id]
+                if (-not $ct)
+                {
+                    if ($kind -eq 'Smoke')
+                    {
+                        $unknownCase = "case $($row.Case)"
+                    }
+                    else
+                    {
+                        $unknownCase = 'case perturb ' + (@($row.Missions) -join ',')
+                    }
+                }
+                else
+                {
+                    $extra.Add("case`t" + (Get-GuardSha (([string]$ct) -replace "`r`n", "`n")))
+                }
+            }
             $reads = $In.GameReads
             $tag = 'game'
-            if ($null -eq $reads)
+            if ($kind -eq 'Tlog')
+            {
+                $reads = $null
+            }
+            elseif ($null -eq $reads)
             {
                 $noTlog = 'game tlog'
             }
@@ -455,7 +721,7 @@ function Select-GuardRows($In)
             }
             if ($kind -eq 'Smoke' -or $kind -eq 'Perturb')
             {
-                foreach ($pre in 'data\scripts\', 'tests\smoke\')
+                foreach ($pre in @('data\scripts\'))
                 {
                     $under = Get-GuardKeysUnder $ctx $pre
                     if ($under.Count -gt 0)
@@ -467,6 +733,7 @@ function Select-GuardRows($In)
         }
 
         $lines = New-Object 'System.Collections.Generic.List[string]'
+        $lines.AddRange($extra)
         foreach ($p in $files)
         {
             if ($p -eq $script:GuardProofFile)
@@ -497,7 +764,7 @@ function Select-GuardRows($In)
         }
         $arr = $lines.ToArray()
         [Array]::Sort($arr, [StringComparer]::Ordinal)
-        $depDigest = Get-GuardSha ("row`t$rowHash`ntoolset`t$toolset`ntriggers`t$triggerDigest`n" + ($arr -join "`n"))
+        $depDigest = Get-GuardSha ("row`t$rowHash`nplatform`t$platform`ntoolset`t$toolset`ntriggers`t$triggerDigest`n" + ($arr -join "`n"))
 
         $doubt = $null
         if ($null -ne $stale)
@@ -516,6 +783,10 @@ function Select-GuardRows($In)
         {
             $doubt = "unknown test $unknownTest"
         }
+        elseif ($null -ne $unknownCase)
+        {
+            $doubt = "unknown $unknownCase"
+        }
         elseif ($null -ne $noTlog)
         {
             $doubt = "no tlog $noTlog"
@@ -526,6 +797,10 @@ function Select-GuardRows($In)
         if ($null -eq $proof)
         {
             $reason = 'no record'
+        }
+        elseif (-not $platform -or [string]$proof.Platform -cne $platform)
+        {
+            $reason = 'platform'
         }
         elseif ($proof.RowHash -ne $rowHash)
         {
@@ -567,6 +842,7 @@ function Select-GuardRows($In)
             DepDigest = $depDigest
             RowHash = $rowHash
             TriggerDigest = $triggerDigest
+            Deps = $(if ($In.WithDeps) { , $arr } else { $null })
         }
     }
 }

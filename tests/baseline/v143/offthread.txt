@@ -49,6 +49,7 @@ crash-resetlaterinit	0	0	0
 crash-resetrecover	0	0	0
 crash-shellstretch	0	0	0
 crash-stackoverflow	0	0	0
+crash-stall	0	0	0
 crash-stickdelete	0	0	0
 dag1c_con	0	0	0
 dag1c_ctf	0	0	0

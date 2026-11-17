@@ -1,5 +1,6 @@
 param(
     [ValidateSet('Release', 'Debug', 'Test')][string]$Configuration = 'Release',
+    [ValidateSet('Win32', 'x64')][string]$Platform = 'Win32',
     [switch]$NoBuild,
     [string]$OutDir,
     [string]$ArchiveDir,
@@ -13,35 +14,38 @@ param(
     [switch]$DebugDigests,
     [string]$SmokeAllDir,
     [string]$HardeningDir,
-    [string]$GuardRevertDir,
     [string]$OffThreadDir,
-    [string]$PerturbDir,
     [string]$LuaBinsDir,
     [string]$MissionsFile,
     [string]$OffThreadSoundDir,
     [string]$DebugSmokeDir,
-    [int]$CaseTimeout = 60
+    [ValidateSet('vs2013', 'v143')][string]$Baseline = 'vs2013'
 )
 $ErrorActionPreference = 'Stop'
 $archiveDirGiven = $PSBoundParameters.ContainsKey('ArchiveDir')
 $testsDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $testsDir -Parent
 . (Join-Path $testsDir 'smoke.ps1')
+$script:SmokePlatform = $Platform
 
 if ($All) { $Map = $true; $Layouts = $true; $Collect = $true; $Archive = $true; $Verify = $true }
 if (-not ($Map -or $Layouts -or $Collect -or $Tables -or $Archive -or $Verify -or $DebugDigests)) {
     Write-Host 'No step selected: pass -Map, -Layouts, -Collect, -Tables, -DebugDigests, -Archive, -Verify or -All.'
     exit 2
 }
-if ($Configuration -eq 'Test' -and ($Map -or $Layouts -or $Collect -or $Archive -or $Verify -or $DebugDigests -or -not $Tables -or -not ($OffThreadDir -or $PerturbDir -or $LuaBinsDir) -or $SmokeAllDir -or $HardeningDir -or $GuardRevertDir)) {
-    Write-Host '-Configuration Test is only for -Tables -OffThreadDir, -PerturbDir or -LuaBinsDir.'
+if ($Configuration -eq 'Test' -and ($Map -or $Layouts -or $Collect -or $Archive -or $Verify -or $DebugDigests -or -not $Tables -or -not ($OffThreadDir -or $LuaBinsDir) -or $SmokeAllDir -or $HardeningDir)) {
+    Write-Host '-Configuration Test is only for -Tables -OffThreadDir or -LuaBinsDir.'
+    exit 2
+}
+if ($Baseline -eq 'v143' -and $Archive) {
+    Write-Host '-Baseline v143 has no archive; -Archive writes the vs2013 manifest.'
     exit 2
 }
 if (-not $MissionsFile) { $MissionsFile = Join-Path $root 'tests\smoke\missions-all.txt' }
 
 function Resolve-FullPath($p) { return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($p) }
 
-if (-not $OutDir) { $OutDir = Join-Path $root 'tests\baseline\vs2013' }
+if (-not $OutDir) { $OutDir = Join-Path $root "tests\baseline\$Baseline" }
 if (-not $ArchiveDir) {
     if ($env:OPENSWBF2_BASELINE_DIR) { $ArchiveDir = $env:OPENSWBF2_BASELINE_DIR }
     else { $ArchiveDir = Join-Path $env:USERPROFILE 'OpenSWBF2-baseline\vs2013' }
@@ -49,8 +53,8 @@ if (-not $ArchiveDir) {
 $OutDir = Resolve-FullPath $OutDir
 $ArchiveDir = (Resolve-FullPath $ArchiveDir).TrimEnd('\')
 
-$objDir = Join-Path $root "obj\Win32\$Configuration"
-$exeDir = Join-Path $root "bin\Win32\$Configuration"
+$objDir = Join-Path $root "obj\$Platform\$Configuration"
+$exeDir = Join-Path $root "bin\$Platform\$Configuration"
 $mapFile = Join-Path $objDir 'BattlefrontII.map'
 $tlogFile = Join-Path $objDir 'BattlefrontII.tlog\cl.command.1.tlog'
 $script:failed = $false
@@ -170,7 +174,7 @@ function Invoke-Step($name, [scriptblock]$body) {
     }
 }
 
-function Get-VcBin { return (Find-VcBin) }
+function Get-VcBin { return (Find-VcBin $Platform) }
 
 function Get-DemangledNames($names) {
     $undname = Join-Path (Get-VcBin) 'undname.exe'
@@ -194,14 +198,14 @@ function Format-MapRows($rows, $dem) {
     foreach ($r in $rows) {
         $d = $r.Symbol
         if ($dem.ContainsKey($r.Symbol)) { $d = $dem[$r.Symbol] }
-        $out.Add(("{0}`t{1}`t{2}`t{3}`t{4}" -f $i, $r.OffText, $r.Symbol, $d, $r.Obj))
+        $out.Add(("{0}`t{1}`t{2}`t{3}" -f $i, $r.Symbol, $d, $r.Obj))
         $i++
     }
     return $out
 }
 
 function Step-Map {
-    if (-not (Test-Path -LiteralPath $mapFile)) { throw "map not found: obj\Win32\$Configuration\BattlefrontII.map" }
+    if (-not (Test-Path -LiteralPath $mapFile)) { throw "map not found: obj\$Platform\$Configuration\BattlefrontII.map" }
     $lines = [IO.File]::ReadAllLines($mapFile)
     $sec = @{}
     $start = -1
@@ -229,7 +233,7 @@ function Step-Map {
         $off = [Convert]::ToInt64($m.Groups[2].Value, 16)
         $in = ($secNo -eq '0002' -and $off -ge $lo -and $off -lt $hi)
         if (-not ($in -or $isDi -or $isInit)) { continue }
-        $row = New-Object PSObject -Property @{ Sec = [Convert]::ToInt32($secNo, 16); Offset = $off; OffText = "$($secNo):$($m.Groups[2].Value)"; Symbol = $sym; Obj = $m.Groups[4].Value; Line = $i }
+        $row = New-Object PSObject -Property @{ Sec = [Convert]::ToInt32($secNo, 16); Offset = $off; Symbol = $sym; Obj = $m.Groups[4].Value; Line = $i }
         if ($in) { $inRange.Add($row) }
         elseif ($isInit -and $secNo -eq '0002') { $discarded.Add($row) }
         if ($isDi) { $di.Add($row) }
@@ -317,7 +321,7 @@ function Step-Layouts {
     $resolved = Resolve-LayoutPairs $pairs $flags $root
     $problems = $resolved.Problems
     $oldInclude = $env:INCLUDE
-    $includePath = (& (Find-MSBuild) (Join-Path $root 'BattlefrontII.vcxproj') -getProperty:IncludePath "-p:Configuration=$Configuration" -p:Platform=Win32 -nologo | Out-String).Trim()
+    $includePath = (& (Find-MSBuild) (Join-Path $root 'BattlefrontII.vcxproj') -getProperty:IncludePath "-p:Configuration=$Configuration" "-p:Platform=$Platform" -nologo | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or -not $includePath) { throw "IncludePath evaluation failed: $includePath" }
     $env:INCLUDE = $includePath
     $written = 0
@@ -353,12 +357,13 @@ function Step-Layouts {
     if ($problems.Count) { throw ($problems -join '; ') }
 }
 
-function Get-LogLines($caseDir, $pattern) {
+function Get-LogLines($caseDir, $pattern, [switch]$BeforeSoak) {
     $f = Join-Path $caseDir 'run.log'
     if (-not (Test-Path -LiteralPath $f)) { return @() }
     $rx = New-Object regex $pattern
     $out = New-Object System.Collections.Generic.List[string]
     foreach ($l in [IO.File]::ReadAllLines($f)) {
+        if ($BeforeSoak -and $l.Contains('OPENSWBF2 SOAK turns=')) { break }
         $m = $rx.Match($l)
         if ($m.Success) { $out.Add($m.Value.TrimEnd()) }
     }
@@ -366,7 +371,7 @@ function Get-LogLines($caseDir, $pattern) {
 }
 
 function Read-MapSymbols {
-    if (-not (Test-Path -LiteralPath $mapFile)) { throw "map not found: obj\Win32\$Configuration\BattlefrontII.map" }
+    if (-not (Test-Path -LiteralPath $mapFile)) { throw "map not found: obj\$Platform\$Configuration\BattlefrontII.map" }
     $ts = $null
     $base = $null
     $on = $false
@@ -419,7 +424,7 @@ function Get-OffThreadRows($smokeDir, $sym, $rows, $sources) {
             $id = [regex]::Match($bl[-1], 'build ([0-9A-Fa-f]+)$').Groups[1].Value.ToUpperInvariant()
             if ($id.Length -lt 8 -or $id.Substring(0, 8) -ne $sym.Timestamp) { throw "map timestamp mismatch in ${c}: build $id map $($sym.Timestamp)" }
         }
-        $ol = @(Get-LogLines $d.FullName 'OPENSWBF2 MEMREPORT offthread .*')
+        $ol = @(Get-LogLines $d.FullName 'OPENSWBF2 MEMREPORT offthread .*' -BeforeSoak)
         $totalRx = '^OPENSWBF2 MEMREPORT offthread count=(\d+) sources=(\d+) dropped=(\d+)$'
         $sourceRx = '^OPENSWBF2 MEMREPORT offthread tid=(\d+) heap=(\S+) size=(\d+) count=(\d+) stack=(\S+)$'
         $last = -1
@@ -475,9 +480,9 @@ function Step-Collect {
     New-Item -ItemType Directory -Force -Path $artRoot | Out-Null
     $ign = Join-Path $artRoot '.gitignore'
     if (-not (Test-Path -LiteralPath $ign)) { Set-Content -Path $ign -Value '*' -Encoding ASCII }
-    $runDir = Join-Path $artRoot ('baseline\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
-    $std = (Get-SmokeCases 'Standard' @() $false $null $false)[0].Args
-    $hog = (Get-SmokeCases 'Standard' @() $false $null $true)[0].Args
+    $runDir = New-StampedDir (Join-Path $artRoot 'baseline')
+    $std = (Get-SmokeCases 'Standard' @() $false $null $false)[0].Args.Replace(" -soakturns $script:SmokeTurnCap", ' -soakturns 1600')
+    $hog = (Get-SmokeCases 'Standard' @() $false $null $true)[0].Args.Replace(" -soakturns $script:SmokeTurnCap", ' -soakturns 1600')
     $mission = $script:SmokeStandardMission
     $digests = New-Object System.Collections.Generic.List[string]
     $hogDigests = New-Object System.Collections.Generic.List[string]
@@ -486,12 +491,12 @@ function Step-Collect {
     foreach ($m in 'geo1c_con', 'nab2g_c', 'hot1g_con', 'spa3c_ass') {
         $caseDir = Join-Path $runDir $m
         $argLine = ($m + $std.Substring($mission.Length)).Replace('{CASEDIR}', $caseDir) + ' -factorylog -digesttrace 1600'
-        $res = Invoke-SmokeCase $m $gameExe $exeDir $argLine $CaseTimeout $caseDir
+        $res = Invoke-SmokeCase $m $gameExe $exeDir $argLine $caseDir
         $digest = Get-DigestKey $caseDir
         $trace = Get-LogLines $caseDir 'OPENSWBF2 DIGEST TRACE turn=.*'
         $fact = Get-LogLines $caseDir 'OPENSWBF2 FACTORY .*'
         Write-Host "INFO: collect $m class=$($res.Class) trace=$($trace.Count) factory=$($fact.Count) $digest"
-        if ($res.Class -ne 'Pass' -and $res.Class -ne 'TimeOut') { [void]$problems.Add("$m class=$($res.Class)") }
+        if ($res.Class -ne 'Pass') { [void]$problems.Add("$m class=$($res.Class)") }
         if (-not $digest) { [void]$problems.Add("$m has no SIM DIGEST line") }
         if ($trace.Count -ne 1600) { [void]$problems.Add("$m has $($trace.Count) DIGEST TRACE lines, expected 1600") }
         if ($fact.Count -lt 1) { [void]$problems.Add("$m has no FACTORY lines") }
@@ -501,10 +506,10 @@ function Step-Collect {
 
         $hogDir = Join-Path $runDir "hog-$m"
         $hogLine = ($m + $hog.Substring($mission.Length)).Replace('{CASEDIR}', $hogDir) + ' -factorylog -digesttrace 1600'
-        $hres = Invoke-SmokeCase "hog-$m" $gameExe $exeDir $hogLine $CaseTimeout $hogDir
+        $hres = Invoke-SmokeCase "hog-$m" $gameExe $exeDir $hogLine $hogDir
         $hdigest = Get-DigestKey $hogDir
         Write-Host "INFO: collect hog-$m class=$($hres.Class) $hdigest"
-        if ($hres.Class -ne 'Pass' -and $hres.Class -ne 'TimeOut') { [void]$problems.Add("hog-$m class=$($hres.Class)") }
+        if ($hres.Class -ne 'Pass') { [void]$problems.Add("hog-$m class=$($hres.Class)") }
         if (-not $hdigest) { [void]$problems.Add("hog-$m has no SIM DIGEST line") }
         $hogDigests.Add("$m`t$hdigest")
         $s1 = [regex]::Match([string]$digest, 'state=(0x[0-9A-F]{8})')
@@ -530,10 +535,6 @@ function Step-Tables {
     $any = $false
     if ($SmokeAllDir) {
         $any = $true
-        $res = Join-Path $SmokeAllDir 'results.txt'
-        if (-not (Test-Path -LiteralPath $res)) { throw "results.txt not found in -SmokeAllDir" }
-        $lines = @(Get-Content -LiteralPath $res | ForEach-Object { $_ -replace '\s+\(\d+ ms\)\s*$', '' })
-        Write-BaselineText (Join-Path $OutDir 'smoke-all.txt') $lines
         $rows = New-Object System.Collections.Generic.List[string]
         $smokeDir = Join-Path $SmokeAllDir 'smoke'
         foreach ($d in @(Get-ChildItem -LiteralPath $smokeDir -Directory -ErrorAction SilentlyContinue | Sort-Object Name)) {
@@ -565,7 +566,7 @@ function Step-Tables {
                 if (-not $f.Success) { throw "bad SCRIPTMEM line in ${m}: $l" }
                 $poolRows.Add((@($m) + @(1..5 | ForEach-Object { $f.Groups[$_].Value })) -join "`t")
             }
-            $mr = @(Get-LogLines $caseDir 'OPENSWBF2 MEMREPORT .*')
+            $mr = @(Get-LogLines $caseDir 'OPENSWBF2 MEMREPORT .*' -BeforeSoak)
             $src = $null
             $order = New-Object System.Collections.Generic.List[string]
             $latest = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
@@ -605,13 +606,6 @@ function Step-Tables {
         Write-BaselineText (Join-Path $OutDir 'hardening.txt') $lines
     }
     else { Write-Host '[SKIP] capture:tables hardening - no -HardeningDir' }
-    if ($GuardRevertDir) {
-        $any = $true
-        $sum = Join-Path $GuardRevertDir 'summary.txt'
-        if (-not (Test-Path -LiteralPath $sum)) { throw "summary.txt not found in -GuardRevertDir" }
-        Write-BaselineText (Join-Path $OutDir 'guard-revert.txt') @(Get-Content -LiteralPath $sum)
-    }
-    else { Write-Host '[SKIP] capture:tables guard-revert - no -GuardRevertDir' }
     if ($OffThreadDir) {
         $any = $true
         $sym = Read-MapSymbols
@@ -636,28 +630,6 @@ function Step-Tables {
         Write-BaselineText (Join-Path $OutDir 'offthread.txt') (Format-OffThreadRows $rows $sources)
     }
     else { Write-Host '[SKIP] capture:tables offthread - no -OffThreadDir' }
-    if ($PerturbDir) {
-        $any = $true
-        $tsv = Join-Path $PerturbDir 'perturb.tsv'
-        if (-not (Test-Path -LiteralPath $tsv)) { throw "perturb.tsv not found in -PerturbDir" }
-        $data = @(Get-Content -LiteralPath $tsv | Where-Object { $_ -ne '' })
-        foreach ($l in $data) {
-            if ($l -cnotmatch '^\S+\t(base|pad|fill|pool|hog|repeat)\t[0-2]\t(base|equal|split turn=\d+|crash class=\S+)$') { throw "bad perturb.tsv row: $l" }
-        }
-        $baseRows = @($data | Where-Object { ($_ -split "`t")[1] -eq 'base' })
-        if ($data.Count -ne 63 -or $baseRows.Count -ne 7) { throw "perturb.tsv has $($data.Count) rows and $($baseRows.Count) base rows, need 63 and 7" }
-        foreach ($l in $data) {
-            $c = $l -split "`t"
-            $name = "perturb-$($c[0])-$($c[1])"
-            if ([int]$c[2] -gt 0) { $name = "$name-$($c[2])" }
-            $caseDir = Join-Path $PerturbDir "smoke\$name"
-            if (-not (Test-Path -LiteralPath (Join-Path $caseDir 'run.log'))) { throw "no run.log under -PerturbDir for $name" }
-        }
-        $sorted = @($data | Sort-Object { ($_ -split "`t")[0] }, { ($_ -split "`t")[1] }, { [int](($_ -split "`t")[2]) })
-        $out = @(('# commit ' + (Get-GitText 'rev-parse HEAD').Trim()), "mission`tmode`tseed`tresult") + $sorted
-        Write-BaselineText (Join-Path $OutDir 'perturb.txt') $out
-    }
-    else { Write-Host '[SKIP] capture:tables perturb - no -PerturbDir' }
     if ($LuaBinsDir) {
         $any = $true
         $smokeDir = Join-Path $LuaBinsDir 'smoke'
@@ -674,7 +646,7 @@ function Step-Tables {
         foreach ($m in $missions) {
             $blocks = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
             $cur = $null
-            foreach ($l in @(Get-LogLines (Join-Path $smokeDir $m) 'OPENSWBF2 MEMREPORT .*')) {
+            foreach ($l in @(Get-LogLines (Join-Path $smokeDir $m) 'OPENSWBF2 MEMREPORT .*' -BeforeSoak)) {
                 if ($l.StartsWith('OPENSWBF2 MEMREPORT source=')) {
                     $cur = [pscustomobject]@{ Source = $l.Substring('OPENSWBF2 MEMREPORT source='.Length); Pools = New-Object System.Collections.Generic.List[object]; Spill = @{} }
                     $blocks[$cur.Source] = $cur
@@ -705,7 +677,7 @@ function Step-Tables {
         Write-BaselineText (Join-Path $OutDir 'lua-bins.txt') $rows
     }
     else { Write-Host '[SKIP] capture:tables lua-bins - no -LuaBinsDir' }
-    if (-not $any) { throw 'none of -SmokeAllDir, -HardeningDir, -GuardRevertDir, -OffThreadDir, -PerturbDir, -LuaBinsDir given' }
+    if (-not $any) { throw 'none of -SmokeAllDir, -HardeningDir, -OffThreadDir, -LuaBinsDir given' }
 }
 
 function Step-DebugDigests {
@@ -729,12 +701,10 @@ function Get-Producer($rel) {
     if ($n.StartsWith('layouts\')) { return '`capture-vs2013.ps1 -Layouts`' }
     if ($n.StartsWith('factory-') -or $n.StartsWith('digest-trace-') -or $n -eq 'digests.txt' -or $n -eq 'digests-hog.txt') { return '`capture-vs2013.ps1 -Collect`' }
     if ($n -eq 'digests-debug.txt') { return '`capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug`' }
-    if ($n.StartsWith('smoke-all') -or $n -eq 'pool-sizes.txt' -or $n -eq 'mem-peaks.txt' -or $n -eq 'cloth-headroom.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All`' }
+    if ($n -eq 'smoke-all-digests.txt' -or $n -eq 'pool-sizes.txt' -or $n -eq 'mem-peaks.txt' -or $n -eq 'cloth-headroom.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All`' }
     if ($n -eq 'hardening.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening`' }
     if ($n -eq 'offthread.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1`' }
-    if ($n -eq 'perturb.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -PerturbDir` from `run.ps1 -Configuration Test -Smoke Perturb`' }
     if ($n -eq 'lua-bins.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All`' }
-    if ($n -eq 'guard-revert.txt') { return '`capture-vs2013.ps1 -Tables` from `guard-revert.ps1`' }
     return 'unknown'
 }
 
@@ -837,29 +807,36 @@ function Step-Verify {
         elseif ($section -eq 'Text artifacts') { $listed[$rm.Groups[1].Value] = $rm.Groups[2].Value }
     }
     if ($listed.Count -eq 0) { $problems.Add('no text artifacts listed') }
-    foreach ($rel in $listed.Keys) {
+    foreach ($rel in ($listed.Keys | Sort-Object)) {
         $p = Join-Path $OutDir $rel
-        if (-not (Test-Path -LiteralPath $p)) { $problems.Add("missing $rel"); continue }
-        if ((Get-ShaHex $p) -ne $listed[$rel]) { $problems.Add("hash mismatch $rel") }
+        if (-not (Test-Path -LiteralPath $p)) { $problems.Add("missing $rel"); Write-Host "[FAIL] verify:$rel - missing"; continue }
+        if ((Get-ShaHex $p) -ne $listed[$rel]) { $problems.Add("hash mismatch $rel"); Write-Host "[FAIL] verify:$rel - hash mismatch" }
+        else { Write-Host "[PASS] verify:$rel" }
     }
     foreach ($rel in (Get-TextArtifacts)) { if (-not $listed.ContainsKey($rel)) { $problems.Add("not in manifest $rel") } }
     $verifyDir = $ArchiveDir
     if ($zipDir -and -not $archiveDirGiven) { $verifyDir = [Environment]::ExpandEnvironmentVariables($zipDir) }
-    if (-not $zipName) { $problems.Add('no archive line') }
+    if ($Baseline -eq 'v143') {
+        if ($zipName -or $members.Count) { $problems.Add('archive section in the v143 manifest') }
+    }
+    elseif (-not $zipName) { $problems.Add('no archive line') }
     elseif (Test-InsideRepo $verifyDir) { $problems.Add('archive dir is inside the repo') }
     else {
         $zip = Join-Path $verifyDir $zipName
         if (-not (Test-Path -LiteralPath $zip)) { $problems.Add("archive $zipName not found in the archive dir") }
         else {
-            if ((Get-ShaHex $zip) -ne $zipHash) { $problems.Add("hash mismatch $zipName") }
+            if ((Get-ShaHex $zip) -ne $zipHash) { $problems.Add("hash mismatch $zipName"); Write-Host "[FAIL] verify:$zipName - hash mismatch" }
+            else { Write-Host "[PASS] verify:$zipName" }
             $tmp = Join-Path $env:TEMP ('openswbf2-verify-' + [guid]::NewGuid().ToString('N'))
             try {
-                Expand-Archive -LiteralPath $zip -DestinationPath $tmp -Force
+                Add-Type -AssemblyName System.IO.Compression.FileSystem
+                [IO.Compression.ZipFile]::ExtractToDirectory($zip, $tmp)
                 $got = @(Get-ChildItem -LiteralPath $tmp -Recurse -File)
-                foreach ($k in $members.Keys) {
+                foreach ($k in ($members.Keys | Sort-Object)) {
                     $p = Join-Path $tmp $k
-                    if (-not (Test-Path -LiteralPath $p)) { $problems.Add("archive member missing $k"); continue }
-                    if ((Get-ShaHex $p) -ne $members[$k]) { $problems.Add("hash mismatch archive member $k") }
+                    if (-not (Test-Path -LiteralPath $p)) { $problems.Add("archive member missing $k"); Write-Host "[FAIL] verify:$zipName/$k - missing"; continue }
+                    if ((Get-ShaHex $p) -ne $members[$k]) { $problems.Add("hash mismatch archive member $k"); Write-Host "[FAIL] verify:$zipName/$k - hash mismatch" }
+                    else { Write-Host "[PASS] verify:$zipName/$k" }
                 }
                 if ($got.Count -ne $members.Count) { $problems.Add("archive holds $($got.Count) files, manifest lists $($members.Count)") }
             }
@@ -884,7 +861,7 @@ function Step-Verify {
 
 if (-not $NoBuild -and ($Map -or $Layouts -or $Collect -or $Archive)) {
     $msbuild = Find-MSBuild
-    & $msbuild (Join-Path $root 'BattlefrontII.vcxproj') "/p:Configuration=$Configuration" '/p:Platform=Win32' /m /v:minimal /nologo
+    & $msbuild (Join-Path $root 'BattlefrontII.vcxproj') "/p:Configuration=$Configuration" "/p:Platform=$Platform" /m /v:minimal /nologo
     if ($LASTEXITCODE -ne 0) { Write-Host 'Build failed.'; exit 2 }
 }
 

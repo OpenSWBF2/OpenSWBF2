@@ -19,7 +19,8 @@ namespace pcCrash
     bool IsLargeAddressAware();
     void __cdecl Check(char const* pcExpr, char const* pcFile, int iLine);
     void Tick();
-    void SetHangTimeout(int iSeconds);
+    bool SetHangTimeout(int iSeconds);
+    bool Supervised();
     void StartWatchdog();
     char const* GetBuildId();
     char const* GetCrashTest();

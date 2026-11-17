@@ -1,84 +1,15 @@
-if ($PSScriptRoot) { . (Join-Path $PSScriptRoot 'vstools.ps1') }
-$script:SmokeStandardMission = 'geo1c_con'
+if ($PSScriptRoot) { if (-not $script:HarnessCommonLoaded) { . (Join-Path $PSScriptRoot 'common.ps1') }; . (Join-Path $PSScriptRoot 'smoke\cases.ps1') }
 $script:SmokeMarker = 'OPENSWBF2 RUN COMPLETE'
 $script:WerKeyPath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\BattlefrontII.exe'
 $script:WerBasePath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting'
-$script:SmokeAsanTimeoutScale = 15
 $script:SourceExtensions = @('.h', '.hpp', '.inl', '.c', '.cpp')
 $script:T1Suites = @('unit', 'characterisation', 'regression', 'known_bug', 'corpus', 'fuzz', 'stress')
-$script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-check', 'crash-hang', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat', 'crash-capexhaust')
 $script:SmokeAsanCoverage = 'ASan covers stack, globals, CRT heap and the game heaps and pools'
+$script:SmokeWerKey = $null
 
-function Get-AsanOptions([string]$caseDir) {
-    if ($caseDir.Contains("'")) { throw "ASan log_path cannot be quoted for a path that contains an apostrophe: $caseDir" }
-    return "exitcode=66:log_path='$caseDir\asan'"
-}
-
-function Get-AsanReport([string]$caseDir, $code) {
-    $files = @(Get-ChildItem -LiteralPath $caseDir -Filter 'asan.*' -File -ErrorAction SilentlyContinue)
-    if ($files.Count -gt 0) {
-        $text = 'ASan report:'
-        foreach ($f in $files) { $text += "`r`n" + ((Get-Content -LiteralPath $f.FullName -TotalCount 60) -join "`r`n") }
-        return $text
-    }
-    if ($code -eq 66) { return 'ASan exit 66 without an asan.* report: the ASan runtime failed before main (check ASAN_OPTIONS)' }
-    return $null
-}
-
-function Get-AsanCanaryRx([string]$label = 'use-after-poison', [string]$tail = '') {
-    return "$label on address[^\r\n]*\r?\n\s*(?:READ|WRITE) of size 1 at [^\r\n]*\r?\n\s*#0 [^\r\n]*asan_canary\.cpp$tail"
-}
-
-function Get-AsanCanaryState($code, $report, [string]$regex) {
-    if ($code -ne 0 -and $null -ne $report -and $report -match $regex) { return 'REPORTED' }
-    if ($code -eq 0 -and $null -eq $report) { return 'CLEAN' }
-    return 'OTHER'
-}
-
-function Find-GameDataRoot {
-    $candidate = $null
-    if ($env:SWBF2_GAMEDATA) {
-        $candidate = $env:SWBF2_GAMEDATA
-    }
-    else {
-        foreach ($view in 'Registry64', 'Registry32') {
-            $base = $null
-            $sub = $null
-            try {
-                $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey('LocalMachine', $view)
-                $sub = $base.OpenSubKey('SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 6060')
-                if ($sub) {
-                    $loc = $sub.GetValue('InstallLocation')
-                    if ($loc) { $candidate = "$loc\GameData"; break }
-                }
-            }
-            catch {}
-            finally {
-                if ($sub) { $sub.Close() }
-                if ($base) { $base.Close() }
-            }
-        }
-    }
-    if ($candidate -and (Test-Path -LiteralPath (Join-Path $candidate 'data\_lvl_pc') -PathType Container)) { return $candidate }
-    return $null
-}
-
-function Get-SmokePrecheck($gameDataRoot, $exeDir, $asan = $false) {
-    if (-not $gameDataRoot) { return 'no retail GameData found (set SWBF2_GAMEDATA or install Steam App 6060)' }
-    if (-not (Test-Path -LiteralPath (Join-Path $exeDir 'BattlefrontII.exe'))) { return "BattlefrontII.exe not found in $exeDir" }
-    $dlls = @('binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll')
-    if ($asan) { $dlls += 'clang_rt.asan_dynamic-i386.dll' }
-    foreach ($dll in $dlls) {
-        if (-not (Test-Path -LiteralPath (Join-Path $exeDir $dll))) { return "$dll missing beside the exe in $exeDir" }
-    }
-    $data = Get-Item -LiteralPath (Join-Path $exeDir 'data') -Force -ErrorAction SilentlyContinue
-    if (-not $data -or ($data.Attributes -band [IO.FileAttributes]::ReparsePoint) -or -not (Test-Path -LiteralPath (Join-Path $exeDir 'data\_lvl_pc\shell.lvl'))) { return "staged data missing in $exeDir (build without SWBF2_NOSTAGE)" }
-    return $null
-}
-
-function Get-SmokeClass($skipped, $timedOut, $code, $logText, $dumps) {
+function Get-SmokeClass($skipped, $killed, $code, $logText, $dumps) {
     if ($skipped) { return 'Skipped' }
-    if ($timedOut) { return 'TimeOut' }
+    if ($killed) { return 'Stall' }
     if ($code -eq 3221226505) { return 'GsFailure' }
     if ($code -eq 1 -or $code -eq 3 -or $code -eq 4 -or $code -eq 5 -or $logText -match 'FATAL:' -or @($dumps).Count -gt 0) { return 'Fatal' }
     if ($code -eq 0 -and $logText -match $script:SmokeMarker) { return 'Pass' }
@@ -90,7 +21,7 @@ function Get-SmokeToken($class) {
     switch ($class) {
         'Pass' { return 'PASS' }
         'Skipped' { return 'SKIP' }
-        'TimeOut' { return 'TIMEOUT' }
+        'Stall' { return 'STALL' }
         'Fatal' { return 'CRASH' }
         'GsFailure' { return 'CRASH' }
         default { return 'FAIL' }
@@ -157,7 +88,7 @@ function Get-WerDumpFolder {
     return (Join-Path $env:LOCALAPPDATA 'OpenSWBF2\crashes')
 }
 
-function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir, $asanOptions = $null) {
+function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $caseDir, $asanOptions = $null) {
     New-Item -ItemType Directory -Force -Path $caseDir | Out-Null
     $scoreLog = Join-Path $workDir 'finalscore.log'
     Remove-Item -LiteralPath $scoreLog -Force -ErrorAction SilentlyContinue
@@ -173,20 +104,17 @@ function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir
     $psi.RedirectStandardError = $true
     $psi.CreateNoWindow = $true
     if ($asanOptions) { $psi.EnvironmentVariables['ASAN_OPTIONS'] = $asanOptions }
+    Initialize-OutputCapture
     $start = Get-Date
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     $p = [System.Diagnostics.Process]::Start($psi)
     try { $p.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::BelowNormal } catch {}
-    $o = $p.StandardOutput.ReadToEndAsync()
-    $e = $p.StandardError.ReadToEndAsync()
-    $timedOut = -not $p.WaitForExit([int]([int64]$timeoutSec * 1000))
-    if ($timedOut) {
-        & taskkill /PID $p.Id /T /F 2>&1 | Out-Null
-        $p.WaitForExit()
-    }
+    $o = New-OutputCapture $p.StandardOutput.BaseStream $p.StandardOutput.CurrentEncoding
+    $e = New-OutputCapture $p.StandardError.BaseStream $p.StandardError.CurrentEncoding
+    $wait = Wait-SmokeProcess $p
     $sw.Stop()
-    $o.Wait(5000) | Out-Null
-    $e.Wait(5000) | Out-Null
+    $o.Wait()
+    $e.Wait()
     $code = [BitConverter]::ToUInt32([BitConverter]::GetBytes([int]$p.ExitCode), 0)
     $caseIni = Join-Path $caseDir 'display.ini'
     if (Test-Path -LiteralPath $caseIni) { [IO.File]::SetAttributes($caseIni, [IO.FileAttributes]::Normal) }
@@ -194,12 +122,16 @@ function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir
     $logText = ''
     $runLog = Join-Path $caseDir 'run.log'
     if (Test-Path -LiteralPath $runLog) { $logText = [IO.File]::ReadAllText($runLog) }
-    if ($o.IsCompleted) { $logText += "`r`n" + $o.Result }
-    if ($e.IsCompleted) { $logText += "`r`n" + $e.Result }
+    $outText = ''
+    $errText = ''
+    if ($o.Complete) { $outText = $o.Text; $logText += "`r`n" + $outText }
+    if ($e.Complete) { $errText = $e.Text; $logText += "`r`n" + $errText }
+    [IO.File]::WriteAllText((Join-Path $caseDir 'stdout.txt'), $outText)
+    [IO.File]::WriteAllText((Join-Path $caseDir 'stderr.txt'), $errText)
     if (Test-Path -LiteralPath $scoreLog) { Copy-Item -LiteralPath $scoreLog -Destination (Join-Path $caseDir 'finalscore.log') -Force }
 
     $dumps = @(Get-ChildItem -LiteralPath $caseDir -Filter '*.dmp' -ErrorAction SilentlyContinue)
-    $class = Get-SmokeClass $false $timedOut $code $logText $dumps
+    $class = Get-SmokeClass $false $wait.Killed $code $logText $dumps
     if ($class -eq 'GsFailure') {
         $werDir = Get-WerDumpFolder
         if (Test-Path -LiteralPath $werDir) {
@@ -215,49 +147,185 @@ function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $timeoutSec, $caseDir
         if ($asan) { $logText += "`r`n" + $asan }
     }
     $ms = $sw.ElapsedMilliseconds
-    $result = ("class={0}`r`nexit=0x{1:X8}`r`nelapsed_ms={2}`r`ndumps={3}`r`nasan={4}`r`n" -f $class, $code, $ms, $dumps.Count, [int][bool]$asan)
+    $silent = $wait.SilentMaxS.ToString('0.0', [Globalization.CultureInfo]::InvariantCulture)
+    $turns = $(if ($null -ne $wait.Turns) { [string]$wait.Turns } else { '-' })
+    $steps = $(if ($null -ne $wait.Steps) { [string]$wait.Steps } else { '-' })
+    $result = ("class={0}`r`nexit=0x{1:X8}`r`nelapsed_ms={2}`r`ndumps={3}`r`nasan={4}`r`nworkdir={5}`r`nstdout_complete={6}`r`nstderr_complete={7}`r`nstall={8}`r`nsilent_max_s={9}`r`nturns={10}`r`nsteps={11}`r`nsilent_at={12}`r`n" -f $class, $code, $ms, $dumps.Count, [int][bool]$asan, $workDir, [int]$o.Complete, [int]$e.Complete, [int][bool]$wait.Stalled, $silent, $turns, $steps, $(if ($wait.SilentMaxAt) { $wait.SilentMaxAt } else { '-' }))
     Set-Content -Path (Join-Path $caseDir 'result.txt') -Value $result -Encoding ASCII
-    return New-Object PSObject -Property @{ Name = $name; Class = $class; Code = $code; Dumps = $dumps; LogText = $logText; Ms = $ms; CaseDir = $caseDir; WorkDir = $workDir; Asan = $asan }
+    return New-Object PSObject -Property @{ Name = $name; Class = $class; Code = $code; Dumps = $dumps; LogText = $logText; Ms = $ms; CaseDir = $caseDir; WorkDir = $workDir; Asan = $asan; Stall = [int][bool]$wait.Stalled; SilentMaxS = $silent; Turns = $turns; Steps = $steps }
 }
 
-function Get-SmokeWorkerRoot($root, $name) {
-    return Join-Path $root "artifacts\smoke-workers\$name"
+function Read-KeyValueFile([string]$path) {
+    $map = [ordered]@{}
+    foreach ($line in [IO.File]::ReadAllLines($path)) {
+        $i = $line.IndexOf('=')
+        if ($i -lt 1) { continue }
+        $map[$line.Substring(0, $i)] = $line.Substring($i + 1)
+    }
+    return $map
 }
+
+function Read-SmokeCaseArchive([string]$caseDir, [bool]$asan) {
+    $resultFile = Join-Path $caseDir 'result.txt'
+    $runLog = Join-Path $caseDir 'run.log'
+    $res = New-Object PSObject -Property @{ Name = (Split-Path $caseDir -Leaf); Class = $null; Code = $null; Dumps = @(); LogText = $null; Ms = $null; CaseDir = $caseDir; WorkDir = $null; Asan = $null; Stall = $null; SilentMaxS = $null; Turns = $null; Steps = $null; Problem = $null }
+    if (-not (Test-Path -LiteralPath $resultFile -PathType Leaf) -or -not (Test-Path -LiteralPath $runLog -PathType Leaf)) {
+        $res.Problem = 'no archived output'
+        return $res
+    }
+    $f = Read-KeyValueFile $resultFile
+    foreach ($k in 'class', 'exit', 'elapsed_ms', 'dumps', 'asan', 'workdir', 'stdout_complete', 'stderr_complete', 'stall', 'silent_max_s', 'turns', 'steps') {
+        if (-not $f.Contains($k)) {
+            $res.Problem = "no archived output: result.txt lacks $k"
+            return $res
+        }
+    }
+    if ($f['exit'] -cnotmatch '^0x([0-9A-F]{8})$') {
+        $res.Problem = "no archived output: result.txt exit '$($f['exit'])'"
+        return $res
+    }
+    $res.Code = [Convert]::ToUInt32($Matches[1], 16)
+    $logText = [IO.File]::ReadAllText($runLog)
+    foreach ($s in 'stdout', 'stderr') {
+        if ($f["${s}_complete"] -ceq '1') {
+            $p = Join-Path $caseDir "$s.txt"
+            if (-not (Test-Path -LiteralPath $p -PathType Leaf)) {
+                $res.Problem = "no archived output: $s.txt"
+                return $res
+            }
+            $logText += "`r`n" + [IO.File]::ReadAllText($p)
+        }
+    }
+    $res.Dumps = @(Get-ChildItem -LiteralPath $caseDir -Filter '*.dmp' -File -ErrorAction SilentlyContinue)
+    if ($res.Dumps.Count -ne [int]$f['dumps']) {
+        $res.Problem = "archived dumps=$($f['dumps']) but $($res.Dumps.Count) .dmp files"
+        return $res
+    }
+    if ($asan) {
+        $res.Asan = Get-AsanReport $caseDir $res.Code
+        if ($res.Asan) { $logText += "`r`n" + $res.Asan }
+    }
+    if ([int][bool]$res.Asan -ne [int]$f['asan']) {
+        $res.Problem = "archived asan=$($f['asan']) but the asan report is $(if ($res.Asan) { 'present' } else { 'absent' })"
+        return $res
+    }
+    $res.Class = $f['class']
+    $res.Ms = [long]$f['elapsed_ms']
+    $res.WorkDir = $f['workdir']
+    $res.Stall = [int]$f['stall']
+    $res.SilentMaxS = $f['silent_max_s']
+    $res.Turns = $f['turns']
+    $res.Steps = $f['steps']
+    $res.LogText = $logText
+    return $res
+}
+
+function Get-FirewallRulePaths([string]$Root, [string[]]$Platforms = $script:WorkerPlatforms, [string[]]$Configurations = $script:WorkerConfigurations) {
+    $paths = New-Object System.Collections.Generic.List[string]
+    foreach ($p in $Platforms) {
+        foreach ($c in $Configurations) {
+            $paths.Add((Join-Path $Root "bin\$p\$c\BattlefrontII.exe"))
+            foreach ($k in $script:WorkerKinds) {
+                for ($w = 1; $w -le $script:WorkerIndexMax; $w++) {
+                    $d = Get-WorkerPath $Root $p $c $k $w
+                    $paths.Add((Join-Path $d 'BattlefrontII.exe'))
+                    if ($k -eq 'laa') { $paths.Add((Join-Path $d 'BattlefrontII-nolaa.exe')) }
+                }
+            }
+        }
+    }
+    return $paths.ToArray()
+}
+
+function Get-InboundAllowPrograms {
+    $ids = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($r in @(Get-NetFirewallRule -Direction Inbound -Action Allow -Enabled True)) { [void]$ids.Add($r.InstanceID) }
+    $set = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($f in @(Get-NetFirewallApplicationFilter | Where-Object { $_.Program -like '*BattlefrontII*.exe' })) {
+        if ($ids.Contains($f.InstanceID)) { [void]$set.Add([Environment]::ExpandEnvironmentVariables($f.Program)) }
+    }
+    return ,$set
+}
+
+$script:SmokeWorkerFiles = @('BattlefrontII.exe', 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll', 'unicows.dll', 'steam_appid.txt')
 
 function New-SmokeWorkerDir($srcDir, $dir) {
-    Remove-SmokeWorkerDir $dir
+    Remove-HarnessTree $dir
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
-    foreach ($f in 'BattlefrontII.exe', 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll', 'unicows.dll', 'steam_appid.txt', 'clang_rt.asan_dynamic-i386.dll') {
+    foreach ($f in @($script:SmokeWorkerFiles + (Get-AsanRuntimeName))) {
         $s = Join-Path $srcDir $f
         if (Test-Path -LiteralPath $s) { Copy-Item -LiteralPath $s -Destination $dir -Force }
     }
     & cmd /c mklink /J "$(Join-Path $dir 'data')" "$(Join-Path $srcDir 'data')" | Out-Null
 }
 
-function Remove-SmokeWorkerDir($dir) {
-    if (-not (Test-Path -LiteralPath $dir)) { return }
-    $link = Join-Path $dir 'data'
-    if (Test-Path -LiteralPath $link) { & cmd /c rmdir "$link" | Out-Null }
-    if (Test-Path -LiteralPath $link) { throw "worker data junction not removed: $link" }
-    Remove-Item -LiteralPath $dir -Recurse -Force
-}
-
-function Get-ReparsePoints([string]$dir) {
-    $found = New-Object System.Collections.Generic.List[string]
-    $top = New-Object System.IO.DirectoryInfo $dir
-    if (-not $top.Exists) { return }
-    if (($top.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $top.FullName }
-    $pending = New-Object System.Collections.Generic.Stack[System.IO.DirectoryInfo]
-    $pending.Push($top)
-    while ($pending.Count -gt 0) {
-        $cur = $pending.Pop()
-        foreach ($e in $cur.EnumerateFileSystemInfos()) {
-            if (($e.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { $found.Add($e.FullName) }
-            elseif (($e.Attributes -band [IO.FileAttributes]::Directory) -ne 0) { $pending.Push((New-Object System.IO.DirectoryInfo $e.FullName)) }
+function Clear-SmokeWorkerDir($dir, $keep = @()) {
+    foreach ($e in (New-Object System.IO.DirectoryInfo $dir).GetFileSystemInfos()) {
+        if ($e.Name -eq 'data' -or $e.Name -eq (Get-AsanRuntimeName) -or $script:SmokeWorkerFiles -contains $e.Name -or @($keep) -contains $e.Name) { continue }
+        if (($e.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "worker folder holds a reparse point: $($e.FullName)" }
+        if (($e.Attributes -band [IO.FileAttributes]::Directory) -ne 0) {
+            $links = @(Get-ReparsePoints $e.FullName)
+            if ($links.Count -gt 0) { throw "worker folder holds a reparse point: $($links -join ', ')" }
+            [IO.Directory]::Delete($e.FullName, $true)
+        }
+        else {
+            $e.Attributes = [IO.FileAttributes]::Normal
+            $e.Delete()
         }
     }
-    return $found.ToArray()
 }
+
+function Get-HarnessDataLink([string]$dir) {
+    $link = Join-Path $dir 'data'
+    $item = Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
+    if (-not $item -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) { return $null }
+    if ($item.LinkType -ne 'Junction') { return $null }
+    $target = [string]@($item.Target)[0]
+    if (-not $target -or (Split-Path $target -Leaf) -ne 'data') { return $null }
+    return $link
+}
+
+function Remove-HarnessTree([string]$dir) {
+    $ErrorActionPreference = 'Continue'
+    if (-not $dir) { throw 'Remove-HarnessTree needs a folder' }
+    $dir = [IO.Path]::GetFullPath($dir).TrimEnd('\')
+    try { $attr = [IO.File]::GetAttributes($dir) }
+    catch [IO.FileNotFoundException], [IO.DirectoryNotFoundException] { return }
+    if (($attr -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "REFUSING to remove ${dir}: it is a reparse point" }
+    if (($attr -band [IO.FileAttributes]::Directory) -eq 0) { throw "REFUSING to remove ${dir}: not a folder" }
+    $gitPath = Join-Path $dir '.git'
+    if ([IO.Directory]::Exists($gitPath)) { throw "REFUSING to remove ${dir}: it holds a .git folder" }
+    $isWorktree = [IO.File]::Exists($gitPath)
+    $harnessLink = $null
+    if (-not $isWorktree) { $harnessLink = Get-HarnessDataLink $dir }
+    try { $found = @(Get-ReparsePoints $dir) }
+    catch { throw "REFUSING to remove ${dir}: reparse point scan failed: $($_.Exception.Message)" }
+    $other = @($found | Where-Object { $_ -ne $harnessLink })
+    if ($other.Count -gt 0) { throw "REFUSING to remove ${dir}: reparse points: $($other -join ', ')" }
+    if ($harnessLink) {
+        & cmd /c rmdir "$harnessLink" | Out-Null
+        if ([IO.Directory]::Exists($harnessLink)) { throw "worker data junction not removed: $harnessLink" }
+        try { $left = @(Get-ReparsePoints $dir) }
+        catch { throw "REFUSING to remove ${dir}: reparse point scan failed: $($_.Exception.Message)" }
+        if ($left.Count -gt 0) { throw "REFUSING to remove ${dir}: reparse points: $($left -join ', ')" }
+    }
+    if ($isWorktree) {
+        $common = "$(& git -C $dir rev-parse --path-format=absolute --git-common-dir 2>&1)".Trim()
+        if ($LASTEXITCODE -ne 0) { throw "git rev-parse failed in ${dir}: $common" }
+        $main = Split-Path ([IO.Path]::GetFullPath($common)) -Parent
+        $out = & git -C $dir reset --hard -q 2>&1
+        if ($LASTEXITCODE -ne 0) { throw "git reset --hard failed in ${dir}: $out" }
+        $out = & git -C $dir clean -fdq 2>&1
+        if ($LASTEXITCODE -ne 0) { throw "git clean -fdq failed in ${dir}: $out" }
+        $out = & git -C $main worktree remove $dir 2>&1
+        if ($LASTEXITCODE -ne 0) { throw "git worktree remove failed for ${dir}: $out" }
+    }
+    else {
+        Remove-Item -LiteralPath $dir -Recurse -Force
+    }
+    if ([IO.Directory]::Exists($dir)) { throw "Cleanup failed: $dir is still in place" }
+}
+
 
 function Remove-Junctions([string]$dir) {
     if (-not (Test-Path -LiteralPath $dir)) { return }
@@ -272,24 +340,32 @@ function Remove-StagedOutput([string]$dir) {
 }
 
 function Start-SmokeBatch($items, $workDirs) {
+    Initialize-OutputCapture
+    $common = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'common.ps1'))
     $src = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'smoke.ps1'))
-    $queue = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
+    $queue =New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
     foreach ($d in $workDirs) { $queue.Enqueue([string]$d) }
     $pool = [runspacefactory]::CreateRunspacePool(1, @($workDirs).Count)
     $pool.Open()
     $worker = {
-        param($src, $queue, $item)
+        param($common, $src, $queue, $item, $platform, $keep)
+        . ([scriptblock]::Create($common))
         . ([scriptblock]::Create($src))
+        $script:SmokePlatform = $platform
         $dir = $null
         while (-not $queue.TryDequeue([ref]$dir)) { Start-Sleep -Milliseconds 50 }
-        try { Invoke-SmokeCase $item.Name (Join-Path $dir $item.ExeName) $dir $item.ArgLine $item.Timeout $item.CaseDir $item.AsanOptions }
+        try {
+            Clear-SmokeWorkerDir $dir $keep
+            Invoke-SmokeCase $item.Name (Join-Path $dir $item.ExeName) $dir $item.ArgLine $item.CaseDir $item.AsanOptions
+        }
         finally { $queue.Enqueue($dir) }
     }
+    $keep = [string[]]@($items | ForEach-Object { $_.ExeName } | Sort-Object -Unique)
     $handles = @()
     foreach ($item in $items) {
         $ps = [powershell]::Create()
         $ps.RunspacePool = $pool
-        $ps.AddScript($worker).AddArgument($src).AddArgument($queue).AddArgument($item) | Out-Null
+        $ps.AddScript($worker).AddArgument($common).AddArgument($src).AddArgument($queue).AddArgument($item).AddArgument($script:SmokePlatform).AddArgument($keep) | Out-Null
         $handles += New-Object PSObject -Property @{ Ps = $ps; Async = $ps.BeginInvoke() }
     }
     return New-Object PSObject -Property @{ Pool = $pool; Handles = $handles }
@@ -373,10 +449,21 @@ function Test-SameRunAs($caseDir, $refDir) {
 function Test-SmokeExpect($case, $res) {
     $x = $case.Expect
     if ($res.Class -ne $x.Class) { return $false }
+    if ([int]$res.Stall -ne [int]($x.ContainsKey('Stall') -and $x.Stall -eq 1)) { return $false }
     if ($x.ContainsKey('Code') -and $res.Code -ne [uint32]$x.Code) { return $false }
     $n = @($res.Dumps).Count
     if ($x.ContainsKey('MinDumps') -and $n -lt $x.MinDumps) { return $false }
     if ($x.ContainsKey('MaxDumps') -and $n -gt $x.MaxDumps) { return $false }
+    $logged = [regex]::Matches([string]$res.LogText, 'OPENSWBF2 SOAK turns=(\d+)')
+    if ($logged.Count -eq 0) { $logged = [regex]::Matches([string]$res.LogText, 'OPENSWBF2 SIM DIGEST turns=(\d+)') }
+    if ($logged.Count -gt 0) {
+        $want = [long]$logged[$logged.Count - 1].Groups[1].Value
+        $have = 0L
+        if (-not [long]::TryParse([string]$res.Turns, [ref]$have) -or $have -lt $want) {
+            Write-Host "    progress turns $($res.Turns) below the logged turns=$want"
+            return $false
+        }
+    }
     if ($x.ContainsKey('LogRx')) {
         foreach ($rx in @($x.LogRx)) { if ($res.LogText -cnotmatch $rx) { return $false } }
     }
@@ -456,413 +543,6 @@ function Test-SmokeExpect($case, $res) {
     return $true
 }
 
-$script:SmokeAddrSpaceRx = 'OPENSWBF2 ADDRSPACE arena=0x[89A-F][0-9A-F]{7} arena_end=0x[0-9A-F]{8} laa=1 steam=1 steam_api=0x(?!0{8})[0-9A-F]{8} Galaxy=0x(?!0{8})[0-9A-F]{8} GalaxyPeer=0x[0-9A-F]{8} binkw32=0x(?!0{8})[0-9A-F]{8}'
-
-function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $false) {
-    $standard = $script:SmokeStandardMission
-    $render = '-norender'
-    if ($movies) { $render = '' }
-    $tail = (("$render -nosound -fixedrate 30 -nowait -logfinalscore -DecompCONMinutes 5 -seed 1 -exitongameover -nofocuspause -log ""{CASEDIR}\run.log""") -replace '^\s+', '')
-    $htail = $tail
-    $pass = @{ Class = 'Pass' }
-    $hrx = @()
-    if ($hog) {
-        $htail = "$tail -hogaddrspace"
-        $hrx = @($script:SmokeAddrSpaceRx)
-        $pass = @{ Class = 'Pass'; LogRx = $hrx }
-    }
-    $cases = @()
-
-    $allCase = {
-        param($m, $class, $sec)
-        $x = $pass
-        $to = 0
-        if ($sec) {
-            if ($sec -notmatch '^\d+$') { throw "bad timeout '$sec' for $m in missions file" }
-            $to = [int]$sec
-        }
-        if ($class -eq 'TimeOut') { $x = @{ Class = 'TimeOut'; LogRx = (@('OPENSWBF2 MISSION RUNNING') + $hrx) } }
-        elseif ($class -eq 'Fatal') {
-            $x = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = (@('FATAL: exception 0xC0000005 at 0x[0-9A-F]+ \(d3dx9_43\.dll\+0x1BA553\)') + $hrx) }
-        }
-        elseif ($class -ne 'Pass') { throw "unknown expected class '$class' for $m in missions file" }
-        $mArgs = "$m $htail -logcmds ""LogMemory Verbose"""
-        if ($m -match '_(1flag|ctf|ass)$' -and $null -eq (Get-DigestExpected $m) -and $class -eq 'Pass') { throw "$m has no digest row and runs with -novictory, so it cannot Pass" }
-        if ($m -match '_(1flag|ctf|ass)$' -and $null -eq (Get-DigestExpected $m) -and $class -eq 'TimeOut') {
-            $mArgs += ' -novictory'
-            $x = $x.Clone()
-            $x.LogRx = @($x.LogRx | Where-Object { $_ }) + '(?m)OPENSWBF2 NOVICTORY\r?$'
-        }
-        New-Object PSObject -Property @{ Name = $m; Args = $mArgs; Expect = $x; Twice = 0; Timeout = $to }
-    }
-
-    if ($which -eq 'Standard') {
-        $memRx = @('OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT heap=Runtime cap=\d+ peak=\d+ used=\d+ allocs=\d+ failed=\d+', 'OPENSWBF2 MEMREPORT heap=Lua ', 'OPENSWBF2 MEMREPORT heap=Application ', 'OPENSWBF2 MEMREPORT heap=Artist ', 'OPENSWBF2 MEMREPORT heap=Gamespy ', 'OPENSWBF2 MEMREPORT heap=Debug ', 'OPENSWBF2 MEMREPORT pool=\S+ count=\d+ size=\d+ peak=\d+ grown=\d+', 'OPENSWBF2 MEMREPORT pool=Lua\d+ ', 'OPENSWBF2 MEMREPORT pool=Weapon ', 'OPENSWBF2 CLOTH free=-?\d+ enabled=[01] low=\d+ high=\d+')
-        if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') { $memRx += 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0' }
-        $cases += New-Object PSObject -Property @{ Name = $standard; Args = "$standard $htail"; Expect = @{ Class = 'Pass'; LogRx = ($memRx + $hrx) }; Twice = 0; Timeout = 0 }
-        $cases += New-Object PSObject -Property @{ Name = 'heapcap'; Args = "$standard $htail -heapcap Runtime=1M -heapcap Runtime=96M -heapcap Bogus=1M -heapcap Runtime=12x"; Expect = @{ Class = 'Pass'; SameRunAs = $standard; LogRx = (@('OPENSWBF2 MEMREPORT heap=Runtime cap=100663296 ', '-heapcap needs <Name>=<bytes>\[K\|M\], ignored: Bogus=1M', '-heapcap needs <Name>=<bytes>\[K\|M\], ignored: Runtime=12x') + $hrx) }; Twice = 0; Timeout = 0 }
-    }
-    if ($which -eq 'Standard') {
-        $cases += New-Object PSObject -Property @{ Name = 'display-switches'; Args = "$standard $htail -borderless -adapter 0 -refresh 60 -vsync half -fps 120 -nowaitquery -nodpi"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=120 vsync=on interval=0x00000000 waitquery=0 timer=none', 'pacing: fps cap 120 is above 80', 'vsync: requested interval not supported here, using on', 'OPENSWBF2 DPI awareness=off') + $hrx) }; Twice = 0; Timeout = 0 }
-        $cases += New-Object PSObject -Property @{ Name = 'pacing-default'; Args = "$standard $htail"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=0 timer=none', 'OPENSWBF2 DPI awareness=(pmv2|pm|system|none) dpi=\d+', 'OPENSWBF2 GAMMA path=ramp reason=norender', '(?s)\A(?!.*OPENSWBF2 GAMMA FAKE)', '(?s)\A(?!.*OPENSWBF2 GAMMA path=pass)', 'OPENSWBF2 CURSOR mode=hw image=skipped') + $hrx) }; Twice = 0; Timeout = 0 }
-        $cases += New-Object PSObject -Property @{ Name = 'cursor-sw'; Args = "$standard $htail -swcursor"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 CURSOR mode=sw image=skipped', '(?s)\A(?!.*OPENSWBF2 CURSOR mode=hw)') + $hrx) }; Twice = 0; Timeout = 0 }
-        $swIni = Join-Path $PSScriptRoot 'smoke\display-swcursor.ini'
-        $cases += New-Object PSObject -Property @{ Name = 'cursor-sw-ini'; Args = "$standard $htail -displayini `"$swIni`""; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 CURSOR mode=sw image=skipped', '(?s)\A(?!.*OPENSWBF2 CURSOR mode=hw)') + $hrx) }; Twice = 0; Timeout = 0 }
-        $cases += New-Object PSObject -Property @{ Name = 'window-borderless-headless'; Args = "$standard $htail -borderless -adapter 5"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 DPI awareness=(pmv2|pm|system|none) dpi=\d+') + $hrx) }; Twice = 0; Timeout = 0 }
-        $cases += New-Object PSObject -Property @{ Name = 'fps-0'; Args = "$standard $htail -fps 0"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=0 ', 'pacing: fps cap is uncapped') + $hrx) }; Twice = 0; Timeout = 0 }
-        $cases += New-Object PSObject -Property @{ Name = 'fps-30'; Args = "$standard $htail -fps 30"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=30 ') + $hrx) }; Twice = 0; Timeout = 0 }
-        $rtTail = $htail -replace ' -fixedrate 30', ''
-        $cases += New-Object PSObject -Property @{ Name = 'pacing-realtime'; Args = "nab2g_c $rtTail -fps 30"; Expect = @{ Class = 'TimeOut'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 PACING fps=30 ') + $hrx) }; Timeout = 30; Twice = 0 }
-        $cases += New-Object PSObject -Property @{ Name = 'pacing-realtime-uncapped'; Args = "nab2g_c $rtTail -fps 0"; Expect = @{ Class = 'TimeOut'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 PACING fps=0 ') + $hrx) }; Timeout = 30; Twice = 0 }
-        $badIni = Join-Path $PSScriptRoot 'smoke\display-bad.ini'
-        $cases += New-Object PSObject -Property @{ Name = 'display-badini'; Args = "$standard $htail -adapter abc -refresh 99999 -displayini `"$badIni`""; Expect = $pass; Twice = 0; Timeout = 0 }
-        $waitIni = Join-Path $PSScriptRoot 'smoke\display-waitquery.ini'
-        $cases += New-Object PSObject -Property @{ Name = 'pacing-waitquery-ini'; Args = "$standard $htail -displayini `"$waitIni`""; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=1 timer=none') + $hrx) }; Twice = 0; Timeout = 0 }
-        $cases += New-Object PSObject -Property @{ Name = 'digest-dag1c_ctf'; Args = "dag1c_ctf $htail"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=') + $hrx) }; Twice = 0; Timeout = 0 }
-        $cases += New-Object PSObject -Property @{ Name = 'novictory-con'; Args = "$standard $htail -novictory -digesttrace 9300"; Expect = @{ Class = 'TimeOut'; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 NOVICTORY\r?$', 'OPENSWBF2 DIGEST TRACE turn=9300 ') + $hrx) }; Twice = 0; Timeout = 38 }
-        $cases += New-Object PSObject -Property @{ Name = 'digest-kas2c_uber'; Args = "kas2c_uber $htail"; Expect = $pass; Twice = 0; Timeout = 0 }
-        if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') {
-            $scanRx = @('OPENSWBF2 HANDLESCAN state=shell live=0 dead=0', 'OPENSWBF2 HANDLESCAN state=mission live=0 dead=0', '(?s)\A(?!.*OPENSWBF2 HANDLESCAN (live |dead |state=\w+ (?!live=0 dead=0\b)))')
-            $cases += New-Object PSObject -Property @{ Name = 'shell-first'; Args = "$standard $htail -shellfirst"; Expect = @{ Class = 'Pass'; SameDigests = 1; LogRx = (@('OPENSWBF2 SHELLFIRST to_mission mission=' + $standard) + $scanRx + $hrx) }; Twice = 0; Timeout = 0 }
-            $cases += New-Object PSObject -Property @{ Name = 'commit-flat'; Args = "$standard $htail -repeatmission 16"; Expect = @{ Class = 'Pass'; SameDigests = 17; CommitFlat = 0; CommitCycles = 16; CommitSettled = 8; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $hrx) }; Twice = 0; Timeout = 220 }
-            if ($script:SmokeDigestConfiguration -eq 'Test') {
-                $mvTail = (($htail -replace '(^| )-norender(?= )', '') -replace '(^| )-nosound(?= )', '') -replace '^\s+', ''
-                $cases += New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = "nab2g_c $mvTail -win -exitonmovieclose"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', 'OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0') + $hrx) }; Twice = 0; Timeout = 120 }
-            }
-            $cases += New-Object PSObject -Property @{ Name = 'repeat-water'; Args = "nab2g_c $htail -repeatmission"; Expect = @{ Class = 'TimeOut'; SameDigests = 2; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 REPEAT to_shell mission=nab2g_c\r?$', '(?m)OPENSWBF2 REPEAT to_mission mission=nab2g_c\r?$') + $hrx) }; Twice = 0; Timeout = 23 }
-            $cases += New-Object PSObject -Property @{ Name = 'repeat-digest'; Args = "$standard $htail -repeatmission"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $scanRx + $hrx) }; Twice = 0; Timeout = 300 }
-        }
-    }
-    if ($which -eq 'All') {
-        foreach ($line in $missions) {
-            $tok = @($line.Trim() -split '\s+')
-            if ($tok[0]) {
-                $class = 'Pass'
-                if ($tok.Count -gt 1) { $class = $tok[1] }
-                $sec = $null
-                if ($tok.Count -gt 2) { $sec = $tok[2] }
-                $cases += & $allCase $tok[0] $class $sec
-            }
-        }
-    }
-    if ($which -eq 'Dedicated' -or $which -eq 'All') {
-        $dm = $standard
-        if ($dedicatedSpec) { $dm = $dedicatedSpec }
-        $cases += New-Object PSObject -Property @{
-            Name = 'dedicated'
-            Args = "/autonet dedicated -lan -nopregame -playercount 0 $dm 100 100 $htail"
-            Expect = $pass
-            Twice = 0; Timeout = 0
-        }
-    }
-    if ($which -eq 'Crash' -or $which -eq 'All') {
-        foreach ($kind in 'nullderef', 'divzero', 'stackoverflow', 'debugbreak', 'abort', 'invalidparam') {
-            $cases += New-Object PSObject -Property @{
-                Name = "crash-$kind"
-                Args = "$standard $tail -crashtest $kind"
-                Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = 'FATAL:.*\.dmp' }
-                Twice = 0; Timeout = 0
-            }
-        }
-        $ff = @{ Class = 'GsFailure'; Code = 3221226505 }
-        if (Test-WerKey) { $ff.MinDumps = 1 }
-        $cases += New-Object PSObject -Property @{ Name = 'crash-fastfail'; Args = "$standard $tail -crashtest fastfail"; Expect = $ff; Twice = 0; Timeout = 0 }
-        $cases += New-Object PSObject -Property @{
-            Name = 'fatal-init'
-            Args = "no_such_mission $tail"
-            Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = 'FATAL: initialization failed' }
-            Twice = 0; Timeout = 0
-        }
-        foreach ($kind in 'arenaoom', 'debugheapoom') {
-            $cases += New-Object PSObject -Property @{
-                Name = "crash-$kind"
-                Args = "$standard $tail -crashtest $kind"
-                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = ('FATAL: out of memory allocating ' + $(if ($kind -eq 'arenaoom') { 'application heap' } else { 'debug heap' }) + ' \(\d+ bytes\) load \d+% phys \d+ MB virt \d+ MB') }
-                Twice = 0; Timeout = 0
-            }
-        }
-        if ($script:SmokeDigestConfiguration -eq 'Test') {
-            $cases += New-Object PSObject -Property @{
-                Name = 'crash-buildheapfail'
-                Args = "$standard $tail -crashtest buildheapfail"
-                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = 'FATAL: out of memory allocating Lua heap \(16777216 bytes\) load \d+% phys \d+ MB virt \d+ MB' }
-                Twice = 0; Timeout = 0
-            }
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-heapfail'
-            Args = "$standard $tail -crashtest heapfail"
-            Expect = @{ Class = 'Pass'; LogRx = 'alloc failure heap \S+ \(\d+\) size \d+ free \d+ load \d+% phys \d+ MB virt \d+ MB used \d+ cap \d+ peak \d+ largestfree \d+' }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-capexhaust'
-            Args = "$standard $tail -heapcap Runtime=512M -crashtest capexhaust"
-            Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('alloc failure heap Runtime \(\d+\) size 1048576 .* cap 536870912 ', 'FATAL: '); ErrorRx = @('alloc failure heap Runtime \(\d+\) size 1048576') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-midoublefree'
-            Args = "$standard $tail -crashtest midoublefree"
-            Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('OPENSWBF2 MIERROR err=11', 'FATAL: '); ErrorRx = @('OPENSWBF2 MIERROR err=11') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-poolcount'
-            Args = "$standard $tail -crashtest poolcount"
-            Expect = @{ Class = 'Pass'; LogRx = @('LogMemory Warning RedEngineFL\\Memory\\RedScriptLimits\.h:\d+: SetMemoryPoolSize\(crashtestpool\): script value 2147483647 clamped to \d+', 'LogMemory Warning RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "crashtesthuge" refused count 1073741825 size 16') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'pool-full'
-            Args = "$standard $tail -crashtest poolfull"
-            Expect = @{ Class = 'Pass'; LogRx = @('LogMemory Warning RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "crashtestpool" is full; raise count to at least 3', '(?s)\A(?!.*crashtestpool" is full.*crashtestpool" is full)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'pool-full-strict'
-            Args = "$standard $tail -crashtest poolfull -poolerrors"
-            Expect = @{ Class = 'Pass'; LogRx = @('LogMemory Error RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "crashtestpool" is full; raise count to at least 3'); ErrorRx = @('^\[t=\d+\.\d{3}\] \[f=\d+\] LogMemory Error RedEngineFL\\Memory\\RedMemoryPool\.cpp:\d+: Memory pool "[^"]*" is full; raise count to at least \d+$') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-stickdelete'
-            Args = "spa3c_ass $tail -crashtest stickdelete"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 STICKDELETE prop=1 gameobject=0 stuck=1 cleared=1 fell=1', '(?s)\A(?!.*FATAL:)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-luaoom'
-            Args = "$standard $tail -crashtest luaoom"
-            Expect = @{ Class = 'Pass'; LogRx = 'Lua out of memory' }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-luapanic'
-            Args = "$standard $tail -crashtest luapanic"
-            Expect = @{ Class = 'Fatal'; Code = 4; MaxDumps = 0; LogRx = 'FATAL: lua panic' }
-            Twice = 0; Timeout = 0
-        }
-    }
-    if ($which -eq 'Crash' -or $which -eq 'All') {
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-hang'
-            Args = "$standard $tail -crashtest hang -hangtimeout 5"
-            Expect = @{ Class = 'Fatal'; Code = 5; MinDumps = 1; MaxDumps = 1; LogRx = 'FATAL: hang' }
-            Twice = 0; Timeout = 30
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-check'
-            Args = "$standard $tail -crashtest check"
-            Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('FATAL: check failed', 'ensure summary: 1 failures at 1 sites') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-resetinitlost'
-            Args = "$standard $tail -crashtest resetinitlost"
-            Expect = @{ Class = 'Pass'; LogRx = 'OPENSWBF2 RESET recovered after 4 attempts' }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-resetrecover'
-            Args = "$standard $tail -crashtest resetrecover"
-            Expect = @{ Class = 'Pass'; LogRx = 'OPENSWBF2 RESET recovered after 4 attempts' }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-resetflap'
-            Args = "$standard $tail -crashtest resetflap"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 RESET recovered after 25 attempts', '(?s)\A(?!.*OPENSWBF2 RESET failed.*OPENSWBF2 RESET failed)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-resetlaterinit'
-            Args = "$standard $tail -crashtest resetlaterinit"
-            Expect = @{ Class = 'InitFailure'; Code = 0; MaxDumps = 0; LogRx = '(?s)OPENSWBF2 MISSION RUNNING.*OPENSWBF2 CLOSE deferred until loading finishes.*OPENSWBF2 RESET recovered after 2 attempts' }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-resetfatal'
-            Args = "$standard $tail -crashtest resetfatal"
-            Expect = @{ Class = 'Fatal'; Code = 1; MinDumps = 1; MaxDumps = 1; LogRx = '(?s)\A(?:(?!FATAL:).)*OPENSWBF2 RESET reverting asked=\d+x\d+ windowed=\d used=\d+x\d+ windowed=\d(?:(?!FATAL:).)*FATAL: device reset failed hr=0x8876086C(?:(?!FATAL:).)*\z' }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-applymode'
-            Args = "$standard $tail -crashtest applymode"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY applied \d+x\d+ mode=', 'OPENSWBF2 APPLY TARGETS alive=\d+ fresh=(?:[2-9]|[1-9]\d+) stale=0 buffers=3/3 moved=1 ', '(?s)OPENSWBF2 DISPLAY applied (\d+)x(\d+) .*OPENSWBF2 DISPLAY relayout generation=\d+ screen=\1x\2 view=\1x\2 hud=\1x\2 aspect=(\d+\.\d{4}) camera=\3\b', '(?s)\A(?!.*FATAL:)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-applymodesmall'
-            Args = "$standard $tail -crashtest applymodesmall"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY applied 320x240 mode=', 'OPENSWBF2 APPLY TARGETS alive=\d+ fresh=(?:[3-9]|[1-9]\d+) stale=0 buffers=3/3 moved=3 ', '(?s)OPENSWBF2 DISPLAY applied (\d+)x(\d+) .*OPENSWBF2 DISPLAY relayout generation=\d+ screen=\1x\2 view=\1x\2 hud=\1x\2 ', '(?s)\A(?!.*FATAL:)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-applyfail'
-            Args = "$standard $tail -crashtest applyfail"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY reverted asked=(\d+)x(\d+) mode=\d+ used=(?!\1x\2 )', '(?s)OPENSWBF2 DISPLAY reverted .*OPENSWBF2 RESET recovered after \d+ attempts', '(?s)OPENSWBF2 DISPLAY reverted .*OPENSWBF2 DISPLAY profile restored ', '(?s)\A(?!.*FATAL:)', '(?s)\A(?!.*OPENSWBF2 DISPLAY applied)', '(?s)\A(?!.*OPENSWBF2 DISPLAY relayout)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-applypresentfail'
-            Args = "$standard $tail -crashtest applypresentfail"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY reverted asked=(\d+)x(\d+) mode=\d+ used=(?!\1x\2 )', '(?s)\A(?!.*FATAL:)', '(?s)\A(?!.*OPENSWBF2 DISPLAY applied)', '(?s)OPENSWBF2 DISPLAY reverted asked=\d+x\d+ mode=\d+ used=(\d+)x(\d+) .*OPENSWBF2 DISPLAY relayout generation=\d+ screen=\1x\2 view=\1x\2 hud=\1x\2 (?!.*OPENSWBF2 DISPLAY relayout)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-applytargetfail'
-            Args = "$standard $tail -crashtest applytargetfail"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY reverted asked=(\d+)x(\d+) mode=\d+ used=(?!\1x\2 )\d+x\d+ mode=\d+ hr=0x8876017C', '(?s)\A(?!.*FATAL:)', '(?s)\A(?!.*OPENSWBF2 DISPLAY applied)', '(?s)OPENSWBF2 DISPLAY reverted asked=\d+x\d+ mode=\d+ used=(\d+)x(\d+) .*OPENSWBF2 DISPLAY relayout generation=\d+ screen=\1x\2 view=\1x\2 hud=\1x\2 (?!.*OPENSWBF2 DISPLAY relayout)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-gammapass'
-            Args = "$standard $tail -crashtest gammapass"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 GAMMA path=pass', '(?s)OPENSWBF2 GAMMA FAKE target=(\d+)x(\d+) alive=1 bb=\1x\2 draws=[1-9]\d* ramp_nonid=0.*OPENSWBF2 DISPLAY applied \1x\2 ', '(?s)OPENSWBF2 RESET recovered after \d+ attempts.*OPENSWBF2 GAMMA FAKE target=(\d+)x(\d+) alive=1 bb=\1x\2 draws=[1-9]\d* ramp_nonid=0', '(?s)\A(?!.*ramp_nonid=[1-9])', '(?s)\A(?!.*OPENSWBF2 GAMMA fallback)', '(?s)\A(?!.*FATAL:)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-gammafallback'
-            Args = "$standard $tail -crashtest gammafallback"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 GAMMA path=ramp reason=createfail hr=0x8876017C', 'OPENSWBF2 GAMMA FAKE target=\d+x\d+ alive=0 bb=\d+x\d+ draws=0 ramp_nonid=[1-9]', '(?s)\A(?!.*OPENSWBF2 GAMMA path=pass)', '(?s)\A(?!.*draws=[1-9])', '(?s)\A(?!.*FATAL:)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-gammalost'
-            Args = "$standard $tail -crashtest gammalost"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 GAMMA path=pass', 'OPENSWBF2 GAMMA FAKE target=(\d+)x(\d+) alive=1 bb=\1x\2 draws=[1-9]\d* ramp_nonid=0', '(?s)\A(?!.*OPENSWBF2 GAMMA path=ramp)', '(?s)\A(?!.*OPENSWBF2 GAMMA fallback)', '(?s)\A(?!.*ramp_nonid=[1-9])', '(?s)\A(?!.*FATAL:)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-shellstretch'
-            Args = "$standard $tail -crashtest shellstretch"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY shell stretch linear (\d+)x(\d+)->(\d+)x(\d+)', '(?s)OPENSWBF2 SHELLSTRETCH FAKE chain=\d+x\d+ presents=[1-9]\d* filter=linear.*OPENSWBF2 RESET recovered after \d+ attempts.*OPENSWBF2 SHELLSTRETCH FAKE chain=\d+x\d+ presents=[1-9]\d* filter=linear', '(?s)\A(?!.*shell stretch unavailable)', '(?s)\A(?!.*FATAL:)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-gammadrawfail'
-            Args = "$standard $tail -crashtest gammadrawfail"
-            Expect = @{ Class = 'Pass'; LogRx = @('(?s)OPENSWBF2 GAMMA path=pass.*OPENSWBF2 GAMMA fallback to ramp reason=drawfail hr=0x8876086C', 'OPENSWBF2 GAMMA FAKE target=\d+x\d+ alive=0 bb=\d+x\d+ draws=0 ramp_nonid=[1-9]', '(?s)\A(?!.*OPENSWBF2 GAMMA fallback.*OPENSWBF2 GAMMA fallback)', '(?s)\A(?!.*draws=[1-9])', '(?s)\A(?!.*FATAL:)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-applyadapter'
-            Args = "$standard $tail -crashtest applyadapter -displayini ""{CASEDIR}\display.ini"""
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY adapter=1 invalid', 'OPENSWBF2 DISPLAY adapter=0 pending, running adapter unchanged', '(?s)\A(?!.*OPENSWBF2 DISPLAY adapter=\d+ saved)', '(?s)\A(?!.*FATAL:)'); NoIni = $true }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-adaptercancel'
-            Args = "$standard $tail -crashtest adaptercancel -displayini ""{CASEDIR}\display.ini"""
-            Expect = @{ Class = 'Pass'; LogRx = @('(?s)OPENSWBF2 DISPLAY adapter=0 pending.*OPENSWBF2 DISPLAY menu cancel restored.*OPENSWBF2 DISPLAY adaptertest save=0', '(?s)\A(?!.*OPENSWBF2 DISPLAY adapter=\d+ saved)', '(?s)\A(?!.*FATAL:)'); NoIni = $true }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-adapteraccept'
-            Args = "$standard $tail -crashtest adapteraccept -displayini ""{CASEDIR}\display.ini"""
-            Expect = @{ Class = 'Pass'; LogRx = @('(?s)OPENSWBF2 DISPLAY adapter=0 pending, running adapter unchanged.*OPENSWBF2 DISPLAY adapter=0 saved, running adapter unchanged.*OPENSWBF2 DISPLAY menutest save=1', 'OPENSWBF2 DISPLAY confirm timeout, reverting', 'OPENSWBF2 DISPLAY menutest done result=2', '(?s)\A(?!.*FATAL:)'); IniRx = @('(?m)^Adapter=0\r?$', '(?s)\A(?!.*\bVsync=)(?!.*\bAdapter=1)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-menuconfirm'
-            Args = "$standard $tail -crashtest menuconfirm"
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY confirm pending 15s', '(?s)OPENSWBF2 DISPLAY confirm pending 15s.*OPENSWBF2 DISPLAY menutest plain vsync=\d.*OPENSWBF2 DISPLAY confirm timeout, reverting to ', '(?s)OPENSWBF2 DISPLAY menutest base (\d+x\d+).*OPENSWBF2 DISPLAY confirm timeout, reverting to \1 mode=', '(?s)OPENSWBF2 DISPLAY confirm timeout, reverting to (\d+x\d+) .*OPENSWBF2 DISPLAY applied \1 ', '(?s)OPENSWBF2 DISPLAY menutest base \d+x\d+.*?OPENSWBF2 DISPLAY applied \d+x\d+ mode=\w+ refresh=\S+ vsync=(\w+) .*OPENSWBF2 DISPLAY confirm timeout, reverting to .*?OPENSWBF2 DISPLAY applied \d+x\d+ mode=\w+ refresh=\S+ vsync=\1 ', '(?s)OPENSWBF2 DISPLAY menutest plain vsync=\d.*?OPENSWBF2 DISPLAY applied \d+x\d+ mode=\w+ refresh=\S+ vsync=(\w+) .*OPENSWBF2 DISPLAY confirm timeout, reverting to .*?OPENSWBF2 DISPLAY applied \d+x\d+ mode=\w+ refresh=\S+ vsync=(?!\1 )', 'OPENSWBF2 DISPLAY menutest done result=2', '(?s)OPENSWBF2 DISPLAY menutest base \d+x\d+ fps=(\d+) waitquery=(\d)\b.*OPENSWBF2 DISPLAY confirm timeout, reverting to \d+x\d+ mode=\w+ fps=\1 waitquery=\2\b.*OPENSWBF2 DISPLAY menutest done result=2 fps=\1 waitquery=\2\b','(?s)\A(?!.*OPENSWBF2 DISPLAY confirm kept)', '(?s)\A(?!.*FATAL:)', 'OPENSWBF2 DISPLAY menu options built adapters=\d+', '(?s)\A(?!.*OPENSWBF2 LUA error)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-menukeep'
-            Args = "$standard $tail -crashtest menukeep -displayini ""{CASEDIR}\display.ini"""
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY confirm pending 15s', 'OPENSWBF2 DISPLAY confirm kept', 'OPENSWBF2 DISPLAY menutest done result=1', 'OPENSWBF2 DISPLAY menutest save=1', 'OPENSWBF2 DISPLAY menu save deferred until the confirm ends', '(?s)OPENSWBF2 DISPLAY confirm kept.*OPENSWBF2 DISPLAY menu saved keys=0x', 'menutest done result=1 fps=\d+ waitquery=\d keepsave=0', '(?s)\A(?!.*OPENSWBF2 DISPLAY confirm timeout)', '(?s)\A(?!.*FATAL:)'); IniRx = @('(?m)^Vsync=2\r?$', '(?s)\A(?!.*\bFps=)(?!.*\bRefresh=)(?!.*\bNoWaitQuery=)(?!.*\bBorderless=)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-menusavefail'
-            Args = "$standard $tail -crashtest menusavefail -displayini ""{CASEDIR}\display.ini"""
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY menutest save=1', '(?s)OPENSWBF2 DISPLAY confirm kept.*OPENSWBF2 DISPLAY menu save failed', 'OPENSWBF2 DISPLAY menutest save=2', 'menutest done result=1 fps=\d+ waitquery=\d keepsave=2', '(?s)\A(?!.*FATAL:)'); IniRx = @('(?s)\A(?!.*\bVsync=)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-menuorder'
-            Args = "$standard $tail -crashtest menuorder"
-            Expect = @{ Class = 'Pass'; LogRx = @('(?s)OPENSWBF2 DISPLAY menutest order=legacy-menu(?:(?!OPENSWBF2 DISPLAY applied ).)*OPENSWBF2 DISPLAY applied (?:(?!OPENSWBF2 DISPLAY applied ).)*OPENSWBF2 DISPLAY confirm pending 15s', 'OPENSWBF2 DISPLAY confirm timeout, reverting to ', 'OPENSWBF2 DISPLAY menutest done result=2', '(?s)\A(?!.*FATAL:)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-menuorderrev'
-            Args = "$standard $tail -crashtest menuorderrev"
-            Expect = @{ Class = 'Pass'; LogRx = @('(?s)OPENSWBF2 DISPLAY menutest order=menu-legacy(?:(?!OPENSWBF2 DISPLAY applied ).)*OPENSWBF2 DISPLAY applied (?:(?!OPENSWBF2 DISPLAY applied ).)*OPENSWBF2 DISPLAY confirm pending 15s', 'OPENSWBF2 DISPLAY confirm timeout, reverting to ', 'OPENSWBF2 DISPLAY menutest done result=2', '(?s)\A(?!.*FATAL:)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-menurevertsave'
-            Args = "$standard $tail -crashtest menurevertsave -displayini ""{CASEDIR}\display.ini"""
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY menutest save=1', '(?s)OPENSWBF2 DISPLAY confirm pending 15s.*OPENSWBF2 DISPLAY confirm timeout, reverting to .*OPENSWBF2 DISPLAY menu saved keys=0x10\b.*OPENSWBF2 DISPLAY menu cancel restored', '(?s)OPENSWBF2 DISPLAY menutest prior vsync=(\d+) fps=(\d+)\b.*OPENSWBF2 DISPLAY menutest restored vsync=\1 fps=(?!\2\b)\d+', 'OPENSWBF2 DISPLAY menutest done result=2 fps=\d+ waitquery=\d keepsave=0', '(?s)\A(?!.*FATAL:)'); IniRx = @('(?m)^Fps=(?:30|60)\r?$', '(?s)\A(?!.*\bVsync=)(?!.*\bBorderless=)(?!.*\bRefresh=)') }
-            Twice = 0; Timeout = 0
-        }
-        $cases += New-Object PSObject -Property @{
-            Name = 'crash-menuapplyfail'
-            Args = "$standard $tail -crashtest menuapplyfail -displayini ""{CASEDIR}\display.ini"""
-            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 DISPLAY menutest save=1', '(?s)OPENSWBF2 DISPLAY menutest base \d+x\d+ fps=\d+ waitquery=(\d)\b.*OPENSWBF2 DISPLAY menutest prior vsync=\d+ fps=\d+ accept=(\d+)\b.*OPENSWBF2 DISPLAY reverted asked=.*OPENSWBF2 DISPLAY profile restored \d+x\d+ windowed=\d vsync=\d fps=\2 waitquery=\1\b.*OPENSWBF2 DISPLAY menu saved keys=0x10\b.*OPENSWBF2 DISPLAY menutest done result=0 fps=\2 waitquery=\1 keepsave=0', '(?s)\A(?!.*OPENSWBF2 DISPLAY confirm pending)', '(?s)\A(?!.*OPENSWBF2 DISPLAY applied)', '(?s)\A(?!.*FATAL:)'); IniRx = @('(?m)^Fps=(?:30|60)\r?$', '(?s)\A(?!.*\bVsync=)(?!.*\bBorderless=)(?!.*\bRefresh=)(?!.*\bNoWaitQuery=)') }
-            Twice = 0; Timeout = 0
-        }
-    }
-    if ($which -eq 'Twice') {
-        foreach ($i in 1, 2) {
-            $cases += New-Object PSObject -Property @{ Name = "twice-$i"; Args = "$standard $htail"; Expect = $pass; Twice = $i; Timeout = 0 }
-        }
-        $digestExpect = @{ Class = 'TimeOut'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=') + $hrx) }
-        foreach ($i in 1, 2) {
-            $cases += New-Object PSObject -Property @{ Name = "twice-digest-$i"; Args = "nab2g_c $htail"; Expect = $digestExpect; Twice = 2 + $i; Timeout = 30 }
-        }
-        foreach ($m in 'hot1g_con', 'spa3c_ass') {
-            $cases += New-Object PSObject -Property @{ Name = "digest-$m"; Args = "$m $htail"; Expect = $pass; Twice = 0; Timeout = 0 }
-        }
-        $traceExpect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 DIGEST TRACE turn=1500 ') + $hrx) }
-        foreach ($i in 1, 2) {
-            $ttail = $htail.Replace('-seed 1 ', "-seed $i ")
-            $cases += New-Object PSObject -Property @{ Name = "trace-seed-$i"; Args = "hot1g_con $ttail -digesttrace 1600"; Expect = $traceExpect; Twice = 0; Timeout = 0 }
-        }
-    }
-    if ($which -eq 'Perturb') {
-        $all = @('geo1c_con', 'nab2g_c', 'hot1g_con', 'spa3c_ass', 'dag1c_ctf', 'kas2c_uber', 'tan1g_con')
-        $pm = $all
-        if ($env:OPENSWBF2_PERTURB_MISSIONS) {
-            $pm = @($env:OPENSWBF2_PERTURB_MISSIONS -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-            foreach ($m in $pm) { if ($all -notcontains $m) { throw "OPENSWBF2_PERTURB_MISSIONS: '$m' is not a Perturb mission" } }
-        }
-        $runs = @(@{ Mode = 'base'; Seed = 0; Extra = '' })
-        foreach ($mode in 'pad', 'fill', 'pool') {
-            foreach ($s in 1, 2) { $runs += @{ Mode = $mode; Seed = $s; Extra = " -perturbheap ${s}:$mode" } }
-        }
-        $runs += @{ Mode = 'hog'; Seed = 0; Extra = ' -hogaddrspace' }
-        $runs += @{ Mode = 'repeat'; Seed = 0; Extra = ' -repeatmission' }
-        foreach ($m in $pm) {
-            foreach ($r in $runs) {
-                $rx = @('(?s)\A(?!.*OPENSWBF2 PERTURB )')
-                if ($r.Seed -gt 0) { $rx = @("(?m)OPENSWBF2 PERTURB seed=$($r.Seed) modes=$($r.Mode)\r?$") }
-                $class = 'Pass'
-                $to = 0
-                if ($m -eq 'nab2g_c') {
-                    $class = 'TimeOut'
-                    $to = 60
-                }
-                if ($r.Mode -eq 'hog') { $rx += $script:SmokeAddrSpaceRx }
-                if ($r.Mode -eq 'repeat') {
-                    $rx += @("(?m)OPENSWBF2 REPEAT to_shell mission=$m\r?$", "(?m)OPENSWBF2 REPEAT to_mission mission=$m\r?$")
-                    $to = 300
-                    if ($m -eq 'nab2g_c') { $to = 180 }
-                }
-                $name = "perturb-$m-$($r.Mode)"
-                if ($r.Seed -gt 0) { $name = "$name-$($r.Seed)" }
-                $x = @{ Class = $class; LogRx = $rx; Perturb = @{ Mission = $m; Mode = $r.Mode; Seed = $r.Seed } }
-                $cases += New-Object PSObject -Property @{ Name = $name; Args = "$m $tail -digesttrace 100000$($r.Extra)"; Expect = $x; Twice = 0; Timeout = $to }
-            }
-        }
-    }
-    return $cases
-}
 
 function Get-DigestLines($caseDir) {
     $f = Join-Path $caseDir 'run.log'
@@ -916,12 +596,11 @@ function Get-PerturbProofMissing($case, [string]$logText) {
 function Add-SerialTieExpect($cases) {
     if ($script:SmokeDigestConfiguration -notin 'Test', 'Asan') { return $cases }
     foreach ($c in $cases) {
-        if ($c.Expect.Class -notin 'Pass', 'TimeOut') { continue }
+        if ($c.Expect.Class -ne 'Pass') { continue }
         $x = $c.Expect.Clone()
         $l = @()
         if ($x.ContainsKey('LogRx')) { $l = @($x.LogRx) }
-        $l = $l + @('(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])')
-        if ($x.Class -eq 'Pass') { $l = $l + @('(?m)OPENSWBF2 COLLISION serialties=0\r?$') }
+        $l = $l + @('(?s)\A(?!.*OPENSWBF2 COLLISION serialties=[1-9])', '(?m)OPENSWBF2 COLLISION serialties=0\r?$')
         $x.LogRx = $l
         $c.Expect = $x
     }
@@ -931,7 +610,7 @@ function Add-SerialTieExpect($cases) {
 function Add-MiOptionsExpect($cases, [int]$miPurge) {
     $purge = if ($miPurge -ge 0) { $miPurge } else { 1000 }
     foreach ($c in $cases) {
-        if ($c.Expect.Class -notin 'Pass', 'TimeOut') { continue }
+        if ($c.Expect.Class -ne 'Pass') { continue }
         $x = $c.Expect.Clone()
         $l = @()
         if ($x.ContainsKey('LogRx')) { $l = @($x.LogRx) }
@@ -1051,7 +730,6 @@ function Get-PerturbVerdict($base, $runLog, $runClass, $okClass, $repeat = $fals
             $segEnd = Get-DigestTraceEnd $segs[$i]
             $tail = $false
             if ($i -lt $want - 1) { $limit = $segEnd }
-            elseif ($okClass -eq 'TimeOut') { $limit = [Math]::Min($base.End, $segEnd) - 1 }
             else {
                 $limit = $base.End
                 $tail = $segEnd -gt $base.End
@@ -1186,36 +864,6 @@ function Get-HardeningChecks($hdr, $cfg, $clTotal, $clGsMinus, $clSdl) {
     return $checks
 }
 
-$script:ImportModuleAllow = @(
-    'advapi32.dll',
-    'api-ms-win-crt-convert-l1-1-0.dll',
-    'api-ms-win-crt-environment-l1-1-0.dll',
-    'api-ms-win-crt-filesystem-l1-1-0.dll',
-    'api-ms-win-crt-heap-l1-1-0.dll',
-    'api-ms-win-crt-locale-l1-1-0.dll',
-    'api-ms-win-crt-math-l1-1-0.dll',
-    'api-ms-win-crt-runtime-l1-1-0.dll',
-    'api-ms-win-crt-stdio-l1-1-0.dll',
-    'api-ms-win-crt-string-l1-1-0.dll',
-    'api-ms-win-crt-time-l1-1-0.dll',
-    'api-ms-win-crt-utility-l1-1-0.dll',
-    'binkw32.dll',
-    'clang_rt.asan_dynamic-i386.dll',
-    'd3d9.dll',
-    'd3dx9_43.dll',
-    'dinput8.dll',
-    'dsound.dll',
-    'galaxy.dll',
-    'gdi32.dll',
-    'kernel32.dll',
-    'msvcp140.dll',
-    'ole32.dll',
-    'steam_api.dll',
-    'user32.dll',
-    'vcruntime140.dll',
-    'winmm.dll',
-    'ws2_32.dll'
-)
 
 function Get-ImportChecks($imp) {
     $rows = @()
@@ -1224,7 +872,8 @@ function Get-ImportChecks($imp) {
     }
     $rows += New-Object PSObject -Property @{ Name = 'import-shcore'; Ok = ($imp -notmatch '(?mi)^\s+shcore\.dll\s*$'); Detail = 'shcore.dll in import table' }
     $dlls = @([regex]::Matches([string]$imp, '(?mi)^\s+(\S+\.dll)\s*$') | ForEach-Object { $_.Groups[1].Value.ToLowerInvariant() } | Sort-Object -Unique)
-    $extra = @($dlls | Where-Object { $script:ImportModuleAllow -notcontains $_ })
+    $allow = @($script:ImportModuleAllow + (Get-AsanRuntimeName))
+    $extra = @($dlls | Where-Object { $allow -notcontains $_ })
     $detail = 'imports outside the allow list: ' + ($extra -join ' ')
     if ($dlls -notcontains 'kernel32.dll') { $detail = 'kernel32.dll not found in the dumpbin /imports output (' + $dlls.Count + ' DLLs parsed)' }
     $rows += New-Object PSObject -Property @{ Name = 'import-modules'; Ok = ($extra.Count -eq 0 -and $dlls -contains 'kernel32.dll'); Detail = $detail }
@@ -1234,7 +883,7 @@ function Get-ImportChecks($imp) {
 function Get-GameProjects([string]$root, [string]$config) {
     $root = $root.TrimEnd('\')
     $exe = Join-Path $root 'BattlefrontII.vcxproj'
-    $objDir = Join-Path $root "obj\Win32\$config"
+    $objDir = Join-Path $root "obj\$script:SmokePlatform\$config"
     $list = @(New-Object PSObject -Property @{ Name = 'BattlefrontII'; Vcxproj = $exe; IntDir = $objDir; TlogDir = (Join-Path $objDir 'BattlefrontII.tlog') })
     $xml = New-Object xml
     $xml.Load($exe)
@@ -1249,24 +898,6 @@ function Get-GameProjects([string]$root, [string]$config) {
         $list += New-Object PSObject -Property @{ Name = $name; Vcxproj = $path; IntDir = $int; TlogDir = (Join-Path $int "$name.tlog") }
     }
     return $list
-}
-
-function Get-GameClCompileItems([string]$root, [string]$config) {
-    $root = $root.TrimEnd('\')
-    $items = @()
-    foreach ($p in (Get-GameProjects $root $config)) {
-        $xml = New-Object xml
-        $xml.Load($p.Vcxproj)
-        $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
-        $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
-        $dir = Split-Path $p.Vcxproj -Parent
-        foreach ($n in @($xml.SelectNodes('//m:ItemGroup/m:ClCompile[@Include]', $ns))) {
-            $inc = $n.GetAttribute('Include')
-            $rel = [IO.Path]::GetFullPath((Join-Path $dir $inc)).Substring($root.Length + 1)
-            $items += New-Object PSObject -Property @{ Project = $p; Include = $inc; Rel = $rel }
-        }
-    }
-    return $items
 }
 
 function Read-ClTlog($tlogDirs) {
@@ -1365,12 +996,6 @@ function Get-MiCrtHookCheck([string]$mapText) {
     return New-Object PSObject -Property @{ Name = 'mimalloc-crt-hooks'; Ok = ($bad.Count -eq 0); Detail = ($bad -join '; ') }
 }
 
-$script:MiDefines = @{
-    Debug = @('MI_DEBUG=2', 'MI_SECURE=0')
-    Release = @('MI_DEBUG=0', 'MI_SECURE=4')
-    Test = @('MI_DEBUG=1', 'MI_SECURE=4')
-    Asan = @('MI_DEBUG=0', 'MI_SECURE=0', 'MI_TRACK_ASAN=1')
-}
 
 function Get-FlagChecks($game, $tests, [string]$gameConfig, [string]$testsConfig) {
     $checks = @()
@@ -1436,171 +1061,12 @@ function Get-FlagChecks($game, $tests, [string]$gameConfig, [string]$testsConfig
     return $checks
 }
 
-$script:SpacerAllow = @(
-    'src\Battlefront2\Source\CommandFlyer.h|_tailPad|[0x7]',
-    'src\Battlefront2\Source\CommandHover.h|_tailPad|[0x8]',
-    'src\Battlefront2\Source\CommandLine.cpp|szCmdLine|[0x800]',
-    'src\Battlefront2\Source\CommandLine.cpp|szArgv0|[0x100]',
-    'src\Battlefront2\Source\CommandLine.cpp|acBuf|[0x80]',
-    'src\Battlefront2\Source\CollisionMesh.h|buffer|[sizeof(T)*N]',
-    'src\Battlefront2\Source\CommandWalker.h|_tailPad|[0xc]',
-    'src\Battlefront2\Source\CustomContent.cpp|source|[0x4000]',
-    'src\Battlefront2\Source\CustomContent.cpp|unusedPath|[64]',
-    'src\Battlefront2\Source\EntityBuildingAnimatedArmed.h|mTailPadding|[0xc]',
-    'src\Battlefront2\Source\EntityFlyer.h|_flightFlagPadding|[3]',
-    'src\Battlefront2\Source\EntityFlyer.h|_turretPadding|[3]',
-    'src\Battlefront2\Source\EntityFlyer.h|_renderPadding|[3]',
-    'src\Battlefront2\Source\EntityCarrier.h|_tailPad|[0xc]',
-    'src\Battlefront2\Source\EntityPortableTurret.h|_tailPad|[6]',
-    'src\Battlefront2\Source\EntityPropAnimated.cpp|acUnused|[256]',
-    'src\Battlefront2\Source\FLJoystick.h|mReservedAfterFlip|[3]',
-    'src\Battlefront2\Source\FLJoystick.h|mReservedBeforeGuiInputs|[2]',
-    'src\Battlefront2\Source\FLJoystick.h|mReservedBeforeProcessDestination|[3]',
-    'src\Battlefront2\Source\FLJoystick.h|mReservedBeforeMouse|[2]',
-    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeTextTimer|[2]',
-    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeJoysticks|[4]',
-    'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeMissingPort|[3]',
-    'src\Battlefront2\Source\gamespyStatsManager.cpp|sStatsMatchData|[0x40]',
-    'src\Battlefront2\Source\gamespyStatsManager.cpp|sStatsMatchData|[0x40]',
-    'src\Battlefront2\Source\GameVoiceChat.cpp|_gDecoderStorage|[sizeof(Decoder)+4]',
-    'src\Battlefront2\Source\GameVoiceChat.cpp|_gNodeStorage|[sizeof(Node)+4]',
-    'src\Battlefront2\Source\GameVoiceChat.cpp|_gEncoderStorage|[sizeof(Encoder)+4]',
-    'src\Battlefront2\Source\GameVoiceChat.cpp|pad|[3]',
-    'src\Battlefront2\Source\HUDEvent.cpp|acName|[0x400]',
-    'src\Battlefront2\Source\HUDManager.cpp|acName|[0x400]',
-    'src\Battlefront2\Source\LuaCallbacks_LoadSave.cpp|aSerialized|[0x10000]',
-    'src\Battlefront2\Source\LuaCallbacks_Net.cpp|padding|[3]',
-    'src\Battlefront2\Source\LuaCallbacks_Net.cpp|padding|[3]',
-    'src\Battlefront2\Source\LuaCallbacks_Options.cpp|kSha512Padding|[128]',
-    'src\Battlefront2\Source\NetAdmin.cpp|remoteResponse|[0x1800]',
-    'src\Battlefront2\Source\NetAdmin.cpp|remoteResponse|[0x1800]',
-    'src\Battlefront2\Source\NetAdmin.h|pad|[3]',
-    'src\GameSpyFL\md5c.c|md5Padding|[64]',
-    'src\Battlefront2\Source\NetSetup.cpp|sStatsMatchData|[0x40]',
-    'src\Battlefront2\Source\NetSetup.h|mQueryWaitPadding|[3]',
-    'src\Battlefront2\Source\NetState.h|mInvisibilityStateStorage|[0x258-0x22c]',
-    'src\Battlefront2\Source\ParticleSystem.cpp|pool|[301*sizeof(PblHeap<unsignedint,float>::RECORD)]',
-    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeDifficulty|[2]',
-    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeUnlockState|[3]',
-    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[61]',
-    'src\Battlefront2\Source\PlayerProfile.h|mTailAlignment|[2]',
-    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[63]',
-    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeMustBeZero|[2]',
-    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[64]',
-    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[32]',
-    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[128]',
-    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeGameOptions|[3]',
-    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeAccumPoints|[2]',
-    'src\Battlefront2\Source\PlayerProfile.h|mPadding|[96]',
-    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeBonus|[3]',
-    'src\Battlefront2\Source\PlayerProfile.h|mAlignmentBeforeCRC|[3]',
-    'src\Battlefront2\Source\VisionManager.cpp|heapMem|[(150+1)*sizeof(VisHeap::RECORD)]',
-    'src\Battlefront2\Source\WeaponGrenade.h|mUnmodeledTail|[0x120-0x118]',
-    'src\Battlefront2\Source\WeaponLauncher.h|mUnmodeledTail|[8]',
-    'src\Battlefront2\Source\WeaponRepair.h|mUnmodeledTail|[0x120-0x111]',
-    'src\lglcd\lgLcd.cpp|Data|[0x104]',
-    'src\RedEngineFL\Application\pc\pcFLRender.h|unknown04|[20]',
-    'src\RedEngineFL\Graphics\PC\pcRedRenderer.h|mReservedAfterDistortion|[2]',
-    'src\RedEngineFL\Graphics\PC\pcRedRenderer.h|mReservedAfterHDR|[3]',
-    'src\RedEngineFL\Graphics\PC\pcRedRenderer.h|mReservedAfterBumpMapping|[3]',
-    'src\RedEngineFL\Graphics\PC\StateManager_DX.h|pad_40932|[2]',
-    'src\RedEngineFL\Interface\RedBorderElement.h|mOtherPositionAttributes|[0x0c-0x08]',
-    'src\RedEngineFL\Interface\RedBorderElement.h|mOtherTextureAttributes|[0x1c-0x14]',
-    'src\RedEngineFL\Interface\RedBorderElement.h|mReservedTail|[0x260-0x254]',
-    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.h|pad1c|[0xd0-0x1c]',
-    'src\SoundFL\source\sndenginebase.h|smVoiceStorage|[0xA800]',
-    'src\SoundFL\source\sndenginebase.h|smStreamStorage|[0x1446A68]',
-    'src\SoundFL\source\sndglobals.cpp|acMessage|[0x800]',
-    'src\SoundFL\source\sndsound.h|smVoiceVirtualStorage|[12800]',
-    'src\SoundFL\source\sndsoundlayered.h|smFireForgetLayerStorage|[5888]',
-    'src\SoundFL\source\win\sndengine.cpp|gSoftOutputStorage|[2288]',
-    'src\SoundFL\source\win\sndengine.h|smSampleRAMBitmap|[0x8000]',
-    'src\SoundFL\source\win\sndstreamrenderer.h|mHardwareRendererStorage|[416]'
-)
 $script:ByteCommentRx = New-Object regex '"(?:[^"\\\r\n]|\\.)*"|''(?:[^''\\\r\n]|\\.)*''|//[^\r\n]*|/\*[\s\S]*?\*/'
 $script:ByteDeclItem = '\s*((?:[*&]\s*(?:(?:const|volatile)\b\s*)*)*)(\w+)\s*((?:\[[^\]]*\]\s*)*)(?:=\s*(?:\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}|[^,;{}]*)|\{(?:[^{}]|\{[^{}]*\})*\})?\s*'
 $script:ByteDeclRx = New-Object regex ('(?m)(?<=^[ \t]*|[{};:][ \t]*)(?:(?:static|const|volatile|mutable|extern|thread_local|register|constexpr|inline|typedef|__unaligned|alignas\s*\((?:[^()]|\([^()]*\))*\)|__declspec\s*\((?:[^()]|\([^()]*\))*\))\s+)*(?:(?:unsigned|signed)\s+)?(?:char|__int8|BYTE|UCHAR|CHAR|INT8|UINT8|uint8_t|int8_t|std::uint8_t|std::int8_t|std::byte|byte)(?:\s+(?:const|volatile))*\b(?!\s*[(:])(?<list>' + $script:ByteDeclItem + '(?:,' + $script:ByteDeclItem + ')*);')
 $script:ByteDeclItemRx = New-Object regex ('\G' + $script:ByteDeclItem + '(?:,|$)')
 $script:SpacerNameRx = '(?i)pad|reserv|unmodel|unknown|^_*unk|spacer|filler|tail|unused|dummy|storage|align|^_+\w*\d'
-$script:OffsetAllow = @(
-    'src\Battlefront2\Source\CollisionMesh.cpp|(unsigned short*)(memblock + iBytes - 2 * iIndices)',
-    'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(Snd::StreamPacket*)(mEncoderBuffer + uiAlignedEncoded)',
-    'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(VoiceChat::AudioPacket*)(mEncoderPackets + 1)',
-    'src\Battlefront2\Source\HUDManager.cpp|(char*)HUD::gEditHeapMem + 0xFFFFF',
-    'src\Battlefront2\Source\NetSetup.cpp|(char*)(fileNames + iCount)',
-    'src\Battlefront2\Source\pcMain.cpp|(char*)p + 0x300000',
-    'src\Battlefront2\Source\PlayerPreferences.cpp|(PlayerProfile::tProfile**)((char*)&mDefaultProfile + 0x10)',
-    'src\Battlefront2\Source\VoiceChatNode.cpp|(SendMetrics*)(pPerNode + uiNodes * sizeof(ReceiveMetrics))',
-    'src\Battlefront2\Source\VoiceChatNode.cpp|(AudioPacket*)(mReceiveStreams + uiNodes)',
-    'src\Battlefront2\Source\VoiceChatNode.cpp|(char*)mBitmap + 1',
-    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
-    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)',
-    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + tangentOffset)',
-    'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + binormalOffset)',
-    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + i * mSize)',
-    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mPool + (mCount - 1) * mSize)',
-    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mFree + i * mSize)',
-    'src\RedEngineFL\Memory\RedMemoryPool.cpp|(char**)((char*)mFree + (mGrow - 1) * mSize)',
-    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.cpp|(RedBitmapElement**)(pBlock + 16 * uiNumTextures + uiBufferSize)',
-    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.cpp|(RedTexture**)(pBlock + uiBufferSize)',
-    'src\RedEngineFL\Util\RedLocalizeDB.cpp|(FLLocalizeEntry*)((char*)pEntry + pEntry->mEntryLen)',
-    'src\RedEngineFL\Util\RedScreenShot.cpp|(const unsigned int*)((unsigned char*)rect.pBits + rect.Pitch * y)',
-    'src\SoundFL\source\sndbufferio.cpp|(void*)(mOffset + (char*)mBuffer)',
-    'src\SoundFL\source\sndfreelist.cpp|(Block*)(pEntries + mEntriesPerBlock * mEntrySize)',
-    'src\SoundFL\source\sndsamplebankbase.cpp|(Sample*)((char*)pMemory + sizeof(SampleBank))',
-    'src\SoundFL\source\sndsoundlayered.cpp|(FireForgetLayer*)(smFireForgetLayerStorage + i * sizeof(FireForgetLayer))',
-    'src\SoundFL\source\sndstreambase.cpp|(Segment*)((char*)pMem + sizeof(Info))',
-    'src\SoundFL\source\sndstreammixer.cpp|(int*)((char*)mMixBuffer + mMixBufferOffsets[uiInput])',
-    'src\SoundFL\source\sndstreamresampler.cpp|(short*)((char*)pDst + mBufferSize)',
-    'src\SoundFL\source\win\snddsbufferrenderer.cpp|(short*)((unsigned char*)pData + uiWritten)',
-    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimD*)(pkBlock + 1)',
-    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimBlockHeader*)(pkAnimD + u16NumAnims)',
-    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimJointD*)(pkBlock + 1)',
-    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimBlockHeader*)((const char*)pkJointD + 48 * u32NumTotalJoints)',
-    'src\Zephyr\Source\ZephyrAnimBank.cpp|(char*)(pkAnims + u16NumAnims)',
-    'src\Zephyr\Source\ZephyrAnimBank.cpp|(const ZephyrAnimJointD*)((const char*)pkJointD + 48 * u16NumJoints)',
-    'src\Zephyr\Source\ZephyrSkeletonShared.cpp|(ZephyrJointShared*)((char*)this + kOffsets.m_uJoints)',
-    'src\Zephyr\Source\ZephyrSkeletonShared.cpp|(unsigned int*)(i + 1)',
-    'src\Zephyr\Source\ZephyrSkinShared.cpp|(ZephyrJointSet*)((char*)this + kOffsets.m_uJointSets)',
-    'src\Zephyr\Source\ZephyrSkinShared.cpp|(ZephyrSkeletonShared*)((char*)this + kOffsets.m_uSkeleton)'
-)
-$script:SerialAllow = @(
-    'src\Battlefront2\Source\CollisionObject.cpp|static unsigned int sCollisionSerialNext = 0;',
-    'src\Battlefront2\Source\CollisionObject.cpp|mCollisionSerial = sCollisionSerialNext < 0x3FFFFFFF ? ++sCollisionSerialNext : sCollisionSerialNext;',
-    'src\Battlefront2\Source\CollisionObject.cpp|sCollisionSerialNext = 0;',
-    'src\Battlefront2\Source\CollisionObject.h|unsigned int mCollisionSerial : 30;',
-    'src\Battlefront2\Source\CollisionObject.h|return PblSerialAfter(pA->mCollisionSerial, pB->mCollisionSerial);',
-    'src\Battlefront2\Source\CollisionObject.h|if (pA->mCollisionSerial == pB->mCollisionSerial)',
-    'src\Battlefront2\Source\CollisionObject.h|return pObject->mCollisionSerial;',
-    'src\Battlefront2\Source\Thread.cpp|static unsigned int sThreadActivationKey = 0;',
-    'src\Battlefront2\Source\Thread.cpp|return (int)(sThreadActivationKey < 0x7FFFFFFF ? sThreadActivationKey++ : sThreadActivationKey);',
-    'src\Battlefront2\Source\Thread.cpp|sThreadActivationKey = 0;'
-)
-$script:AddrOrderAllow = @(
-    'src\Battlefront2\Source\Combo.cpp|if (m_pCatchState >= pOld && m_pCatchState < pOld + uiCount)',
-    'src\Battlefront2\Source\Combo.cpp|if (m_pTakeKneeState >= pOld && m_pTakeKneeState < pOld + uiCount)',
-    'src\Battlefront2\Source\LoadUtil.cpp|if ((unsigned int)pRegion > 1)',
-    'src\Battlefront2\Source\SoldierAnimatorLowRes.cpp|fTime = (float)(int)(this - pPool->m_apAnimator) * (float)(iNumFrames - 1) /',
-    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pOut >= pEnd || !lua_checkstack(L, 3))',
-    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pData >= pEnd || !lua_checkstack(L, 3))',
-    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pRead >= pEnd)',
-    'src\Battlefront2\Source\LuaSaveItems.cpp|if (pRead >= pEnd)',
-    'src\Battlefront2\Source\VOHelper.cpp|if (pB > pA)',
-    'src\Battlefront2\Source\VOHelper.cpp|if (pB < pA)',
-    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
-    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
-    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
-    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)',
-    'src\PebbleFL\Common\PblHashTable.cpp|if (pSlot <= pTable)'
-)
 $script:SerialRx = New-Object regex '\b(?:sThreadActivationKey|mCollisionSerial|sCollisionSerialNext)\b'
-$script:FastcallAllow = @(
-    'src\Battlefront2\Source\CameraManager.cpp|typedef const PblVector3& (__fastcall *ObjectVelocityFn)(GameObject* pThis, void*);',
-    'src\Battlefront2\Source\CameraManager.cpp|typedef Controllable* (__fastcall *ObjectControllableFn)(GameObject* pThis, void*);',
-    'src\Battlefront2\Source\ChaseCamera.cpp|typedef const PblVector3& (__fastcall *GetVelocityFn)(GameObject* pThis, void*);',
-    'src\Battlefront2\Source\LuaCallbacks_Net.cpp|bool __fastcall IsFriendBuddy(int ignored, int iPlayer);',
-    'src\Battlefront2\Source\SkyDome.cpp|typedef void(__fastcall* SceneObjectFn)(void* pThis, void*);'
-)
 $script:OffsetQual = '(?:(?:const|volatile)\s*)*'
 $script:OffsetByteType = '(?:(?:const|volatile)\s+)*(?:(?:unsigned|signed)\s+)?(?:char|__int8|BYTE|UCHAR|CHAR|INT8|UINT8|uint8_t|int8_t|std::uint8_t|std::int8_t|std::byte|byte)(?:\s+(?:const|volatile))*\s*\*\s*' + $script:OffsetQual
 $script:OffsetOperand = '(?:(?:&\s*)?(?:[\w.]|->|::|\[[^\[\];]*\])+|\((?:[^()]|\([^()]*\))*\))'
@@ -1830,7 +1296,50 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     }
     $rows += New-Object PSObject -Property @{ Name = 'serial-value'; Ok = ($serialHits.Count -eq 0); Detail = ($serialHits -join ', ') }
     $rows += New-Object PSObject -Property @{ Name = 't1-suite'; Ok = ($suiteHits.Count -eq 0); Detail = ($suiteHits -join ', ') }
+    if (& $want 'baseline-readers') { $rows += Get-BaselineReadersCheck $root }
     return @($rows | Where-Object { & $want $_.Name })
+}
+
+function Get-BaselineReadersCheck([string]$root) {
+    $hits = New-Object System.Collections.Generic.List[string]
+    $ct = Join-Path $root 'tests\baseline\compare-tables.ps1'
+    $dir = Join-Path $root 'tests\baseline\v143'
+    $map = @()
+    $params = @()
+    if (-not (Test-Path -LiteralPath $ct)) { $hits.Add('tests\baseline\compare-tables.ps1 not found') }
+    else {
+        $errs = $null
+        $ast = [Management.Automation.Language.Parser]::ParseFile($ct, [ref]$null, [ref]$errs)
+        if (@($errs).Count) { $hits.Add("compare-tables.ps1 does not parse: $(@($errs)[0].Message)") }
+        if ($ast.ParamBlock) { $params = @($ast.ParamBlock.Parameters | Where-Object { $_.StaticType -eq [switch] -or $_.Name.VariablePath.UserPath -ceq 'Tables' } | ForEach-Object { $_.Name.VariablePath.UserPath }) }
+        $asg = $ast.Find({ param($n) $n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$script:BaselineReaders' }, $true)
+        if (-not $asg) { $hits.Add('compare-tables.ps1 has no $script:BaselineReaders map') }
+        else {
+            try { $map = @($asg.Right.Expression.SafeGetValue()) }
+            catch { $hits.Add("the reader map is not a literal: $($_.Exception.Message)") }
+        }
+    }
+    $files = @()
+    if (Test-Path -LiteralPath $dir) { $files = @(Get-ChildItem -LiteralPath $dir -Recurse -File | ForEach-Object { $_.FullName.Substring($dir.TrimEnd('\').Length + 1) } | Sort-Object) }
+    else { $hits.Add('tests\baseline\v143 not found') }
+    $mapped = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+    foreach ($e in $map) {
+        if ($e -isnot [hashtable] -or -not $e.File -or -not $e.Reader) { $hits.Add("reader map entry without File and Reader: $e"); continue }
+        if (-not $mapped.Add($e.File)) { $hits.Add("$($e.File) is in the reader map twice") }
+        $r = [string]$e.Reader
+        if ($r.StartsWith('t1:')) {
+            $src = Join-Path $root $r.Substring(3)
+            if (-not (Test-Path -LiteralPath $src) -or [IO.File]::ReadAllText($src).IndexOf("$($e.File)`"", [StringComparison]::Ordinal) -lt 0) { $hits.Add("$($e.File) reader $($r.Substring(3)) does not name it") }
+        }
+        elseif ($r -ceq 'verify-v143') {
+            $cap = Join-Path $root 'tests\baseline\capture-vs2013.ps1'
+            if (-not (Test-Path -LiteralPath $cap) -or [IO.File]::ReadAllText($cap).IndexOf("'v143'", [StringComparison]::Ordinal) -lt 0) { $hits.Add("$($e.File) reader verify-v143 is not in capture-vs2013.ps1") }
+        }
+        elseif ($params -cnotcontains $r) { $hits.Add("$($e.File) reader $r is not a compare-tables.ps1 branch") }
+    }
+    foreach ($f in $files) { if (-not $mapped.Contains($f)) { $hits.Add("$f has no reader") } }
+    foreach ($k in @($mapped | Sort-Object)) { if ($files -cnotcontains $k) { $hits.Add("$k is in the reader map but not in tests\baseline\v143") } }
+    return New-Object PSObject -Property @{ Name = 'baseline-readers'; Ok = ($hits.Count -eq 0); Detail = ($hits -join ', ') }
 }
 
 function Get-PeAslr([string]$exe) {

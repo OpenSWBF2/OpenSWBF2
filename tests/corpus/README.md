@@ -92,7 +92,7 @@ prints how many did (273 in Debug, 0 in Release).
 ## Provenance of floatparse and mathfn
 
 Generated on v143 (MSVC 14.44.35207, `ucrtbase.dll` 10.0.26100.9711) by running
-`..\bin\Tests\Release\OpenSWBF2Tests.exe --gen-corpus=corpus` from `tests\` with retail GameData
+`..\bin\Tests\Win32\Release\OpenSWBF2Tests.exe --gen-corpus=corpus` from `tests\` with retail GameData
 present (without it the mode prints `[SKIP]` and exits 77). The VS2013 Update 5 originals (`cl`
 18.00.40629, `msvcr120.dll` 12.00.40664.0) are kept unchanged under
 `tests\baseline\vs2013\corpus\`. `odf.txt` is identical on both toolchains; the `edge.txt` and

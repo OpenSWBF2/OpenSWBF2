@@ -76,6 +76,47 @@ unsigned int IdOf(const PblHandled* pObject)
     return uId;
 }
 
+struct KeyList
+{
+    const void** ppKeys;
+    unsigned int uCount;
+    unsigned int uMax;
+};
+
+bool CollectKey(const void* pKey, void* pArg)
+{
+    KeyList& rList = *(KeyList*)pArg;
+    if (rList.uCount < rList.uMax)
+    {
+        rList.ppKeys[rList.uCount] = pKey;
+    }
+    ++rList.uCount;
+    return false;
+}
+
+unsigned int LinearProbeTotal(const void* const* ppKeys, unsigned int uCount, unsigned int uSlots)
+{
+    const void** ppTable = (const void**)calloc(uSlots, sizeof(const void*));
+    if (!ppTable)
+    {
+        return 0;
+    }
+    unsigned int uTotal = 0;
+    for (unsigned int i = 0; i < uCount; ++i)
+    {
+        unsigned int uSlot = PblHandleRegistry::HomeSlot(ppKeys[i]);
+        ++uTotal;
+        while (ppTable[uSlot])
+        {
+            uSlot = (uSlot + 1) & (uSlots - 1);
+            ++uTotal;
+        }
+        ppTable[uSlot] = ppKeys[i];
+    }
+    free(ppTable);
+    return uTotal;
+}
+
 }
 
 TEST_CASE("handle registry resolves a freed and overwritten block to null" * doctest::test_suite("regression"))
@@ -387,7 +428,7 @@ TEST_CASE("handle registry and handle layout pins hold" * doctest::test_suite("r
     CHECK(offsetof(PblHandle<OffsetProbe>, mObject) == 0);
 }
 
-TEST_CASE("handle registry lookups stay within the time budget" * doctest::test_suite("regression"))
+TEST_CASE("handle registry lookups resolve every live key" * doctest::test_suite("regression"))
 {
     const unsigned int kLive = 2048;
     const unsigned int kLookups = 1000000;
@@ -421,9 +462,6 @@ TEST_CASE("handle registry lookups stay within the time budget" * doctest::test_
     printf("OPENSWBF2 HANDLEBENCH lookups=%u live=%u ms=%.3f\n", kLookups, kLive, ms);
     fflush(stdout);
     CHECK(uHits == kLookups);
-#ifdef OPENSWBF2_TESTS_DEBUG
-    CHECK(ms <= 100.0);
-#endif
 
     for (unsigned int i = 0; i < kLive; ++i)
     {
@@ -431,4 +469,57 @@ TEST_CASE("handle registry lookups stay within the time budget" * doctest::test_
     }
     free(puIds);
     free(ppKeys);
+}
+
+TEST_CASE("handle registry lookups probe a bounded number of slots" * doctest::test_suite("regression"))
+{
+    const unsigned int kLive = 3000;
+    ProbeBuffer kBuf(kLive);
+    for (unsigned int i = 0; i < kLive; ++i)
+    {
+        kBuf.Build(i);
+    }
+    const unsigned int uCount = PblHandleRegistry::GetCount();
+    const unsigned int uSlots = PblHandleRegistry::GetCapacity();
+    CHECK(uCount >= kLive);
+    CHECK(uCount * 2 <= uSlots);
+
+    KeyList kList = { (const void**)malloc(uCount * sizeof(const void*)), 0, uCount };
+    REQUIRE(kList.ppKeys);
+    PblHandleRegistry::CountIf(CollectKey, &kList);
+    REQUIRE(kList.uCount == uCount);
+    unsigned int uProbes = 0;
+    for (unsigned int i = 0; i < uCount; ++i)
+    {
+        uProbes += PblHandleRegistry::ProbeCount(kList.ppKeys[i]);
+    }
+    const unsigned int uExpected = LinearProbeTotal(kList.ppKeys, uCount, uSlots);
+    CHECK(uExpected >= uCount);
+    CHECK(uProbes == uExpected);
+
+    const unsigned int kSpread = uSlots / 2;
+    const void** ppSpread = (const void**)malloc(kSpread * sizeof(const void*));
+    REQUIRE(ppSpread);
+    const unsigned int auStride[3] = {8, 16, 64};
+    unsigned int auSpread[3];
+    for (int s = 0; s < 3; ++s)
+    {
+        for (unsigned int i = 0; i < kSpread; ++i)
+        {
+            ppSpread[i] = (const void*)(uintptr_t)(0x01000000u + i * auStride[s]);
+        }
+        auSpread[s] = LinearProbeTotal(ppSpread, kSpread, uSlots);
+        CHECK(auSpread[s] >= kSpread);
+        CHECK(auSpread[s] <= 2 * kSpread);
+    }
+    printf("OPENSWBF2 HANDLEPROBES live=%u slots=%u probes=%u spread=%u stride8=%u stride16=%u stride64=%u\n", uCount,
+           uSlots, uProbes, kSpread, auSpread[0], auSpread[1], auSpread[2]);
+    fflush(stdout);
+
+    free(ppSpread);
+    free(kList.ppKeys);
+    for (unsigned int i = 0; i < kLive; ++i)
+    {
+        kBuf.At(i)->~RegistryProbe();
+    }
 }

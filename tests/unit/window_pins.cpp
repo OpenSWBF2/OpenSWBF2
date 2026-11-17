@@ -1340,7 +1340,7 @@ TEST_CASE("hardware cursor source pins" * doctest::test_suite("unit"))
     REQUIRE(!sFilter.empty());
     CHECK(Has(sFilter, "HwCursor::ReleaseClip();"));
     const char* apcExits[] = { "static void TerminateNow(int iCode)", "void __cdecl pcCrash::Exit(int iCode)",
-        "static DWORD WINAPI WatchdogThread(LPVOID)", "void pcCrash::FatalReset(" };
+        "static void HangExit()", "void pcCrash::FatalReset(" };
     for (size_t i = 0; i < sizeof(apcExits) / sizeof(apcExits[0]); ++i)
     {
         const std::string sBody = FunctionBody(sCrash, apcExits[i]);
@@ -1348,7 +1348,10 @@ TEST_CASE("hardware cursor source pins" * doctest::test_suite("unit"))
         CHECK(Has(sBody, "HwCursor::ReleaseClip();"));
     }
     const std::string sWatchdog = FunctionBody(sCrash, "static DWORD WINAPI WatchdogThread(LPVOID)");
-    CHECK(sWatchdog.find("HwCursor::ReleaseClip();") < sWatchdog.find("SetEvent(ghFaultEvent);"));
+    REQUIRE(!sWatchdog.empty());
+    CHECK(CountOf(sWatchdog, "HangExit();") == 2);
+    const std::string sHang = FunctionBody(sCrash, "static void HangExit()");
+    CHECK(sHang.find("HwCursor::ReleaseClip();") < sHang.find("SetEvent(ghFaultEvent);"));
 
     const std::string sInit = FunctionBody(sRender, "void InitMouseCursor()");
     REQUIRE(!sInit.empty());

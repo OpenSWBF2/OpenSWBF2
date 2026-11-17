@@ -142,6 +142,7 @@
 #include "PowerupItem.h"
 #include "StickInfo.h"
 #include "TeamAssist.h"
+#include "Battlefront2/Platform/Pc/pcProgress.h"
 
 namespace MissionTimer
 {
@@ -1367,6 +1368,7 @@ void GameLoop::Update(float fDeltaTime, float fSystemDeltaTime)
                 NetGame::HostChangeSpectator();
                 NetGame::HostChangePregame();
                 SimDigest::TraceTurn();
+                pcProgress::Turn();
             }
             NetGame::UpdatePreGame();
             suDigestTurns += iTurnsRun;
@@ -1389,6 +1391,11 @@ void GameLoop::Update(float fDeltaTime, float fSystemDeltaTime)
                     GameState::SetState(0x11E1FC01);
                 }
 #endif
+            }
+            if (gSoakTurns > 0 && !sbExitPosted && suDigestTurns >= (unsigned int)gSoakTurns)
+            {
+                LOG(LogSim, Inform, "OPENSWBF2 SOAK turns=%u", suDigestTurns);
+                PostRunComplete();
             }
             if (iTurnsRun && !sGameOver && Team::sWinningTeams)
             {

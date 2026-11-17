@@ -161,8 +161,12 @@ void pcCrash::SetCrashTest(char const*)
 {
 }
 
-void pcCrash::SetHangTimeout(int)
+int gStubHangTimeout = -1;
+
+bool pcCrash::SetHangTimeout(int iSeconds)
 {
+    gStubHangTimeout = iSeconds;
+    return iSeconds >= 0 && iSeconds <= 3600;
 }
 
 void pcCrash::SetLogPath(char const*)

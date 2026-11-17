@@ -67,9 +67,8 @@ extern "C"
     void RedPerturbFormatModes(unsigned int uModes, char* pcOut, unsigned int uSize);
     bool RedProcessHeapUsage(void* hHeap, unsigned int* puBusy, unsigned int* puCommitted, unsigned int* puLarge);
     bool RedRangeCommitted(const void* pStart, unsigned int uSize, unsigned int* puCommitted);
-    bool RedPrivateCommitted(unsigned int* puCommitted);
-    bool RedHeapsCommitted(unsigned int* puCommitted);
-    bool RedThreadsCommitted(unsigned int* puCommitted, unsigned int* puThreads);
+    bool RedCommitParts(unsigned int* puPrivate, unsigned int* puHeaps, unsigned int* puThreads,
+                        unsigned int* puThreadCount, void (*pfnBeforeWalk)(void*), void* pArg);
 #endif
 
     extern int maxheaps;

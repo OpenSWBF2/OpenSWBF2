@@ -1,34 +1,35 @@
 param(
     [int]$Runs = 5,
     [string]$Configuration = 'Release',
+    [ValidateSet('Win32', 'x64')][string]$Platform = 'Win32',
     [switch]$NoBuild,
     [string]$OutDir,
-    [ValidateRange(1,64)][int]$Jobs = 8,
-    [int]$Timeout = 120
+    [ValidateRange(1,64)][int]$Jobs = 8
 )
 $ErrorActionPreference = 'Stop'
 $testsDir = $PSScriptRoot
 $root = Split-Path $testsDir -Parent
 . (Join-Path $testsDir 'smoke.ps1')
+$script:SmokePlatform = $Platform
 
 if ($Runs -lt 5) { Write-Host "INFO: -Runs raised from $Runs to 5 (minimum)"; $Runs = 5 }
 
 if (-not $NoBuild) {
     $msbuild = Find-MSBuild
-    & $msbuild (Join-Path $root 'BattlefrontII.vcxproj') "/p:Configuration=$Configuration" '/p:Platform=Win32' /m /v:minimal /nologo
+    & $msbuild (Join-Path $root 'BattlefrontII.vcxproj') "/p:Configuration=$Configuration" "/p:Platform=$Platform" /m /v:minimal /nologo
     if ($LASTEXITCODE -ne 0) { Write-Host 'Build failed.'; exit 2 }
 }
 
-$exeDir = Join-Path $root "bin\Win32\$Configuration"
+$exeDir = Join-Path $root "bin\$Platform\$Configuration"
 $gameExe = Join-Path $exeDir 'BattlefrontII.exe'
 $reason = Get-SmokePrecheck (Find-GameDataRoot) $exeDir
 if ($reason) { Write-Host "[SKIP] laa-compare - $reason"; exit 0 }
 
-if (-not $OutDir) { $OutDir = Join-Path $root ("artifacts\laa-compare\" + (Get-Date -Format 'yyyyMMdd-HHmmss')) }
+if (-not $OutDir) { $OutDir = New-StampedDir (Join-Path $root 'artifacts\laa-compare') }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
-$dumpbin = Find-Dumpbin
-$editbin = Find-Editbin
+$dumpbin = Find-Dumpbin $Platform
+$editbin = Find-Editbin $Platform
 $laaText = 'Application can handle large \(>2GB\) addresses'
 
 function Test-ExeLaa($exe) {
@@ -54,13 +55,13 @@ try {
 
     $items = @()
     for ($i = 1; $i -le $Runs; $i++) {
-        $items += New-Object PSObject -Property @{ Name = "base-$i"; ExeName = $nolaaName; ArgLine = $baseCase.Args.Replace('{CASEDIR}', (Join-Path $OutDir "base-$i")); Timeout = $Timeout; CaseDir = (Join-Path $OutDir "base-$i") }
-        $items += New-Object PSObject -Property @{ Name = "laa-$i"; ExeName = 'BattlefrontII.exe'; ArgLine = $laaCase.Args.Replace('{CASEDIR}', (Join-Path $OutDir "laa-$i")); Timeout = $Timeout; CaseDir = (Join-Path $OutDir "laa-$i") }
+        $items += New-Object PSObject -Property @{ Name = "base-$i"; ExeName = $nolaaName; ArgLine = $baseCase.Args.Replace('{CASEDIR}', (Join-Path $OutDir "base-$i")); CaseDir = (Join-Path $OutDir "base-$i") }
+        $items += New-Object PSObject -Property @{ Name = "laa-$i"; ExeName = 'BattlefrontII.exe'; ArgLine = $laaCase.Args.Replace('{CASEDIR}', (Join-Path $OutDir "laa-$i")); CaseDir = (Join-Path $OutDir "laa-$i") }
     }
     $workerCount = [Math]::Min($Jobs, $items.Count)
     Write-Host "INFO: laa-compare runs=$Runs per side jobs=$workerCount out=$OutDir"
     for ($w = 1; $w -le $workerCount; $w++) {
-        $d = Join-Path (Get-SmokeWorkerRoot $root 'laa') "w$w"
+        $d = Get-WorkerPath $root $Platform $Configuration 'laa' $w
         $workDirs += $d
         New-SmokeWorkerDir $exeDir $d
         Copy-Item -LiteralPath $nolaaExe -Destination $d -Force
@@ -108,7 +109,7 @@ catch {
 }
 finally {
     if ($batch) { Stop-SmokeBatch $batch }
-    foreach ($d in $workDirs) { Remove-SmokeWorkerDir $d }
+    foreach ($d in $workDirs) { Remove-HarnessTree $d }
     Remove-Item -LiteralPath $nolaaExe -Force -ErrorAction SilentlyContinue
 }
 

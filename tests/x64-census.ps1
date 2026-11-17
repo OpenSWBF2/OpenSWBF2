@@ -39,10 +39,7 @@ $clBanner = @(& cmd /c "`"$clExe`" 2>&1" | Where-Object { $_ -and $_.Trim() }) |
 $clBanner = ([string]$clBanner).Trim()
 
 function Remove-Scratch {
-    if (-not (Test-Path -LiteralPath $Scratch)) { return }
-    $rp = @(Get-ReparsePoints $Scratch)
-    if ($rp.Count -gt 0) { throw "scratch folder holds reparse points, not deleting: $($rp -join ', ')" }
-    Remove-Item -LiteralPath $Scratch -Recurse -Force
+    Remove-HarnessTree $Scratch
 }
 
 function Get-FullItemPath([string]$dir, [string]$inc) {

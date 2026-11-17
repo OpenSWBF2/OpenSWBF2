@@ -502,54 +502,22 @@ void AddThreadCommit(CommitSet& rSet, const char* pTeb)
         AddAllocationCommit(rSet, (const void*)(uintptr_t)uStack64);
     }
 }
+
+void InitCommitSet(CommitSet& rSet)
+{
+    rSet.uCount = 0;
+    rSet.uBytes = 0;
+    rSet.bOk = true;
 }
 
-extern "C" bool RedPrivateCommitted(unsigned int* puCommitted)
+bool CollectHeapsCommit(CommitSet& kSet)
 {
-    if (puCommitted == 0)
-    {
-        return false;
-    }
-    unsigned int uCommitted = 0;
-    const char* pCur = 0;
-    MEMORY_BASIC_INFORMATION kInfo;
-    while (VirtualQuery(pCur, &kInfo, sizeof(kInfo)) == sizeof(kInfo))
-    {
-        if (kInfo.State == MEM_COMMIT && kInfo.Type == MEM_PRIVATE)
-        {
-            uCommitted += (unsigned int)kInfo.RegionSize;
-        }
-        const char* pNext = (const char*)kInfo.BaseAddress + kInfo.RegionSize;
-        if (pNext <= pCur)
-        {
-            break;
-        }
-        pCur = pNext;
-    }
-    if (pCur == 0)
-    {
-        return false;
-    }
-    *puCommitted = uCommitted;
-    return true;
-}
-
-extern "C" bool RedHeapsCommitted(unsigned int* puCommitted)
-{
-    if (puCommitted == 0)
-    {
-        return false;
-    }
     HANDLE ahHeaps[64];
     const DWORD uHeaps = GetProcessHeaps(64, ahHeaps);
     if (uHeaps == 0 || uHeaps > 64)
     {
         return false;
     }
-    CommitSet kSet;
-    kSet.uCount = 0;
-    kSet.uBytes = 0;
-    kSet.bOk = true;
     for (DWORD h = 0; h < uHeaps && kSet.bOk; ++h)
     {
         if (!HeapLock(ahHeaps[h]))
@@ -571,20 +539,11 @@ extern "C" bool RedHeapsCommitted(unsigned int* puCommitted)
         }
         HeapUnlock(ahHeaps[h]);
     }
-    if (!kSet.bOk)
-    {
-        return false;
-    }
-    *puCommitted = kSet.uBytes;
-    return true;
+    return kSet.bOk;
 }
 
-extern "C" bool RedThreadsCommitted(unsigned int* puCommitted, unsigned int* puThreads)
+bool CollectThreadCommit(CommitSet& rSet, unsigned int* puThreads)
 {
-    if (puCommitted == 0 || puThreads == 0)
-    {
-        return false;
-    }
     QueryThreadFn pfnQuery = (QueryThreadFn)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryInformationThread");
     if (pfnQuery == 0)
     {
@@ -595,15 +554,11 @@ extern "C" bool RedThreadsCommitted(unsigned int* puCommitted, unsigned int* puT
     {
         return false;
     }
-    CommitSet kSet;
-    kSet.uCount = 0;
-    kSet.uBytes = 0;
-    kSet.bOk = true;
     unsigned int uThreads = 0;
     const DWORD uPid = GetCurrentProcessId();
     THREADENTRY32 kThread;
     kThread.dwSize = sizeof(kThread);
-    for (BOOL bMore = Thread32First(hSnap, &kThread); bMore && kSet.bOk; bMore = Thread32Next(hSnap, &kThread))
+    for (BOOL bMore = Thread32First(hSnap, &kThread); bMore && rSet.bOk; bMore = Thread32Next(hSnap, &kThread))
     {
         if (kThread.th32OwnerProcessID != uPid)
         {
@@ -619,18 +574,116 @@ extern "C" bool RedThreadsCommitted(unsigned int* puCommitted, unsigned int* puT
         if (GetExitCodeThread(hThread, &uExit) && uExit == STILL_ACTIVE &&
             pfnQuery(hThread, 0, &kInfo, sizeof(kInfo), 0) == 0 && kInfo.pTeb != 0)
         {
-            AddThreadCommit(kSet, (const char*)kInfo.pTeb);
+            AddThreadCommit(rSet, (const char*)kInfo.pTeb);
             ++uThreads;
         }
         CloseHandle(hThread);
     }
     CloseHandle(hSnap);
-    if (!kSet.bOk || uThreads == 0)
+    if (!rSet.bOk || uThreads == 0)
     {
         return false;
     }
-    *puCommitted = kSet.uBytes;
     *puThreads = uThreads;
+    return true;
+}
+
+bool HasCommitBase(const CommitSet& rSet, const void* pBase)
+{
+    for (unsigned int i = 0; i < rSet.uCount; ++i)
+    {
+        if (rSet.apBase[i] == pBase)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+struct PrivateRegion
+{
+    const void* pBase;
+    unsigned int uSize;
+};
+
+const unsigned int kMaxPrivateRegions = 16384;
+PrivateRegion sPrivateRegions[kMaxPrivateRegions];
+}
+
+extern "C" bool RedCommitParts(unsigned int* puPrivate, unsigned int* puHeaps, unsigned int* puThreads,
+                               unsigned int* puThreadCount, void (*pfnBeforeWalk)(void*), void* pArg)
+{
+    if (puPrivate == 0 || puHeaps == 0 || puThreads == 0 || puThreadCount == 0)
+    {
+        return false;
+    }
+    CommitSet kThreads;
+    InitCommitSet(kThreads);
+    CommitSet kHeaps;
+    InitCommitSet(kHeaps);
+    unsigned int uThreads = 0;
+    const bool bThreadsBefore = CollectThreadCommit(kThreads, &uThreads);
+    const bool bHeapsBefore = CollectHeapsCommit(kHeaps);
+    if (!bThreadsBefore || !bHeapsBefore)
+    {
+        return false;
+    }
+    if (pfnBeforeWalk)
+    {
+        pfnBeforeWalk(pArg);
+    }
+    unsigned int uRegions = 0;
+    const char* pCur = 0;
+    MEMORY_BASIC_INFORMATION kInfo;
+    while (VirtualQuery(pCur, &kInfo, sizeof(kInfo)) == sizeof(kInfo))
+    {
+        if (kInfo.State == MEM_COMMIT && kInfo.Type == MEM_PRIVATE)
+        {
+            if (uRegions == kMaxPrivateRegions)
+            {
+                return false;
+            }
+            sPrivateRegions[uRegions].pBase = kInfo.AllocationBase;
+            sPrivateRegions[uRegions].uSize = (unsigned int)kInfo.RegionSize;
+            ++uRegions;
+        }
+        const char* pNext = (const char*)kInfo.BaseAddress + kInfo.RegionSize;
+        if (pNext <= pCur)
+        {
+            break;
+        }
+        pCur = pNext;
+    }
+    if (pCur == 0)
+    {
+        return false;
+    }
+    const bool bThreadsAfter = CollectThreadCommit(kThreads, &uThreads);
+    const bool bHeapsAfter = CollectHeapsCommit(kHeaps);
+    if (!bThreadsAfter || !bHeapsAfter)
+    {
+        return false;
+    }
+    unsigned int uPrivate = 0;
+    unsigned int uHeaps = 0;
+    unsigned int uThreadBytes = 0;
+    for (unsigned int i = 0; i < uRegions; ++i)
+    {
+        const PrivateRegion& rRegion = sPrivateRegions[i];
+        uPrivate += rRegion.uSize;
+        if (HasCommitBase(kThreads, rRegion.pBase))
+        {
+            uThreadBytes += rRegion.uSize;
+        }
+        else if (HasCommitBase(kHeaps, rRegion.pBase))
+        {
+            uHeaps += rRegion.uSize;
+        }
+    }
+    *puPrivate = uPrivate;
+    *puHeaps = uHeaps;
+    *puThreads = uThreadBytes;
+    *puThreadCount = uThreads;
     return true;
 }
 

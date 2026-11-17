@@ -10,6 +10,7 @@
 #include "testutil.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "RedEngineFL/Util/RedLog.h"
+#include "Battlefront2/Platform/Pc/pcProgress.h"
 
 char gCurrentCase[256];
 unsigned int gFuzzSeed = 1;
@@ -18,14 +19,25 @@ unsigned int gFuzzCount = 0;
 bool gFuzzDump = false;
 char gFuzzOutPath[260];
 
-static volatile LONG sDeadlineMs;
 static char sLabel[256];
-static DWORD sTimeoutMs = 10000;
+static CRITICAL_SECTION sWatchdogLock;
 
 void WatchdogArm(const char* pcLabel)
 {
     strncpy(sLabel, pcLabel, sizeof(sLabel) - 1);
-    InterlockedExchange(&sDeadlineMs, (LONG)(GetTickCount() + sTimeoutMs));
+    pcProgress::Step();
+}
+
+void WatchdogHold(bool bHold)
+{
+    if (bHold)
+    {
+        EnterCriticalSection(&sWatchdogLock);
+    }
+    else
+    {
+        LeaveCriticalSection(&sWatchdogLock);
+    }
 }
 
 static DWORD WINAPI WatchdogProc(LPVOID)
@@ -33,12 +45,14 @@ static DWORD WINAPI WatchdogProc(LPVOID)
     for (;;)
     {
         Sleep(50);
-        if ((LONG)(GetTickCount() - (DWORD)sDeadlineMs) > 0)
+        EnterCriticalSection(&sWatchdogLock);
+        if (pcProgress::StallRequested())
         {
-            printf("[TIMEOUT] %s %s\n", gCurrentCase, sLabel);
+            printf("[STALL] %s %s\n", gCurrentCase, sLabel);
             fflush(stdout);
             TerminateProcess(GetCurrentProcess(), 124);
         }
+        LeaveCriticalSection(&sWatchdogLock);
     }
 }
 
@@ -77,6 +91,8 @@ int main(int argc, char** argv)
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
     _set_error_mode(_OUT_TO_STDERR);
     SetUnhandledExceptionFilter(CrashFilter);
+    InitializeCriticalSection(&sWatchdogLock);
+    pcProgress::Open();
 
     bool bListing = false;
     for (int i = 1; i < argc; ++i)
@@ -85,11 +101,6 @@ int main(int argc, char** argv)
         if (strncmp(pcArg, "-tc=", 4) == 0 || strncmp(pcArg, "--test-case=", 12) == 0)
         {
             strncpy(gCurrentCase, strchr(pcArg, '=') + 1, sizeof(gCurrentCase) - 1);
-        }
-        else if (strcmp(pcArg, "--timeout") == 0 && i + 1 < argc)
-        {
-            double dMs = atof(argv[i + 1]) * 1000.0;
-            sTimeoutMs = dMs < 1000.0 ? 1000 : (DWORD)dMs;
         }
         else if (strncmp(pcArg, "--fuzz-seed=", 12) == 0)
         {
@@ -119,6 +130,7 @@ int main(int argc, char** argv)
     }
 
     doctest::Context context;
+    context.setOption("abort-after", 100);
     context.applyCommandLine(argc, argv);
 
     if (!bListing)
@@ -127,7 +139,7 @@ int main(int argc, char** argv)
         RedLog::gObserver = TestLogObserver;
         printf("[RUN] %s\n", gCurrentCase);
         fflush(stdout);
-        WatchdogArm("");
+        pcProgress::Step();
         CreateThread(0, 0, WatchdogProc, 0, 0, 0);
     }
     int iRc = context.run();

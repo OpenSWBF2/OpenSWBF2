@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,6 +52,7 @@ bool gLogFinalScore;
 bool gExitOnGameOver;
 bool gNoVictory;
 int gDigestTrace;
+int gSoakTurns;
 bool gFactoryLog;
 bool gNoFocusPause;
 bool gAllowUploads = LocalLimits::kUploadsDefault;
@@ -356,6 +358,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
 
     HUD::gScreenGroupEditEnabled = false;
     gNoVictory = false;
+    gSoakTurns = 0;
     sbNoVictoryNetLogged = false;
     suTestOnlyIgnored = 0;
     bool bNamed = false;
@@ -466,6 +469,28 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
+        if (_stricmp(apcArgv[i] + 1, "soakturns") == 0)
+        {
+            const char* pcValue = i + 1 < iArgc ? apcArgv[i + 1] : 0;
+            char* pcEnd = 0;
+            errno = 0;
+            unsigned long ulValue = pcValue ? strtoul(pcValue, &pcEnd, 10) : 0;
+            bool bNumber = pcValue && pcValue[0] != '-' && pcEnd != pcValue && !*pcEnd;
+            if (bNumber)
+            {
+                ++i;
+            }
+            if (!bNumber || errno == ERANGE || ulValue > 0x7ffffffful || ulValue == 0ul)
+            {
+                LOG(LogCore, Warning, "-soakturns needs a positive turn count, ignored");
+            }
+            else
+            {
+                gSoakTurns = (int)ulValue;
+            }
+            continue;
+        }
+
         if (_stricmp(apcArgv[i] + 1, "factorylog") == 0)
         {
             gFactoryLog = true;
@@ -495,9 +520,20 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
 
         if (_stricmp(apcArgv[i] + 1, "hangtimeout") == 0)
         {
+            bool bAccepted = false;
             if (i + 1 < iArgc)
             {
-                pcCrash::SetHangTimeout(atoi(apcArgv[++i]));
+                const char* pcValue = apcArgv[++i];
+                char* pcEnd = 0;
+                const long lValue = strtol(pcValue, &pcEnd, 10);
+                if (pcEnd != pcValue && *pcEnd == 0)
+                {
+                    bAccepted = pcCrash::SetHangTimeout((int)lValue);
+                }
+            }
+            if (!bAccepted)
+            {
+                LOG(LogCore, Warning, "-hangtimeout needs 0 or a whole number of seconds from 1 to 3600, ignored");
             }
             continue;
         }

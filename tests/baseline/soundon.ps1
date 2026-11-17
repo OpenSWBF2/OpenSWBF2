@@ -2,17 +2,17 @@ param(
     [string[]]$Missions = @('geo1c_xl', 'kas2c_xl', 'hot1g_xl'),
     [string]$Control = 'geo1c_xl',
     [string]$OutDir,
-    [int]$CaseTimeout = 180,
     [string]$PollExe,
-    [string]$PollOut
+    [string]$PollOut,
+    [string]$PollStop,
+    [ValidateSet('Win32', 'x64')][string]$Platform = 'Win32'
 )
 $ErrorActionPreference = 'Stop'
 
 if ($PollExe) {
-    $deadline = (Get-Date).AddSeconds($CaseTimeout)
     $started = $false
     $opened = $false
-    while (-not $opened -and (Get-Date) -lt $deadline) {
+    while (-not $opened -and -not (Test-Path -LiteralPath $PollStop)) {
         $procs = @(Get-Process -Name 'BattlefrontII' -ErrorAction SilentlyContinue | Where-Object { try { $_.Path -ieq $PollExe } catch { $false } })
         if ($procs.Count -gt 0) {
             $started = $true
@@ -32,13 +32,15 @@ if ($PollExe) {
 
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 . (Join-Path $root 'tests\smoke.ps1')
-$exeDir = Join-Path $root 'bin\Win32\Test'
+$script:SmokePlatform = $Platform
+$exeDir = Join-Path $root "bin\$Platform\Test"
 $exe = Join-Path $exeDir 'BattlefrontII.exe'
 $reason = Get-SmokePrecheck (Find-GameDataRoot) $exeDir
 if ($reason) { Write-Host "[SKIP] soundon - $reason"; exit 0 }
-if (-not $OutDir) { $OutDir = Join-Path $root ('artifacts\spike32\soundon-' + (Get-Date -Format 'yyyyMMdd-HHmmss')) }
-$ps32 = Join-Path $env:windir 'SysWOW64\WindowsPowerShell\v1.0\powershell.exe'
-if (-not (Test-Path -LiteralPath $ps32)) { $ps32 = Join-Path $env:windir 'System32\WindowsPowerShell\v1.0\powershell.exe' }
+if (-not $OutDir) { $OutDir = New-StampedDir (Join-Path $root 'artifacts\spike32\soundon') }
+$ps32 = Join-Path $env:windir 'System32\WindowsPowerShell\v1.0\powershell.exe'
+$wow = Join-Path $env:windir 'SysWOW64\WindowsPowerShell\v1.0\powershell.exe'
+if ($Platform -eq 'Win32' -and (Test-Path -LiteralPath $wow)) { $ps32 = $wow }
 
 $runs = @()
 foreach ($m in $Missions) { $runs += New-Object PSObject -Property @{ Name = $m; Dir = (Join-Path $OutDir "smoke\$m"); Render = ''; Want = 'opened' } }
@@ -48,9 +50,12 @@ $bad = 0
 foreach ($r in $runs) {
     New-Item -ItemType Directory -Force -Path $r.Dir | Out-Null
     $soundFile = Join-Path $r.Dir 'sound.txt'
-    $argLine = "$($r.Name) $($r.Render)-fixedrate 30 -nowait -logfinalscore -DecompCONMinutes 5 -seed 1 -exitongameover -nofocuspause -log ""$($r.Dir)\run.log"" -logcmds ""LogMemory Verbose"""
-    $poll = Start-Process -FilePath $ps32 -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', """$PSCommandPath""", '-PollExe', """$exe""", '-PollOut', """$soundFile""", '-CaseTimeout', $CaseTimeout) -WindowStyle Hidden -PassThru
-    $res = Invoke-SmokeCase $r.Name $exe $exeDir $argLine $CaseTimeout $r.Dir
+    $stopFile = Join-Path $r.Dir 'sound-stop.txt'
+    Remove-Item -LiteralPath $stopFile -Force -ErrorAction SilentlyContinue
+    $argLine = "$($r.Name) $($r.Render)-fixedrate 30 -nowait -logfinalscore -DecompCONMinutes 5 -seed 1 -exitongameover -nofocuspause -log ""$($r.Dir)\run.log"" -logcmds ""LogMemory Verbose"" -hangtimeout 0"
+    $poll = Start-Process -FilePath $ps32 -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', """$PSCommandPath""", '-PollExe', """$exe""", '-PollOut', """$soundFile""", '-PollStop', """$stopFile""") -WindowStyle Hidden -PassThru
+    $res = Invoke-SmokeCase $r.Name $exe $exeDir $argLine $r.Dir
+    Set-Content -LiteralPath $stopFile -Value 'exited' -Encoding ASCII
     $poll.WaitForExit()
     $sound = ''
     if (Test-Path -LiteralPath $soundFile) { $sound = (Get-Content -LiteralPath $soundFile -TotalCount 1) }

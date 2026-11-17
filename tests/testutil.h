@@ -4,6 +4,7 @@
 
 extern char gCurrentCase[256];
 void WatchdogArm(const char* pcLabel);
+void WatchdogHold(bool bHold);
 
 extern unsigned int gFuzzSeed;
 extern unsigned int gFuzzIter;
@@ -75,6 +76,7 @@ private:
 void __cdecl TestLogObserver(int iSeverity, int iCategory, char const* pcLine);
 int TestStrictnessReport(const char* pcCase);
 
+std::string RepoRoot();
 bool ReadRepoText(const char* pcRelPath, std::string& sOut);
 
 template <class TABLE, class VALUE>

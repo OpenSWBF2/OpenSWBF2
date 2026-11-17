@@ -33,6 +33,7 @@ extern bool gLogFinalScore;
 extern bool gExitOnGameOver;
 extern bool gNoVictory;
 extern int gDigestTrace;
+extern int gSoakTurns;
 extern bool gFactoryLog;
 extern bool gNoFocusPause;
 extern bool gAllowUploads;

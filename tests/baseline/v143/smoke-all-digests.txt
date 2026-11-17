@@ -45,6 +45,7 @@ crash-resetlaterinit	none	none
 crash-resetrecover	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/2651921600 snd=49.923 state=0x65CD7716	geo1c_con	 309s	L=Rep	28u@12P	 55r	 0p	W=CIS	28u@13 	 88r	 0p
 crash-shellstretch	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/2651921600 snd=49.923 state=0x65CD7716	geo1c_con	 309s	L=Rep	28u@12P	 55r	 0p	W=CIS	28u@13 	 88r	 0p
 crash-stackoverflow	none	none
+crash-stall	none	none
 crash-stickdelete	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=335378435/1479343022 snd=49.923 state=0x0E1D641C	spa3c_ass	1083s	L=Rep	32u@11P	 -1r	163p	W=CIS	32u@14 	 -1r	180p
 dag1c_con	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=369360171/593603238 snd=49.923 state=0x42E9C838	dag1c_con	 309s	L=Rep	32u@11P	 70r	 0p	W=CIS	32u@14 	 90r	 0p
 dag1c_ctf	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=3141009605/1956807958 snd=49.923 state=0x0D75FA96	dag1c_ctf	 504s	W=Rep	25u@9P	 -1r	 5p	L=CIS	25u@16 	 -1r	 3p

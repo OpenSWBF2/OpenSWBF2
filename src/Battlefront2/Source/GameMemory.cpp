@@ -150,18 +150,16 @@ void GameMemory::BuildHeaps(bool bMission)
         const bool bArena = RedMiFirstArena(&uArena, &uArenaSize) &&
                             RedRangeCommitted((const void*)uArena, (unsigned int)uArenaSize, &uArenaCommitted);
         unsigned int uHeapsCommitted = 0;
-        const bool bHeaps = RedHeapsCommitted(&uHeapsCommitted);
         unsigned int uThreadsCommitted = 0;
         unsigned int uThreads = 0;
-        const bool bThreads = RedThreadsCommitted(&uThreadsCommitted, &uThreads);
         unsigned int uPrivate = 0;
-        const bool bPrivate = RedPrivateCommitted(&uPrivate);
+        const bool bParts = RedCommitParts(&uPrivate, &uHeapsCommitted, &uThreadsCommitted, &uThreads, 0, 0);
         const unsigned int uGameCrt = PblCrtLiveBytes();
 #endif
         LOG(LogMemory, Inform, "OPENSWBF2 COMMIT state=%s bytes=%u", bMission ? "mission" : "shell",
             (unsigned int)kCounters.PagefileUsage);
 #ifdef OPENSWBF2_TEST
-        if (bCrt && bArena && bHeaps && bThreads && bPrivate)
+        if (bCrt && bArena && bParts)
         {
             LOG(LogMemory, Inform,
                 "OPENSWBF2 COMMITPARTS state=%s private=%u gamecrt=%u heaps=%u threads=%u threadcount=%u arena=%u "
@@ -171,9 +169,8 @@ void GameMemory::BuildHeaps(bool bMission)
         }
         else
         {
-            LOG(LogMemory, Error, "OPENSWBF2 COMMITPARTS state=%s crt=%d arena=%d heaps=%d threads=%d private=%d failed",
-                bMission ? "mission" : "shell", bCrt ? 1 : 0, bArena ? 1 : 0, bHeaps ? 1 : 0, bThreads ? 1 : 0,
-                bPrivate ? 1 : 0);
+            LOG(LogMemory, Error, "OPENSWBF2 COMMITPARTS state=%s crt=%d arena=%d parts=%d failed",
+                bMission ? "mission" : "shell", bCrt ? 1 : 0, bArena ? 1 : 0, bParts ? 1 : 0);
         }
 #endif
     }

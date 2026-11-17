@@ -57,6 +57,7 @@
 #include "RedEngineFL/Application/RedTerrain.h"
 
 #include "PortalReader.h"
+#include "Battlefront2/Platform/Pc/pcProgress.h"
 
 void PumpWaitingMessages();
 extern HWND hGlobalWnd;
@@ -115,6 +116,7 @@ bool gLoading;
 // FUNCTION: SWBF2 0x00578ff0
 void FileBlockCallback()
 {
+    pcProgress::Step();
     PumpWaitingMessages();
     if (LoadDisplay::sInstance && GetForegroundWindow() == hGlobalWnd)
     {

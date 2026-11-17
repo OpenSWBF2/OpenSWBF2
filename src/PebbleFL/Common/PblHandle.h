@@ -12,6 +12,7 @@ public:
     static unsigned int GetCount();
     static unsigned int GetCapacity();
     static unsigned int HomeSlot(const void* pKey);
+    static unsigned int ProbeCount(const void* pKey);
 #ifdef OPENSWBF2_TEST
     static void FailAllocForTest(bool bFail);
 #endif

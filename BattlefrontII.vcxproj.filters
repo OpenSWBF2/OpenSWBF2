@@ -141,6 +141,9 @@
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcPblFile.cpp">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcProgress.cpp">
+      <Filter>src\Battlefront2\Platform\Pc</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcSaveDevice.cpp">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClCompile>
@@ -1617,6 +1620,9 @@
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcLightBeam.h">
+      <Filter>src\Battlefront2\Platform\Pc</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Platform\Pc\pcProgress.h">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSaveDevice.h">

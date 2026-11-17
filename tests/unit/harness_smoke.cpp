@@ -9,7 +9,7 @@ extern NetPktGroup inQueue;
 TEST_CASE("log capture sees LogMessage" * doctest::test_suite("unit"))
 {
     LogCapture log;
-    RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\Smoke.cpp", 1, __DATE__, __TIME__);
+    RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\Smoke.cpp", 1, "Jan  1 2000", "00:00:00");
     RedWarning::LogMessage("smoke marker %d", 42);
     CHECK(log.Contains("smoke marker 42"));
 }
