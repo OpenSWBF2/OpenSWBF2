@@ -97,8 +97,10 @@ function Get-PeNormalisedSha([string]$Path) {
 
 function Get-KeyGitList([string]$Root, [string[]]$GitArgs) {
     $ErrorActionPreference = 'Continue'
-    $out = & git -C $Root @GitArgs 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "git $($GitArgs -join ' ') failed: $out" }
+    $all = @(& git -C $Root @GitArgs 2>&1)
+    $code = $LASTEXITCODE
+    $out = @($all | Where-Object { $_ -isnot [Management.Automation.ErrorRecord] })
+    if ($code -ne 0) { throw "git $($GitArgs -join ' ') failed: $all" }
     return @(($out -join "`n").Split([char]0) | Where-Object { $_ })
 }
 
