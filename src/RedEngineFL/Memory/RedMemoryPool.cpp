@@ -8,6 +8,8 @@
 #include "PebbleFL/Common/PblCrtHeap.h"
 #include "RedEngineFL/Util/RedLog.h"
 
+static const unsigned int kPoolBlockAlign = (unsigned int)sizeof(void*);
+
 #ifdef OPENSWBF2_TEST
 static PBL_ASAN_NO_SANITIZE void* PerturbShuffleChunk(void* pChunk, unsigned int uiCount, unsigned int uiSize)
 {
@@ -97,7 +99,7 @@ PblList<MemoryPool>* GetMemoryPoolList()
 MemoryPool::MemoryPool(char const* pcLabel, int iSize)
 {
     mPoolOwner = true;
-    mSize = ((unsigned int)iSize + 3) & ~3u;
+    mSize = ((unsigned int)iSize + kPoolBlockAlign - 1) & ~(kPoolBlockAlign - 1);
     mGrow = 0;
     mChunks = 0;
     Reset();
@@ -117,7 +119,7 @@ void MemoryPool::Create(unsigned int uiCount, unsigned int uiSize, unsigned int 
         return;
     }
 
-    uiSize = (uiSize + 3) & ~3u;
+    uiSize = (uiSize + kPoolBlockAlign - 1) & ~(kPoolBlockAlign - 1);
     if (uiCount != 0 && !RedScriptLimits::PoolBytesOk(uiCount, uiSize, RedScriptLimits::kPoolBytesMax))
     {
         LOG(LogMemory, Warning, "Memory pool \"%s\" refused count %u size %u", mLabel, uiCount, uiSize);

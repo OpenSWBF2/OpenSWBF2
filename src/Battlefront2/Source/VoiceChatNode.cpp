@@ -13,6 +13,16 @@
 #include "GameVoiceChat.h"
 
 #include "GameVoiceChatNode.h"
+#include "RedEngineFL/Memory/RedAlign.h"
+
+static_assert(alignof(VoiceChat::Node::ReceiveStream) <= alignof(void*)
+                  && sizeof(VoiceChat::Node::ReceiveStream) % alignof(VoiceChat::AudioPacket) == 0,
+              "the receive packets after the receive streams are aligned");
+static_assert(alignof(VoiceChat::AudioPacket) <= alignof(void*),
+              "the receive packets are placed at pointer alignment");
+static_assert(alignof(VoiceChat::Node::ReceiveMetrics) <= 4 && alignof(VoiceChat::Node::SendMetrics) <= 4
+                  && sizeof(VoiceChat::Node::ReceiveMetrics) % alignof(VoiceChat::Node::SendMetrics) == 0,
+              "the per-node metrics after the 4-byte rounded header bitmaps are aligned");
 
 // GLOBAL: SWBF2 0x01eafd3c
 VoiceChat::Transport* VoiceChat::Node::sTransport;
@@ -93,7 +103,8 @@ bool VoiceChat::Node::OpenStatic(Transport* transport, float fSeconds, float fA,
     VoiceChat::Node::sReadHeader.mSize = uiBitmapBytes;
     VoiceChat::Node::sWriteHeader.mSize = uiBitmapBytes;
 
-    const unsigned int uiSize = uiNodes * 68 + ((uiBitmapBytes + 3) >> 2) * 8;
+    const unsigned int uiMetricsBytes = sizeof(ReceiveMetrics) + sizeof(SendMetrics);
+    const unsigned int uiSize = uiNodes * uiMetricsBytes + ((uiBitmapBytes + 3) >> 2) * 8;
 
     char* p = (char*)VoiceChat::Alloc(uiSize);
     VoiceChat::Node::sReadHeader.mBitmap = (unsigned char*)p;
@@ -109,7 +120,7 @@ bool VoiceChat::Node::OpenStatic(Transport* transport, float fSeconds, float fA,
         VoiceChat::Node::sReceiveMetrics = (ReceiveMetrics*)pPerNode;
         VoiceChat::Node::sSendMetrics = (SendMetrics*)(pPerNode + uiNodes * sizeof(ReceiveMetrics));
 
-        memset(VoiceChat::Node::sReadHeader.mBitmap, 0, VoiceChat::Node::sWriteHeader.mSize + uiNodes * 68 + VoiceChat::Node::sReadHeader.mSize);
+        memset(VoiceChat::Node::sReadHeader.mBitmap, 0, VoiceChat::Node::sWriteHeader.mSize + uiNodes * uiMetricsBytes + VoiceChat::Node::sReadHeader.mSize);
 
         VoiceChat::Node::sTime = 0;
         VoiceChat::Node::sBufferSizeMs = (1.0f / fSeconds) * 2.0f * 1000.0f;
@@ -207,13 +218,15 @@ bool VoiceChat::Node::Open(unsigned int captureDeviceIndex, unsigned int renderD
             const unsigned char uiNodes = ((const VoiceChat::Transport*)(VoiceChat::Node::sTransport))->GetNumNodes();
             const unsigned int uiAlignedBytes = (uiBytes + 3u) & ~3u;
 
+            const unsigned int uiPacketBytes = sizeof(AudioPacket);
+            const unsigned int uiStreamBytes = sizeof(ReceiveStream);
             mReceiveStreams = (ReceiveStream*)VoiceChat::Alloc(
-                ((uiAlignedBytes + 0x10u) * uiPackets + 0x1Cu) * uiNodes + 0x0Cu);
+                ((uiAlignedBytes + uiPacketBytes) * uiPackets + uiStreamBytes + 4u) * uiNodes + 0x0Cu);
 
             if (mReceiveStreams)
             {
                 AudioPacket* pPackets = (AudioPacket*)(mReceiveStreams + uiNodes);
-                unsigned char* pData = (unsigned char*)(((unsigned long)(pPackets + uiPackets * uiNodes) + 3u) & ~3u);
+                unsigned char* pData = (unsigned char*)RedAlignUp(pPackets + uiPackets * uiNodes, 4u);
 
                 mIsOpen = true;
                 mEncoderPacketSizeSec = fSeconds;
@@ -449,7 +462,7 @@ void VoiceChat::Node::Flush(ReceiveStream& stream, AudioPacket& packet)
             stream.readIndex = 0;
         }
     }
-    DecoderReceiveAudioPacket((unsigned char)(((unsigned int)&stream - (unsigned int)mReceiveStreams) / sizeof(ReceiveStream)), &packet);
+    DecoderReceiveAudioPacket((unsigned char)(&stream - mReceiveStreams), &packet);
 }
 
 // FUNCTION: SWBF2 0x00673c10

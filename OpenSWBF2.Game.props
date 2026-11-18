@@ -3,24 +3,6 @@
   <PropertyGroup>
     <OpenSWBF2Root>$(MSBuildThisFileDirectory)</OpenSWBF2Root>
   </PropertyGroup>
-  <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Test|Win32">
-      <Configuration>Test</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Asan|Win32">
-      <Configuration>Asan</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-  </ItemGroup>
   <PropertyGroup Label="Configuration">
     <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
     <UseDebugLibraries>false</UseDebugLibraries>
@@ -30,9 +12,9 @@
     <EnableASAN Condition="'$(Configuration)'=='Asan'">true</EnableASAN>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$(MSBuildThisFileDirectory)OpenSWBF2.Platform.props" />
   <PropertyGroup>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(DXSDK_DIR)Include</IncludePath>
-    <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);$(DXSDK_DIR)Lib\x86</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(ConfigurationType)'=='StaticLibrary'">
     <OutDir>$(OpenSWBF2Root)obj\$(Platform)\$(Configuration)\lib\$(ProjectName)\</OutDir>

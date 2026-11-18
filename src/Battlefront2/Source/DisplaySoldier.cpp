@@ -104,7 +104,7 @@ bool SoldierElement::Setup()
     mSoldierAnimator = SoldierAnimatorClass::sInstance->GetAnimator(0.0f);
     if (mSoldierAnimator)
     {
-        mSoldierAnimator->SetNewOwner((unsigned int)mID, 0, mClass->mSpecialSkeleton,
+        mSoldierAnimator->SetNewOwner(mID, 0, mClass->mSpecialSkeleton,
                                       mClass->mUpperBodyAnimMask,
                                       mClass->mLowerBodyAnimMask, 1.0f);
         mSoldierAnimator->SetAction(SoldierState::STAND, mMatrix, mAnimationHash);
@@ -240,7 +240,7 @@ void SoldierElement::RenderUsingContext(const PblMatrix& mContext, const RedColo
         mSoldierAnimator = SoldierAnimatorClass::sInstance->GetAnimator(0.0f);
         if (mSoldierAnimator)
         {
-            mSoldierAnimator->SetNewOwner((unsigned int)mID, 0, mClass->mSpecialSkeleton,
+            mSoldierAnimator->SetNewOwner(mID, 0, mClass->mSpecialSkeleton,
                                           mClass->mUpperBodyAnimMask,
                                           mClass->mLowerBodyAnimMask, 1.0f);
             mSoldierAnimator->SetAction((SoldierState::SoldierState)mState, mMatrix, mAnimationHash);

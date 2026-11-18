@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 class PblHash
 {
 public:
@@ -20,10 +22,10 @@ private:
 class PblHashTableCode
 {
 protected:
-    static void __cdecl _Clear(unsigned int* pTable, int iCount);
-    static void* __cdecl _Find(const unsigned int* pTable, int iCount, unsigned int uiHash);
-    static bool __cdecl _Store(unsigned int* pTable, int iCount, unsigned int uiHash, void* pValue);
-    static bool __cdecl _Remove(unsigned int* pTable, int iCount, unsigned int uiHash);
+    static void __cdecl _Clear(uintptr_t* pTable, int iCount);
+    static uintptr_t __cdecl _Find(const uintptr_t* pTable, int iCount, unsigned int uiHash);
+    static bool __cdecl _Store(uintptr_t* pTable, int iCount, unsigned int uiHash, uintptr_t uValue);
+    static bool __cdecl _Remove(uintptr_t* pTable, int iCount, unsigned int uiHash);
 };
  
 
@@ -36,10 +38,18 @@ public:
 
     void Clear() { _Clear(&_uiTable[0], SLOTS); _iNumEntries = 0; }
     TYPE* Find(unsigned int uiHash) const { return (TYPE*)_Find(&_uiTable[0], 2 * SLOTS, uiHash); }
+    uintptr_t FindValue(unsigned int uiHash) const { return _Find(&_uiTable[0], 2 * SLOTS, uiHash); }
 
     void Store(unsigned int uiHash, TYPE* pValue)
     {
-        if (_Store(&_uiTable[0], 2 * SLOTS, uiHash, (void*)pValue))
+        if (_Store(&_uiTable[0], 2 * SLOTS, uiHash, (uintptr_t)pValue))
+        {
+            ++_iNumEntries;
+        }
+    }
+    void StoreValue(unsigned int uiHash, uintptr_t uValue)
+    {
+        if (_Store(&_uiTable[0], 2 * SLOTS, uiHash, uValue))
         {
             ++_iNumEntries;
         }
@@ -97,7 +107,7 @@ public:
         bool operator==(const Itor& rOther) const { return _pos == rOther._pos; }
         bool operator!=(const Itor& rOther) const { return _pos != rOther._pos; }
 
-        unsigned int GetKey() const { return _table->_uiTable[_pos]; }
+        unsigned int GetKey() const { return (unsigned int)_table->_uiTable[_pos]; }
 
         const Itor& operator++()
         {
@@ -122,8 +132,10 @@ public:
 
 private:
     int _iNumEntries;
-    unsigned int _uiTable[2 * SLOTS];
+    uintptr_t _uiTable[2 * SLOTS];
 };
+
+static_assert(sizeof(PblHashTable<int, 16>) == (2 * 16 + 1) * sizeof(uintptr_t), "PblHashTable layout");
 
 unsigned int __cdecl PblTEMPHash(const char* pcText);
 unsigned int __cdecl CalcCRC(const void* pData, unsigned int uiSize, unsigned int uiCRC);

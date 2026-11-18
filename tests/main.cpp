@@ -3,6 +3,8 @@
 #include "third_party/doctest/doctest.h"
 
 #include <windows.h>
+#include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,12 +58,53 @@ static DWORD WINAPI WatchdogProc(LPVOID)
     }
 }
 
+static void CrashLine(unsigned int uiCode)
+{
+    printf("[CRASH] %s code=0x%08X\n", gCurrentCase, uiCode);
+    fflush(stdout);
+    TerminateProcess(GetCurrentProcess(), uiCode);
+}
+
 static LONG WINAPI CrashFilter(EXCEPTION_POINTERS* pInfo)
 {
-    printf("[CRASH] %s code=0x%08X\n", gCurrentCase, (unsigned int)pInfo->ExceptionRecord->ExceptionCode);
-    fflush(stdout);
-    TerminateProcess(GetCurrentProcess(), pInfo->ExceptionRecord->ExceptionCode);
+    CrashLine((unsigned int)pInfo->ExceptionRecord->ExceptionCode);
     return EXCEPTION_EXECUTE_HANDLER;
+}
+
+static void __cdecl InvalidParameterCrash(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, uintptr_t)
+{
+    CrashLine(0xE0000001);
+}
+
+static void __cdecl PureCallCrash()
+{
+    CrashLine(0xE0000002);
+}
+
+static void __cdecl AbortCrash(int)
+{
+    CrashLine(0xE0000003);
+}
+
+static int RunCrashChild(const char* pcKind)
+{
+    if (strcmp(pcKind, "invalid-parameter") == 0)
+    {
+        _invalid_parameter_noinfo_noreturn();
+    }
+    if (strcmp(pcKind, "purecall") == 0)
+    {
+        _purecall();
+    }
+    if (strcmp(pcKind, "abort") == 0)
+    {
+        abort();
+    }
+    if (strcmp(pcKind, "access-violation") == 0)
+    {
+        *(volatile int*)0 = 1;
+    }
+    return 2;
 }
 
 extern void __cdecl PblTraceP(const char* Format, ...);
@@ -91,6 +134,18 @@ int main(int argc, char** argv)
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
     _set_error_mode(_OUT_TO_STDERR);
     SetUnhandledExceptionFilter(CrashFilter);
+    _set_invalid_parameter_handler(InvalidParameterCrash);
+    _set_purecall_handler(PureCallCrash);
+    signal(SIGABRT, AbortCrash);
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+    for (int i = 1; i < argc; ++i)
+    {
+        if (strncmp(argv[i], "--crash-child=", 14) == 0)
+        {
+            strncpy(gCurrentCase, "crash child", sizeof(gCurrentCase) - 1);
+            return RunCrashChild(argv[i] + 14);
+        }
+    }
     InitializeCriticalSection(&sWatchdogLock);
     pcProgress::Open();
 

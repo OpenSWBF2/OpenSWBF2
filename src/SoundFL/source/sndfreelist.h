@@ -20,10 +20,16 @@ public:
             mAllocAddress = pAllocAddress;
         }
 
+        static unsigned int EntriesSize(unsigned int uiEntrySize, unsigned int uiEntriesPerBlock)
+        {
+            const unsigned int uiAlign = (unsigned int)alignof(Block);
+            return (uiEntriesPerBlock * uiEntrySize + uiAlign - 1) & ~(uiAlign - 1);
+        }
+
         // FUNCTION: SWBF2 0x00738720
         void* AllocEntry(unsigned int uiEntrySize, unsigned int uiEntriesPerBlock)
         {
-            void* const pEntries = (char*)this - uiEntriesPerBlock * uiEntrySize;
+            void* const pEntries = (char*)this - EntriesSize(uiEntrySize, uiEntriesPerBlock);
             void* pEntry = 0;
             AllocBitmap::Handle handle;
             if (mBitmap.Alloc(1, handle))
@@ -36,7 +42,7 @@ public:
 
         void FreeEntry(void* pEntry, unsigned int uiEntrySize, unsigned int uiEntriesPerBlock)
         {
-            void* const pEntries = (char*)this - uiEntriesPerBlock * uiEntrySize;
+            void* const pEntries = (char*)this - EntriesSize(uiEntrySize, uiEntriesPerBlock);
             const unsigned int uiEntryIndex =
                 (unsigned int)((char*)pEntry - (char*)pEntries) / uiEntrySize;
             mBitmap.Reserve(uiEntryIndex, 1, false);
@@ -44,7 +50,7 @@ public:
 
         bool IsValid(void* pEntry, unsigned int uiEntrySize, unsigned int uiEntriesPerBlock)
         {
-            void* const pEntries = (char*)this - uiEntriesPerBlock * uiEntrySize;
+            void* const pEntries = (char*)this - EntriesSize(uiEntrySize, uiEntriesPerBlock);
             return pEntry >= pEntries &&
                 pEntry < (char*)pEntries + uiEntriesPerBlock * uiEntrySize;
         }

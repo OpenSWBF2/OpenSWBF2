@@ -466,9 +466,8 @@ unsigned int pcNormalShader::GetState_Prog1(const RenderItem* pItem) const
 }
 
 // FUNCTION: SWBF2 0x006ff950
-int pcNormalShader::GetDiffuseMapHash(int iItem, int)
+int pcNormalShader::GetDiffuseMapHash(const RenderItem* pItem, int)
 {
-    const RenderItem* pItem = (const RenderItem*)iItem;
     if (!pItem)
     {
         return 0;

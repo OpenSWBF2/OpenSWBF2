@@ -116,7 +116,7 @@ $results = @()
 $bad = 0
 
 if ($runUnit -and -not $Rejudge) {
-    Assert-Runtimes $T1Runtimes
+    Assert-Runtimes $T1Runtimes $Platform
 
     if (-not $NoBuild) {
         $msbuild = Find-MSBuild
@@ -213,6 +213,13 @@ elseif ($runUnit) {
     }
     if ($Filter) { $cases = @($cases | Where-Object { $_.Name -like $Filter }) }
     if ($cases.Count -eq 0) { Write-Host 'No cases run (suite empty or filter matched nothing).'; exit 2 }
+    $t1Skips = Split-T1PlatformSkips $cases $Platform (-not ($Suite -or $Filter -or $Fuzz))
+    foreach ($r in $t1Skips.Stale) {
+        Add-SmokeResult "[FAIL] t1-skip:$($r.Name) - not a test case of $exe" 'FAIL'
+        $bad++
+    }
+    foreach ($r in $t1Skips.Skipped) { Add-SmokeResult "[SKIP] $($r.Name) - $($r.Until)" 'SKIP' }
+    $cases = @($t1Skips.Run)
 
     $silentMax = 0.0
     $silentCase = $null
@@ -274,7 +281,7 @@ elseif ($runUnit) {
 
 $hardDir = Join-Path $outDir 'hardening'
 if ($hardenActive -and -not $Rejudge) {
-    Assert-Runtimes $GameRuntimes
+    Assert-Runtimes $GameRuntimes $Platform
     $exeDir = Join-Path $root "bin\$Platform\$SmokeConfiguration"
     $gameExe = Join-Path $exeDir 'BattlefrontII.exe'
     $gameDataRoot = Find-GameDataRoot
@@ -306,8 +313,28 @@ if ($hardenActive -and -not $Rejudge) {
         }
     }
 
-    $dbCode = 0
-    if (-not (Test-Path -LiteralPath $gameExe)) {
+    if ($Platform -eq 'x64') {
+        $gameProjects = @(Get-GameProjects $root $SmokeConfiguration)
+        $tl = Get-ClTlogCounts @($gameProjects | ForEach-Object { $_.TlogDir })
+        $ttDir = Join-Path $root "obj\Tests\$Platform\$Configuration\OpenSWBF2Tests.tlog"
+        $tt = $null
+        if (Test-Path -LiteralPath $ttDir) { $tt = Get-ClTlogCounts $ttDir }
+        else { Add-SmokeResult '[SKIP] hardening:flag-alignednew-tests - tests not built' 'SKIP' }
+        $lcDir = Join-Path $root "obj\$Platform\$SmokeConfiguration\LuaCompiler\LuaCompiler.tlog"
+        $lc = $null
+        if (Test-Path -LiteralPath $lcDir) { $lc = Get-ClTlogCounts $lcDir }
+        $tlogChecks = @(Get-HardeningChecks '' '' $tl.Total $tl.GsMinus $tl.Sdl | Where-Object { $_.Name -eq 'sdl' }) + @(Get-FlagChecks $tl $tt $SmokeConfiguration $Configuration $lc) + @(Get-X64ObjectsCheck $root $SmokeConfiguration) + @(Get-X64SizeLiteralCheck $root)
+        foreach ($c in $tlogChecks) {
+            if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
+            else {
+                Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
+                $bad++
+            }
+        }
+        $binaryNames = @(@(Get-HardeningChecks '' '' 0 0 0) + @(Get-MiCrtHookCheck '') + @(Get-ImportChecks '') | Where-Object { $_.Name -ne 'sdl' } | ForEach-Object { $_.Name }) + @('aslr-pe', 'aslr-pe-tests')
+        foreach ($name in $binaryNames) { Add-SmokeResult "[SKIP] hardening:$name - Phase 52" 'SKIP' }
+    }
+    elseif (-not (Test-Path -LiteralPath $gameExe)) {
         if ($NoBuild -and -not $Hardening) { Add-SmokeResult '[SKIP] hardening:exe - not built (-NoBuild)' 'SKIP' }
         else {
             Add-SmokeResult "[FAIL] hardening:exe - not found: $gameExe" 'FAIL'
@@ -322,55 +349,55 @@ if ($hardenActive -and -not $Rejudge) {
         if ($dbCode -eq 0) { $dbCode = $LASTEXITCODE }
         $imp = (& $db /imports $gameExe) -join "`n"
         if ($dbCode -eq 0) { $dbCode = $LASTEXITCODE }
-    }
-    if ($dbCode -ne 0) {
-        Add-SmokeResult "[FAIL] hardening:dumpbin - exit $dbCode" 'FAIL'
-        $bad++
-    }
-    elseif (Test-Path -LiteralPath $gameExe) {
-        $gameProjects = @(Get-GameProjects $root $SmokeConfiguration)
-        $tl = Get-ClTlogCounts @($gameProjects | ForEach-Object { $_.TlogDir })
-        foreach ($c in (Get-HardeningChecks $hdr $cfg $tl.Total $tl.GsMinus $tl.Sdl)) {
-            if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
-            else {
-                Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
-                $bad++
-            }
+        if ($dbCode -ne 0) {
+            Add-SmokeResult "[FAIL] hardening:dumpbin - exit $dbCode" 'FAIL'
+            $bad++
         }
-        $ttDir = Join-Path $root "obj\Tests\$Platform\$Configuration\OpenSWBF2Tests.tlog"
-        $tt = $null
-        if (Test-Path -LiteralPath $ttDir) { $tt = Get-ClTlogCounts $ttDir }
-        else { Add-SmokeResult '[SKIP] hardening:flag-alignednew-tests - tests not built' 'SKIP' }
-        $mapPath = Join-Path $gameProjects[0].IntDir 'BattlefrontII.map'
-        $mapText = $null
-        if (Test-Path -LiteralPath $mapPath) { $mapText = [IO.File]::ReadAllText($mapPath) }
-        foreach ($c in @(Get-FlagChecks $tl $tt $SmokeConfiguration $Configuration) + @(Get-MiCrtHookCheck $mapText)) {
-            if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
-            else {
-                Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
-                $bad++
+        else {
+            $gameProjects = @(Get-GameProjects $root $SmokeConfiguration)
+            $tl = Get-ClTlogCounts @($gameProjects | ForEach-Object { $_.TlogDir })
+            foreach ($c in (Get-HardeningChecks $hdr $cfg $tl.Total $tl.GsMinus $tl.Sdl)) {
+                if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
+                else {
+                    Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
+                    $bad++
+                }
             }
-        }
-        foreach ($c in (Get-ImportChecks $imp)) {
-            if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
-            else {
-                Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
-                $bad++
+            $ttDir = Join-Path $root "obj\Tests\$Platform\$Configuration\OpenSWBF2Tests.tlog"
+            $tt = $null
+            if (Test-Path -LiteralPath $ttDir) { $tt = Get-ClTlogCounts $ttDir }
+            else { Add-SmokeResult '[SKIP] hardening:flag-alignednew-tests - tests not built' 'SKIP' }
+            $mapPath = Join-Path $gameProjects[0].IntDir 'BattlefrontII.map'
+            $mapText = $null
+            if (Test-Path -LiteralPath $mapPath) { $mapText = [IO.File]::ReadAllText($mapPath) }
+            foreach ($c in @(Get-FlagChecks $tl $tt $SmokeConfiguration $Configuration) + @(Get-MiCrtHookCheck $mapText)) {
+                if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
+                else {
+                    Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
+                    $bad++
+                }
             }
-        }
-        $testsExe = $env:OPENSWBF2_TEST_EXE
-        if (-not $testsExe) { $testsExe = Join-Path $root "bin\Tests\$Platform\$Configuration\OpenSWBF2Tests.exe" }
-        $aslrExes = @(, @('aslr-pe', $gameExe))
-        if (Test-Path -LiteralPath $testsExe) { $aslrExes += , @('aslr-pe-tests', $testsExe) }
-        foreach ($ae in $aslrExes) {
-            $why = Get-PeAslr $ae[1]
-            if (-not $why) { Add-SmokeResult "[PASS] hardening:$($ae[0])" 'PASS' }
-            else {
-                Add-SmokeResult "[FAIL] hardening:$($ae[0]) - $why" 'FAIL'
-                $bad++
+            foreach ($c in (Get-ImportChecks $imp)) {
+                if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
+                else {
+                    Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
+                    $bad++
+                }
             }
+            $testsExe = $env:OPENSWBF2_TEST_EXE
+            if (-not $testsExe) { $testsExe = Join-Path $root "bin\Tests\$Platform\$Configuration\OpenSWBF2Tests.exe" }
+            $aslrExes = @(, @('aslr-pe', $gameExe))
+            if (Test-Path -LiteralPath $testsExe) { $aslrExes += , @('aslr-pe-tests', $testsExe) }
+            foreach ($ae in $aslrExes) {
+                $why = Get-PeAslr $ae[1]
+                if (-not $why) { Add-SmokeResult "[PASS] hardening:$($ae[0])" 'PASS' }
+                else {
+                    Add-SmokeResult "[FAIL] hardening:$($ae[0]) - $why" 'FAIL'
+                    $bad++
+                }
+            }
+            if ($aslrExes.Count -eq 1) { Add-SmokeResult '[SKIP] hardening:aslr-pe-tests - tests not built' 'SKIP' }
         }
-        if ($aslrExes.Count -eq 1) { Add-SmokeResult '[SKIP] hardening:aslr-pe-tests - tests not built' 'SKIP' }
     }
     New-Item -ItemType Directory -Force -Path $hardDir | Out-Null
     @($results | Where-Object { $_.Line -match 'hardening:' } | ForEach-Object { $_.Line }) | Set-Content -Path (Join-Path $hardDir 'hardening.txt') -Encoding ASCII
@@ -390,7 +417,8 @@ elseif ($hardenActive) {
     }
 }
 if ($hardenActive) {
-    if ($Configuration -eq 'Release' -and $SmokeConfiguration -eq 'Release') {
+    if ($Platform -ne 'Win32') { Write-Host "[SKIP] tables:hardening - platform is $Platform" }
+    elseif ($Configuration -eq 'Release' -and $SmokeConfiguration -eq 'Release') {
         & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Tables $hardDir -Hardening
         $hardCode = $LASTEXITCODE
         $hardLine = '[PASS] tables:hardening'

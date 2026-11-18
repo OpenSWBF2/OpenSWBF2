@@ -11,7 +11,7 @@ inline void PblFileChunk::Realign()
 
 inline void PblMemChunk::Realign()
 {
-    _pData = _pData + ((-(int)_pData) & 3);
+    _pData = _pData + (int)((0 - (uintptr_t)_pData) & 3);
 }
 
 // FUNCTION: SWBF2 0x0072a8a0

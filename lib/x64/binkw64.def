@@ -1,0 +1,16 @@
+LIBRARY binkw64.dll
+EXPORTS
+    BinkSetVolume
+    BinkDX9SurfaceType
+    BinkCopyToBuffer
+    BinkNextFrame
+    BinkDoFrame
+    BinkWait
+    BinkGetError
+    BinkClose
+    BinkOpen
+    BinkSetIOSize
+    BinkSetIO
+    BinkSetMemory
+    BinkOpenDirectSound
+    BinkSetSoundSystem

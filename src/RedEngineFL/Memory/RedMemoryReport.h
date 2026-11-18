@@ -17,7 +17,7 @@ struct MemFailInfo
     unsigned int uUsed;
     unsigned int uCap;
     unsigned int uPeak;
-    unsigned int uLargestFree;
+    size_t uLargestFree;
 };
 
 bool FormatHeapLine(const char* pcName, const RedHeapStats& rStats, char* pcOut, unsigned int uSize);
@@ -31,7 +31,7 @@ bool FormatOffThreadTotal(unsigned int uCount, unsigned int uSources, unsigned i
                           unsigned int uSize);
 bool FormatOffThreadSource(const RedOffThreadSource& rSource, char* pcOut, unsigned int uSize);
 #endif
-unsigned int LargestFreeRegion();
+size_t LargestFreeRegion();
 void LogMemReport(const char* pcSource);
 
 }

@@ -106,7 +106,7 @@ protected:
 
     Segment(unsigned int uiHashID, unsigned int uiOffset, unsigned int uiLength,
             unsigned int uiLengthSamples, unsigned int uiFrequency, unsigned int uiPadding)
-        : SampleBase(uiHashID, (void*)uiOffset, uiLength, uiLengthSamples,
+        : SampleBase(uiHashID, (void*)(uintptr_t)uiOffset, uiLength, uiLengthSamples,
                      (float)uiFrequency, SampleInfo::format_Unknown, 0),
           mPadding(uiPadding)
     {
@@ -118,6 +118,9 @@ public:
     static int __cdecl CompareSort(void const* pA, void const* pB);
 
     static int __cdecl CompareSearch(void const* pKey, void const* pElement);
+
+    unsigned int GetOffset() const { return (unsigned int)(uintptr_t)mAddress; }
+    void SetOffset(unsigned int uiOffset) { mAddress = (void*)(uintptr_t)uiOffset; }
 
     unsigned int mPadding;
 };

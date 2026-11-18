@@ -223,8 +223,8 @@ bool SoftOutput::SetOutputBufferSize(float fBufferMs, bool bRestart, bool bEffec
     mMixer.SetStopOnLast(mEffectsEnabled);
 
     unsigned char* pSlice =
-        (unsigned char*)(((unsigned int)(pBuffer + uiMixBytes) + uiAlignment - 1)
-                         & ~(uiAlignment - 1));
+        (unsigned char*)(((uintptr_t)(pBuffer + uiMixBytes) + uiAlignment - 1)
+                         & ~(uintptr_t)(uiAlignment - 1));
     const unsigned int uiDMOInput = (uiDMOBytes / uiAlignment) * uiAlignment;
 
     if (mEffectsEnabled)

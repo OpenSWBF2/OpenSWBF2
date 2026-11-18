@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdint.h>
 #include "PblFile.h"
 
 // A chunk's tag from its four characters as they appear in the file: "INFO" is CHUNK_ID('I', 'N', 'F', 'O')
@@ -72,7 +73,7 @@ public:
 
     unsigned int GetId() const { return _iId; }
     const char* GetData() const { return _pData; }
-    bool IsDone() const { return _pNext + ((-(int)_pNext) & 3) >= _pEnd; }
+    bool IsDone() const { return _pNext + (int)((0 - (uintptr_t)_pNext) & 3) >= _pEnd; }
 
     unsigned int _iId;
     int _iSize;

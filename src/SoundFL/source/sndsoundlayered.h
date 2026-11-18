@@ -51,7 +51,7 @@ public:
 
     static FireForgetLayer* smFireForgetLayers;
     static bool smIsOpen;
-    static unsigned char smFireForgetLayerStorage[5888];
+    static unsigned char smFireForgetLayerStorage[];
 
     static PblListDouble smSoundLayeredList;
 

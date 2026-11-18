@@ -18,6 +18,8 @@ class EngineBase
 {
 public:
     static const int kMaxListeners = 4;
+    static const unsigned int kNumVoices = 32;
+    static const unsigned int kNumStreams = 6;
 
     enum SpeakerConfig
     {
@@ -66,8 +68,8 @@ public:
     static Stream* smStreams;
     static Voice* smVoices;
     static bool smOpened;
-    static unsigned char smVoiceStorage[0xA800];
-    static unsigned char smStreamStorage[0x1446A68];
+    static unsigned char smVoiceStorage[];
+    static unsigned char smStreamStorage[];
 
     static float smTimeElapsed;
 

@@ -1,0 +1,6 @@
+LIBRARY Galaxy64.dll
+EXPORTS
+    ?GetInstance@GalaxyFactory@api@galaxy@@SAPEAVIGalaxy@23@XZ
+    ?GetErrorManager@GalaxyFactory@api@galaxy@@SAPEAVIErrorManager@23@XZ
+    ?ResetInstance@GalaxyFactory@api@galaxy@@SAXXZ
+    ?CreateInstance@GalaxyFactory@api@galaxy@@SAPEAVIGalaxy@23@XZ

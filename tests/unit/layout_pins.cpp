@@ -1,6 +1,7 @@
 #if defined(_M_IX86)
 
 #include <stddef.h>
+#include <string.h>
 
 #include "third_party/doctest/doctest.h"
 
@@ -404,5 +405,23 @@ static_assert(offsetof(ParticleEmitterObject, bIsEmitterEmitter) == 0x105, "part
 static_assert(offsetof(ParticleEmitterObject, mbAddedToScene) == 0x106, "particle emitter object added to scene");
 static_assert(offsetof(ParticleEmitterObject, mIsChildPEO) == 0x107, "particle emitter object child");
 static_assert(offsetof(ParticleEmitterObject, mReflectionEnable) == 0x108, "particle emitter object reflection");
+
+TEST_CASE("game object damageable base and vanish bits keep the retail offsets" * doctest::test_suite("unit"))
+{
+    GameObject* pObject = (GameObject*)0x1000;
+    CHECK((unsigned int)((char*)static_cast<Damageable*>(pObject) - (char*)pObject) == 0x140);
+
+    alignas(Damageable) unsigned char acRaw[sizeof(Damageable)];
+    memset(acRaw, 0xFF, sizeof(acRaw));
+    Damageable* pDamage = reinterpret_cast<Damageable*>(acRaw);
+    pDamage->mIsAlive = 0;
+    pDamage->mVanishing = 1;
+    unsigned int uWord = 0;
+    memcpy(&uWord, acRaw + 0xbc, sizeof(uWord));
+    CHECK(uWord == 0xFFFFFFF7u);
+    pDamage->mVanishing = 0;
+    memcpy(&uWord, acRaw + 0xbc, sizeof(uWord));
+    CHECK(uWord == 0xFFFFFFE7u);
+}
 
 #endif

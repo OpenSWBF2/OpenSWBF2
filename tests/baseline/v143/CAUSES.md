@@ -1747,6 +1747,21 @@ the P42 runs already print it.
   - row: smoke-all-digests crash-stall
   - row: offthread crash-stall
 
+## Phase 45: x64 build and pointer width
+
+### C-HARDEN-X64VERDICT
+
+- No digest row moved. `hardening.txt` gains one row, `[PASS] hardening:allow-x64-verdict`; no
+  other row moves.
+- Cause: a new source check. `allow-x64-verdict` fails when a `SpacerAllow` or `OffsetAllow` entry
+  in `tests\smoke\cases.ps1` does not end with `|x64:safe:<reason>` or `|x64:fixed:<what changed>`
+  with a non-empty text. The source checks print one line each, so the hardening output has one
+  more line.
+- Captured from `run.ps1 -Configuration Release -Smoke None -Hardening` with
+  `capture-vs2013.ps1 -NoBuild -Tables -Baseline v143 -HardeningDir` into a scratch `-OutDir`; the
+  capture equals the pinned file plus that one line, byte for byte.
+- Status: re-pinned under phase 45 decision D-53, 2026-11-17.
+
 ## Policy
 
 The v143 files in `tests/corpus/` and this directory are the reference from now on. The digest

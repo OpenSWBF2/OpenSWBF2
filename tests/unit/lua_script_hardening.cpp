@@ -245,7 +245,7 @@ TEST_CASE("team lookup rejects out of range indices" * doctest::test_suite("regr
     Team* apSlots[10];
     for (int i = 0; i < 10; ++i)
     {
-        apSlots[i] = (Team*)(0x1000 + i * 0x40);
+        apSlots[i] = (Team*)(uintptr_t)(0x1000 + i * 0x40);
     }
     Team** ppSaved = Team::sTeams;
     Team::sTeams = &apSlots[1];

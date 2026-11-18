@@ -117,7 +117,7 @@ pcRedShader* __cdecl pcRedShader::Create(unsigned int uiNameHash,
 }
 
 // FUNCTION: SWBF2 0x006ac850
-int pcRedShader::GetDiffuseMapHash(int, int)
+int pcRedShader::GetDiffuseMapHash(const RenderItem*, int)
 {
     return *(const int*)m_material;
 }

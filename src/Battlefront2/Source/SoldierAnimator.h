@@ -28,7 +28,7 @@ public:
 
     void Initialize(const ZephyrSkeletonShared* pSkeleton);
     int GetFramesSinceUsed() const;
-    void SetNewOwner(unsigned int uiOwnerId, const EntitySoldier* pOwner, const ZephyrSkeletonShared* pSkeleton,
+    void SetNewOwner(const EntitySoldier* pOwnerId, const EntitySoldier* pOwner, const ZephyrSkeletonShared* pSkeleton,
                      const PblBitVector<32>& upperBodyMask, const PblBitVector<32>& lowerBodyMask,
                      float fSkeletonScale);
     bool RestartJumpAnimation(float fForward, float fSide, bool bForce);
@@ -51,7 +51,7 @@ public:
 
     const EntitySoldier* GetOwner() const
     {
-        return mOwner ? mOwner : (const EntitySoldier*)mOwnerId;
+        return mOwner ? mOwner : mOwnerId;
     }
     void SetWeaponAnimationMap(SoldierAnimationBank::MAP eMap);
 
@@ -108,7 +108,7 @@ public:
     PblMatrix mLegMatrix;
     PblList<SoldierAnimator>::Node mLRUNode;
     const EntitySoldier* mOwner;
-    unsigned int mOwnerId;
+    const EntitySoldier* mOwnerId;
     PblBitVector<32> mUpperBodyAnimMask;
     PblBitVector<32> mLowerBodyAnimMask;
     float mSkeletonScale;

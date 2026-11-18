@@ -1564,10 +1564,9 @@ void PlayerProfile::tProfile::ApplySettings()
     if (this == &mProfiles[0])
     {
         int iPort = -1;
-        const char* pRecord = (const char*)&PlayerPrefs::mAllUserPrefs[0].mJoystick;
-        for (int i = 0; i < 1; ++i, pRecord += 0x2c)
+        for (int i = 0; i < 1; ++i)
         {
-            if (*(const int*)pRecord == 0)
+            if (PlayerPrefs::mAllUserPrefs[i].mJoystick == 0)
             {
                 iPort = i;
             }

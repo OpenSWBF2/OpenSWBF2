@@ -175,7 +175,7 @@ bool ZephyrSkeletonShared::Open(PblMemChunk& kChunk, int iNumJoints, const DataO
 
     for (i = 0; i < iNumJoints; i++)
     {
-        m_kHashCRC2Joint.Store(m_pJoints[i].m_kCrc, (unsigned int*)(i + 1));
+        m_kHashCRC2Joint.StoreValue(m_pJoints[i].m_kCrc, i + 1);
     }
 
     if (uNumRoots != 1)

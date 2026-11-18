@@ -3,16 +3,16 @@
 #include <string.h>
 
 // FUNCTION: SWBF2 0x00726de0
-void __cdecl PblHashTableCode::_Clear(unsigned int* pTable, int iCount)
+void __cdecl PblHashTableCode::_Clear(uintptr_t* pTable, int iCount)
 {
-    memset(pTable, 0, iCount * sizeof(unsigned int));
+    memset(pTable, 0, iCount * sizeof(uintptr_t));
 }
 
 // FUNCTION: SWBF2 0x00726e00
-void* __cdecl PblHashTableCode::_Find(const unsigned int* pTable, int iCount, unsigned int uiHash)
+uintptr_t __cdecl PblHashTableCode::_Find(const uintptr_t* pTable, int iCount, unsigned int uiHash)
 {
     const int iHalf = iCount >> 1;
-    const unsigned int* pSlot = pTable + ((iHalf - 1) & uiHash);
+    const uintptr_t* pSlot = pTable + ((iHalf - 1) & uiHash);
 
     if (!uiHash)
     {
@@ -23,7 +23,7 @@ void* __cdecl PblHashTableCode::_Find(const unsigned int* pTable, int iCount, un
     {
         if (*pSlot == uiHash)
         {
-            return (void*)pSlot[iHalf];
+            return pSlot[iHalf];
         }
 
         if (!*pSlot)
@@ -42,10 +42,10 @@ void* __cdecl PblHashTableCode::_Find(const unsigned int* pTable, int iCount, un
 }
 
 // FUNCTION: SWBF2 0x00726f60
-bool __cdecl PblHashTableCode::_Store(unsigned int* pTable, int iCount, unsigned int uiHash, void* pValue)
+bool __cdecl PblHashTableCode::_Store(uintptr_t* pTable, int iCount, unsigned int uiHash, uintptr_t uValue)
 {
     const int iHalf = iCount >> 1;
-    unsigned int* pSlot = pTable + ((iHalf - 1) & uiHash);
+    uintptr_t* pSlot = pTable + ((iHalf - 1) & uiHash);
 
     for (int iStoreProbes = 0; iStoreProbes < iHalf; ++iStoreProbes)
     {
@@ -57,7 +57,7 @@ bool __cdecl PblHashTableCode::_Store(unsigned int* pTable, int iCount, unsigned
         if (!*pSlot)
         {
             *pSlot = uiHash;
-            pSlot[iHalf] = (unsigned int)pValue;
+            pSlot[iHalf] = uValue;
             return true;
         }
 
@@ -72,10 +72,10 @@ bool __cdecl PblHashTableCode::_Store(unsigned int* pTable, int iCount, unsigned
 }
 
 // FUNCTION: SWBF2 0x00726ed0
-bool __cdecl PblHashTableCode::_Remove(unsigned int* pTable, int iCount, unsigned int uiHash)
+bool __cdecl PblHashTableCode::_Remove(uintptr_t* pTable, int iCount, unsigned int uiHash)
 {
     const int iHalf = iCount >> 1;
-    unsigned int* pSlot = pTable + ((iHalf - 1) & uiHash);
+    uintptr_t* pSlot = pTable + ((iHalf - 1) & uiHash);
 
     int iRemoveProbes = 0;
     for (; iRemoveProbes < iHalf; ++iRemoveProbes)
@@ -112,9 +112,9 @@ bool __cdecl PblHashTableCode::_Remove(unsigned int* pTable, int iCount, unsigne
 
     while (*pSlot)
     {
-        const unsigned int uiMoved = *pSlot;
+        const unsigned int uiMoved = (unsigned int)*pSlot;
         *pSlot = 0;
-        _Store(pTable, iCount, uiMoved, (void*)pSlot[iHalf]);
+        _Store(pTable, iCount, uiMoved, pSlot[iHalf]);
 
         if (pSlot <= pTable)
         {

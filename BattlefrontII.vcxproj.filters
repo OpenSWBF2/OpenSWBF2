@@ -300,6 +300,9 @@
     <ClCompile Include="src\Battlefront2\Source\CollisionPrimitive.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\CollisionTree.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\CollisionUtil.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -2435,6 +2438,9 @@
     <ClInclude Include="src\Battlefront2\Source\NetComm.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\NetDest.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\NetDrag.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -2472,6 +2478,9 @@
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\NetPredict.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\NetSendScopes.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\NetSetup.h">

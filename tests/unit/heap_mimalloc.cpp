@@ -630,14 +630,15 @@ TEST_CASE("mimalloc heap destroy poisons every area past the first area table" *
     const int iChecks = gCheckCalls;
     const int iH = RedCreateHeap((char*)0x10, (char*)0x10 + 0x4000000, 0x10, "T1MiAreas");
     REQUIRE(iH > 0);
+    const uintptr_t kMiSmallPage = 0x2000 * sizeof(void*);
     std::vector<char*> vpBlock;
-    std::vector<unsigned int> vuPage;
+    std::vector<uintptr_t> vuPage;
     while (vuPage.size() <= 600)
     {
         char* p = (char*)RedAllocFromHeap(iH, 1000, false);
         REQUIRE(p);
         vpBlock.push_back(p);
-        const unsigned int uPage = (unsigned int)p >> 15;
+        const uintptr_t uPage = (uintptr_t)p / kMiSmallPage;
         if (vuPage.empty() || vuPage.back() != uPage)
         {
             vuPage.push_back(uPage);

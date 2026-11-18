@@ -1487,12 +1487,12 @@ bool EntityDroidekaClass::InitAnimations(const char* pszBank)
         -0.52359879f / (mTimeTotals[EntityDroideka::TurnRight] * 6.0f);
 
     const ZephyrSkeletonShared* pSkel = mAnimObj->_pSkeletonShared;
-    mSpineIdx = (int)pSkel->m_kHashCRC2Joint.Find(0x48FAD19F /* "center_box" */) - 1;
-    mJointIdx[0] = (int)pSkel->m_kHashCRC2Joint.Find(0x6008D6E4 /* "bone_spine1" */) - 1;
-    mJointIdx[1] = (int)pSkel->m_kHashCRC2Joint.Find(0x6D4BF03D /* "bone_spine2" */) - 1;
-    mJointIdx[2] = (int)pSkel->m_kHashCRC2Joint.Find(0x698AED8A /* "bone_spine3" */) - 1;
-    mArmJointIdx[0] = (int)pSkel->m_kHashCRC2Joint.Find(0xA5C0332D /* "bone_r_arm1" */) - 1;
-    mArmJointIdx[1] = (int)pSkel->m_kHashCRC2Joint.Find(0x9031BDCA /* "bone_l_arm1" */) - 1;
+    mSpineIdx = (int)pSkel->m_kHashCRC2Joint.FindValue(0x48FAD19F /* "center_box" */) - 1;
+    mJointIdx[0] = (int)pSkel->m_kHashCRC2Joint.FindValue(0x6008D6E4 /* "bone_spine1" */) - 1;
+    mJointIdx[1] = (int)pSkel->m_kHashCRC2Joint.FindValue(0x6D4BF03D /* "bone_spine2" */) - 1;
+    mJointIdx[2] = (int)pSkel->m_kHashCRC2Joint.FindValue(0x698AED8A /* "bone_spine3" */) - 1;
+    mArmJointIdx[0] = (int)pSkel->m_kHashCRC2Joint.FindValue(0xA5C0332D /* "bone_r_arm1" */) - 1;
+    mArmJointIdx[1] = (int)pSkel->m_kHashCRC2Joint.FindValue(0x9031BDCA /* "bone_l_arm1" */) - 1;
     return true;
 }
 

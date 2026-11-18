@@ -67,13 +67,8 @@ public:
 typedef bool(__thiscall* RawBoolCall)(void*);
 typedef void(__thiscall* RawVoidCall)(void*);
 
-#ifndef _WIN64
-const unsigned int kUserSignedInOffset = 0x4;
-const unsigned int kFriendsRequestFriendListOffset = 0x34;
-#else
 const unsigned int kUserSignedInOffset = 1 * sizeof(void*);
 const unsigned int kFriendsRequestFriendListOffset = 13 * sizeof(void*);
-#endif
 
 void* RawSlot(void* pObject, unsigned int uiOffset)
 {

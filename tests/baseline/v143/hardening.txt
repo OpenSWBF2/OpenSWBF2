@@ -13,6 +13,7 @@
 [PASS] hardening:handle-raw
 [PASS] hardening:char-spacer
 [PASS] hardening:offset-hack
+[PASS] hardening:allow-x64-verdict
 [PASS] hardening:serial-value
 [PASS] hardening:t1-suite
 [PASS] hardening:baseline-readers

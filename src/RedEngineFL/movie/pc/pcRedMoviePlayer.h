@@ -16,9 +16,11 @@ struct BINK
     long NumTracks;
 };
 
+class RedMoviePlayer;
+
 struct BINKFILE
 {
-    unsigned long fileHandle;
+    RedMoviePlayer* fileHandle;
     unsigned long fileIOPos;
     unsigned long fileBufPos;
     unsigned char* bufPos;

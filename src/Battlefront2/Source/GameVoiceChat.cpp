@@ -5,6 +5,7 @@
 #include "GameVoiceChatNode.h"
 #include "GameVoiceChatDecoder.h"
 #include "GameVoiceChatEncoder.h"
+#include "RedEngineFL/Memory/RedAlign.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "SoundFL/source/win/sndengine.h"
 #include "NetGame.h"
@@ -32,19 +33,25 @@ GameVoiceChat::Decoder* GameVoiceChat::gDecoders[1];
 namespace GameVoiceChat
 {
     // GLOBAL: SWBF2 0x01e563d0
-    unsigned char _gDecoderStorage[sizeof(Decoder) + 4];
+    unsigned char _gDecoderStorage[sizeof(Decoder) + alignof(void*)];
 }
 namespace GameVoiceChat
 {
     // GLOBAL: SWBF2 0x01e56660
-    unsigned char _gNodeStorage[sizeof(Node) + 4];
+    unsigned char _gNodeStorage[sizeof(Node) + alignof(Node)];
 }
 namespace GameVoiceChat
 {
     // GLOBAL: SWBF2 0x01e566b8
-    unsigned char _gEncoderStorage[sizeof(Encoder) + 4];
+    unsigned char _gEncoderStorage[sizeof(Encoder) + alignof(Encoder)];
 }
 
+static_assert(sizeof(GameVoiceChat::_gDecoderStorage) >= sizeof(GameVoiceChat::Decoder) + alignof(void*) - 1,
+              "_gDecoderStorage holds a Decoder at pointer alignment");
+static_assert(sizeof(GameVoiceChat::_gNodeStorage) >= sizeof(GameVoiceChat::Node) + alignof(GameVoiceChat::Node) - 1,
+              "_gNodeStorage holds an aligned Node");
+static_assert(sizeof(GameVoiceChat::_gEncoderStorage) >= sizeof(GameVoiceChat::Encoder) + alignof(GameVoiceChat::Encoder) - 1,
+              "_gEncoderStorage holds an aligned Encoder");
 
 // SYNTHETIC: SWBF2 0x00403ea0
 // GameVoiceChat::`dynamic initializer for 'gTransport''
@@ -60,21 +67,24 @@ GameVoiceChat::Transport GameVoiceChat::gTransport;
 
 // GLOBAL: SWBF2 0x01ec5fb8
 // GameVoiceChat::gEncoderStorage
-unsigned char* GameVoiceChat::gEncoderStorage = (unsigned char*)(((unsigned int)GameVoiceChat::_gEncoderStorage + 3) & ~3u);
+unsigned char* GameVoiceChat::gEncoderStorage =
+    (unsigned char*)RedAlignUp(GameVoiceChat::_gEncoderStorage, alignof(GameVoiceChat::Encoder));
 
 // SYNTHETIC: SWBF2 0x00403ed0
 // GameVoiceChat::`dynamic initializer for 'gDecoderStorage''
 
 // GLOBAL: SWBF2 0x01ec5fbc
 // GameVoiceChat::gDecoderStorage
-unsigned char* GameVoiceChat::gDecoderStorage = (unsigned char*)(((unsigned int)GameVoiceChat::_gDecoderStorage + 3) & ~3u);
+unsigned char* GameVoiceChat::gDecoderStorage =
+    (unsigned char*)RedAlignUp(GameVoiceChat::_gDecoderStorage, alignof(void*));
 
 // SYNTHETIC: SWBF2 0x00403ee0
 // GameVoiceChat::`dynamic initializer for 'gNodeStorage''
 
 // GLOBAL: SWBF2 0x01ec6018
 // GameVoiceChat::gNodeStorage
-unsigned char* GameVoiceChat::gNodeStorage = (unsigned char*)(((unsigned int)GameVoiceChat::_gNodeStorage + 3) & ~3u);
+unsigned char* GameVoiceChat::gNodeStorage =
+    (unsigned char*)RedAlignUp(GameVoiceChat::_gNodeStorage, alignof(GameVoiceChat::Node));
 
 // FUNCTION: SWBF2 0x0053c500
 unsigned int GameVoiceChat::GetNumNodes()

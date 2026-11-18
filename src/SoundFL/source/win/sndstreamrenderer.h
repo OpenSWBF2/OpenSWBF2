@@ -53,7 +53,7 @@ public:
     SampleInfo::Format mFormat;
     unsigned long mChannelMask;
     DSBufferRenderer* mHardwareRenderer;
-    unsigned char mHardwareRendererStorage[416];
+    alignas(void*) unsigned char mHardwareRendererStorage[1 * sizeof(DSBufferRenderer)];
     unsigned int mOutConnIdx;
     StreamResampler mResampler;
     void* mResamplerBuffer;

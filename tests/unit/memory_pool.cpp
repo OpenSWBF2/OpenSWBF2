@@ -1029,3 +1029,93 @@ TEST_CASE("memory pool fullness and growth rule are count based" * doctest::test
     CHECK(kPool.GetGrow() == 1);
     kPool.Destroy();
 }
+
+TEST_CASE("memory pool of 1-byte blocks survives alloc and free" * doctest::test_suite("regression"))
+{
+    MemoryPool kPool("t1onebyte", 1);
+    CHECK(kPool.GetSize() == sizeof(void*));
+    kPool.Create(16, 1, 0);
+    REQUIRE(kPool.GetSize() == sizeof(void*));
+    unsigned char* apBlock[16];
+    for (int i = 0; i < 16; ++i)
+    {
+        apBlock[i] = (unsigned char*)kPool.Allocate(1);
+        REQUIRE(apBlock[i] != (unsigned char*)0);
+        *apBlock[i] = (unsigned char)(0x40 + i);
+    }
+    CHECK(kPool.mUsed == 16);
+    kPool.Free(apBlock[5]);
+    CHECK(kPool.mUsed == 15);
+    for (int i = 0; i < 16; ++i)
+    {
+        if (i != 5)
+        {
+            CHECK(*apBlock[i] == (unsigned char)(0x40 + i));
+        }
+    }
+    unsigned char* pAgain = (unsigned char*)kPool.Allocate(1);
+    CHECK(pAgain == apBlock[5]);
+    *pAgain = 0x7F;
+    for (int i = 0; i < 16; ++i)
+    {
+        if (i != 5)
+        {
+            CHECK(*apBlock[i] == (unsigned char)(0x40 + i));
+        }
+    }
+    CHECK(kPool.mUsed == 16);
+    kPool.Destroy();
+}
+
+TEST_CASE("lua 4-byte bin survives alloc and free" * doctest::test_suite("regression"))
+{
+    const int kBlocks = 32;
+    LuaMemory::CreatePools(true);
+    MemoryPool* pPool = LuaMemory::LocatePool(4, 0);
+    REQUIRE(pPool);
+    CHECK(pPool->GetSize() >= sizeof(void*));
+    const unsigned int uUsed0 = pPool->mUsed;
+    unsigned char* apBlock[kBlocks];
+    unsigned int auSize[kBlocks];
+    for (int i = 0; i < kBlocks; ++i)
+    {
+        auSize[i] = (unsigned int)(i % 4) + 1;
+        apBlock[i] = (unsigned char*)Lua_Red_realloc(0, 0, auSize[i]);
+        REQUIRE(apBlock[i] != (unsigned char*)0);
+        CHECK(LuaMemory::LocatePool(auSize[i], apBlock[i]) == pPool);
+        memset(apBlock[i], 0x40 + i, auSize[i]);
+    }
+    CHECK(pPool->mUsed == uUsed0 + kBlocks);
+    for (int i = 0; i < kBlocks; i += 2)
+    {
+        Lua_Red_Free(apBlock[i], auSize[i]);
+    }
+    CHECK(pPool->mUsed == uUsed0 + kBlocks / 2);
+    for (int i = 1; i < kBlocks; i += 2)
+    {
+        for (unsigned int b = 0; b < auSize[i]; ++b)
+        {
+            CHECK(apBlock[i][b] == (unsigned char)(0x40 + i));
+        }
+    }
+    for (int i = 0; i < kBlocks; i += 2)
+    {
+        apBlock[i] = (unsigned char*)Lua_Red_realloc(0, 0, auSize[i]);
+        REQUIRE(apBlock[i] != (unsigned char*)0);
+        memset(apBlock[i], 0x20 + i, auSize[i]);
+    }
+    for (int i = 0; i < kBlocks; ++i)
+    {
+        const unsigned char ucStamp = (unsigned char)((i % 2 != 0 ? 0x40 : 0x20) + i);
+        for (unsigned int b = 0; b < auSize[i]; ++b)
+        {
+            CHECK(apBlock[i][b] == ucStamp);
+        }
+    }
+    for (int i = 0; i < kBlocks; ++i)
+    {
+        Lua_Red_Free(apBlock[i], auSize[i]);
+    }
+    CHECK(pPool->mUsed == uUsed0);
+    LuaMemory::Reset();
+}

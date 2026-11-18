@@ -7,6 +7,7 @@
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Memory/RedMemoryMi.h"
 #include "RedEngineFL/Memory/RedScriptLimits.h"
+#include "mimalloc/include/mimalloc.h"
 #include "testutil.h"
 
 namespace
@@ -246,7 +247,10 @@ TEST_CASE("heap charge rolls back when mimalloc refuses the block" * doctest::te
     const unsigned int uCap = gRedHeapSlots[iH].cap;
     const RedHeapStats kBefore = CapsStats(iH);
     gRedHeapSlots[iH].cap = 0x7FF10000u;
+    const long lDisallowOs = mi_option_get(mi_option_disallow_os_alloc);
+    mi_option_set(mi_option_disallow_os_alloc, 1);
     void* p = RedAllocFromHeap(iH, 0x7FF00000u, false);
+    mi_option_set(mi_option_disallow_os_alloc, lDisallowOs);
     gRedHeapSlots[iH].cap = uCap;
     const RedHeapStats kAfter = CapsStats(iH);
     CHECK(!p);

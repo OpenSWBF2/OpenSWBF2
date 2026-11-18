@@ -43,7 +43,7 @@ Space Space::smDefaultSpace;
 
 // GLOBAL: SWBF2 0x007e341c
 // Space::Connected::smFreeList
-FreeList Space::Connected::smFreeList(8, 1, true, 8);
+FreeList Space::Connected::smFreeList(sizeof(Space::Connected), 1, true, 8);
 
 // FUNCTION: SWBF2 0x00733a70
 bool Space::Open()

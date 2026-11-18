@@ -48,6 +48,37 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  x64:
+    name: x64
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, windows, v143]
+    timeout-minutes: 7200
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          clean: true
+      - name: Build x64 Test
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\tests\vstools.ps1; $m = Find-MSBuild; foreach ($p in 'BattlefrontII.vcxproj', 'tests\OpenSWBF2Tests.vcxproj') { & $m $p /p:Configuration=Test /p:Platform=x64 /p:SWBF2_NOSTAGE=true /m /v:minimal /nologo; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }"
+      - name: Build LuaCompiler Test for Win32 and x64
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\tests\vstools.ps1; $m = Find-MSBuild; foreach ($p in 'Win32', 'x64') { & $m LuaCompiler.vcxproj /p:Configuration=Test /p:Platform=$p /p:SWBF2_NOSTAGE=true /m /v:minimal /nologo; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }"
+      - name: x64 T1 and tlog hardening
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Platform x64 -Configuration Test -Smoke None -NoBuild -Hardening
+      - name: LuaCompiler x86 and x64 byte compare
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\luac-compare.ps1 -Configuration Test -Platform x64
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: failure() || cancelled()
+        with:
+          name: x64-artifacts
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+
   asan:
     name: asan
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository

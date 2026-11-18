@@ -6460,7 +6460,7 @@ unsigned int GetShaderID_(const pcRedShader* pShader, const RenderItem* pItem, u
     if (pShader->m_material && bSortMaterial)
     {
         return (unsigned int)const_cast<pcRedShader*>(pShader)->GetDiffuseMapHash(
-            (int)pItem, (int)uiPass);
+            pItem, (int)uiPass);
     }
     return pShader->GetID(uiPass);
 }

@@ -1442,26 +1442,26 @@ void GameState::JournalStartTimes()
 
 #ifdef OPENSWBF2_TEST
 template <class T>
-static unsigned int HandleIdOffset()
+static uintptr_t HandleIdOffset()
 {
     T* pObject = (T*)0x10000;
-    return (unsigned int)static_cast<PblHandled*>(pObject) - (unsigned int)pObject + PblHandled::HandleIdOffset();
+    return (uintptr_t)static_cast<PblHandled*>(pObject) - (uintptr_t)pObject + PblHandled::HandleIdOffset();
 }
 
 static const unsigned int kHandleTypes = 6;
-static unsigned int sauHandleIdOffset[kHandleTypes];
+static uintptr_t sauHandleIdOffset[kHandleTypes];
 
 static const int kHandleScanPersistent = 4;
 
 struct HandleScan
 {
     int aiPersistent[kHandleScanPersistent];
-    unsigned int uDeadVtable;
+    uintptr_t uDeadVtable;
     unsigned int uNext;
     unsigned int uLive;
     unsigned int uDead;
-    unsigned int uReadLo;
-    unsigned int uReadHi;
+    uintptr_t uReadLo;
+    uintptr_t uReadHi;
 };
 
 struct HandleScanBlock
@@ -1486,7 +1486,7 @@ static bool IsMissionHeap(const HandleScan& rScan, int iOwner)
     return true;
 }
 
-static bool HandleScanCommitted(HandleScan& rScan, unsigned int uAddr)
+static bool HandleScanCommitted(HandleScan& rScan, uintptr_t uAddr)
 {
     if (uAddr >= rScan.uReadLo && uAddr < rScan.uReadHi)
     {
@@ -1498,24 +1498,26 @@ static bool HandleScanCommitted(HandleScan& rScan, unsigned int uAddr)
     {
         return false;
     }
-    rScan.uReadLo = (unsigned int)kInfo.BaseAddress;
-    rScan.uReadHi = rScan.uReadLo + (unsigned int)kInfo.RegionSize;
+    rScan.uReadLo = (uintptr_t)kInfo.BaseAddress;
+    rScan.uReadHi = rScan.uReadLo + kInfo.RegionSize;
     return true;
 }
 
-static bool HandleScanReadable(HandleScan& rScan, unsigned int uAt)
+static bool HandleScanReadable(HandleScan& rScan, uintptr_t uAt)
 {
-    return HandleScanCommitted(rScan, uAt - 4) && ((uAt & 0xFFF) != 0 || HandleScanCommitted(rScan, uAt));
+    return HandleScanCommitted(rScan, uAt - sizeof(void*)) &&
+           ((uAt & 0xFFF) != 0 || HandleScanCommitted(rScan, uAt));
 }
 
-static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const unsigned int* puBase, const unsigned int* puFrom,
-                                                 const unsigned int* puTo, const char* pcWhere)
+static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const uintptr_t* puBase, const uintptr_t* puFrom,
+                                                 const uintptr_t* puTo, const char* pcWhere)
 {
-    for (const unsigned int* pu = puFrom; pu + 1 < puTo; ++pu)
+    for (const uintptr_t* pu = puFrom; pu + 1 < puTo; ++pu)
     {
-        const unsigned int uObject = pu[0];
-        const unsigned int uId = pu[1];
-        if ((uObject & 3) != 0 || uId == 0 || uId >= rScan.uNext)
+        const uintptr_t uObject = pu[0];
+        unsigned int uId;
+        memcpy(&uId, pu + 1, sizeof(uId));
+        if ((uObject & (alignof(void*) - 1)) != 0 || uId == 0 || uId >= rScan.uNext)
         {
             continue;
         }
@@ -1526,25 +1528,26 @@ static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const unsign
         }
         for (unsigned int i = 0; i < kHandleTypes; ++i)
         {
-            const unsigned int uAt = uObject + sauHandleIdOffset[i];
-            const unsigned int uBefore = uAt - 4;
+            const uintptr_t uAt = uObject + sauHandleIdOffset[i];
+            const uintptr_t uBefore = uAt - sizeof(void*);
             if (RedHeapOwner((const void*)uAt) != iObject || RedHeapOwner((const void*)uBefore) != iObject ||
                 !HandleScanReadable(rScan, uAt))
             {
                 continue;
             }
-            const unsigned int* puHandled = (const unsigned int*)uAt;
-            const unsigned int uKey = uAt - PblHandled::HandleIdOffset();
+            const unsigned int uHandleId = *(const unsigned int*)uAt;
+            const uintptr_t uVtable = *(const uintptr_t*)uBefore;
+            const uintptr_t uKey = uAt - PblHandled::HandleIdOffset();
             const bool bLive = PblHandleRegistry::IsLive((const PblHandled*)uKey, uId);
-            const bool bDead = !bLive && puHandled[0] == 0 && puHandled[-1] == rScan.uDeadVtable;
+            const bool bDead = !bLive && uHandleId == 0 && uVtable == rScan.uDeadVtable;
             if (!bLive && !bDead)
             {
                 continue;
             }
             if (rScan.uLive + rScan.uDead < 16)
             {
-                LOG(LogSim, Warning, "OPENSWBF2 HANDLESCAN %s at=%s+0x%X object=0x%08X id=%u", bLive ? "live" : "dead",
-                    pcWhere, (unsigned int)(pu - puBase) * 4, uObject, uId);
+                LOG(LogSim, Warning, "OPENSWBF2 HANDLESCAN %s at=%s+0x%IX object=0x%08IX id=%u", bLive ? "live" : "dead",
+                    pcWhere, (size_t)((const char*)pu - (const char*)puBase), uObject, uId);
             }
             if (bLive)
             {
@@ -1562,8 +1565,8 @@ static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const unsign
 static bool ScanHandleBlock(void* pUser, size_t uSize, void* pArg)
 {
     const HandleScanBlock& rBlock = *(const HandleScanBlock*)pArg;
-    const unsigned int* puUser = (const unsigned int*)pUser;
-    ScanHandleRange(*rBlock.pScan, puUser, puUser, puUser + uSize / 4, rBlock.pcWhere);
+    const uintptr_t* puUser = (const uintptr_t*)pUser;
+    ScanHandleRange(*rBlock.pScan, puUser, puUser, puUser + uSize / sizeof(uintptr_t), rBlock.pcWhere);
     return true;
 }
 
@@ -1576,7 +1579,7 @@ static void ScanStaleHandles(bool bMission)
     sauHandleIdOffset[4] = HandleIdOffset<Timer>();
     sauHandleIdOffset[5] = HandleIdOffset<OrbitalStrike>();
     HandleScan kScan;
-    unsigned int auProbe[4];
+    uintptr_t auProbe[4];
     const unsigned int uNextId = PblHandled::GetNextHandleId();
     PblHandled* pProbe = new (auProbe) PblHandled;
     pProbe->~PblHandled();
@@ -1601,10 +1604,10 @@ static void ScanStaleHandles(bool bMission)
         {
             continue;
         }
-        const unsigned int* puFrom = (const unsigned int*)pcImage + pSection->VirtualAddress / 4;
-        const unsigned int* puEnd = puFrom + pSection->Misc.VirtualSize / 4;
-        const unsigned int* puRun = puFrom;
-        const unsigned int* puAt = puFrom;
+        const uintptr_t* puFrom = (const uintptr_t*)pcImage + pSection->VirtualAddress / sizeof(uintptr_t);
+        const uintptr_t* puEnd = puFrom + pSection->Misc.VirtualSize / sizeof(uintptr_t);
+        const uintptr_t* puRun = puFrom;
+        const uintptr_t* puAt = puFrom;
         while (puAt < puEnd)
         {
             MEMORY_BASIC_INFORMATION kInfo;
@@ -1613,7 +1616,7 @@ static void ScanStaleHandles(bool bMission)
                 LOG(LogSim, Error, "OPENSWBF2 HANDLESCAN query-failed section=%.8s", (const char*)pSection->Name);
                 break;
             }
-            const unsigned int* puRegionEnd = (const unsigned int*)kInfo.BaseAddress + kInfo.RegionSize / 4;
+            const uintptr_t* puRegionEnd = (const uintptr_t*)kInfo.BaseAddress + kInfo.RegionSize / sizeof(uintptr_t);
             if (puRegionEnd > puEnd)
             {
                 puRegionEnd = puEnd;

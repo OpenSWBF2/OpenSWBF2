@@ -133,9 +133,15 @@ RawObject<GameObject> sRawGameObject;
 RawObject<EntityFlyer> sRawFlyer;
 RawObject<EntityCarrier> sRawCarrier;
 
+size_t OwnerHandleIdOffset()
+{
+    GameObject* pObject = reinterpret_cast<GameObject*>(&sRawGameObject);
+    return (size_t)((char*)static_cast<PblHandled*>(pObject) - (char*)pObject) + PblHandled::HandleIdOffset();
+}
+
 const GameObject* RawOwner(void* pRaw, unsigned int uiId)
 {
-    memcpy((char*)pRaw + 0x204, &uiId, sizeof(uiId));
+    memcpy((char*)pRaw + OwnerHandleIdOffset(), &uiId, sizeof(uiId));
     return reinterpret_cast<const GameObject*>(pRaw);
 }
 
@@ -143,7 +149,7 @@ template <class T>
 void CheckFollowerOwnerPhase(RawObject<T>& raw, unsigned int uiId)
 {
     memset(&raw, 0, sizeof(raw));
-    memcpy(raw.acBytes + 0x204, &uiId, sizeof(uiId));
+    memcpy(raw.acBytes + OwnerHandleIdOffset(), &uiId, sizeof(uiId));
     EntityFlyer* pFlyer = reinterpret_cast<T*>(&raw);
     CHECK((void*)static_cast<GameObject*>(pFlyer) == (void*)&raw);
     EntityPathFollower* pFollower = static_cast<EntityPathFollower*>(pFlyer);

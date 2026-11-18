@@ -9,7 +9,7 @@ namespace Snd
 class VoiceVirtualBus : public VoiceVirtual, public SourceBus
 {
 public:
-    VoiceVirtualBus(unsigned int uiCustomFlags, VoiceVirtualManager* pManager,
+    VoiceVirtualBus(uintptr_t uiCustomFlags, VoiceVirtualManager* pManager,
                     bool bRestorePlaybackPos)
         : VoiceVirtual(uiCustomFlags, pManager, bRestorePlaybackPos)
     {

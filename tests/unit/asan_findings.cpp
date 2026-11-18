@@ -293,7 +293,7 @@ TEST_CASE("list allocator serves requests of a page or more" * doctest::test_sui
 
 TEST_CASE("soldier animation fits its pool slot" * doctest::test_suite("regression"))
 {
-    CHECK(sizeof(SoldierAnimation) == 0xc);
+    CHECK(sizeof(SoldierAnimation) == 3 * sizeof(void*));
 }
 
 TEST_CASE("walker idle setup stays inside its animation list" * doctest::test_suite("regression"))

@@ -19,8 +19,8 @@ if (-not $StepsFile) { $StepsFile = Join-Path $testsDir 'gate\tiers.ps1' }
 $StepsFile = [IO.Path]::GetFullPath($StepsFile)
 if (-not (Test-Path -LiteralPath $StepsFile -PathType Leaf)) { Write-Host "gate: steps file not found: $StepsFile"; exit 2 }
 if ($Platform -contains 'x64') {
-    $gameProj = Join-Path $root 'BattlefrontII.vcxproj'
-    if (-not (Test-Path -LiteralPath $gameProj -PathType Leaf) -or -not (Select-String -LiteralPath $gameProj -Pattern '\|x64' -Quiet)) { Write-Host "gate: x64 steps need an x64 configuration in $gameProj"; exit 2 }
+    $platProps = Join-Path $root 'OpenSWBF2.Platform.props'
+    if (-not (Test-Path -LiteralPath $platProps -PathType Leaf) -or -not (Select-String -LiteralPath $platProps -Pattern '<ProjectConfiguration Include="[^"]*\|x64"' -Quiet)) { Write-Host "gate: x64 steps need an x64 configuration in $platProps"; exit 2 }
 }
 if (-not $EvidenceDir) { $EvidenceDir = $env:OPENSWBF2_EVIDENCE_DIR }
 if (-not $EvidenceDir) { $EvidenceDir = Join-Path $env:LOCALAPPDATA 'OpenSWBF2\evidence' }
@@ -315,6 +315,14 @@ function Get-GatePlatformSteps($Steps, [string]$Plat) {
     return @($Steps | Where-Object { -not $_.Platform -or @($_.Platform) -contains $Plat })
 }
 
+function Test-GateStepStartsGame($S, [string]$Plat) {
+    if ($S.Kind -ne 'guard') { return [bool]$S.StartsGame }
+    $GuardRevertRows = $null
+    . (Join-Path $testsDir 'guardrevert\rows.ps1')
+    . (Join-Path $testsDir 'guardrevert\select.ps1')
+    return [bool]@(Select-GuardPlatformRows @($GuardRevertRows) $Plat | Where-Object { @('Smoke', 'Perturb') -contains (Get-GuardRowKind $_) }).Count
+}
+
 function Get-GateStepConfigs($Steps) {
     $set = @()
     foreach ($s in @($Steps)) {
@@ -342,12 +350,16 @@ function Get-GateDriveFree([string]$Path) {
 function Get-GatePreflightInput($Steps, [string[]]$Platforms) {
     $paths = @()
     $tools = @()
+    $gamePlats = @()
     $missingTrees = 0
     $wtRoot = "$root-worktrees"
     foreach ($plat in $Platforms) {
         $ps = Get-GatePlatformSteps $Steps $plat
         if ($ps.Count -eq 0) { continue }
-        $paths += Get-FirewallRulePaths $root @($plat) (Get-GateStepConfigs $ps)
+        if (@($ps | Where-Object { Test-GateStepStartsGame $_ $plat }).Count) {
+            $gamePlats += $plat
+            $paths += Get-FirewallRulePaths $root @($plat) (Get-GateStepConfigs $ps)
+        }
         if (@($ps | Where-Object { $_.Kind -eq 'guard' }).Count) {
             $n = Get-GuardWorkerCount
             for ($i = 1; $i -le $n; $i++) { if (-not [IO.Directory]::Exists((Join-Path $wtRoot "$plat\w$i"))) { $missingTrees++ } }
@@ -358,7 +370,7 @@ function Get-GatePreflightInput($Steps, [string[]]$Platforms) {
             MSBuild = [bool]($t -and [IO.File]::Exists($t.MSBuild))
             Dumpbin = [bool]($t -and [IO.File]::Exists((Join-Path $t.Bin 'dumpbin.exe')))
             RuntimeDir = Get-SystemDllDir $plat
-            MissingRuntimes = @(Get-MissingRuntimes (Get-SystemDllDir $plat) $GameRuntimes)
+            MissingRuntimes = @(Get-MissingRuntimes (Get-SystemDllDir $plat) (Get-PlatformRuntimes $GameRuntimes $plat))
         }
     }
     Add-Type -AssemblyName Microsoft.VisualBasic
@@ -368,6 +380,8 @@ function Get-GatePreflightInput($Steps, [string[]]$Platforms) {
         Steam = Get-SteamRunning
         Overlay = Get-SteamOverlayState
         RulePaths = $paths
+        GamePlatforms = $gamePlats
+        Platforms = @($Platforms)
         AllowRules = Get-InboundAllowPrograms
         Wer = @(Test-WerSetup)
         FreeRamKB = [long][Math]::Floor((New-Object Microsoft.VisualBasic.Devices.ComputerInfo).AvailablePhysicalMemory / 1KB)
@@ -386,7 +400,7 @@ function Invoke-GatePreflight($In) {
     foreach ($p in @($In.AllowRules)) { [void]$allow.Add($p) }
     $paths = @($In.RulePaths)
     $miss = @($paths | Where-Object { -not $allow.Contains($_) })
-    $res.firewall = $(if ($paths.Count -and $miss.Count -eq 0) { @($true, "$($paths.Count) rule paths have an inbound allow rule") } elseif ($paths.Count -eq 0) { @($false, 'no rule paths for this tier') } else { @($false, "$($miss.Count) of $($paths.Count) rule paths have no enabled inbound allow rule, first $($miss[0]): run tests\firewall.ps1 elevated") })
+    $res.firewall = $(if (@($In.GamePlatforms).Count -eq 0) { @($true, "no selected step starts the game exe on $(@($In.Platforms) -join ', '), so no rule is needed") } elseif ($paths.Count -and $miss.Count -eq 0) { @($true, "$($paths.Count) rule paths have an inbound allow rule") } elseif ($paths.Count -eq 0) { @($false, 'no rule paths for this tier') } else { @($false, "$($miss.Count) of $($paths.Count) rule paths have no enabled inbound allow rule, first $($miss[0]): run tests\firewall.ps1 elevated") })
     $wer = @($In.Wer | Where-Object { $_ })
     $res.wer = $(if ($wer.Count -eq 0) { @($true, 'LocalDumps key and DontShowUI set') } else { @($false, ($wer -join '; ')) })
     $res.ram = $(if ([long]$In.FreeRamKB -ge $script:RamFloorKB) { @($true, "free $($In.FreeRamKB) KB, floor $($script:RamFloorKB) KB") } else { @($false, "free physical memory $($In.FreeRamKB) KB is below the floor $($script:RamFloorKB) KB") })

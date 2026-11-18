@@ -15,21 +15,21 @@
 
 TEST_CASE("lua object sizes are pinned" * doctest::test_suite("regression"))
 {
-    CHECK(sizeof(Node) == 28);
-    CHECK(sizeof(Table) == 40);
-    CHECK(offsetof(Node, nextadded) == 20);
-    CHECK(offsetof(Node, prevadded) == 24);
-    CHECK(offsetof(Table, firstadded) == 32);
-    CHECK(offsetof(Table, lastadded) == 36);
-    CHECK(sizeof(Udata) == 16);
-    CHECK(sizeof(Proto) == 72);
-    CHECK(sizeof(UpVal) == 20);
-    CHECK(sizeof(lua_State) == 88);
-    CHECK(sizeof(global_State) == 152);
-    CHECK(sizeof(CClosure) == 24);
-    CHECK(sizeof(LClosure) == 28);
-    CHECK(sizeof(TString) == 16);
-    CHECK(offsetof(TString, tsv.hash) == 8);
+    CHECK(sizeof(Node) == 7 * sizeof(void*));
+    CHECK(sizeof(Table) == 10 * sizeof(void*));
+    CHECK(offsetof(Node, nextadded) == 5 * sizeof(void*));
+    CHECK(offsetof(Node, prevadded) == 6 * sizeof(void*));
+    CHECK(offsetof(Table, firstadded) == 8 * sizeof(void*));
+    CHECK(offsetof(Table, lastadded) == 9 * sizeof(void*));
+    CHECK(sizeof(Udata) == 4 * sizeof(void*));
+    CHECK(sizeof(Proto) == 12 * sizeof(void*) + 24);
+    CHECK(sizeof(UpVal) == 5 * sizeof(void*));
+    CHECK(sizeof(lua_State) == 18 * sizeof(void*) + 16);
+    CHECK(sizeof(global_State) == 34 * sizeof(void*) + 16);
+    CHECK(sizeof(CClosure) == 6 * sizeof(void*));
+    CHECK(sizeof(LClosure) == 7 * sizeof(void*));
+    CHECK(sizeof(TString) == 2 * sizeof(void*) + 8);
+    CHECK(offsetof(TString, tsv.hash) == sizeof(void*) + 4);
 }
 
 namespace

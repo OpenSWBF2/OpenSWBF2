@@ -10,7 +10,7 @@ namespace Snd
 
 // GLOBAL: SWBF2 0x007e3634
 // ObjectList::Node::smFreeList
-FreeList ObjectList::Node::smFreeList(8, 1, true, 16);
+FreeList ObjectList::Node::smFreeList(sizeof(ObjectList::Node), 1, true, 16);
 
 // FUNCTION: SWBF2 0x007388d0
 void ObjectList::Remove(void* pObject)

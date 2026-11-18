@@ -3,9 +3,7 @@
 #include <string.h>
 #include "SoundFL/source/sndstreamnode.h"
 
-#ifndef _WIN64
-static_assert(sizeof(Snd::StreamNodeConnection) == 8, "stream node connection size");
-#endif
+static_assert(sizeof(Snd::StreamNodeConnection) == 2 * sizeof(void*), "stream node connection size");
 
 namespace GameVoiceChat
 {

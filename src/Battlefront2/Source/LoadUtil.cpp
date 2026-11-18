@@ -739,7 +739,7 @@ void LoadUtil::ProcessRegion(PblFileChunk& chunk)
             pRegion = ProcessRegionInfo(child);
             break;
         case CHUNK_ID('P', 'R', 'O', 'P'):
-            if ((unsigned int)pRegion > 1)
+            if ((uintptr_t)pRegion > 1)
             {
                 const unsigned int uProperty = child._pFile->Read32();
                 char* pcValue = child.ReadString(acValue, sizeof(acValue));

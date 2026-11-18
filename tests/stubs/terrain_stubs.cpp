@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <string.h>
 #include <vector>
 
 #include "Battlefront2/Source/CollisionManager.h"
@@ -75,9 +76,31 @@ void RedWater::Read(PblFileChunk& chunk)
 {
 }
 
+const unsigned int* gStubChunkIds;
+int gStubChunkIdsLeft;
+const unsigned char* gStubFileBytes;
+int gStubFileBytesLeft;
+
+static void StubFileRead(void* pBuffer, int iNumBytes)
+{
+    const int iTake = iNumBytes < gStubFileBytesLeft ? iNumBytes : gStubFileBytesLeft;
+    if (iTake > 0)
+    {
+        memcpy(pBuffer, gStubFileBytes, iTake);
+        gStubFileBytes += iTake;
+        gStubFileBytesLeft -= iTake;
+    }
+}
+
 PblFileChunk PblFileChunk::ReadNextChild()
 {
-    return *this;
+    PblFileChunk kChild = *this;
+    if (gStubChunkIdsLeft > 0)
+    {
+        kChild._iId = *gStubChunkIds++;
+        --gStubChunkIdsLeft;
+    }
+    return kChild;
 }
 
 char* PblFileChunk::ReadString(char* pcBuffer, int iBufSize)
@@ -87,24 +110,33 @@ char* PblFileChunk::ReadString(char* pcBuffer, int iBufSize)
 
 char PblFile::Read8()
 {
-    return 0;
+    char c = 0;
+    StubFileRead(&c, sizeof(c));
+    return c;
 }
 
 short PblFile::Read16()
 {
-    return 0;
+    short s = 0;
+    StubFileRead(&s, sizeof(s));
+    return s;
 }
 
 int PblFile::Read32()
 {
-    return 0;
+    int i = 0;
+    StubFileRead(&i, sizeof(i));
+    return i;
 }
 
 float PblFile::ReadFloat()
 {
-    return 0.0f;
+    float f = 0.0f;
+    StubFileRead(&f, sizeof(f));
+    return f;
 }
 
 void PblFile::ReadData(void* pBuffer, int iNumBytes)
 {
+    StubFileRead(pBuffer, iNumBytes);
 }

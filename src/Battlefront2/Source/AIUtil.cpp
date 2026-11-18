@@ -64,6 +64,40 @@
 #include "TreeGrid.h"
 #include "PebbleFL/Common/PblHeap.h"
 #include "TeamManager.h"
+#include "ConquestGoal.h"
+#include "CTFGoal.h"
+#include "CTFGoalD.h"
+#include "DeathmatchGoal.h"
+#include "DefendGoal.h"
+#include "DestroyGoal.h"
+#include "FollowGoal.h"
+#include "NavigatorFollowTarget.h"
+#include "NavigatorGraphFollower.h"
+#include "NavigatorPathFollower.h"
+#include "NavigatorSlide.h"
+#include "UnitBoardAgent.h"
+#include "UnitCaptureCPAgent.h"
+#include "UnitCombatAgent.h"
+#include "UnitCTFOffenseAgent.h"
+#include "UnitDeathmatchAgent.h"
+#include "UnitDefendAgent.h"
+#include "UnitDestroyAgent.h"
+#include "UnitFlyAgent.h"
+#include "UnitFollowAgent.h"
+#include "UnitHoldAgent.h"
+#include "UnitRandomAgent.h"
+#include "UnitTrooperAgent.h"
+#include "UnitUnBoardAgent.h"
+#include "UnitWaitAgent.h"
+#include "UnitWaitSecondaryAgent.h"
+
+#include <algorithm>
+
+template <class... T>
+static constexpr unsigned int PoolBlockSize()
+{
+    return (unsigned int)(std::max)({sizeof(T)...});
+}
 
 
 extern PblVector3 gVectorZero;
@@ -315,14 +349,26 @@ void AIUtil::Init()
     gSnipeSuitabilityDist = 70.0f;
 
     UnitController::sMemoryPool.Setup(600, sizeof(UnitController), UnitController::sMemoryPool.GetGrow());
-    UnitAgent::sMemoryPool.Setup(600, 0x358, UnitAgent::sMemoryPool.GetGrow());
-    Navigator::sMemoryPool.Setup(600, 0x1e8, Navigator::sMemoryPool.GetGrow());
+    UnitAgent::sMemoryPool.Setup(600,
+                                 PoolBlockSize<UnitBoardAgent, UnitCaptureCPAgent, UnitCombatAgent,
+                                               UnitCTFOffenseAgent, UnitDeathmatchAgent, UnitDefendAgent,
+                                               UnitDestroyAgent, UnitFlyAgent, UnitFollowAgent, UnitHoldAgent,
+                                               UnitRandomAgent, UnitTrooperAgent, UnitUnBoardAgent, UnitWaitAgent,
+                                               UnitWaitSecondaryAgent>(),
+                                 UnitAgent::sMemoryPool.GetGrow());
+    Navigator::sMemoryPool.Setup(600,
+                                 PoolBlockSize<NavigatorFollowTarget, NavigatorGraphFollower,
+                                               NavigatorPathFollower, NavigatorSlide>(),
+                                 Navigator::sMemoryPool.GetGrow());
     PathFollower::sMemoryPool.Setup(600, PathFollower::sMemoryPool.GetSize(),
                                     PathFollower::sMemoryPool.GetGrow());
     ConnectivityGraphFollower::sMemoryPool.Setup(600, ConnectivityGraphFollower::sMemoryPool.GetSize(),
                                                  ConnectivityGraphFollower::sMemoryPool.GetGrow());
     BaseHint::sMemoryPool.Setup(350, sizeof(BaseHint), BaseHint::sMemoryPool.GetGrow());
-    AI::AIGoal::sMemoryPool.Setup(20, 0x3c, AI::AIGoal::sMemoryPool.GetGrow());
+    AI::AIGoal::sMemoryPool.Setup(20,
+                                  PoolBlockSize<AI::ConquestGoal, AI::CTFGoal, AI::CTFGoalD, AI::DeathmatchGoal,
+                                                AI::DefendGoal, AI::DestroyGoal, AI::FollowGoal>(),
+                                  AI::AIGoal::sMemoryPool.GetGrow());
     VisionManager::RayRequest::sMemoryPool.Setup(201, VisionManager::RayRequest::sMemoryPool.GetSize(),
                                                  VisionManager::RayRequest::sMemoryPool.GetGrow());
 

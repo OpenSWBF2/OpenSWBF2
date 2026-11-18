@@ -1,7 +1,10 @@
 #include <windows.h>
+#include <new>
+#include <stdint.h>
 #include <string.h>
 
 #include "pcRedMoviePlayer.h"
+#include "pcRedMovieLayout.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "SoundFL/source/win/sndengine.h"
@@ -22,9 +25,9 @@ extern "C"
     __declspec(dllimport) BINKIOOPEN __stdcall BinkSetIO(BINKIOOPEN io);
     __declspec(dllimport) void __stdcall BinkSetMemory(BINKMEMALLOC a, BINKMEMFREE f);
 
-    typedef void*(__stdcall* BINKSNDSYSOPEN)(unsigned long param);
-    __declspec(dllimport) void* __stdcall BinkOpenDirectSound(unsigned long param);
-    __declspec(dllimport) int __stdcall BinkSetSoundSystem(BINKSNDSYSOPEN open, unsigned long param);
+    typedef void*(__stdcall* BINKSNDSYSOPEN)(uintptr_t param);
+    __declspec(dllimport) void* __stdcall BinkOpenDirectSound(uintptr_t param);
+    __declspec(dllimport) int __stdcall BinkSetSoundSystem(BINKSNDSYSOPEN open, uintptr_t param);
     __declspec(dllimport) BINK* __stdcall BinkOpen(const char* name, unsigned int flags);
     __declspec(dllimport) void __stdcall BinkClose(BINK* bink);
     __declspec(dllimport) char* __stdcall BinkGetError();
@@ -134,7 +137,7 @@ long RedMoviePlayer::BinkFileOpen(BINKIO* bio, const char* pName, unsigned long 
 {
     memset(bio, 0, sizeof(BINKIO));
     BINKFILE* pFile = BinkFile(bio);
-    pFile->fileHandle = (unsigned long)sMoviePlayer;
+    pFile->fileHandle = sMoviePlayer;
     pFile->dontClose = 1;
     pFile->startFile = 0;
     bio->ReadHeader = BinkFileReadHeader;
@@ -151,7 +154,7 @@ unsigned long RedMoviePlayer::BinkFileReadFrame(BINKIO* bio, unsigned long uiFra
                                                 long iOffset, void* pDest,
                                                 unsigned long uiSize)
 {
-    RedMoviePlayer* pPlayer = (RedMoviePlayer*)BinkFile(bio)->fileHandle;
+    RedMoviePlayer* pPlayer = BinkFile(bio)->fileHandle;
     BinkIOSuspend(bio);
     while (pPlayer->BufferGetUsed() < uiSize)
     {
@@ -180,7 +183,7 @@ unsigned long RedMoviePlayer::BinkFileReadHeader(BINKIO* bio, long iOffset, void
                                                  unsigned long uiSize)
 {
     unsigned long uiRead = 0;
-    RedMoviePlayer* pPlayer = (RedMoviePlayer*)BinkFile(bio)->fileHandle;
+    RedMoviePlayer* pPlayer = BinkFile(bio)->fileHandle;
     BinkIOSuspend(bio);
     if (pPlayer->BufferGetUsed() >= uiSize)
     {
@@ -320,19 +323,22 @@ bool RedMoviePlayer::Open(const char* const pFileName, unsigned int uiNumTexture
                           int iUnused, unsigned int uiArg4, unsigned int uiBufferSize,
                           unsigned int uiReadSize, unsigned int uiNumBitmaps)
 {
-    char* pBlock = (char*)RedAllocFromHeap(iHeap, uiBufferSize + 4 * (uiNumBitmaps + 4 * uiNumTextures), 0);
+    char* pBlock = (char*)RedAllocFromHeap(
+        iHeap, MovieLayout::BlockSize(uiBufferSize, uiNumTextures, uiNumBitmaps), 0);
     if (pBlock)
     {
-        if (OpenRenderer(iHeap, (RedBitmapElement**)(pBlock + 16 * uiNumTextures + uiBufferSize),
-                         uiNumBitmaps))
+        RedBitmapElement** ppBitmaps =
+            new (pBlock + MovieLayout::BitmapArrayOffset(uiBufferSize, uiNumTextures))
+                RedBitmapElement*[uiNumBitmaps];
+        if (OpenRenderer(iHeap, ppBitmaps, uiNumBitmaps))
         {
-            if (RedMoviePlayerBase::Open(pFileName, (RedTexture**)(pBlock + uiBufferSize),
-                                         uiNumTextures, iHeap, uiArg4, pBlock, uiBufferSize,
-                                         uiReadSize, 0xffffffff))
+            RedTexture** ppTextures = new (pBlock + MovieLayout::TextureArrayOffset(uiBufferSize))
+                RedTexture*[MovieLayout::TextureSlotCount(uiNumTextures)];
+            if (RedMoviePlayerBase::Open(pFileName, ppTextures, uiNumTextures, iHeap, uiArg4,
+                                         pBlock, uiBufferSize, uiReadSize, 0xffffffff))
             {
                 sReadSize = uiReadSize;
-                BinkSetSoundSystem(BinkOpenDirectSound,
-                                   (unsigned long)Snd::Engine::smDirectSound);
+                BinkSetSoundSystem(BinkOpenDirectSound, (uintptr_t)Snd::Engine::smDirectSound);
                 return true;
             }
             CloseRenderer(iHeap);

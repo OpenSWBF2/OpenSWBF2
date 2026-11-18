@@ -77,8 +77,30 @@ function Build-Game([string]$wt, [string]$logPath, [string]$config = $script:Gam
     return ($code -eq 0)
 }
 
+function Build-Luac([string]$wt, [string]$logPath, [string]$config) {
+    $ErrorActionPreference = 'Continue'
+    $env:SWBF2_NOSTAGE = 'true'
+    $lines = @()
+    $ok = $true
+    foreach ($p in 'Win32', 'x64') {
+        $lines += @(& $script:msbuild (Join-Path $wt 'LuaCompiler.vcxproj') "/p:Configuration=$config" "/p:Platform=$p" '/p:SWBF2_NOSTAGE=true' "/m:$BuildJobs" /v:minimal /nologo 2>&1 | ForEach-Object { "$_" })
+        if ($LASTEXITCODE -ne 0) { $ok = $false; break }
+    }
+    $lines | Set-Content -Path $logPath -Encoding ASCII
+    return $ok
+}
+
+function Build-GuardGroup([string]$group, [string]$logPath) {
+    $kind, $cfg = $group.Split('|')
+    if ($kind -eq 'game') { return (Build-Game $script:Wt $logPath $cfg) }
+    if (-not (Build-Tests $script:Wt $logPath $cfg)) { return $false }
+    if ($kind -eq 'luac') { return (Build-Luac $script:Wt ([IO.Path]::ChangeExtension($logPath, 'luac.log')) $cfg) }
+    return $true
+}
+
 function Run-Smoke([string]$wt, [string]$tag, $case) {
     $caseDir = Join-Path $OutDir "run-$tag\case"
+    Remove-HarnessTree $caseDir
     New-Item -ItemType Directory -Force -Path $caseDir | Out-Null
     $runDir = Get-WorkerPath $root $Platform $script:GameConfiguration 'guard' ($WorkerBase + $WorkerIndex)
     $srcBin = Join-Path $root "bin\$Platform\$script:GameConfiguration"
@@ -108,6 +130,7 @@ function Run-Perturb([string]$wt, [string]$tag, [string[]]$missions) {
         Copy-Item (Join-Path $wt "bin\$Platform\$script:GameConfiguration\BattlefrontII.exe") $runDir -Force
         foreach ($c in $cases) {
             $caseDir = Join-Path $OutDir "run-$tag\$($c.Name)"
+            Remove-HarnessTree $caseDir
             $res = Invoke-SmokeCase $c.Name (Join-Path $runDir 'BattlefrontII.exe') $runDir $c.Args.Replace('{CASEDIR}', $caseDir) $caseDir
             $proven = @(Get-PerturbProofMissing $c $res.LogText).Count -eq 0
             $runs += New-Object PSObject -Property @{ Case = $c; Class = $res.Class; Log = (Join-Path $caseDir 'run.log'); Proven = $proven }
@@ -177,7 +200,7 @@ function Get-TestsProjectGameTUs {
 }
 
 function Read-GuardProofs([string]$path) {
-    return Read-KeyedRecords $path @('Id')
+    return Read-KeyedRecords $path @('Id', 'Platform')
 }
 
 function Invoke-GuardLocked([scriptblock]$body) {
@@ -211,7 +234,7 @@ function Test-GuardResumed($l, $d) {
 
 function Merge-GuardProofs {
     if (-not $script:PartialFile -or -not (Test-Path -LiteralPath $script:PartialFile)) { return }
-    Merge-KeyedRecords $ProvenFile $script:ProofColumns @('Id') ([IO.File]::ReadAllLines($script:PartialFile))
+    Merge-KeyedRecords $ProvenFile $script:ProofColumns @('Id', 'Platform') ([IO.File]::ReadAllLines($script:PartialFile))
 }
 
 function Get-GuardWorktree([int]$index) {
@@ -275,9 +298,27 @@ function Get-GuardHardChecks([string[]]$names, [string]$exe) {
         $imp = (& $db /imports $exe) -join "`n"
         $res += @(Get-HardeningChecks $hdr '' 0 0 0) + @(Get-ImportChecks $imp)
     }
-    $srcNames = @($names | Where-Object { $binNames -notcontains $_ })
-    if ($srcNames.Count) { $res += @(Get-SourceChecks $script:Wt -Only $srcNames) }
+    if ($names -contains 'x64-objects') { $res += Get-X64ObjectsCheck $script:Wt $script:GameConfiguration }
+    if ($names -contains 'x64-size-literal') { $res += Get-X64SizeLiteralCheck $script:Wt (Get-GuardAllowLists (Join-Path $script:Wt 'tests\smoke\cases.ps1')).SizeLiteralAllow }
+    $srcNames = @($names | Where-Object { $binNames -notcontains $_ -and $_ -ne 'x64-objects' -and $_ -ne 'x64-size-literal' })
+    if ($srcNames.Count) {
+        $al = Get-GuardAllowLists (Join-Path $script:Wt 'tests\smoke\cases.ps1')
+        $res += @(Get-SourceChecks $script:Wt -spacerAllow $al.SpacerAllow -offsetAllow $al.OffsetAllow -Only $srcNames)
+    }
     return @($res | Where-Object { $names -contains $_.Name })
+}
+
+function Get-GuardAllowLists([string]$path) {
+    $errs = $null
+    $ast = [Management.Automation.Language.Parser]::ParseFile($path, [ref]$null, [ref]$errs)
+    if (@($errs).Count) { throw "$path does not parse: $(@($errs)[0].Message)" }
+    $lists = @{}
+    foreach ($name in 'SpacerAllow', 'OffsetAllow', 'SizeLiteralAllow') {
+        $asg = $ast.Find({ param($n) $n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq "`$script:$name" }, $true)
+        if (-not $asg) { throw "$path has no `$script:$name list" }
+        $lists[$name] = [string[]]@($asg.Right.Expression.SafeGetValue())
+    }
+    return $lists
 }
 
 function Get-GuardSmokeCase([string]$config, [string]$name) {
@@ -305,8 +346,10 @@ function Get-GuardRowGroup($r) {
         'AsanCanary' { return 'tests|Asan' }
     }
     if ($r.Asan) { return 'tests|Asan' }
-    if ($r.Config) { return "tests|$($r.Config)" }
-    return "tests|$script:TestsConfiguration"
+    $cfg = $script:TestsConfiguration
+    if ($r.Config) { $cfg = $r.Config }
+    if ($r.Luac) { return "luac|$cfg" }
+    return "tests|$cfg"
 }
 
 function Get-GuardControlKeys($r) {
@@ -328,17 +371,13 @@ function Enter-GuardGroup([string]$group) {
     else { Set-GuardGameConfig $script:DefaultGameConfiguration }
     if ($script:BuildState[$group] -eq 'control') { return }
     $log = Join-Path $OutDir ("build-control-$kind-$cfg-w$WorkerIndex.log")
-    if ($kind -eq 'tests') { $ok = Build-Tests $script:Wt $log $cfg }
-    else { $ok = Build-Game $script:Wt $log $cfg }
-    if (-not $ok) { throw "$kind $cfg control build failed, see $log" }
+    if (-not (Build-GuardGroup $group $log)) { throw "$kind $cfg control build failed, see $log" }
     $script:BuildState[$group] = 'control'
 }
 
 function Build-GuardReverted([string]$group, [string]$logPath) {
-    $kind, $cfg = $group.Split('|')
     $script:BuildState[$group] = 'reverted'
-    if ($kind -eq 'tests') { return (Build-Tests $script:Wt $logPath $cfg) }
-    return (Build-Game $script:Wt $logPath $cfg)
+    return (Build-GuardGroup $group $logPath)
 }
 
 function Invoke-GuardControl([string]$key) {
@@ -537,16 +576,18 @@ function Invoke-GuardTlogJob($tlogRows) {
         if ($project -eq 'tests') { return (Build-Tests $wt $logPath) }
         return (Build-Game $wt $logPath)
     }
-    $tlogDirs = @{ game = @(Get-GameProjects $wt $script:GameConfiguration | ForEach-Object { $_.TlogDir }); tests = (Join-Path $wt "obj\Tests\$Platform\$script:TestsConfiguration\OpenSWBF2Tests.tlog") }
+    $tlogDirs = @{ game = @(Get-GameProjects $wt $script:GameConfiguration | ForEach-Object { $_.TlogDir }); tests = (Join-Path $wt "obj\Tests\$Platform\$script:TestsConfiguration\OpenSWBF2Tests.tlog"); luac = (Join-Path $wt "obj\$Platform\$script:GameConfiguration\LuaCompiler\LuaCompiler.tlog") }
     $getFlag = {
         param($name)
         $game = $null
         $tests = $null
+        $luac = $null
         if (@($tlogDirs.game | Where-Object { Test-Path -LiteralPath $_ }).Count) { $game = Get-ClTlogCounts $tlogDirs.game }
         if (Test-Path -LiteralPath $tlogDirs.tests) { $tests = Get-ClTlogCounts $tlogDirs.tests }
-        return (Get-FlagChecks $game $tests $script:GameConfiguration $script:TestsConfiguration | Where-Object { $_.Name -eq $name })
+        if (Test-Path -LiteralPath $tlogDirs.luac) { $luac = Get-ClTlogCounts $tlogDirs.luac }
+        return (Get-FlagChecks $game $tests $script:GameConfiguration $script:TestsConfiguration $luac | Where-Object { $_.Name -eq $name })
     }
-    $tlogProjects = @(@($tlogRows | ForEach-Object { $_.Project }) + @($tlogRows | Where-Object { $_.Check -eq 'mimalloc-defines' } | ForEach-Object { 'tests' }) | Select-Object -Unique)
+    $tlogProjects = @(@($tlogRows | ForEach-Object { $_.Project }) + @($tlogRows | Where-Object { $_.Check -eq 'mimalloc-defines' } | ForEach-Object { 'tests' }) + @($tlogRows | Where-Object { $_.Check -eq 'x64-truncation' } | ForEach-Object { 'game', 'tests' }) | Select-Object -Unique)
     foreach ($project in $tlogProjects) {
         $log = Join-Path $OutDir "build-tlog-control-$project.log"
         if (-not (& $buildProj $project $log)) { throw "tlog control build failed, see $log" }
@@ -766,8 +807,17 @@ try {
     $rows = @($GuardRevertRows)
     $dupIds = @($rows | Group-Object { $_.Id } | Where-Object { $_.Count -gt 1 } | ForEach-Object { $_.Name })
     if ($dupIds.Count) { throw "duplicate row Id: $($dupIds -join ', ')" }
-    if ($Row) { $rows = @($rows | Where-Object { $Row -contains $_.Id }) }
     if ($rows.Count -eq 0) { Write-Host 'No rows selected.'; exit 2 }
+    $rows = @(Select-GuardPlatformRows $rows $Platform)
+    if ($Row) {
+        $rows = @($rows | Where-Object { $Row -contains $_.Id })
+        if ($rows.Count -eq 0) { Write-Host "No rows selected on $Platform."; exit 2 }
+    }
+    if ($rows.Count -eq 0) {
+        Write-Host "No rows for platform $Platform."
+        Write-Host 'selected 0 carried 0'
+        exit 0
+    }
     if (@($rows | Where-Object { $script:GuardSmokeKinds -contains $_.Kind }).Count) {
         . (Join-Path $testsDir 'smoke.ps1')
         $script:GuardSmokeLoaded = $true
@@ -815,7 +865,7 @@ try {
     }
     $script:Decisions = @{}
     foreach ($d in @(Select-GuardRows $selIn)) {
-        $p = $proofs[$d.Id]
+        $p = $proofs["$($d.Id)`t$Platform"]
         if ($d.Action -eq 'CARRY' -and $p.Config -ne $script:ProofConfig) { $d.Action = 'SELECT'; $d.Reason = "config $($p.Config)" }
         if ($Row) { $d.Action = 'SELECT'; $d.Reason = 'named' }
         elseif ($Full -and $d.Action -eq 'CARRY') { $d.Action = 'SELECT'; $d.Reason = 'full' }
@@ -827,7 +877,7 @@ try {
         $d = $script:Decisions[$r.Id]
         if ($d.Action -eq 'SELECT') { $listLines += "SELECT $($d.Id) $($d.Kind) $($d.Reason)" }
         else {
-            $p = $proofs[$d.Id]
+            $p = $proofs["$($d.Id)`t$Platform"]
             $line = "CARRY $($d.Id) $($d.Kind) $($p.Commit) $($p.Tree) $($p.Date)"
             $carryLines += $line
             $listLines += $line
@@ -852,9 +902,9 @@ try {
     $script:PartialFile = Join-Path $OutDir 'proven.partial.tsv'
     if ($Resume) {
         $ledger = Read-GuardProofs $script:LedgerFile
-        $resumedIds = @($rows | Where-Object { Test-GuardResumed $ledger[$_.Id] $script:Decisions[$_.Id] } | ForEach-Object { $_.Id })
+        $resumedIds = @($rows | Where-Object { Test-GuardResumed $ledger["$($_.Id)`t$Platform"] $script:Decisions[$_.Id] } | ForEach-Object { $_.Id })
         foreach ($id in $resumedIds) {
-            $l = $ledger[$id]
+            $l = $ledger["$id`t$Platform"]
             Write-Host "RESUMED $id $($l.Date)"
             $table += New-Object PSObject -Property @{ Id = $id; Tests = 'resumed'; Control = $l.Control; Reverted = $l.Result; Exit = ''; Detail = "ledger $($l.Date)" }
         }
@@ -889,7 +939,7 @@ try {
         }
     }
 
-    Assert-Runtimes $GameRuntimes
+    Assert-Runtimes $GameRuntimes $Platform
 
     $script:msbuild = Find-MSBuild
 

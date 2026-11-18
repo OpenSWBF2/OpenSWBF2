@@ -1,5 +1,6 @@
 #include "GameSound.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include "GameLoop.h"
@@ -203,7 +204,7 @@ void GameSound::Play(const PblVector3* pPos, const PblVector3* pVel, bool bArg3,
             return;
         }
         case type_ID:
-            const_cast<GameSound*>(this)->SetID((unsigned int)mProps, false, false);
+            const_cast<GameSound*>(this)->SetID((unsigned int)(uintptr_t)mProps, false, false);
             if (mType == type_ID)
             {
                 return;
@@ -242,7 +243,7 @@ void GameSound::SetID(const char* pName, bool, bool bDeferred)
     if ((strlen(pModifier) && PblHash(pModifier) == 0x1A01FB3B /* "defer" */) || bDeferred)
     {
         mType = type_ID;
-        mProps = (const void*)uID;
+        mProps = (const void*)(uintptr_t)uID;
         AddDeferred(this);
     }
     else
@@ -285,7 +286,7 @@ unsigned int GameSound::GetPropertiesHashID() const
     case type_soundStream:
         return ((const Snd::SoundStream::Properties*)GetProperties())->mHashID;
     case type_ID:
-        return (unsigned int)GetProperties();
+        return (unsigned int)(uintptr_t)GetProperties();
     default:
         return 0;
     }
@@ -333,7 +334,7 @@ GameSound& GameSound::operator=(const GameSound& other)
 {
     if (other.GetPropertiesType() == type_ID)
     {
-        const_cast<GameSound&>(other).SetID((unsigned int)other.GetProperties(), false, false);
+        const_cast<GameSound&>(other).SetID((unsigned int)(uintptr_t)other.GetProperties(), false, false);
     }
     mProps = other.mProps;
     mType = other.mType;
@@ -446,7 +447,7 @@ void GameSoundControllable::Play(const GameSound* pSound, const PblVector3* pPos
         mFlags = flags_playing;
         break;
     case GameSound::type_ID:
-        const_cast<GameSound*>(pSound)->SetID((unsigned int)pProps, false, false);
+        const_cast<GameSound*>(pSound)->SetID((unsigned int)(uintptr_t)pProps, false, false);
         if (pSound->GetPropertiesType() != GameSound::type_ID)
         {
             Play(pSound, pPos, pVel, true);

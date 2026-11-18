@@ -28,10 +28,12 @@ Voice* EngineBase::smVoices;
 bool EngineBase::smOpened;
 
 // GLOBAL: SWBF2 0x009d8420
-unsigned char EngineBase::smVoiceStorage[0xA800];
+alignas(Voice) unsigned char EngineBase::smVoiceStorage[kNumVoices * sizeof(Voice)];
+static_assert(sizeof(EngineBase::smVoiceStorage) == EngineBase::kNumVoices * sizeof(Voice), "smVoiceStorage holds kNumVoices voices");
 
 // GLOBAL: SWBF2 0x009e2c20
-unsigned char EngineBase::smStreamStorage[0x1446A68];
+alignas(Stream) unsigned char EngineBase::smStreamStorage[kNumStreams * sizeof(Stream)];
+static_assert(sizeof(EngineBase::smStreamStorage) == EngineBase::kNumStreams * sizeof(Stream), "smStreamStorage holds kNumStreams streams");
 
 // GLOBAL: SWBF2 0x01e29688
 // EngineBase::smTimeElapsed
@@ -175,7 +177,7 @@ bool EngineBase::Open()
     smOpened = true;
     smVoices = (Voice*)smVoiceStorage;
 
-    for (unsigned int uiOffset = 0; uiOffset < 0xA800; uiOffset += sizeof(Voice))
+    for (unsigned int uiOffset = 0; uiOffset < sizeof(smVoiceStorage); uiOffset += sizeof(Voice))
     {
         void* const pMemory = (unsigned char*)smVoices + uiOffset;
         Voice* const pVoice = new (pMemory, false) Voice;
@@ -187,7 +189,7 @@ bool EngineBase::Open()
 
     smStreams = (Stream*)smStreamStorage;
 
-    for (unsigned int uiOffset = 0; uiOffset < 0x1446A68; uiOffset += sizeof(Stream))
+    for (unsigned int uiOffset = 0; uiOffset < sizeof(smStreamStorage); uiOffset += sizeof(Stream))
     {
         void* const pMemory = (unsigned char*)smStreams + uiOffset;
         new (pMemory, false) Stream;

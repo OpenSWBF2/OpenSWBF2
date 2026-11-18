@@ -4241,7 +4241,7 @@ void EntitySoldierClass::PostReadSetup()
         mSkeletonRootScale = 0.6f;
         if (mSpecialSkeleton && mSpecialSkeleton != SoldierAnimatorClass::Instance()->GetDefaultSkeleton())
         {
-            int iJoint = (int)mSpecialSkeleton->m_kHashCRC2Joint.Find(0x16e27226 /* "bone_root" */) - 1;
+            int iJoint = (int)mSpecialSkeleton->m_kHashCRC2Joint.FindValue(0x16e27226 /* "bone_root" */) - 1;
             mSpecialSkeleton->SetJointScale(iJoint, mSkeletonRootScale);
         }
 
@@ -5265,7 +5265,7 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         if (mSpecialSkeleton && mSpecialSkeleton != SoldierAnimatorClass::Instance()->GetDefaultSkeleton() &&
             mSkeletonRootScale != 1.0f)
         {
-            int iJoint = (int)mSpecialSkeleton->m_kHashCRC2Joint.Find(0x16E27226 /* "bone_root" */) - 1;
+            int iJoint = (int)mSpecialSkeleton->m_kHashCRC2Joint.FindValue(0x16E27226 /* "bone_root" */) - 1;
             mSpecialSkeleton->SetJointScale(iJoint, mSkeletonRootScale);
         }
         break;
@@ -5277,7 +5277,7 @@ void EntitySoldierClass::SetProperty(unsigned int uProperty, const char* pszValu
         if (mSpecialSkeletonLowRes && mSpecialSkeletonLowRes != SoldierAnimatorLowResClass::GetDefaultSkeleton() &&
             mSkeletonRootScaleLowRes != 1.0f)
         {
-            int iJoint = (int)mSpecialSkeletonLowRes->m_kHashCRC2Joint.Find(0xE6E47876 /* "bone_pelvis" */) - 1;
+            int iJoint = (int)mSpecialSkeletonLowRes->m_kHashCRC2Joint.FindValue(0xE6E47876 /* "bone_pelvis" */) - 1;
             mSpecialSkeletonLowRes->SetJointScale(iJoint, mSkeletonRootScaleLowRes);
         }
         break;
