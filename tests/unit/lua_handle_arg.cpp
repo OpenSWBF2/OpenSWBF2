@@ -215,13 +215,13 @@ TEST_CASE("pbl hash table finds values by address" * doctest::test_suite("regres
     CHECK(!sTestHashTable.HasValue((const int*)(uintptr_t)0xFFFFFFF0));
 
     REQUIRE(HashRemoveOld(sTestHashTable, 0x1234u));
-    static_assert(sizeof(sTestHashTable) == sizeof(int) + 16 * sizeof(unsigned int), "hash table layout");
-    const unsigned int* puiSlots =
-        reinterpret_cast<const unsigned int*>(reinterpret_cast<const char*>(&sTestHashTable) + sizeof(int));
+    static_assert(sizeof(sTestHashTable) == sizeof(uintptr_t) + 16 * sizeof(uintptr_t), "hash table layout");
+    const uintptr_t* puSlots =
+        reinterpret_cast<const uintptr_t*>(reinterpret_cast<const char*>(&sTestHashTable) + sizeof(uintptr_t));
     bool bStaleValue = false;
     for (int i = 0; i < 8; ++i)
     {
-        bStaleValue = bStaleValue || (const int*)puiSlots[8 + i] == &iA;
+        bStaleValue = bStaleValue || (const int*)puSlots[8 + i] == &iA;
     }
     CHECK(bStaleValue);
     CHECK(!sTestHashTable.HasValue(&iA));

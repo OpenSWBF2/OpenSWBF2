@@ -16,6 +16,7 @@
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblRandom.h"
 
+#include "RedEngineFL/Memory/RedAlign.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 
 #include "ZlibFL/zlib.h"
@@ -444,7 +445,7 @@ bool ConnectivityGraph::ReadPatch(PblFileChunk& chunk)
     mDynamicArcUnzipBufferSize = 0;
     for (int i = 0; i < iNumPatches; ++i)
     {
-        ConnectivityGraphPatch* pPatch = (ConnectivityGraphPatch*)(((unsigned int)pData + 15) & ~15u);
+        ConnectivityGraphPatch* pPatch = (ConnectivityGraphPatch*)RedAlignUp(pData, 16);
         mPatchList[i] = pPatch;
         const int iUncompressed = chunk._pFile->Read32();
         mPatchList[i]->mUncompressedSize = iUncompressed;

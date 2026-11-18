@@ -136,9 +136,12 @@ void SetSafeMode()
 
 ShellLoop::eLEGALSCREENS_SHOWTYPE ShellLoop::sLegalShowtype;
 
-extern "C" __declspec(align(16)) char gStubFLInputManager[sizeof(FLInputManager)];
-__declspec(align(16)) char gStubFLInputManager[sizeof(FLInputManager)];
-#pragma comment(linker, "/alternatename:?s_instance@FLInputManager@@2V1@A=_gStubFLInputManager")
+struct __declspec(align(16)) StubFLInputManagerStorage
+{
+    char mBytes[sizeof(FLInputManager)];
+};
+StubFLInputManagerStorage gStubFLInputManager;
+#pragma comment(linker, "/alternatename:?s_instance@FLInputManager@@2V1@A=?gStubFLInputManager@@3UStubFLInputManagerStorage@@A")
 
 void AddAutoNetMission(char const*, int, int)
 {

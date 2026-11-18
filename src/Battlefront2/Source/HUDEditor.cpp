@@ -583,17 +583,7 @@ void HUD::Editor::Update(RawControllerInputs* const pInputs, float fDelta)
                 }
                 else
                 {
-                    const unsigned int* pTable = (const unsigned int*)&RedModel::_HashTable + 1;
-                    unsigned int uiPos = 0;
-                    do
-                    {
-                        if (pTable[uiPos])
-                        {
-                            break;
-                        }
-                        ++uiPos;
-                    } while (uiPos < 1024);
-                    mValue.modelValue = (RedModel*)pTable[1024 + uiPos];
+                    mValue.modelValue = RedModel::_HashTable.Begin();
                 }
                 bChanged = mValue.modelValue != 0;
             }
@@ -615,17 +605,7 @@ void HUD::Editor::Update(RawControllerInputs* const pInputs, float fDelta)
                 }
                 else
                 {
-                    const unsigned int* pTable = (const unsigned int*)&RedTexture::s_textureHashTable + 1;
-                    unsigned int uiPos = 0;
-                    do
-                    {
-                        if (pTable[uiPos])
-                        {
-                            break;
-                        }
-                        ++uiPos;
-                    } while (uiPos < 4096);
-                    mValue.textureValue = (RedTexture*)pTable[4096 + uiPos];
+                    mValue.textureValue = RedTexture::s_textureHashTable.Begin();
                 }
                 bChanged = mValue.textureValue != 0;
             }

@@ -118,7 +118,7 @@ Decide whether a handled object is alive with `PblHandle::IsLive()` or `GetObjec
 
 ## CI
 
-`.github/workflows/tests.yml` runs on a self-hosted `[self-hosted, windows, v143]` runner. The `test` job runs `run.ps1 -Configuration Test` and `selftest.ps1`. The `asan` job runs `run.ps1 -Asan`, `-Asan -Smoke Dedicated` and `selftest.ps1 -Configuration Asan`. To set up the runner:
+`.github/workflows/tests.yml` runs on a self-hosted `[self-hosted, windows, v143]` runner. The `test` job runs `run.ps1 -Configuration Test` and `selftest.ps1`. The `asan` job runs `run.ps1 -Asan`, `-Asan -Smoke Dedicated` and `selftest.ps1 -Configuration Asan`. The `x64` job builds the x64 Test exe and tests, runs `run.ps1 -Platform x64 -Configuration Test -Smoke None -Hardening` and `luac-compare.ps1`; it never starts the game exe. To set up the runner:
 
 1. Install VS2022, the Windows SDK and DirectX SDK June 2010 (`DXSDK_DIR` set at machine level).
 2. Run `config.cmd --labels v143`.
@@ -162,12 +162,12 @@ When the game and tests configurations are both Release, `compare-tables.ps1 -Ha
 
 | Tier | When | Command | Steps |
 |------|------|---------|-------|
-| Per plan | every change | `tests\gate.ps1 -Tier plan` | Debug, Release and Test builds; `run.ps1` (Debug T1, hardening, Release Standard smoke); `selftest.ps1 -Configuration Test`; selective `guard-revert.ps1`; x64 compile |
+| Per plan | every change | `tests\gate.ps1 -Tier plan -Platform Win32,x64` | Debug, Release and Test builds on both platforms; `run.ps1` (Debug T1, hardening, Release Standard smoke); x64 Test T1; `selftest.ps1 -Configuration Test`; selective `guard-revert.ps1` |
 | Pull request | CI `test` and `asan` jobs | `tests\gate.ps1 -Tier pr [-Job test\|asan]` | test: Debug and Test builds, `run.ps1 -Configuration Test`, `selftest.ps1 -Configuration Test`; asan: Debug and Asan builds, `run.ps1 -Asan`, `-Asan -Smoke Dedicated`, `selftest.ps1 -Configuration Asan` |
-| Branch close | before merging a branch | `tests\gate.ps1 -Tier branch -Platform Win32,x64` | all four builds; `run.ps1`; Release `-Smoke Twice` and `-Smoke All`; `selftest.ps1 -Configuration Test`; selective `guard-revert.ps1`; x64 compile |
-| Milestone close | before a release | `tests\gate.ps1 -Tier milestone -Platform Win32,x64` | all four builds; `run.ps1`; Release Twice and All; Test default, Perturb and All at the short count; Asan default, Dedicated and Soak; both self-tests; `capture-vs2013.ps1 -Collect`, `-Map`, `-Layouts`, Debug `-DebugDigests` and `-Verify -Baseline v143` with their compares; `x64-census.ps1`; selective `guard-revert.ps1`; x64 compile |
+| Branch close | before merging a branch | `tests\gate.ps1 -Tier branch -Platform Win32,x64` | all four builds; `run.ps1`; Release `-Smoke Twice` and `-Smoke All`; `selftest.ps1 -Configuration Test`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
+| Milestone close | before a release | `tests\gate.ps1 -Tier milestone -Platform Win32,x64` | all four builds; `run.ps1`; Release Twice and All; Test default, Perturb and All at the short count; Asan default, Dedicated and Soak; both self-tests; `capture-vs2013.ps1 -Collect`, `-Map`, `-Layouts`, Debug `-DebugDigests` and `-Verify -Baseline v143` with their compares; `x64-census.ps1`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
 
-Plan, PR and branch runs, and every Test All run, end `TimeOut` missions at turn 9300 (`-Soak Short`), so the soak past turn 9300 is proven only in milestone and weekly runs, by Release All at the long count (`-Soak Long`, turn 617300) and the ASan `Soak` group. `guard-revert.ps1 -Full` is a manual run. x64 steps need an x64 configuration and are refused until one exists; `-Platform` defaults to `Win32`. Wall times per step, before and after, are in `tests\baseline\gate-times.tsv`; a full milestone run writes `after_s`.
+Plan, PR and branch runs, and every Test All run, end `TimeOut` missions at turn 9300 (`-Soak Short`), so the soak past turn 9300 is proven only in milestone and weekly runs, by Release All at the long count (`-Soak Long`, turn 617300) and the ASan `Soak` group. `guard-revert.ps1 -Full` is a manual run. x64 steps build, run T1 and the tlog checks and never start the game exe; `-Platform` defaults to `Win32`. Wall times per step, before and after, are in `tests\baseline\gate-times.tsv`; a full milestone run writes `after_s`.
 
     tests\gate.ps1 -Tier plan|pr|branch|milestone [-Platform Win32,x64] [-Step <names>] [-Resume] [-ListOrder]
 
@@ -189,7 +189,8 @@ Rows run in parallel on `-Workers` workers (default: logical processors divided 
 
 ## Other tools
 
-- `tests\x64-census.ps1 -Name census-N` counts x64 warnings and errors on scratch copies of the projects. The output goes to `tests\baseline\census`.
+- `tests\x64-census.ps1 -Name census-N` rebuilds the solution for x64 in Release, Debug, Test and Asan and lists every pointer-truncation and format warning site. The output goes to `tests\baseline\census`.
+- `tests\luac-compare.ps1 [-Configuration Release] [-Platform Win32]` builds LuaCompiler for Win32 and x64 and fails unless both write the same bytes for every indexed script, and for the four lvls when GameData is found.
 - `tests\laa-compare.ps1` compares runs with and without `/LARGEADDRESSAWARE`.
 - `tests\baseline\capture-vs2013.ps1` captured the VS2013 reference before the move to v143.
 - `tests\baseline\compare-tables.ps1 -Tables <dir>` compares captured digests, mem-peaks, pool-sizes and CLOTH exactly against `tests\baseline\v143`; `-LuaBins` and `-OffThread` compare those tables instead. `-Collect`, `-Map` and `-DebugDigests` compare the output of `capture-vs2013.ps1 -Collect`, `-Map` and `-DebugDigests` byte for byte. Its reader map names the reader of every file in `tests\baseline\v143`, and the `baseline-readers` hardening check fails on a file with no reader.

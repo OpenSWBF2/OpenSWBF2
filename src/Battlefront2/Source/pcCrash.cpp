@@ -219,18 +219,18 @@ static void WriteFatalLine(EXCEPTION_POINTERS* pInfo)
     char acPath[MAX_PATH * 3];
     wchar_t awcModule[MAX_PATH];
     unsigned int uiCode = 0;
-    unsigned int uiAddr = 0;
-    unsigned int uiOffset = 0;
+    uintptr_t uAddr = 0;
+    uintptr_t uOffset = 0;
     HMODULE hModule = 0;
     lstrcpyA(acModule, "unknown");
     lstrcpyA(acPath, "none");
     if (pInfo != 0 && pInfo->ExceptionRecord != 0)
     {
         uiCode = (unsigned int)pInfo->ExceptionRecord->ExceptionCode;
-        uiAddr = (unsigned int)(UINT_PTR)pInfo->ExceptionRecord->ExceptionAddress;
+        uAddr = (uintptr_t)pInfo->ExceptionRecord->ExceptionAddress;
     }
     if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCWSTR)(UINT_PTR)uiAddr, &hModule) && hModule != 0)
+        (LPCWSTR)uAddr, &hModule) && hModule != 0)
     {
         DWORD uiLen = GetModuleFileNameW(hModule, awcModule, MAX_PATH);
         if (uiLen > 0 && uiLen < MAX_PATH)
@@ -247,7 +247,7 @@ static void WriteFatalLine(EXCEPTION_POINTERS* pInfo)
             {
                 lstrcpyA(acModule, "unknown");
             }
-            uiOffset = uiAddr - (unsigned int)(UINT_PTR)hModule;
+            uOffset = uAddr - (uintptr_t)hModule;
         }
     }
     if (gDumpPath[0] != 0)
@@ -264,8 +264,8 @@ static void WriteFatalLine(EXCEPTION_POINTERS* pInfo)
     }
     else
     {
-        wsprintfA(gFatalLine, "FATAL: exception 0x%08X at 0x%08X (%.64s+0x%X) build %s dump %.400s\r\n", uiCode,
-            uiAddr, acModule, uiOffset, gBuildId, acPath);
+        wsprintfA(gFatalLine, "FATAL: exception 0x%08X at 0x%08IX (%.64s+0x%IX) build %s dump %.400s\r\n", uiCode,
+            uAddr, acModule, uOffset, gBuildId, acPath);
     }
     AppendLog(gFatalLine);
     WriteEnsureSummary();
@@ -669,43 +669,43 @@ void pcCrash::ReserveLowAddressSpace()
     {
         return;
     }
-    const unsigned int kLimit = 0x80000000u;
-    const unsigned int kMinRegion = 0x100000u;
+    const uintptr_t kLimit = 0x80000000u;
+    const size_t kMinRegion = 0x100000u;
     SYSTEM_INFO si;
     GetSystemInfo(&si);
-    const unsigned int uiGran = si.dwAllocationGranularity;
-    unsigned int uiAt = (unsigned int)si.lpMinimumApplicationAddress;
+    const uintptr_t uGran = si.dwAllocationGranularity;
+    uintptr_t uAt = (uintptr_t)si.lpMinimumApplicationAddress;
     int iRetry = 0;
-    while (uiAt < kLimit)
+    while (uAt < kLimit)
     {
         MEMORY_BASIC_INFORMATION mbi;
-        if (!VirtualQuery((void*)uiAt, &mbi, sizeof(mbi)))
+        if (!VirtualQuery((void*)uAt, &mbi, sizeof(mbi)))
         {
             break;
         }
-        unsigned int uiBase = (unsigned int)mbi.BaseAddress;
-        unsigned int uiEnd = uiBase + (unsigned int)mbi.RegionSize;
-        if (uiEnd < uiBase || uiEnd > kLimit)
+        uintptr_t uBase = (uintptr_t)mbi.BaseAddress;
+        uintptr_t uEnd = uBase + mbi.RegionSize;
+        if (uEnd < uBase || uEnd > kLimit)
         {
-            uiEnd = kLimit;
+            uEnd = kLimit;
         }
         if (mbi.State == MEM_FREE)
         {
-            unsigned int uiFrom = (uiBase + uiGran - 1) & ~(uiGran - 1);
-            if (uiEnd > uiFrom && (uiEnd - uiFrom >= kMinRegion || uiEnd == kLimit))
+            uintptr_t uFrom = (uBase + uGran - 1) & ~(uGran - 1);
+            if (uEnd > uFrom && (uEnd - uFrom >= kMinRegion || uEnd == kLimit))
             {
-                if (!VirtualAlloc((void*)uiFrom, uiEnd - uiFrom, MEM_RESERVE, PAGE_NOACCESS) && iRetry < 16)
+                if (!VirtualAlloc((void*)uFrom, uEnd - uFrom, MEM_RESERVE, PAGE_NOACCESS) && iRetry < 16)
                 {
                     iRetry++;
                     continue;
                 }
             }
         }
-        if (uiEnd == kLimit)
+        if (uEnd == kLimit)
         {
             break;
         }
-        uiAt = uiEnd;
+        uAt = uEnd;
     }
 }
 

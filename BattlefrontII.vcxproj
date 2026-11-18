@@ -24,18 +24,18 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <TargetMachine>MachineX86</TargetMachine>
       <StackReserveSize>4194304</StackReserveSize>
       <StackCommitSize>4096</StackCommitSize>
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
       <FixedBaseAddress>false</FixedBaseAddress>
       <DataExecutionPrevention>true</DataExecutionPrevention>
       <LargeAddressAware>true</LargeAddressAware>
-      <ImageHasSafeExceptionHandlers>true</ImageHasSafeExceptionHandlers>
+      <ImageHasSafeExceptionHandlers Condition="'$(Platform)'=='Win32'">true</ImageHasSafeExceptionHandlers>
       <GenerateMapFile>true</GenerateMapFile>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <MapFileName>$(IntDir)$(TargetName).map</MapFileName>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;lib\binkw32.lib;lib\steam_api.lib;lib\Galaxy.lib</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Platform)'=='Win32'">kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;lib\Win32\binkw32.lib;lib\Win32\steam_api.lib;lib\Win32\Galaxy.lib</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Platform)'=='x64'">kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;$(IntDir)binkw64.lib;$(IntDir)steam_api64.lib;$(IntDir)Galaxy64.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -108,7 +108,7 @@
     <ClCompile Include="src\Battlefront2\Source\CTFGoal.cpp" />
     <ClCompile Include="src\Battlefront2\Source\CTFGoalD.cpp" />
     <ClCompile Include="src\Battlefront2\Source\CameraManager.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\CaptureDisplay.cpp" />
     <ClCompile Include="src\Battlefront2\Source\ChangeClassDisplay.cpp" />
@@ -121,11 +121,14 @@
     <ClCompile Include="src\Battlefront2\Source\CollisionBody.cpp" />
     <ClCompile Include="src\Battlefront2\Source\CollisionManager.cpp" />
     <ClCompile Include="src\Battlefront2\Source\CollisionMesh.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\CollisionModel.cpp" />
     <ClCompile Include="src\Battlefront2\Source\CollisionObject.cpp" />
     <ClCompile Include="src\Battlefront2\Source\CollisionPrimitive.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\CollisionTree.cpp">
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\CollisionUtil.cpp" />
     <ClCompile Include="src\Battlefront2\Source\ColorControl.cpp" />
     <ClCompile Include="src\Battlefront2\Source\CombatHelper.cpp" />
@@ -851,6 +854,7 @@
     <ClInclude Include="src\Battlefront2\Source\NetAdmin.h" />
     <ClInclude Include="src\Battlefront2\Source\NetAdminIdText.h" />
     <ClInclude Include="src\Battlefront2\Source\NetComm.h" />
+    <ClInclude Include="src\Battlefront2\Source\NetDest.h" />
     <ClInclude Include="src\Battlefront2\Source\NetDrag.h" />
     <ClInclude Include="src\Battlefront2\Source\NetGame.h" />
     <ClInclude Include="src\Battlefront2\Source\NetMatch.h" />
@@ -864,6 +868,7 @@
     <ClInclude Include="src\Battlefront2\Source\LocalizedFormatArgs.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcColorRamp.h" />
     <ClInclude Include="src\Battlefront2\Source\NetPredict.h" />
+    <ClInclude Include="src\Battlefront2\Source\NetSendScopes.h" />
     <ClInclude Include="src\Battlefront2\Source\NetSetup.h" />
     <ClInclude Include="src\Battlefront2\Source\NetState.h" />
     <ClInclude Include="src\Battlefront2\Source\NetStateViews.h" />
@@ -1247,6 +1252,13 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ItemGroup Condition="'$(Platform)'=='x64'">
+    <X64ImportDef Include="lib\x64\binkw64.def;lib\x64\steam_api64.def;lib\x64\Galaxy64.def" />
+  </ItemGroup>
+  <Target Name="GenerateX64ImportLibs" BeforeTargets="ClCompile" Condition="'$(Platform)'=='x64'" Inputs="@(X64ImportDef)" Outputs="@(X64ImportDef->'$(IntDir)%(Filename).lib')">
+    <MakeDir Directories="$(IntDir)" />
+    <Exec Command="lib.exe /nologo /def:&quot;%(X64ImportDef.FullPath)&quot; /machine:x64 /out:&quot;$(IntDir)%(X64ImportDef.Filename).lib&quot;" />
+  </Target>
   <PropertyGroup Condition="'$(SWBF2_GAMEDATA)' == ''">
     <_SteamSWBF2>$([MSBuild]::GetRegistryValueFromView('HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 6060', 'InstallLocation', null, RegistryView.Registry64, RegistryView.Registry32))</_SteamSWBF2>
     <SWBF2_GAMEDATA Condition="'$(_SteamSWBF2)' != ''">$(_SteamSWBF2)\GameData</SWBF2_GAMEDATA>
@@ -1257,11 +1269,11 @@
   <Target Name="StageGameData" AfterTargets="Build" Condition="'$(SWBF2_GAMEDATA)' != '' and '$(SWBF2_NOSTAGE)' != 'true'">
     <Exec WorkingDirectory="$(ProjectDir)" Command="&quot;$(OutDir)LuaCompiler.exe&quot; stage --retail &quot;$(SWBF2_GAMEDATA)&quot; --out &quot;$(OutDir).&quot;" />
     <ItemGroup>
-      <GameDataFile Include="$(SWBF2_GAMEDATA)\binkw32.dll" Condition="Exists('$(SWBF2_GAMEDATA)\binkw32.dll')" />
-      <GameDataFile Include="$(SWBF2_GAMEDATA)\Galaxy.dll" Condition="Exists('$(SWBF2_GAMEDATA)\Galaxy.dll')" />
-      <GameDataFile Include="$(SWBF2_GAMEDATA)\GalaxyPeer.dll" Condition="Exists('$(SWBF2_GAMEDATA)\GalaxyPeer.dll')" />
-      <GameDataFile Include="$(SWBF2_GAMEDATA)\steam_api.dll" Condition="Exists('$(SWBF2_GAMEDATA)\steam_api.dll')" />
-      <GameDataFile Include="$(SWBF2_GAMEDATA)\unicows.dll" Condition="Exists('$(SWBF2_GAMEDATA)\unicows.dll')" />
+      <GameDataFile Include="$(SWBF2_GAMEDATA)\binkw32.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\binkw32.dll')" />
+      <GameDataFile Include="$(SWBF2_GAMEDATA)\Galaxy.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\Galaxy.dll')" />
+      <GameDataFile Include="$(SWBF2_GAMEDATA)\GalaxyPeer.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\GalaxyPeer.dll')" />
+      <GameDataFile Include="$(SWBF2_GAMEDATA)\steam_api.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\steam_api.dll')" />
+      <GameDataFile Include="$(SWBF2_GAMEDATA)\unicows.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\unicows.dll')" />
     </ItemGroup>
     <Copy SourceFiles="@(GameDataFile)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
     <WriteLinesToFile File="$(OutDir)steam_appid.txt" Lines="6060" Overwrite="true" />

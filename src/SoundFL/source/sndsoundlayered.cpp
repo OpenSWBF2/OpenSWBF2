@@ -35,7 +35,8 @@ SoundLayered::FireForgetLayer* SoundLayered::smFireForgetLayers;
 // GLOBAL: SWBF2 0x01e29db4
 bool SoundLayered::smIsOpen;
 // GLOBAL: SWBF2 0x01e29db8
-unsigned char SoundLayered::smFireForgetLayerStorage[5888];
+alignas(SoundLayered::FireForgetLayer) unsigned char SoundLayered::smFireForgetLayerStorage[64 * sizeof(FireForgetLayer)];
+static_assert(sizeof(SoundLayered::smFireForgetLayerStorage) == 64 * sizeof(SoundLayered::FireForgetLayer), "smFireForgetLayerStorage holds 64 layers");
 
 // SYNTHETIC: SWBF2 0x0040bb90
 // `dynamic initializer for 'Snd::SoundLayered::SoundLayer::smFreeList''
@@ -62,7 +63,7 @@ FreeList SoundLayered::Properties::Layer::smFreeList(sizeof(SoundLayered::Proper
 
 // GLOBAL: SWBF2 0x007e3694
 // SoundLayered::Properties::smFreeList
-FreeList SoundLayered::Properties::smFreeList(0x0c, 1, true, 8);
+FreeList SoundLayered::Properties::smFreeList(sizeof(SoundLayered::Properties), 1, true, 8);
 
 // SYNTHETIC: SWBF2 0x0040bbc0
 // `dynamic initializer for 'Snd::SoundLayered::Properties::smPropertyList''

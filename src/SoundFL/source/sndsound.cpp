@@ -21,7 +21,8 @@ namespace Snd
 // Sound::smVoiceVirtuals
 Sound::FireForget* Sound::smVoiceVirtuals;
 // GLOBAL: SWBF2 0x01e2b4c8
-unsigned char Sound::smVoiceVirtualStorage[12800];
+alignas(Sound::FireForget) unsigned char Sound::smVoiceVirtualStorage[64 * sizeof(FireForget)];
+static_assert(sizeof(Sound::smVoiceVirtualStorage) == 64 * sizeof(Sound::FireForget), "smVoiceVirtualStorage holds 64 voices");
 
 // SYNTHETIC: SWBF2 0x00739c30
 // Snd::Source3D::`default constructor closure'
@@ -56,7 +57,7 @@ void Sound::Open()
     for (unsigned int i = 0; i < 64; ++i)
     {
         new (&smVoiceVirtuals[i], false)
-            FireForget((unsigned int)(unsigned long)smVoiceVirtuals, 0, true);
+            FireForget((uintptr_t)smVoiceVirtuals, 0, true);
 
         smSource3Ds[i].SetPosition(&smSource3DPositions[i]);
         smSource3Ds[i].SetVelocity(&smSource3DVelocities[i]);
@@ -257,7 +258,7 @@ VoiceVirtual* __cdecl Sound::GetFreeVoice(VoiceVirtualManager* pManager)
     {
         VoiceVirtual* const pVoice = (VoiceVirtual*)itor.GetNode(pList)->GetObjectA(
             pList, offsetof(VoiceVirtual, mNode));
-        if (pVoice == 0 || pVoice->GetCustomFlags() == (unsigned int)smVoiceVirtuals)
+        if (pVoice == 0 || pVoice->GetCustomFlags() == (uintptr_t)smVoiceVirtuals)
         {
             return pVoice;
         }
@@ -273,7 +274,7 @@ VoiceVirtual* __cdecl Sound::StealVoice(VoiceVirtualManager* pManager, float fPr
     {
         VoiceVirtual* pVoice = (VoiceVirtual*)itor.GetNode(&list)->GetObjectA(
             &list, offsetof(VoiceVirtual, mNode));
-        if (pVoice->GetCustomFlags() != (unsigned int)smVoiceVirtuals)
+        if (pVoice->GetCustomFlags() != (uintptr_t)smVoiceVirtuals)
         {
             continue;
         }
@@ -403,7 +404,7 @@ VoiceVirtual* __cdecl Sound::Play(Source3D* pSource3D, const Properties* pProps,
 
     if (pSource3D)
     {
-        const unsigned int i = ((unsigned int)pVoice - (unsigned int)smVoiceVirtuals) / sizeof(FireForget);
+        const unsigned int i = (unsigned int)(((uintptr_t)pVoice - (uintptr_t)smVoiceVirtuals) / sizeof(FireForget));
         smSource3DPositions[i] = *pSource3D->mPos3D;
         smSource3DVelocities[i] = *pSource3D->mVel3D;
         smSource3Ds[i].CopyParameters(*pSource3D);
@@ -509,7 +510,7 @@ void __cdecl Sound::UpdateVoices(VoiceVirtualManager* pManager, float fDeltaTime
     {
         FireForget* pVoice = (FireForget*)itor.GetNode(&list)->GetObjectA(
             &list, offsetof(VoiceVirtual, mNode));
-        if (pVoice->GetCustomFlags() != (unsigned int)smVoiceVirtuals)
+        if (pVoice->GetCustomFlags() != (uintptr_t)smVoiceVirtuals)
         {
             continue;
         }
@@ -518,7 +519,7 @@ void __cdecl Sound::UpdateVoices(VoiceVirtualManager* pManager, float fDeltaTime
         const ::PblVector3* pPos = pVoice->mPos3D;
         if (pPos < &smSource3DPositions[0] || pPos >= &smSource3DPositions[64])
         {
-            const unsigned int i = ((unsigned int)pVoice - (unsigned int)smVoiceVirtuals) / sizeof(FireForget);
+            const unsigned int i = (unsigned int)(((uintptr_t)pVoice - (uintptr_t)smVoiceVirtuals) / sizeof(FireForget));
             smSource3DPositions[i] = *pPos;
             pVoice->SetPosition(&smSource3DPositions[i]);
         }
@@ -534,7 +535,7 @@ VoiceVirtual* __cdecl Sound::VoiceVirtualHandleToVoiceVirtual(unsigned short uHa
 // FUNCTION: SWBF2 0x0073afb0
 unsigned short __cdecl Sound::VoiceVirtualToVoiceVirtualHandle(const VoiceVirtual* const pVoice)
 {
-    return (unsigned short)(((unsigned int)pVoice - (unsigned int)smVoiceVirtuals)
+    return (unsigned short)(((uintptr_t)pVoice - (uintptr_t)smVoiceVirtuals)
                             / sizeof(*smVoiceVirtuals) + 1);
 }
 

@@ -13,6 +13,18 @@
 #include "VoiceChatNode.h"
 
 #include "SoundFL/source/sndstreammixer.h"
+#include "RedEngineFL/Memory/RedAlign.h"
+
+static_assert(alignof(Snd::StreamSourceProducer) <= alignof(void*) && sizeof(Snd::StreamSourceProducer) % alignof(void*) == 0,
+              "producers keep the next array in the decoder block pointer aligned");
+static_assert(alignof(Snd::StreamPacket) <= alignof(void*) && sizeof(Snd::StreamPacket) % alignof(void*) == 0,
+              "packets keep the next array in the decoder block pointer aligned");
+static_assert(alignof(Snd::StreamGSMDecoder) <= alignof(void*),
+              "decoders are placed at pointer alignment in the decoder block");
+static_assert(alignof(Snd::StreamNodeConnection) <= alignof(void*) && sizeof(Snd::StreamNodeConnection) % alignof(void*) == 0,
+              "mixer connections keep the next array in the decoder block pointer aligned");
+static_assert(alignof(Snd::StreamPacketIO) <= alignof(void*) && sizeof(Snd::StreamPacketIO) % alignof(void*) == 0,
+              "mixer packet io keeps the next array in the decoder block pointer aligned");
 
 // FUNCTION: SWBF2 0x0053d1d0
 bool VoiceChat::Decoder::Open(unsigned int playbackDevice, float fPacketMs, unsigned int minBuffers, unsigned int iSlots)
@@ -193,7 +205,11 @@ bool GameVoiceChat::Decoder::Open(unsigned int playbackDevice, float fPacketMs, 
     const unsigned int uiSamples2 = uiSamples * 2u;
     const unsigned int uiAligned2 = (uiSamples2 + 3u) & 0xFFFFFFFCu;
 
-    const unsigned int uiSize = (uiAligned2 + 0x330u) * uiSlots + 0x3Cu
+    const unsigned int uiAlign = alignof(void*);
+    const unsigned int uiSlotBytes = sizeof(Snd::StreamSourceProducer) + sizeof(Snd::StreamPacket) * 2u
+                                   + sizeof(Snd::StreamGSMDecoder) + sizeof(Snd::StreamNodeConnection)
+                                   + sizeof(Snd::StreamPacketIO) + sizeof(unsigned int);
+    const unsigned int uiSize = (uiAligned2 + uiSlotBytes) * uiSlots + sizeof(Snd::StreamPacket) * 2u + uiAlign * 3u
                               + uiSamples4 + uiAligned2 * 2u;
 
     char* const pBlock = (char*)VoiceChat::Alloc(uiSize);
@@ -203,26 +219,25 @@ bool GameVoiceChat::Decoder::Open(unsigned int playbackDevice, float fPacketMs, 
         return false;
     }
 
-    const unsigned int uiSlots24 = uiSlots * 24u;
-    char* p = pBlock + uiSlots24;
+    char* p = pBlock + uiSlots * sizeof(Snd::StreamSourceProducer);
     mProducerPackets = (Snd::StreamPacket*)p;
-    p += uiSlots24;
+    p += uiSlots * sizeof(Snd::StreamPacket);
     mDecoders = (Snd::StreamGSMDecoder*)p;
-    p = (char*)(((unsigned int)(p + uiSlots * 0x2D4u) + 3u) & 0xFFFFFFFCu);
+    p += uiSlots * sizeof(Snd::StreamGSMDecoder);
     mDecoderBuffer = (unsigned char*)p;
-    p += uiAligned2 * uiSlots;
+    p = RedAlignUp(p + uiAligned2 * uiSlots, uiAlign);
     mDecoderPackets = (Snd::StreamPacket*)p;
-    p += uiSlots24;
+    p += uiSlots * sizeof(Snd::StreamPacket);
     mMixerConnections = (Snd::StreamNodeConnection*)p;
-    p += uiSlots * 8u;
+    p += uiSlots * sizeof(Snd::StreamNodeConnection);
     mMixerPacketIO = (Snd::StreamPacketIO*)p;
-    p += uiSlots * 8u;
+    p += uiSlots * sizeof(Snd::StreamPacketIO);
     mMixerBufferOffsets = (unsigned int*)p;
-    p = (char*)(((unsigned int)(p + uiSlots * 4u) + 3u) & 0xFFFFFFFCu);
+    p = RedAlignUp(p + uiSlots * sizeof(unsigned int), uiAlign);
     mMixerAccBuffer = (int*)p;
-    p += uiSamples4;
+    p = RedAlignUp(p + uiSamples4, uiAlign);
     mMixerPackets = (Snd::StreamPacket*)p;
-    p = (char*)(((unsigned int)(p + 0x33u)) & 0xFFFFFFFCu);
+    p += sizeof(Snd::StreamPacket) * 2u;
     mMixerOutBuffer = (short*)p;
 
     for (unsigned int i = 0; i < uiSlots; ++i)

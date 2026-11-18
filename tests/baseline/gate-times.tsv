@@ -48,7 +48,7 @@ x64-census	milestone	Win32	127	141	reference GCEN 127
 guard-selective	plan,branch,milestone	Win32	-	30	no reference step
 guard-selective	branch,milestone	x64	-	-	needs an x64 configuration
 guard-full	milestone	Win32	4632	removed	covered by guard-selective; guard-revert.ps1 -Full stays a manual run; reference GR-Full 4632; -Full re-seed at 44-27 1841
-x64-compile	plan,branch,milestone	x64	-	-	no reference step; needs an x64 configuration
+x64-t1	plan,branch,milestone	x64	-	-	no reference step
 G1-T2	plan,branch,milestone	Win32	48	removed	covered by run-default; reference G1-T2 48
 G8D	plan,pr,branch,milestone	Win32	56	removed	covered by selftest-Test; reference G8D 56
 dedicated-Release	branch,milestone	Win32	56	removed	covered by all-Release; reference GDd 56

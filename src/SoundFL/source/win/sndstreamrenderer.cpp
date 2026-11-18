@@ -12,6 +12,9 @@
 namespace Snd
 {
 
+static_assert(sizeof(StreamRenderer::mHardwareRendererStorage) == 1 * sizeof(DSBufferRenderer),
+              "mHardwareRendererStorage holds one DSBufferRenderer");
+
 // FUNCTION: SWBF2 0x00748f30
 StreamRenderer::StreamRenderer()
     : mFrequency(0),

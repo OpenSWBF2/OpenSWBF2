@@ -34,6 +34,7 @@
 #include "FLJoystick.h"
 #include "NetComm.h"
 #include "NetPacket.h"
+#include "NetSendScopes.h"
 #include "NetWire.h"
 #include "LocalLimits.h"
 #include "PebbleFL/Common/PblIndex.h"
@@ -517,7 +518,7 @@ bool isJournalOpened;
 
 // GLOBAL: SWBF2 0x01ee7490
 // NetObj::sMemoryPool
-MemoryPool NetObj::sMemoryPool("NetObj", 0xC);
+MemoryPool NetObj::sMemoryPool("NetObj", sizeof(NetObj));
 
 class NetObjState
 {
@@ -550,7 +551,7 @@ public:
 
 // GLOBAL: SWBF2 0x01ee4af0
 // NetObjState::sMemoryPool
-MemoryPool NetObjState::sMemoryPool("NetObjState", 0x30);
+MemoryPool NetObjState::sMemoryPool("NetObjState", sizeof(NetObjState));
 
 // SYNTHETIC: SWBF2 0x004048e0
 // `dynamic initializer for 'clientSoldierPool''
@@ -2679,8 +2680,8 @@ void NetGame::CreateClient()
             unsigned int uEnergyBars = hostEnergyBarPool.GetCount();
             unsigned int uTreeGrids = hostTreeGridPool.GetCount();
             unsigned int uRemoteTerminals = hostRemoteTerminalPool.GetCount();
-            clientMountedTurretPool.Setup(uTurrets, 0x2C0, 0);
-            clientAimerPool.Setup(uAimers, 0x220, 0);
+            clientMountedTurretPool.Setup(uTurrets, sizeof(MountedTurret), 0);
+            clientAimerPool.Setup(uAimers, sizeof(Aimer), 0);
             clientWeaponPool.Setup(uWeapons, hostWeaponPool.GetSize(), 0);
             clientAmmoCounterPool.Setup(uAmmoCounters, hostAmmoCounterPool.GetSize(), 0);
             clientEnergyBarPool.Setup(uEnergyBars, hostEnergyBarPool.GetSize(), 0);
@@ -2891,24 +2892,24 @@ void NetGame::CreateLast()
 
     if (!IsOneWorld())
     {
-        clientSoldierPool.Setup(uSoldiers, 0xFD0, 0);
-        clientDroidPool.Setup(uDroids, 0x460, 0);
-        clientWalkerPool.Setup(uWalkers, 0x2100, 0);
-        clientCommandWalkerPool.Setup(uCommandWalkers, 0x2110, 0);
-        clientCommandFlyerPool.Setup(uCommandFlyers, 0x1DA0, 0);
-        clientDroidekaPool.Setup(uDroidekas, 0x1B70, 0);
-        clientFlyerPool.Setup(uFlyers, 0x1D90, 0);
-        clientCarrierPool.Setup(uCarriers, 0x1DF0, 0);
-        clientHoverPool.Setup(uHovers, 0x1D10, 0);
-        clientCommandHoverPool.Setup(uCommandHovers, 0x1D20, 0);
-        clientPowerupPool.Setup(uPowerups, 0x290, 0);
-        clientArmedDynamicPool.Setup(uArmedDynamics, 0x6B0, 0);
-        clientWalkerLegPairPool.Setup(uWalkerLegPairs, 0x130, 0);
-        clientWalkerBlendPool.Setup(uWalkerBlends, 0x4C, 0);
-        clientWalkerBlendUnitPool.Setup(uWalkerBlendUnits, 0x133C, 0);
-        clientOrdnanceTowCablePool.Setup(uOrdnanceTowCables, 0x670, 0);
-        clientAsteroidPool.Setup(uAsteroids, 0x280, 0);
-        clientFlagPool.Setup(uFlags, 0x450, 0);
+        clientSoldierPool.Setup(uSoldiers, sizeof(EntitySoldier), 0);
+        clientDroidPool.Setup(uDroids, sizeof(EntityDroid), 0);
+        clientWalkerPool.Setup(uWalkers, sizeof(EntityWalker), 0);
+        clientCommandWalkerPool.Setup(uCommandWalkers, sizeof(CommandWalker), 0);
+        clientCommandFlyerPool.Setup(uCommandFlyers, sizeof(CommandFlyer), 0);
+        clientDroidekaPool.Setup(uDroidekas, sizeof(EntityDroideka), 0);
+        clientFlyerPool.Setup(uFlyers, sizeof(EntityFlyer), 0);
+        clientCarrierPool.Setup(uCarriers, sizeof(EntityCarrier), 0);
+        clientHoverPool.Setup(uHovers, sizeof(EntityHover), 0);
+        clientCommandHoverPool.Setup(uCommandHovers, sizeof(CommandHover), 0);
+        clientPowerupPool.Setup(uPowerups, sizeof(PowerupItem), 0);
+        clientArmedDynamicPool.Setup(uArmedDynamics, sizeof(EntityBuildingArmedDynamic), 0);
+        clientWalkerLegPairPool.Setup(uWalkerLegPairs, sizeof(WalkerLegPair), 0);
+        clientWalkerBlendPool.Setup(uWalkerBlends, sizeof(WalkerBlend), 0);
+        clientWalkerBlendUnitPool.Setup(uWalkerBlendUnits, sizeof(WalkerBlendUnit), 0);
+        clientOrdnanceTowCablePool.Setup(uOrdnanceTowCables, sizeof(OrdnanceTowCable), 0);
+        clientAsteroidPool.Setup(uAsteroids, sizeof(Asteroid), 0);
+        clientFlagPool.Setup(uFlags, sizeof(FlagItem), 0);
     }
 
     hostSoldierPool.Reset();
@@ -9192,10 +9193,6 @@ unsigned int ReadMoves(NetPktGroup& group, int player, unsigned int turn)
     }
     return turn - 1;
 }
-
-extern unsigned int netBroadcastSendSocket;
-extern unsigned int netBroadcastRecvSocket;
-extern "C" int __stdcall closesocket(unsigned int s);
 
 // FUNCTION: SWBF2 0x005c7160
 void AloNextGameInfo::Read(NetPktGroup& group)
@@ -16065,24 +16062,10 @@ void AddSend(GameObject* pObject)
 void FinishSend(GameObject** ppSends, GameObject* (*ppScopes)[64], int*)
 {
     int i, j;
-    PblHashTable<GameObject, 512> added;
     bool hasGuest = NetGame::GetMyGuest(curDst, 0) != -1;
-    int count = 0;
     if (hasGuest)
     {
-        for (i = 0; i < 64; ++i)
-        {
-            for (j = 0; j < 2; ++j)
-            {
-                GameObject* pObject = ppScopes[j][i];
-                if (pObject && count < 64 && !added.Find((unsigned int)pObject))
-                {
-                    ppSends[count++] = pObject;
-                    added.Store((unsigned int)pObject, pObject);
-                }
-            }
-        }
-        sendObjCount = count;
+        sendObjCount = MergeSendScopes(ppSends, ppScopes);
     }
     else
     {

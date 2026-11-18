@@ -31,7 +31,7 @@ void VoiceVirtual::Pause()
 }
 
 // FUNCTION: SWBF2 0x00737990
-VoiceVirtual::VoiceVirtual(unsigned int uiCustomFlags,
+VoiceVirtual::VoiceVirtual(uintptr_t uiCustomFlags,
                            VoiceVirtualManager* pManager,
                            bool bRestorePlaybackPos)
     : VoiceBase(),

@@ -70,7 +70,7 @@ bool FormatMemFail(const MemFailInfo& rInfo, char* pcOut, unsigned int uSize)
         return false;
     }
     _snprintf(pcOut, uSize,
-              "alloc failure heap %s (%d) size %u free %u load %u%% phys %u MB virt %u MB used %u cap %u peak %u largestfree %u",
+              "alloc failure heap %s (%d) size %u free %u load %u%% phys %u MB virt %u MB used %u cap %u peak %u largestfree %Iu",
               rInfo.pcHeap ? rInfo.pcHeap : "?", rInfo.iHeap, rInfo.uSize, rInfo.uFree, rInfo.uLoad, rInfo.uPhysMB,
               rInfo.uVirtMB, rInfo.uUsed, rInfo.uCap, rInfo.uPeak, rInfo.uLargestFree);
     pcOut[uSize - 1] = 0;
@@ -174,7 +174,7 @@ bool FormatOffThreadSource(const RedOffThreadSource& rSource, char* pcOut, unsig
         char acModule[MAX_PATH];
         ModuleBaseName(rSource.apModule[f], rSource.auStamp[f], acModule, sizeof(acModule));
         char acFrame[MAX_PATH + 16];
-        _snprintf(acFrame, sizeof(acFrame), "%s%s+0x%X", f == 0 ? "" : ",", acModule, rSource.auOffset[f]);
+        _snprintf(acFrame, sizeof(acFrame), "%s%s+0x%IX", f == 0 ? "" : ",", acModule, rSource.auOffset[f]);
         acFrame[sizeof(acFrame) - 1] = 0;
         const unsigned int uFrameLen = (unsigned int)strlen(acFrame);
         if (uLen + uFrameLen >= uSize)
@@ -189,33 +189,33 @@ bool FormatOffThreadSource(const RedOffThreadSource& rSource, char* pcOut, unsig
 }
 #endif
 
-unsigned int LargestFreeRegion()
+size_t LargestFreeRegion()
 {
     SYSTEM_INFO si;
     GetSystemInfo(&si);
-    const unsigned int uiLimit = (unsigned int)si.lpMaximumApplicationAddress;
-    unsigned int uiAt = (unsigned int)si.lpMinimumApplicationAddress;
-    unsigned int uiLargest = 0;
-    while (uiAt < uiLimit)
+    const uintptr_t uLimit = (uintptr_t)si.lpMaximumApplicationAddress;
+    uintptr_t uAt = (uintptr_t)si.lpMinimumApplicationAddress;
+    size_t uLargest = 0;
+    while (uAt < uLimit)
     {
         MEMORY_BASIC_INFORMATION mbi;
-        if (!VirtualQuery((void*)uiAt, &mbi, sizeof(mbi)))
+        if (!VirtualQuery((void*)uAt, &mbi, sizeof(mbi)))
         {
             break;
         }
-        const unsigned int uiBase = (unsigned int)mbi.BaseAddress;
-        const unsigned int uiEnd = uiBase + (unsigned int)mbi.RegionSize;
-        if (mbi.State == MEM_FREE && (unsigned int)mbi.RegionSize > uiLargest)
+        const uintptr_t uBase = (uintptr_t)mbi.BaseAddress;
+        const uintptr_t uEnd = uBase + mbi.RegionSize;
+        if (mbi.State == MEM_FREE && mbi.RegionSize > uLargest)
         {
-            uiLargest = (unsigned int)mbi.RegionSize;
+            uLargest = mbi.RegionSize;
         }
-        if (uiEnd <= uiBase)
+        if (uEnd <= uBase)
         {
             break;
         }
-        uiAt = uiEnd;
+        uAt = uEnd;
     }
-    return uiLargest;
+    return uLargest;
 }
 
 void LogMemReport(const char* pcSource)

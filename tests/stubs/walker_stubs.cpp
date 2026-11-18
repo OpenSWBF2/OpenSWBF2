@@ -8,15 +8,6 @@
 #include "Zephyr/Source/ZephyrPoseDyn.h"
 #include "Zephyr/Source/ZephyrPoseStatic.h"
 
-const ZephyrAnim* ZephyrAnimBank::Find(unsigned int uiCrc) const
-{
-    return 0;
-}
-
-void ZephyrAnimJoint::GetTranslationUncached(PblVector3& kTrans, unsigned short u16Frame) const
-{
-}
-
 template <>
 ZephyrAnimInst<64>::ZephyrAnimInst()
 {

@@ -49,6 +49,41 @@ finally {
     Remove-Item Env:\OPENSWBF2_TEST_EXE -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }
+$skipTmp = Join-Path $env:TEMP ("openswbf2-t1skip-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $skipTmp | Out-Null
+$skipFixtures = @(
+    @('t1 platform skip: on x64 both math corpus cases print SKIP and do not run', 'x64', @('math corpus', 'math corpus x87 pc24'), 0, @('\[SKIP\] math corpus - Phase 48\r?\n', '\[SKIP\] math corpus x87 pc24 - Phase 48\r?\n'), @('\[(?:PASS|FAIL|CRASH|STALL)\] math corpus', 't1-skip:'), @(), @('math corpus', 'math corpus x87 pc24')),
+    @('t1 platform skip: on Win32 both math corpus cases run', 'Win32', @('math corpus', 'math corpus x87 pc24'), 1, @('\[FAIL\] math corpus \(', '\[FAIL\] math corpus x87 pc24 \('), @('\[SKIP\] math corpus', 't1-skip:'), @('math corpus', 'math corpus x87 pc24'), @()),
+    @('t1 platform skip: on x64 a case not named in the list is not skipped', 'x64', @('math corpus', 'math corpus x87 pc24', 'math corpus x87', 'MATH CORPUS'), 1, @('\[SKIP\] math corpus - Phase 48\r?\n', '\[SKIP\] math corpus x87 pc24 - Phase 48\r?\n', '\[FAIL\] math corpus x87 \(', '\[FAIL\] MATH CORPUS \('), @('\[SKIP\] math corpus x87 -', '\[SKIP\] MATH CORPUS'), @('math corpus x87', 'MATH CORPUS'), @('math corpus', 'math corpus x87 pc24')),
+    @('t1 platform skip: on x64 a listed name the tests exe lacks fails the run', 'x64', @('math corpus'), 1, @('\[FAIL\] t1-skip:math corpus x87 pc24 - not a test case of ', '\[SKIP\] math corpus - Phase 48\r?\n'), @('t1-skip:math corpus -'), @(), @('math corpus'))
+)
+try {
+    foreach ($sf in $skipFixtures) {
+        $n++
+        $callLog = Join-Path $skipTmp "calls$n.txt"
+        $corpus = (@($sf[2]) | ForEach-Object { "    echo $_" }) -join "`r`n"
+        $stub = Join-Path $skipTmp "skip$n.cmd"
+        $body = "@echo off`r`n>>""$callLog"" echo %*`r`necho %* | findstr /C:""list-test-cases"" >nul || goto run`r`necho ==========`r`necho case %2`r`nif ""%2""==""corpus"" (`r`n$corpus`r`n)`r`necho ==========`r`nexit /b 0`r`n:run`r`necho %* | findstr /I /C:""math corpus"" >nul && (echo [doctest] test cases: 1 ^| 0 passed ^| 1 failed& exit /b 1)`r`n$onePass`r`nexit /b 0"
+        Set-Content -Path $stub -Value $body -Encoding ASCII
+        $env:OPENSWBF2_TEST_EXE = $stub
+        $out = (& powershell -NoProfile -File $run -Platform $sf[1] -NoBuild -Smoke None 2>&1 | Out-String)
+        $code = $LASTEXITCODE
+        $calls = @()
+        if (Test-Path -LiteralPath $callLog) { $calls = @(Get-Content -LiteralPath $callLog | ForEach-Object { $_.Trim() }) }
+        $why = $null
+        if ($code -ne $sf[3]) { $why = "exit $code, expected $($sf[3])" }
+        foreach ($rx in $sf[4]) { if (-not $why -and $out -cnotmatch $rx) { $why = "output missing /$rx/" } }
+        foreach ($rx in $sf[5]) { if (-not $why -and $out -cmatch $rx) { $why = "output unexpectedly matches /$rx/" } }
+        foreach ($nm in $sf[6]) { if (-not $why -and $calls -cnotcontains """-tc=$nm""") { $why = "case '$nm' did not run" } }
+        foreach ($nm in $sf[7]) { if (-not $why -and $calls -ccontains """-tc=$nm""") { $why = "case '$nm' ran" } }
+        if ($why) { $failed++; Write-Host "FAILED ${n}: $($sf[0]): $why" }
+        else { Write-Host "OK $n $($sf[0])" }
+    }
+}
+finally {
+    Remove-Item Env:\OPENSWBF2_TEST_EXE -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force $skipTmp -ErrorAction SilentlyContinue
+}
 if ($Configuration -eq 'Asan') {
     $asanCanaries = @(
         @('asan canary heap overflow is reported', (Get-AsanCanaryRx 'heap-buffer-overflow')),
@@ -311,6 +346,11 @@ public static class StallStub
     if ($miss.Count -ne 0) { $failed++; Write-Host "FAILED ${n}: runtime preflight with an empty list: got '$($miss -join ', ')'" }
     else { Write-Host "OK $n runtime preflight with an empty list" }
     $n++
+    $rtW = @(Get-PlatformRuntimes @('a.dll') 'Win32') -join ','
+    $rtX = @(Get-PlatformRuntimes @('a.dll') 'x64') -join ','
+    if ($rtW -cne 'a.dll' -or $rtX -cne 'a.dll,vcruntime140_1.dll') { $failed++; Write-Host "FAILED ${n}: runtime list per platform: Win32 '$rtW', x64 '$rtX'" }
+    else { Write-Host "OK $n x64 runtime preflight adds vcruntime140_1.dll and the Win32 list is unchanged" }
+    $n++
     $ao = $null
     try { $ao = Get-AsanOptions 'C:\x\case' } catch {}
     if ($ao -cne "exitcode=66:log_path='C:\x\case\asan'") { $failed++; Write-Host "FAILED ${n}: asan options quote the log path: got '$ao'" }
@@ -424,12 +464,15 @@ foreach ($peCfg in $exeConfigs) {
         finally { $fs.Dispose() }
         $peE = [BitConverter]::ToInt32($peHdr, 0x3C)
         $peOpt = $peE + 24
+        $peMagic = [BitConverter]::ToUInt16($peHdr, $peOpt)
+        $peReloc = $peOpt + 136
+        if ($peMagic -eq 0x20B) { $peReloc = $peOpt + 152 }
         $peCases = @(
             @('clean header', @(), $null),
             @('dynamic base cleared', @(, @(($peOpt + 70), 0xBF, 0)), 'DYNAMIC_BASE is clear'),
-            @('relocation directory zeroed', @(@(($peOpt + 136), 0, 0), @(($peOpt + 137), 0, 0), @(($peOpt + 138), 0, 0), @(($peOpt + 139), 0, 0), @(($peOpt + 140), 0, 0), @(($peOpt + 141), 0, 0), @(($peOpt + 142), 0, 0), @(($peOpt + 143), 0, 0)), 'base relocation directory is empty'),
+            @('relocation directory zeroed', @(0..7 | ForEach-Object { , @(($peReloc + $_), 0, 0) }), 'base relocation directory is empty'),
             @('relocs stripped set', @(, @(($peE + 22), 0xFF, 0x01)), 'IMAGE_FILE_RELOCS_STRIPPED is set'),
-            @('PE32+ magic', @(@($peOpt, 0, 0x0B), @(($peOpt + 1), 0, 0x02)), 'magic 0x20B is not PE32')
+            @('ROM magic', @(@($peOpt, 0, 0x07), @(($peOpt + 1), 0, 0x01)), 'magic 0x107 is not PE32 or PE32+')
         )
         $why = $null
         $i = 0
@@ -447,11 +490,11 @@ foreach ($peCfg in $exeConfigs) {
         }
         Remove-Item -Recurse -Force $peTmp -ErrorAction SilentlyContinue
         if ($why) { $failed++; Write-Host "FAILED ${n}: pe aslr fixtures: $why" }
-        else { Write-Host "OK $n pe aslr fixtures flag dynamic base, relocations, relocs stripped and PE32 magic from $(Split-Path $peSrc -Leaf) ($peCfg)" }
+        else { Write-Host ("OK $n pe aslr fixtures flag dynamic base, relocations, relocs stripped and a bad magic from $(Split-Path $peSrc -Leaf) ($peCfg, magic 0x{0:X})" -f $peMagic) }
     }
 }
 function New-FlagBag($total, $an, $il, $io, $extra) {
-    $p = @{ Total = $total; GsMinus = 0; Sdl = $total; AlignedNewOff = $an; InlineOff = $il; InlineOn = $io; ThrowingNew = 0; Gl = 0; FpFast = 0; FpContract = 0 }
+    $p = @{ Total = $total; GsMinus = 0; Sdl = $total; AlignedNewOff = $an; InlineOff = $il; InlineOn = $io; ThrowingNew = 0; Gl = 0; FpFast = 0; FpContract = 0; We4311 = $total; We4312 = $total; We4302 = $total; We4477 = $total; WeAll = $total; WeMissing = @() }
     if ($extra) { foreach ($k in $extra.Keys) { $p[$k] = $extra[$k] } }
     return New-Object PSObject -Property $p
 }
@@ -580,16 +623,78 @@ try {
         'k = (float)(fA + fB);',
         'h = (char*)p + iSize;',
         'n = (IMAGE_NT_HEADERS*)((char*)pBase + pDos->e_lfanew);',
-        'm = (IMAGE_NT_HEADERS*)((char*)pBase + 0x3c);'
+        'm = (IMAGE_NT_HEADERS*)((char*)pBase + 0x3c);',
+        'g = ((Damageable*)((char*)pUnit->GetGameObject() + 320))->Vanish();',
+        'e = (Node*)(pList->Head(1) + 2);',
+        'c = (char*)pRec->Buf()[0] + 4;',
+        'b = Get(a)->Value() + 2;'
     )
     $allow = @('src\x.cpp|(Foo*)((char*)pAllowed + 4)', 'src\x.cpp|(Foo*)( (char*)pSpaced + 4 )', 'src\x.cpp|(Foo*)((char*)pMissing + 4)', 'src\y.cpp|(Foo*)((char*)pAllowed + 4)')
     $sc = @(Get-SourceChecks $offsetDir @() $allow | Where-Object { $_.Name -eq 'offset-hack' })
-    $want = ((@(1, 2, 3, 4, 5, 6, 7, 14, 19) | ForEach-Object { "src\x.cpp:$_" }) + 'unused allow src\x.cpp|(Foo*)((char*)pMissing + 4)' + 'unused allow src\y.cpp|(Foo*)((char*)pAllowed + 4)') -join ', '
+    $want = ((@(1, 2, 3, 4, 5, 6, 7, 14, 19, 20, 21, 22) | ForEach-Object { "src\x.cpp:$_" }) + 'unused allow src\x.cpp|(Foo*)((char*)pMissing + 4)' + 'unused allow src\y.cpp|(Foo*)((char*)pAllowed + 4)') -join ', '
     if ($sc.Count -ne 1 -or $sc[0].Ok -or $sc[0].Detail -ne $want) { $failed++; Write-Host "FAILED ${n}: offset-hack flags every byte-offset form outside the exact allow-list: $($sc.Detail)" }
     else { Write-Host "OK $n offset-hack flags every byte-offset form outside the exact allow-list" }
 }
 finally {
     Remove-Item -Recurse -Force $offsetDir -ErrorAction SilentlyContinue
+}
+$n++
+$sizeDir = Join-Path $env:TEMP ("openswbf2-sizelit-" + [guid]::NewGuid().ToString('N'))
+try {
+    New-Item -ItemType Directory -Path (Join-Path $sizeDir 'src\a'), (Join-Path $sizeDir 'src\LuaFL') | Out-Null
+    Set-Content -Encoding ASCII -Path (Join-Path $sizeDir 'src\a\x.cpp') -Value @(
+        'MemoryPool Foo::sMemoryPool("Foo", 0x30);',
+        'MemoryPool Bar::sMemoryPool("Bar", sizeof(Bar));',
+        'MemoryPool Baz::sMemoryPool("Baz", 0);',
+        'FreeList Foo::smFreeList(0xcc, 1, true, 4);',
+        'FreeList Bar::smFreeList(sizeof(Bar), 1, true, 4);',
+        'gPool.Setup(uCount, 0xFD0, 0);',
+        'Agent::sMemoryPool.Setup(600, 0x358, Agent::sMemoryPool.GetGrow());',
+        'gPool.Setup(Count(), sizeof(Foo), 0);',
+        'pPool->Create(2, 16, 0);',
+        'mLock.Create(1, 1);',
+        'Foo::SetupMemoryPool(16, 0x40, Foo::sMemoryPool.GetGrow());',
+        'mValue.Setup(1.0f, 2.0f, 3.0f);',
+        '// gPool.Setup(uCount, 0xFD0, 0);',
+        'MemoryPool kAllowed("allowed", 16);'
+    )
+    Set-Content -Encoding ASCII -Path (Join-Path $sizeDir 'src\LuaFL\l.cpp') -Value 'MemoryPool Vendor::sMemoryPool("Vendor", 8);'
+    $allow = @('src\a\x.cpp|MemoryPool kAllowed("allowed", 16)|x64:safe:raw blocks', 'src\a\x.cpp|MemoryPool kMissing("missing", 16)|x64:safe:raw blocks', 'src\a\x.cpp|.Create(9, 9, 9)')
+    $c = Get-X64SizeLiteralCheck $sizeDir $allow
+    $want = (@('allow without an x64:safe reason src\a\x.cpp|.Create(9, 9, 9)') + (@(1, 4, 6, 7, 9, 11) | ForEach-Object { "src\a\x.cpp:$_" }) + 'unused allow src\a\x.cpp|MemoryPool kMissing("missing", 16)') -join ', '
+    $why = $null
+    if ($c.Name -ne 'x64-size-literal' -or $c.Ok -or $c.Detail -ne $want) { $why = "ok=$($c.Ok): $($c.Detail)" }
+    Set-Content -Encoding ASCII -Path (Join-Path $sizeDir 'src\a\x.cpp') -Value @('MemoryPool Bar::sMemoryPool("Bar", sizeof(Bar));', 'gPool.Setup(uCount, sizeof(Foo), 0);')
+    $clean = Get-X64SizeLiteralCheck $sizeDir @()
+    if (-not $why -and (-not $clean.Ok -or $clean.Detail)) { $why = "clean tree: ok=$($clean.Ok): $($clean.Detail)" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: x64-size-literal flags every literal pool size outside the exact allow-list: $why" }
+    else { Write-Host "OK $n x64-size-literal flags every literal pool size outside the exact allow-list" }
+}
+finally {
+    Remove-Item -Recurse -Force $sizeDir -ErrorAction SilentlyContinue
+}
+$n++
+$verdictDir = Join-Path $env:TEMP ("openswbf2-verdict-" + [guid]::NewGuid().ToString('N'))
+try {
+    New-Item -ItemType Directory -Path (Join-Path $verdictDir 'src') | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $verdictDir 'tests') | Out-Null
+    Set-Content -Encoding ASCII -Path (Join-Path $verdictDir 'src\x.cpp') -Value @(
+        'unsigned char acSafe[0x10];',
+        'unsigned char acBare[0x10];',
+        'char mOr[0x10 | 0x1];',
+        'q = (Foo*)((char*)pA + (iA | iB));'
+    )
+    $bad = @(Get-SourceChecks $verdictDir @('src\x.cpp|acSafe|[0x10]|x64:safe:byte buffer', 'src\x.cpp|acBare|[0x10]', 'src\x.cpp|mOr|[0x10|0x1]|x64:unsafe:bits') @('src\x.cpp|(Foo*)((char*)pA + (iA | iB))|x64:fixed:', 'src\x.cpp|(Foo*)((char*)pA + 4)|x64:safe: ') -Only 'allow-x64-verdict')
+    $wantBad = 'no verdict src\x.cpp|acBare|[0x10], no verdict src\x.cpp|mOr|[0x10|0x1]|x64:unsafe:bits, no verdict src\x.cpp|(Foo*)((char*)pA + (iA | iB))|x64:fixed:, no verdict src\x.cpp|(Foo*)((char*)pA + 4)|x64:safe: '
+    $good = @(Get-SourceChecks $verdictDir @('src\x.cpp|acSafe|[0x10]|x64:safe:byte buffer', 'src\x.cpp|acBare|[0x10]|x64:fixed:sized by sizeof', 'src\x.cpp|mOr|[0x10|0x1]|x64:safe:bit mask') @('src\x.cpp|(Foo*)((char*)pA + (iA | iB))|x64:fixed:offset in bytes') -Only @('allow-x64-verdict', 'char-spacer', 'offset-hack'))
+    $why = $null
+    if ($bad.Count -ne 1 -or $bad[0].Ok -or $bad[0].Detail -cne $wantBad) { $why = "missing, malformed and empty verdicts: $($bad.Detail)" }
+    elseif ($good.Count -ne 3 -or @($good | Where-Object { -not $_.Ok }).Count) { $why = "all verdicts, keys with an inner |: $(@($good | ForEach-Object { '{0}={1} {2}' -f $_.Name, $_.Ok, $_.Detail }) -join '; ')" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: allow-x64-verdict: $why" }
+    else { Write-Host "OK $n allow-x64-verdict fails a missing, malformed or empty verdict, passes when every entry has one, and keeps a key with an inner | whole" }
+}
+finally {
+    Remove-Item -Recurse -Force $verdictDir -ErrorAction SilentlyContinue
 }
 $n++
 $serialDir = Join-Path $env:TEMP ("openswbf2-serial-" + [guid]::NewGuid().ToString('N'))
@@ -738,6 +843,127 @@ foreach ($sc in $libScenarios) {
     finally {
         Remove-Item -Recurse -Force $libRoot -ErrorAction SilentlyContinue
     }
+}
+$weGood = '/c /Zc:alignedNew- /Zc:inline /sdl /GS /we4311 /we"4312" /we4302 /we4477 C:\X\A.CPP'
+$weLuac = @('^C:\X\L.CPP', $weGood.Replace('A.CPP', 'L.CPP'))
+$weScenarios = @(
+    @('x64-truncation passes plain and quoted /we on every line', 'x64', @('^C:\X\A.CPP', $weGood), $true, $true, $null, $weLuac),
+    @('x64-truncation fails a line without /we4477 and names it', 'x64', @('^C:\X\A.CPP', $weGood, '^C:\X\B.CPP', $weGood.Replace(' /we4477', '').Replace('A.CPP', 'B.CPP')), $true, $false, 'first missing C:\X\B.CPP', $weLuac),
+    @('x64-truncation fails a /we44770 lookalike', 'x64', @('^C:\X\A.CPP', $weGood.Replace('/we4477', '/we44770')), $true, $false, 'first missing C:\X\A.CPP', $weLuac),
+    @('x64-truncation fails without a tests tlog', 'x64', @('^C:\X\A.CPP', $weGood), $false, $false, 'tests cl entries=0', $weLuac),
+    @('x64-truncation fails a LuaCompiler line without /we4302 and names it', 'x64', @('^C:\X\A.CPP', $weGood), $true, $false, 'luac cl entries=1 /we4311=1 /we4312=1 /we4302=0 /we4477=1 all four=0 first missing C:\X\L.CPP', @('^C:\X\L.CPP', $weGood.Replace(' /we4302', '').Replace('A.CPP', 'L.CPP'))),
+    @('x64-truncation fails without a LuaCompiler tlog', 'x64', @('^C:\X\A.CPP', $weGood), $true, $false, 'luac cl entries=0', $null),
+    @('x64-truncation is not emitted on Win32', 'Win32', @('^C:\X\A.CPP', $weGood), $true, $null, $null, $null)
+)
+foreach ($sc in $weScenarios) {
+    $n++
+    $weDir = Join-Path $env:TEMP ("openswbf2-we-" + [guid]::NewGuid().ToString('N'))
+    $wePlat = $script:SmokePlatform
+    try {
+        New-Item -ItemType Directory -Path $weDir | Out-Null
+        Set-Content -Encoding Unicode -Path (Join-Path $weDir 'CL.command.1.tlog') -Value $sc[2]
+        $bag = Get-ClTlogCounts $weDir
+        $testsBag = $null
+        if ($sc[3]) { $testsBag = New-FlagBag 97 97 0 0 $null }
+        $luacBag = $null
+        if ($sc[6]) {
+            $weLuacDir = Join-Path $weDir 'luac'
+            New-Item -ItemType Directory -Path $weLuacDir | Out-Null
+            Set-Content -Encoding Unicode -Path (Join-Path $weLuacDir 'CL.command.1.tlog') -Value $sc[6]
+            $luacBag = Get-ClTlogCounts $weLuacDir
+        }
+        $script:SmokePlatform = $sc[1]
+        $got = @(Get-FlagChecks $bag $testsBag 'Debug' 'Debug' $luacBag | Where-Object { $_.Name -eq 'x64-truncation' })
+        $why = $null
+        if ($null -eq $sc[4]) { if ($got.Count) { $why = 'emitted' } }
+        elseif ($got.Count -ne 1) { $why = "rows=$($got.Count)" }
+        elseif ($got[0].Ok -ne $sc[4]) { $why = "ok=$($got[0].Ok): $($got[0].Detail)" }
+        elseif ($sc[5] -and $got[0].Detail.IndexOf($sc[5]) -lt 0) { $why = "detail lacks '$($sc[5])': $($got[0].Detail)" }
+        if ($why) { $failed++; Write-Host "FAILED ${n}: $($sc[0]): $why" }
+        else { Write-Host "OK $n $($sc[0])" }
+    }
+    finally {
+        $script:SmokePlatform = $wePlat
+        Remove-Item -Recurse -Force $weDir -ErrorAction SilentlyContinue
+    }
+}
+$objScenarios = @(
+    @('x64-objects passes when every unit is built and linked', @('One', 'Two'), @('One', 'Two'), $true, $null),
+    @('x64-objects fails a unit with no object and names it', @('One'), @('One', 'Two'), $false, 'TWO.OBJ not built'),
+    @('x64-objects fails a stale object the link did not read', @('One', 'Two'), @('One'), $false, 'TWO.OBJ not linked')
+)
+foreach ($sc in $objScenarios) {
+    $n++
+    $objRoot = Join-Path $env:TEMP ("openswbf2-x64obj-" + [guid]::NewGuid().ToString('N'))
+    $objPlat = $script:SmokePlatform
+    try {
+        $objInt = Join-Path $objRoot 'obj\x64\Test'
+        New-Item -ItemType Directory -Force -Path (Join-Path $objInt 'src\a'), (Join-Path $objInt 'BattlefrontII.tlog') | Out-Null
+        Set-Content -Encoding UTF8 -Path (Join-Path $objRoot 'BattlefrontII.vcxproj') -Value @(
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">',
+            '  <ItemGroup>',
+            '    <ClCompile Include="src\a\One.cpp" />',
+            '    <ClCompile Include="Two.cpp" />',
+            '  </ItemGroup>',
+            '</Project>'
+        )
+        $objPath = @{ One = (Join-Path $objInt 'src\a\ONE.OBJ'); Two = (Join-Path $objInt 'TWO.OBJ') }
+        foreach ($o in $sc[1]) { Set-Content -Path $objPath[$o] -Value 'obj' -Encoding ASCII }
+        Set-Content -Encoding Unicode -Path (Join-Path $objInt 'BattlefrontII.tlog\link.command.1.tlog') -Value @(('^' + ((@($sc[2] | ForEach-Object { $objPath[$_] }) + (Join-Path $objInt 'BATTLEFRONTII.RES')) -join '|')), '/OUT:"X.EXE"')
+        $script:SmokePlatform = 'x64'
+        $c = Get-X64ObjectsCheck $objRoot 'Test'
+        $why = $null
+        if ($c.Ok -ne $sc[3]) { $why = "ok=$($c.Ok): $($c.Detail)" }
+        elseif ($c.Detail -notmatch '^units=2 ') { $why = "units: $($c.Detail)" }
+        elseif ($sc[4] -and $c.Detail.IndexOf($sc[4], [StringComparison]::OrdinalIgnoreCase) -lt 0) { $why = "detail lacks '$($sc[4])': $($c.Detail)" }
+        if ($why) { $failed++; Write-Host "FAILED ${n}: $($sc[0]): $why" }
+        else { Write-Host "OK $n $($sc[0])" }
+    }
+    finally {
+        $script:SmokePlatform = $objPlat
+        Remove-Item -Recurse -Force $objRoot -ErrorAction SilentlyContinue
+    }
+}
+$n++
+$xhRoot = Join-Path $env:TEMP ("openswbf2-x64hard-" + [guid]::NewGuid().ToString('N'))
+try {
+    $xhTests = Join-Path $xhRoot 'tests'
+    New-Item -ItemType Directory -Force -Path $xhTests | Out-Null
+    Get-ChildItem -LiteralPath $PSScriptRoot -Force | Where-Object { $_.Name -ne 'third_party' } | Copy-Item -Destination $xhTests -Recurse
+    $xhInt = Join-Path $xhRoot 'obj\x64\Test'
+    $xhTlog = Join-Path $xhInt 'BattlefrontII.tlog'
+    $xhTt = Join-Path $xhRoot 'obj\Tests\x64\Test\OpenSWBF2Tests.tlog'
+    New-Item -ItemType Directory -Force -Path $xhTlog, $xhTt, (Join-Path $xhRoot 'bin\x64\Test'), (Join-Path $xhRoot 'src') | Out-Null
+    Set-Content -Encoding UTF8 -Path (Join-Path $xhRoot 'BattlefrontII.vcxproj') -Value @('<?xml version="1.0" encoding="utf-8"?>', '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><ItemGroup><ClCompile Include="A.cpp" /></ItemGroup></Project>')
+    Set-Content -Path (Join-Path $xhInt 'A.obj') -Value 'obj' -Encoding ASCII
+    Set-Content -Path (Join-Path $xhRoot 'bin\x64\Test\BattlefrontII.exe') -Value 'not a pe' -Encoding ASCII
+    Set-Content -Encoding Unicode -Path (Join-Path $xhTlog 'CL.command.1.tlog') -Value @('^C:\X\A.CPP', $weGood)
+    Set-Content -Encoding Unicode -Path (Join-Path $xhTt 'CL.command.1.tlog') -Value @('^C:\X\T.CPP', $weGood.Replace('A.CPP', 'T.CPP'))
+    $xhLc = Join-Path $xhInt 'LuaCompiler\LuaCompiler.tlog'
+    New-Item -ItemType Directory -Force -Path $xhLc | Out-Null
+    Set-Content -Encoding Unicode -Path (Join-Path $xhLc 'CL.command.1.tlog') -Value $weLuac
+    Set-Content -Encoding Unicode -Path (Join-Path $xhTlog 'link.command.1.tlog') -Value @(('^' + (Join-Path $xhInt 'A.OBJ')), '/OUT:"X.EXE"')
+    $xhOut = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $xhTests 'run.ps1') -Platform x64 -Configuration Test -NoBuild -Hardening 2>&1 | ForEach-Object { "$_" } }
+    $xhRows = @($xhOut | Where-Object { $_ -cmatch '^\[(PASS|FAIL|SKIP)\] hardening:' })
+    $xhBin = @(@(Get-HardeningChecks '' '' 0 0 0) + @(Get-MiCrtHookCheck '') + @(Get-ImportChecks '') | Where-Object { $_.Name -ne 'sdl' } | ForEach-Object { $_.Name }) + @('aslr-pe', 'aslr-pe-tests')
+    $why = $null
+    foreach ($bn in $xhBin) {
+        $rows = @($xhRows | Where-Object { $_ -cmatch ('^\[(PASS|FAIL|SKIP)\] hardening:' + [regex]::Escape($bn) + '(?= |$)') })
+        if (-not $why -and ($rows.Count -ne 1 -or $rows[0] -cne "[SKIP] hardening:$bn - Phase 52")) { $why = "$bn rows: $($rows -join ' | ')" }
+    }
+    $xhTlogNames = @('sdl', 'flag-alignednew', 'flag-inline', 'flag-alignednew-tests', 'flag-banned', 'x64-truncation', 'mimalloc-defines', 'x64-objects')
+    $dupes = @($xhRows | ForEach-Object { ($_ -split ' ')[1] } | Where-Object { $xhTlogNames -contains $_.Substring('hardening:'.Length) } | Group-Object | Where-Object { $_.Count -ne 1 } | ForEach-Object { $_.Name })
+    if (-not $why -and @($xhRows | Where-Object { $_ -like '*hardening:dumpbin*' }).Count) { $why = 'dumpbin ran on x64' }
+    if (-not $why -and $dupes.Count) { $why = "rows repeated: $($dupes -join ', ')" }
+    if (-not $why) {
+        foreach ($want in '[PASS] hardening:x64-truncation', '[PASS] hardening:x64-objects') { if ($xhRows -cnotcontains $want) { $why = "no $want" } }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: x64 hardening runs no Win32 binary check: $why"; $xhOut | ForEach-Object { Write-Host "    $_" } }
+    else { Write-Host "OK $n x64 hardening with an x64 exe present runs no Win32 binary check and passes x64-truncation and x64-objects" }
+}
+finally {
+    Remove-Item -Recurse -Force $xhRoot -ErrorAction SilentlyContinue
 }
 $n++
 $mapGood = @(
@@ -1718,7 +1944,7 @@ $grWtArg = "-WorktreeRoot '$grWtRoot'"
 $rsWorktrees = { @(& git -C $repo worktree list --porcelain | Where-Object { $_ -like 'worktree *' } | ForEach-Object { $_.Substring(9).Replace('/', '\') }) }
 $grOutside = { @(& $rsWorktrees | Where-Object { -not $_.StartsWith($grWtRoot, [StringComparison]::OrdinalIgnoreCase) }) }
 try {
-    $rowLine = "`$GuardRevertRows = @(@{ Id = 'SELFTEST-01'; File = 'x'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') })"
+    $rowLine = "`$GuardRevertRows = @(@{ Id = 'SELFTEST-01'; Platform = '$Platform'; File = 'x'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') })"
     $grCases = @(
         @('guard-revert exits 1 when the rows file throws', "throw 'selftest rows failure'", 'selftest rows failure'),
         @('guard-revert exits 1 when a step after row selection throws', "function Find-GameDataRoot { throw 'selftest mid-run failure' }", 'selftest mid-run failure')
@@ -1785,7 +2011,7 @@ try {
     $GuardRevertRows = $null
     . (Join-Path $PSScriptRoot 'guardrevert\rows.ps1')
     $listIds = @($out | Where-Object { $_ -match '^(?:SELECT|CARRY) ' } | ForEach-Object { $_.Split(' ')[1] })
-    $rowIds = @($GuardRevertRows | ForEach-Object { $_.Id })
+    $rowIds = @(Select-GuardPlatformRows @($GuardRevertRows) $Platform | ForEach-Object { $_.Id })
     $idDiff = @(Compare-Object @($rowIds | Sort-Object) @($listIds | Sort-Object) -CaseSensitive)
     $why = $null
     if ($code -ne 0) { $why = "exit $code" }
@@ -1796,13 +2022,66 @@ try {
     elseif (Test-Path -LiteralPath $grOut) { $why = 'the run created its output directory, so it got past the build step' }
     if ($why) { $failed++; Write-Host "FAILED ${n}: guard-revert -ListSelected: $why" }
     else { Write-Host "OK $n guard-revert -ListSelected lists every row once and builds nothing" }
+    $n++
+    $pfRows = Join-Path $grTmp "rows$n.ps1"
+    Set-Content -Path $pfRows -Encoding ASCII -Value "`$GuardRevertRows = @(@{ Id = 'SELFTEST-PW'; File = 'x'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') }, @{ Id = 'SELFTEST-PX'; Platform = 'x64'; File = 'x'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') })"
+    $pfGot = @{}
+    $why = $null
+    foreach ($pfPlat in 'Win32', 'x64') {
+        $pfOut = @(& powershell -NoProfile -Command "& '$grScript' -Platform $pfPlat -RowsFile '$pfRows' -ListSelected -OutDir '$(Join-Path $grTmp "out$n-$pfPlat")' -ProvenFile '$(Join-Path $grTmp "proven$n.tsv")'; exit `$LASTEXITCODE" 2>&1 | ForEach-Object { "$_" })
+        if ($LASTEXITCODE -ne 0) { $why = "$pfPlat exit ${LASTEXITCODE}: $($pfOut -join ' / ')"; break }
+        $pfGot[$pfPlat] = @($pfOut | Where-Object { $_ -match '^(?:SELECT|CARRY) ' } | ForEach-Object { $_.Split(' ')[1] }) -join ','
+    }
+    if (-not $why -and $pfGot['Win32'] -cne 'SELFTEST-PW') { $why = "Win32 run listed '$($pfGot['Win32'])', expected only the row with no Platform" }
+    elseif (-not $why -and $pfGot['x64'] -cne 'SELFTEST-PX') { $why = "x64 run listed '$($pfGot['x64'])', expected only the row marked x64" }
+    if (-not $why) {
+        $pfNamed = @(& powershell -NoProfile -Command "& '$grScript' -Platform x64 -RowsFile '$pfRows' -Row SELFTEST-PW -ListSelected -OutDir '$(Join-Path $grTmp "out$n-named")' -ProvenFile '$(Join-Path $grTmp "proven$n.tsv")'; exit `$LASTEXITCODE" 2>&1 | ForEach-Object { "$_" })
+        $pfNamedCode = $LASTEXITCODE
+        $pfW32Rows = Join-Path $grTmp "rows$n-w32.ps1"
+        Set-Content -Path $pfW32Rows -Encoding ASCII -Value "`$GuardRevertRows = @(@{ Id = 'SELFTEST-PW'; File = 'x'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') })"
+        $pfNone = @(& powershell -NoProfile -Command "& '$grScript' -Platform x64 -RowsFile '$pfW32Rows' -OutDir '$(Join-Path $grTmp "out$n-none")' -ProvenFile '$(Join-Path $grTmp "proven$n.tsv")'; exit `$LASTEXITCODE" 2>&1 | ForEach-Object { "$_" })
+        $pfNoneCode = $LASTEXITCODE
+        if ($pfNamedCode -ne 2 -or ($pfNamed -join "`n") -notmatch 'No rows selected on x64') { $why = "-Row naming a Win32 row on x64: exit $pfNamedCode, $($pfNamed -join ' / ')" }
+        elseif ($pfNoneCode -ne 0 -or ($pfNone -join "`n") -notmatch '(?m)^No rows for platform x64\.$' -or ($pfNone -join "`n") -notmatch '(?m)^selected 0 carried 0$') { $why = "x64 run with no x64 rows: exit $pfNoneCode, $($pfNone -join ' / ')" }
+        elseif (Test-Path -LiteralPath (Join-Path $grTmp "out$n-none")) { $why = 'the x64 run with no x64 rows created its output directory' }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: guard-revert row platform filter: $why" }
+    else { Write-Host "OK $n guard-revert drops an x64 row from a Win32 run and keeps only it for an x64 run; a platform with no rows selects nothing and exits 0, and -Row naming another platform's row exits 2" }
+    $n++
+    $why = $null
+    try {
+        . (Join-Path $PSScriptRoot 'gate\keys.ps1')
+        $grAst = [Management.Automation.Language.Parser]::ParseFile($grScript, [ref]$null, [ref]$null)
+        $grDefs = @($grAst.FindAll({ param($a) ($a -is [Management.Automation.Language.FunctionDefinitionAst] -and @('Read-GuardProofs', 'Merge-GuardProofs') -contains $a.Name) -or ($a -is [Management.Automation.Language.AssignmentStatementAst] -and $a.Left.Extent.Text -ceq '$script:ProofColumns') }, $false))
+        if ($grDefs.Count -ne 3) { throw "found $($grDefs.Count) of the 3 proof definitions in guard-revert.ps1" }
+        foreach ($d in $grDefs) { . ([scriptblock]::Create($d.Extent.Text)) }
+        $ProvenFile = Join-Path $grTmp "proven$n.tsv"
+        $script:PartialFile = Join-Path $grTmp "proven$n.partial.tsv"
+        $pfLine = { param([string]$id, [string]$plat, [string]$commit) @($id, 'rh', 'dd', 'td', 'ts', 'tree', $commit, 'RED', 'GREEN', 'Debug/Release', $plat, 'date') -join "`t" }
+        [IO.File]::WriteAllText($ProvenFile, ((@(($script:ProofColumns -join "`t"), (& $pfLine 'P-1' 'Win32' 'w1'), (& $pfLine 'P-2' 'Win32' 'w2')) -join "`r`n") + "`r`n"))
+        [IO.File]::WriteAllText($script:PartialFile, (& $pfLine 'P-1' 'x64' 'x1') + "`r`n")
+        Merge-GuardProofs
+        $m1 = Read-GuardProofs $ProvenFile
+        [IO.File]::WriteAllText($script:PartialFile, (& $pfLine 'P-1' 'Win32' 'w3') + "`r`n")
+        Merge-GuardProofs
+        $m2 = Read-GuardProofs $ProvenFile
+        $real = Join-Path $PSScriptRoot 'guardrevert\proven.tsv'
+        $realLines = @([IO.File]::ReadAllLines($real) | Select-Object -Skip 1 | Where-Object { $_ }).Count
+        $realCount = (Read-GuardProofs $real).Count
+        if ($m1.Count -ne 3 -or $m1["P-1`tWin32"].Commit -cne 'w1' -or $m1["P-1`tx64"].Commit -cne 'x1' -or $m1["P-2`tWin32"].Commit -cne 'w2') { $why = "after the x64 merge: $(@($m1.Keys | Sort-Object | ForEach-Object { "$($_ -replace "`t", '/')=$($m1[$_].Commit)" }) -join ' ')" }
+        elseif ($m2.Count -ne 3 -or $m2["P-1`tWin32"].Commit -cne 'w3' -or $m2["P-1`tx64"].Commit -cne 'x1') { $why = "after the Win32 merge: $(@($m2.Keys | Sort-Object | ForEach-Object { "$($_ -replace "`t", '/')=$($m2[$_].Commit)" }) -join ' ')" }
+        elseif ($realCount -ne $realLines) { $why = "proven.tsv has $realLines data lines but reads as $realCount (Id, Platform) proofs" }
+    }
+    catch { $why = "threw: $_" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: guard proofs keyed by (Id, Platform): $why" }
+    else { Write-Host "OK $n a Win32 and an x64 proof for one Id coexist after a merge, each merge replaces only its own platform, and proven.tsv reads back every line ($realLines)" }
     $rsTest = 'lua next order ignores allocation padding under serial order'
     $rsWrite = {
         param([string]$path, [string]$countFile, [int]$rowCount, [string]$r1)
         $defs = @(1..$rowCount | ForEach-Object {
             $rep = 'x'
             if ($_ -eq 1) { $rep = $r1 }
-            "    @{ Id = 'SELFTEST-R$_'; File = 'src\LuaFL\src\ltable.cpp'; Anchor = 'SELFTEST-R$_'; Replacement = '$rep'; Tests = @('$rsTest') }"
+            "    @{ Id = 'SELFTEST-R$_'; Platform = '$Platform'; File = 'src\LuaFL\src\ltable.cpp'; Anchor = 'SELFTEST-R$_'; Replacement = '$rep'; Tests = @('$rsTest') }"
         })
         Set-Content -Path $path -Encoding ASCII -Value @(
             '$GuardRevertRows = @(',
@@ -1925,7 +2204,7 @@ try {
         $ledPath = Join-Path $rsOut 'ledger.tsv'
         $ledLines = [IO.File]::ReadAllLines($ledPath)
         $cols = $ledLines[0].Split("`t")
-        $tamper = @{ 'SELFTEST-R2' = @('DepDigest', '-'); 'SELFTEST-R3' = @('Outcome', 'FAIL'); 'SELFTEST-R4' = @('Tree', 'x'); 'SELFTEST-R5' = @('Toolset', 'x'); 'SELFTEST-R6' = @('Config', 'x'); 'SELFTEST-R7' = @('TriggerDigest', 'x'); 'SELFTEST-R8' = @('DepDigest', 'x'); 'SELFTEST-R9' = @('Platform', 'x64') }
+        $tamper = @{ 'SELFTEST-R2' = @('DepDigest', '-'); 'SELFTEST-R3' = @('Outcome', 'FAIL'); 'SELFTEST-R4' = @('Tree', 'x'); 'SELFTEST-R5' = @('Toolset', 'x'); 'SELFTEST-R6' = @('Config', 'x'); 'SELFTEST-R7' = @('TriggerDigest', 'x'); 'SELFTEST-R8' = @('DepDigest', 'x'); 'SELFTEST-R9' = @('Platform', (@('Win32', 'x64') | Where-Object { $_ -cne $Platform })) }
         for ($i = 1; $i -lt $ledLines.Count; $i++) {
             $f = $ledLines[$i].Split("`t")
             if ($tamper.ContainsKey($f[0])) { $f[[array]::IndexOf($cols, $tamper[$f[0]][0])] = $tamper[$f[0]][1] }
@@ -1986,17 +2265,53 @@ try {
         $seen = @(Get-Content -LiteralPath $mark -ErrorAction SilentlyContinue | Sort-Object -Unique)
         New-Object PSObject -Property @{ Seen = $seen; Out = $r.Out }
     }
-    $ld = & $ldRun "@{ Id = 'SELFTEST-LD1'; File = 'x'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') }"
+    $ld = & $ldRun "@{ Id = 'SELFTEST-LD1'; Platform = '$Platform'; File = 'x'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') }"
     $why = $null
     if (($ld.Seen -join ' | ') -cne 'main smoke=False cases=False t1=True | worker smoke=False cases=False t1=True') { $why = "loaded: $($ld.Seen -join ' | '); $((@($ld.Out | Where-Object { $_ -match '^ERROR' }) + @($ld.Out | Select-Object -Last 3)) -join ' / ')" }
     if ($why) { $failed++; Write-Host "FAILED ${n}: a T1-only guard-revert run loads common.ps1 and not smoke.ps1: $why" }
     else { Write-Host "OK $n a T1-only guard-revert run loads common.ps1 and not smoke.ps1 in the main process or its worker" }
     $n++
-    $ld = & $ldRun "@{ Id = 'SELFTEST-LD2'; Kind = 'Hardening'; Check = 'c'; File = 'x'; Anchor = 'x'; Replacement = 'x' }"
+    $ld = & $ldRun "@{ Id = 'SELFTEST-LD2'; Platform = '$Platform'; Kind = 'Hardening'; Check = 'c'; File = 'x'; Anchor = 'x'; Replacement = 'x' }"
     $why = $null
     if (($ld.Seen -join ' | ') -cne 'main smoke=True cases=True t1=True | worker smoke=True cases=True t1=True') { $why = "loaded: $($ld.Seen -join ' | '); $((@($ld.Out | Where-Object { $_ -match '^ERROR' }) + @($ld.Out | Select-Object -Last 3)) -join ' / ')" }
     if ($why) { $failed++; Write-Host "FAILED ${n}: a guard-revert run with a Hardening row loads smoke.ps1: $why" }
     else { Write-Host "OK $n a guard-revert run with a Hardening row loads smoke.ps1 in the main process and its worker" }
+    $n++
+    $lcMark = Join-Path $grTmp "luac$n.txt"
+    $lcRows = Join-Path $grTmp "rows$n.ps1"
+    Set-Content -Path $lcRows -Encoding ASCII -Value @(
+        "`$GuardRevertRows = @(@{ Id = 'SELFTEST-LC1'; Platform = '$Platform'; Luac = `$true; File = 'x'; Anchor = 'x'; Replacement = 'x'; Tests = @('luac case') }, @{ Id = 'SELFTEST-LC2'; Platform = '$Platform'; File = 'x'; Anchor = 'x'; Replacement = 'x'; Tests = @('plain case') })",
+        'function Assert-Runtimes { }',
+        'function Find-GameDataRoot { }',
+        'function Find-MSBuild { ''msbuild'' }',
+        "function msbuild { Add-Content -LiteralPath '$lcMark' -Value ((Split-Path `$args[0] -Leaf) + ' ' + `$args[1] + ' ' + `$args[2]); `$global:LASTEXITCODE = 0 }",
+        "function Build-Tests([string]`$wt, [string]`$logPath, [string]`$config) { Add-Content -LiteralPath '$lcMark' -Value ('tests ' + `$config); `$true }",
+        'function Set-Anchor { $script:SelftestRow = $true; $null }',
+        'function Run-Case {',
+        '    $state = ''GREEN''',
+        '    if ($script:SelftestRow) { $state = ''RED'' }',
+        '    New-Object PSObject -Property @{ State = $state; Detail = ''''; Code = 0; Text = ''''; Report = $null }',
+        '}'
+    )
+    $lc = & $rsRun $lcRows (Join-Path $grTmp "out$n") (Join-Path $grTmp "proven$n.tsv") '' $false
+    $lcSeen = @(Get-Content -LiteralPath $lcMark -ErrorAction SilentlyContinue)
+    $lcWant = @{
+        'LuaCompiler.vcxproj /p:Configuration=Debug /p:Platform=Win32' = 2
+        'LuaCompiler.vcxproj /p:Configuration=Debug /p:Platform=x64' = 2
+        'tests Debug' = 4
+    }
+    $why = $null
+    if ($lc.Code -ne 0) { $why = "exit $($lc.Code): $((@($lc.Out | Where-Object { $_ -match '^ERROR' }) + @($lc.Out | Select-Object -Last 3)) -join ' / ')" }
+    elseif (-not (($lc.Out -join "`n") -match 'SELFTEST-LC1\s+control=GREEN\s+reverted=RED') -or -not (($lc.Out -join "`n") -match 'SELFTEST-LC2\s+control=GREEN\s+reverted=RED')) { $why = 'a row did not run control GREEN and reverted RED' }
+    elseif ($lcSeen.Count -ne 8) { $why = "$($lcSeen.Count) builds: $($lcSeen -join ' | ')" }
+    else {
+        foreach ($k in $lcWant.Keys) {
+            $got = @($lcSeen | Where-Object { $_ -ceq $k }).Count
+            if ($got -ne $lcWant[$k]) { $why = "$got builds of '$k', expected $($lcWant[$k]): $($lcSeen -join ' | ')"; break }
+        }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: a Luac guard row builds LuaCompiler for Win32 and x64 in its control and reverted builds: $why" }
+    else { Write-Host "OK $n a Luac guard row builds LuaCompiler for Win32 and x64 in its control and reverted builds, and a row without Luac builds only the tests" }
     $n++
     $rpTarget = Join-Path $grTmp 'target'
     New-Item -ItemType Directory -Force -Path (Split-Path $junction -Parent) | Out-Null
@@ -2375,12 +2690,12 @@ try {
     Test-SelCase 'missing record selects every row' @{} $selAll 'no record'
     $selProofs = @{}
     foreach ($x in (Invoke-SelCase @{}).Values) {
-        $selProofs[$x.Id] = @{ RowHash = $x.RowHash; DepDigest = $x.DepDigest; TriggerDigest = $x.TriggerDigest; Toolset = '14.44.35207'; Platform = 'Win32'; Commit = 'c0ffee1'; Date = '2026-11-04' }
+        $selProofs["$($x.Id)`tWin32"] = @{ RowHash = $x.RowHash; DepDigest = $x.DepDigest; TriggerDigest = $x.TriggerDigest; Toolset = '14.44.35207'; Platform = 'Win32'; Commit = 'c0ffee1'; Date = '2026-11-04' }
     }
     $selBase.Proofs = $selProofs
     Test-SelCase 'unchanged inputs carry every row with its proof commit' @{} @() $null
     $p2 = @{}
-    foreach ($k in $selProofs.Keys) { if ($k -ne 'S-HARD2') { $p2[$k] = $selProofs[$k] } }
+    foreach ($k in $selProofs.Keys) { if ($k -cne "S-HARD2`tWin32") { $p2[$k] = $selProofs[$k] } }
     Test-SelCase 'one missing record selects only that row' @{ Proofs = $p2 } @('S-HARD2') 'no record'
     Test-SelCase '.cpp touched selects its rows and the game read sets that contain it' @{ Hashes = (Copy-SelHashes 'src\G\Game.cpp' 'new') } @('S-HARD', 'S-SMOKE', 'S-SMOKE2', 'S-PERTURB') 'deps changed'
     Test-SelCase 'header touched selects every read set that contains it' @{ Hashes = (Copy-SelHashes 'src\G\Shared.h' 'new') } @('S-LIB', 'S-PIN', 'S-HDR', 'S-ASAN', 'S-CANARY', 'S-BASE', 'S-HARD', 'S-SMOKE', 'S-SMOKE2', 'S-PERTURB') 'deps changed'
@@ -2417,6 +2732,83 @@ try {
     }
     catch { $why = "threw: $_" }
     Write-SelResult 'platform: equal sources on two platforms give different DepDigests' $why
+    $why = $null
+    try {
+        $pOnlyX64 = @{}
+        foreach ($x in (Invoke-SelCase @{ Platform = 'x64' }).Values) {
+            $pOnlyX64["$($x.Id)`tx64"] = @{ RowHash = $x.RowHash; DepDigest = $x.DepDigest; TriggerDigest = $x.TriggerDigest; Toolset = '14.44.35207'; Platform = 'x64'; Commit = 'c0ffee1'; Date = '2026-11-04' }
+        }
+        $pBoth = @{}
+        foreach ($k in @($selProofs.Keys) + @($pOnlyX64.Keys)) { $pBoth[$k] = $(if ($selProofs.ContainsKey($k)) { $selProofs[$k] } else { $pOnlyX64[$k] }) }
+        $wOnX = Invoke-SelCase @{ Proofs = $pOnlyX64 }
+        $xOnX = Invoke-SelCase @{ Platform = 'x64'; Proofs = $pOnlyX64 }
+        $wBoth = Invoke-SelCase @{ Proofs = $pBoth }
+        $xBoth = Invoke-SelCase @{ Platform = 'x64'; Proofs = $pBoth }
+        $bad = @($selAll | Where-Object { $wOnX[$_].Action -ne 'SELECT' -or $wOnX[$_].Reason -ne 'no record' })
+        if ($bad.Count) { $why = "the x64 proof of $($bad[0]) gave the Win32 row $($wOnX[$bad[0]].Action) '$($wOnX[$bad[0]].Reason)'" }
+        elseif (@($selAll | Where-Object { $xOnX[$_].Action -ne 'CARRY' }).Count) { $why = 'an x64 proof did not carry its own x64 row, so the case proves nothing' }
+        elseif (@($selAll | Where-Object { $wBoth[$_].Action -ne 'CARRY' -or $xBoth[$_].Action -ne 'CARRY' }).Count) { $why = 'with both proofs present a row did not carry on its own platform' }
+    }
+    catch { $why = "threw: $_" }
+    Write-SelResult 'platform: an x64 proof never satisfies a Win32 row, and Win32 and x64 proofs for one Id each carry their own platform' $why
+    $why = $null
+    try {
+        $why = & {
+            . (Join-Path $PSScriptRoot 'gate\keys.ps1')
+            $GuardRevertRows = $null
+            . (Join-Path $PSScriptRoot 'guardrevert\rows.ps1')
+            $rpProofs = Read-KeyedRecords (Join-Path $PSScriptRoot 'guardrevert\proven.tsv') @('Id', 'Platform')
+            $rpSteps = Read-StepRecords (Join-Path $PSScriptRoot 'guardrevert\steps.tsv')
+            $rpX = @($rpProofs.Values | Where-Object { $_.Platform -ceq 'x64' })
+            $rpXSteps = @($rpSteps.Values | Where-Object { $_.Platform -ceq 'x64' })
+            if ($rpX.Count -eq 0) { return 'proven.tsv has no x64 record, so the case proves nothing' }
+            if ($rpXSteps.Count -eq 0) { return 'steps.tsv has no x64 record, so the case proves nothing' }
+            foreach ($p in $rpX) {
+                $own = $rpProofs["$($p.Id)`tx64"]
+                if (-not $own -or $own.Platform -cne 'x64') { return "the x64 proof of $($p.Id) is not found under (Id, x64)" }
+                $w = $rpProofs["$($p.Id)`tWin32"]
+                if ($w -and $w.Platform -cne 'Win32') { return "a Win32 lookup of $($p.Id) returned its $($w.Platform) proof" }
+            }
+            foreach ($s in $rpXSteps) {
+                $own = $rpSteps["$($s.Step)`tx64`t$($s.Config)`t$($s.Tier)"]
+                if (-not $own -or $own.Platform -cne 'x64') { return "the x64 record of $($s.Step) $($s.Config) $($s.Tier) is not found under its x64 key" }
+                $w = $rpSteps["$($s.Step)`tWin32`t$($s.Config)`t$($s.Tier)"]
+                if ($w -and $w.Platform -cne 'Win32') { return "a Win32 lookup of step $($s.Step) $($s.Config) $($s.Tier) returned its $($w.Platform) record" }
+            }
+            $xIds = @($rpX | ForEach-Object { $_.Id })
+            $xRows = @(Select-GuardPlatformRows @($GuardRevertRows) 'x64' | Where-Object { $xIds -ccontains $_.Id -and -not $rpProofs.ContainsKey("$($_.Id)`tWin32") })
+            if ($xRows.Count -eq 0) { return 'no x64 row in rows.ps1 has an x64 proof only' }
+            $asWin32 = @($xRows | ForEach-Object { $c = $_.Clone(); $c.Remove('Platform'); $c })
+            $in = @{}
+            foreach ($k in $selBase.Keys) { $in[$k] = $selBase[$k] }
+            $in.Proofs = $rpProofs
+            $in.Rows = $asWin32
+            $in.Platform = 'Win32'
+            $onW = @(Select-GuardRows $in | Where-Object { $null -ne $_ })
+            $in.Rows = $xRows
+            $in.Platform = 'x64'
+            $onX = @(Select-GuardRows $in | Where-Object { $null -ne $_ })
+            $badW = @($onW | Where-Object { $_.Action -ne 'SELECT' -or $_.Reason -ne 'no record' })
+            if ($onW.Count -ne $xRows.Count -or $onX.Count -ne $xRows.Count) { return "$($onW.Count) Win32 and $($onX.Count) x64 decisions for $($xRows.Count) rows" }
+            if ($badW.Count) { return "the real x64 proof of $($badW[0].Id) gave its Win32 lookup $($badW[0].Action) '$($badW[0].Reason)'" }
+            $noX = @($onX | Where-Object { $_.Reason -eq 'no record' })
+            if ($noX.Count) { return "the real x64 proof of $($noX[0].Id) was not found for its own x64 row, so the case proves nothing" }
+            $script:rpCounts = "$($xRows.Count) x64 rows, $($rpX.Count) x64 proofs, $($rpXSteps.Count) x64 step records"
+            return $null
+        }
+    }
+    catch { $why = "threw: $_" }
+    Write-SelResult "platform: real proven.tsv and steps.tsv x64 records are never returned for a Win32 lookup ($script:rpCounts)" $why
+    $why = $null
+    try {
+        $prRows = @(@{ Id = 'R-W' }, @{ Id = 'R-X'; Platform = 'x64' }, @{ Id = 'R-W2'; Platform = 'Win32' })
+        $gw = @(Select-GuardPlatformRows $prRows 'Win32' | ForEach-Object { $_.Id }) -join ','
+        $gx = @(Select-GuardPlatformRows $prRows 'x64' | ForEach-Object { $_.Id }) -join ','
+        if ($gw -cne 'R-W,R-W2') { $why = "Win32 kept '$gw'" }
+        elseif ($gx -cne 'R-X') { $why = "x64 kept '$gx'" }
+    }
+    catch { $why = "threw: $_" }
+    Write-SelResult 'platform: a row with no Platform is Win32, and each run keeps only its own platform''s rows' $why
     Test-SelCase 'no tlog selects every row that needs one' @{ TestsReads = $null; AsanReads = $null; GameReads = $null } @('S-LIB', 'S-PIN', 'S-HDR', 'S-ASAN', 'S-CANARY', 'S-BASE', 'S-HARD', 'S-HARD2', 'S-SMOKE', 'S-SMOKE2', 'S-PERTURB') 'no tlog*'
     Test-SelCase 'unmapped path selects the rows that read it' @{ Hashes = (Copy-SelHashes 'src\G\Game.h' $null) } @('S-HARD', 'S-SMOKE', 'S-SMOKE2', 'S-PERTURB') 'unmapped *'
     Test-SelCase 'unmapped literal selects its test rows' @{ TestLiterals = @{ 'tests\unit\t_pin.cpp' = @('tests\corpus\c\', 'tests\missing\x.txt'); 'tests\unit\t_base.cpp' = @('tests\smoke\digest-expected.txt') } } @('S-PIN') 'unmapped literal*'
@@ -2753,7 +3145,7 @@ try {
     $kHardStart = $kRunText.IndexOf('$hardDir = ')
     $kHardEnd = $kRunText.IndexOf('if ($smokeActive) {', $kHardStart)
     $kHardText = $kRunText.Substring($kHardStart, $kHardEnd - $kHardStart)
-    foreach ($fn in 'Get-SourceChecks', 'Get-BaselineReadersCheck', 'Get-HardeningChecks', 'Get-FlagChecks', 'Get-MiCrtHookCheck', 'Get-ImportChecks', 'Get-PeAslr', 'Get-SmokePrecheck', 'Get-GameProjects', 'Get-ClTlogCounts') { $kHardText += "`n" + (Get-Command $fn).Definition }
+    foreach ($fn in 'Get-SourceChecks', 'Get-BaselineReadersCheck', 'Get-HardeningChecks', 'Get-FlagChecks', 'Get-MiCrtHookCheck', 'Get-ImportChecks', 'Get-PeAslr', 'Get-SmokePrecheck', 'Get-GameProjects', 'Get-ClTlogCounts', 'Get-X64ObjectsCheck') { $kHardText += "`n" + (Get-Command $fn).Definition }
     $kHits = @(& $kUnreadScan $kHardText)
     $kBroken = @(& $kUnreadScan ($kHardText + "`n`$x = Get-Content (Join-Path `$testsDir 'smoke\digest-expected.txt')"))
     if ($kHits.Count -or $kBroken.Count -eq 0) { $failed++; Write-Host "FAILED ${n}: hardening run code names a file KindRunUnread says it never reads: $($kHits -join ', '); scan of an injected read found $($kBroken.Count)" }
@@ -2938,7 +3330,7 @@ try {
         Add-Content -LiteralPath (Join-Path $t 'smoke\display-bad.ini') -Value 'Selftest=1'
         & $rcCheck 'a display ini a case names changes only that case' (& $rcCase $t) @('X-INI') $true
         $t = & $rcNew 'allow'
-        & $rcEdit (Join-Path $t 'smoke\cases.ps1') "'src\lglcd\lgLcd.cpp|Data|[0x104]'" "'src\lglcd\lgLcd.cpp|Data|[0x105]'"
+        & $rcEdit (Join-Path $t 'smoke\cases.ps1') "'src\lglcd\lgLcd.cpp|Data|[0x104]|x64:" "'src\lglcd\lgLcd.cpp|Data|[0x105]|x64:"
         & $rcCheck 'an allow-list edit changes case data and no case text' (& $rcCase $t) @() $false
         $rcInfo = Get-GuardTestInfo $repo
         $rcMbSrc = 'tests\unit\memory_baseline.cpp'
@@ -3513,10 +3905,12 @@ try {
         'function Get-GatePreflightInput($Steps, [string[]]$Platforms) {',
         '    $p = @(Get-FirewallRulePaths $root @(''Win32'') @(''Debug''))',
         '    if ($env:OPENSWBF2_SELFTEST_GATE_PFOUT) { [IO.File]::WriteAllText($env:OPENSWBF2_SELFTEST_GATE_PFOUT, (@(Get-GateStepConfigs @($Steps | Where-Object { $_.Kind -ne ''guard'' })) -join '','') + "`t" + (@(Get-GateStepConfigs $Steps) -join '','') + "`t" + (Get-GuardWorkerCount) + "`t" + (@($Platforms) -join '','')) }',
-        '    $in = @{ Steam = ''yes''; Overlay = Get-SteamOverlayFromVdf $env:OPENSWBF2_SELFTEST_GATE_VDF; RulePaths = $p; AllowRules = $p; Wer = @(); FreeRamKB = $script:RamFloorKB; RepoDrive = ''C:''; RepoFree = [long]$script:DiskDropBytes; WorktreeDrive = ''D:''; WorktreeFree = 0; WorktreesMissing = 0; GameData = ''G:\GameData''; Toolchain = @(@{ Platform = ''Win32''; MSBuild = $true; Dumpbin = $true; RuntimeDir = ''S:\SysWOW64''; MissingRuntimes = @() }) }',
+        '    $in = @{ Steam = ''yes''; Overlay = Get-SteamOverlayFromVdf $env:OPENSWBF2_SELFTEST_GATE_VDF; RulePaths = $p; GamePlatforms = @(''Win32''); Platforms = @($Platforms); AllowRules = $p; Wer = @(); FreeRamKB = $script:RamFloorKB; RepoDrive = ''C:''; RepoFree = [long]$script:DiskDropBytes; WorktreeDrive = ''D:''; WorktreeFree = 0; WorktreesMissing = 0; GameData = ''G:\GameData''; Toolchain = @(@{ Platform = ''Win32''; MSBuild = $true; Dumpbin = $true; RuntimeDir = ''S:\SysWOW64''; MissingRuntimes = @() }) }',
         '    switch ($env:OPENSWBF2_SELFTEST_GATE_PF) {',
         '        ''steam'' { $in.Steam = ''no'' }',
         '        ''firewall'' { $in.AllowRules = @($p | Select-Object -Skip 1) }',
+        '        ''firewall-empty'' { $in.RulePaths = @() }',
+        '        ''firewall-nogame'' { $in.GamePlatforms = @(); $in.RulePaths = @(); $in.AllowRules = @() }',
         '        ''wer'' { $in.Wer = @(''WER LocalDumps key for BattlefrontII.exe is missing'') }',
         '        ''ram'' { $in.FreeRamKB = $script:RamFloorKB - 1 }',
         '        ''disk'' { $in.RepoFree = [long]$script:DiskDropBytes - 1 }',
@@ -3749,15 +4143,18 @@ try {
     $n++
 
     $r = & $gtRun '-Platform x64' ''
-    $gtProj = Join-Path $gtRepo 'BattlefrontII.vcxproj'
-    [IO.File]::WriteAllText($gtProj, "<ProjectConfiguration Include=`"Release|x64`" />`r`n")
+    $gtProps = Join-Path $gtRepo 'OpenSWBF2.Platform.props'
+    [IO.File]::WriteAllText($gtProps, "<ProjectConfiguration Include=`"Release|Win32`" />`r`n")
+    $rw = & $gtRun '-Platform x64' ''
+    [IO.File]::WriteAllText($gtProps, "<ProjectConfiguration Include=`"Release|x64`" />`r`n")
     $rx = & $gtRun '-Platform x64 -Step run-a' ''
-    Remove-Item -LiteralPath $gtProj -Force
+    Remove-Item -LiteralPath $gtProps -Force
     $why = $null
-    if ($r.Code -ne 2 -or $r.Text -notmatch 'gate: x64 steps need an x64 configuration' -or $r.Marks.Count) { $why = "no x64 configuration: exit $($r.Code), marks $($r.Marks -join ','): $($r.Text)" }
+    if ($r.Code -ne 2 -or $r.Text -notmatch 'gate: x64 steps need an x64 configuration' -or $r.Marks.Count) { $why = "no platform props: exit $($r.Code), marks $($r.Marks -join ','): $($r.Text)" }
+    elseif ($rw.Code -ne 2 -or $rw.Text -notmatch 'gate: x64 steps need an x64 configuration' -or $rw.Marks.Count) { $why = "Win32-only platform props: exit $($rw.Code), marks $($rw.Marks -join ','): $($rw.Text)" }
     elseif ($rx.Code -ne 0 -or $rx.Text -match 'need an x64 configuration' -or ($rx.Marks -join ',') -cne 'build,run-a') { $why = "with an x64 configuration: exit $($rx.Code), marks $($rx.Marks -join ','): $($rx.Text)" }
     if ($why) { $failed++; Write-Host "FAILED ${n}: gate x64 refusal: $why" }
-    else { Write-Host "OK $n gate refuses -Platform x64 before any step when the game project has no x64 configuration, and runs it when it has one" }
+    else { Write-Host "OK $n gate refuses -Platform x64 before any step when the platform props has no x64 configuration, and runs it when it has one" }
     $n++
 
     $gtTimes = Join-Path $gtRepo 'tests\baseline\gate-times.tsv'
@@ -3809,14 +4206,19 @@ try {
 
     $why = & $gtPfWhy (& $gtPf '') ''
     if (-not $why) { $why = & $gtPfWhy (& $gtPf 'disk-worktree-ok') '' }
+    if (-not $why) {
+        $rng = & $gtPf 'firewall-nogame'
+        $why = & $gtPfWhy $rng ''
+        if (-not $why -and $rng.Text -notmatch '(?m)^\[PASS\] preflight:firewall no selected step starts the game exe on Win32, so no rule is needed') { $why = "no-game firewall line missing: $($rng.Text)" }
+    }
     if ($why) { $failed++; Write-Host "FAILED ${n}: gate preflight all pass: $why" }
-    else { Write-Host "OK $n gate preflight prints seven PASS lines at the exact floors and runs the steps, also with missing worktrees that fit" }
+    else { Write-Host "OK $n gate preflight prints seven PASS lines at the exact floors and runs the steps, also with missing worktrees that fit and with no rule paths when no selected step starts the game exe" }
     $n++
 
     $gtPfCases = @(
         @('steam', @(, @('steam', $gtVdfOff)), 'Steam not running'),
         @('overlay', @(@('', $gtVdfOn), @('', $gtVdfAbsent), @('', (Join-Path $gtTmp 'no-such.vdf'))), 'overlay on, absent (Steam default on) or unreadable'),
-        @('firewall', @(, @('firewall', $gtVdfOff)), 'one worker path without an inbound allow rule'),
+        @('firewall', @(@('firewall', $gtVdfOff), @('firewall-empty', $gtVdfOff)), 'one worker path without an inbound allow rule, or no rule paths while a step starts the game exe'),
         @('wer', @(, @('wer', $gtVdfOff)), 'WER LocalDumps key missing'),
         @('ram', @(, @('ram', $gtVdfOff)), 'free memory one KB below the floor'),
         @('disk', @(@('disk', $gtVdfOff), @('disk-worktree', $gtVdfOff), @('disk-other-drive', $gtVdfOff), @('disk-gamedata', $gtVdfOff)), 'repo drive one byte short, missing worktrees on the same or another drive short, GameData missing'),

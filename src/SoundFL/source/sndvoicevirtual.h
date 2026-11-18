@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 #include "PebbleFL/Common/PblListDoubleSorted.h"
 
 #include "sndsourcevirtual.h"
@@ -23,14 +25,14 @@ public:
 
     typedef void (__cdecl* InactiveCallback)(const VoiceVirtual* const, void* const);
 
-    VoiceVirtual(unsigned int uiCustomFlags, VoiceVirtualManager* pManager,
+    VoiceVirtual(uintptr_t uiCustomFlags, VoiceVirtualManager* pManager,
                  bool bRestorePlaybackPos);
     ~VoiceVirtual();
 
     void Stop();
 
     VoiceBase* GetVoice() { return mVoice; }
-    unsigned int GetCustomFlags() const { return mCustomFlags; }
+    uintptr_t GetCustomFlags() const { return mCustomFlags; }
 
     float CalculatePriority(bool bForce);
     void Play(bool bRestart);
@@ -78,7 +80,7 @@ public:
     PblListDoubleSorted::Node mNode;
     unsigned int mFlags;
     VoiceBase* mVoice;
-    unsigned int mCustomFlags;
+    uintptr_t mCustomFlags;
     VoiceVirtualManager* mVoiceManager;
     InactiveCallback mInactiveCallback;
     void* mInactiveCallbackData;

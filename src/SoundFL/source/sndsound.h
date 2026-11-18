@@ -20,7 +20,7 @@ public:
     {
     public:
 
-        FireForget(unsigned int uiCustomFlags, VoiceVirtualManager* pManager,
+        FireForget(uintptr_t uiCustomFlags, VoiceVirtualManager* pManager,
                    bool bRestorePlaybackPos)
             : VoiceVirtualBus(uiCustomFlags, pManager, bRestorePlaybackPos),
               mCallback(0),
@@ -115,7 +115,7 @@ private:
 public:
 
     static FireForget* smVoiceVirtuals;
-    static unsigned char smVoiceVirtualStorage[12800];
+    alignas(FireForget) static unsigned char smVoiceVirtualStorage[64 * sizeof(FireForget)];
     static Source3D smSource3Ds[64];
 
     static ::PblVector3 smSource3DPositions[64];

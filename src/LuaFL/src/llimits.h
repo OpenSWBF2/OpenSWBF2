@@ -3,6 +3,7 @@
 
 #include <limits.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "lua.h"
 
@@ -36,7 +37,7 @@ typedef unsigned char lu_byte;
 
 #define MAX_INT (INT_MAX-2)
 
-#define IntPoint(p)  ((lu_hash)(p))
+#define IntPoint(p)  ((lu_hash)(uintptr_t)(p))
 
 #ifndef LUSER_ALIGNMENT_T
 typedef union { double u; void *s; long l; } L_Umaxalign;

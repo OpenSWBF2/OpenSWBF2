@@ -177,7 +177,15 @@ public:
     unsigned int pktBits;
 };
 
-static_assert(sizeof(NetPktGroup) == 28, "NetPktGroup layout");
+static_assert(sizeof(NetPktGroup) == 24 + sizeof(NetPacket*), "NetPktGroup layout");
+static_assert(offsetof(NetPktGroup, isSmall) == 0, "NetPktGroup isSmall offset");
+static_assert(offsetof(NetPktGroup, bad) == 1, "NetPktGroup bad offset");
+static_assert(offsetof(NetPktGroup, firstPkt) == 4, "NetPktGroup firstPkt offset");
+static_assert(offsetof(NetPktGroup, lastPkt) == 8, "NetPktGroup lastPkt offset");
+static_assert(offsetof(NetPktGroup, pktCount) == 12, "NetPktGroup pktCount offset");
+static_assert(offsetof(NetPktGroup, pktPtr) == 16, "NetPktGroup pktPtr offset");
+static_assert(offsetof(NetPktGroup, curBit) == 16 + sizeof(NetPacket*), "NetPktGroup curBit offset");
+static_assert(offsetof(NetPktGroup, pktBits) == 20 + sizeof(NetPacket*), "NetPktGroup pktBits offset");
 
 extern int netRejectCounts[NET_REJECT_COUNT];
 void NetRejectCount(int iReason);

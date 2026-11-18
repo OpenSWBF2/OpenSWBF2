@@ -358,7 +358,7 @@ bool SoldierAnimatorClass::_GetAnimationBoneMatrix(const ZephyrSkeletonShared* p
     {
         return false;
     }
-    int iJoint = (int)pSkel->m_kHashCRC2Joint.Find(uiJointCrc) - 1;
+    int iJoint = (int)pSkel->m_kHashCRC2Joint.FindValue(uiJointCrc) - 1;
     if (iJoint < 0)
     {
         return false;
@@ -450,7 +450,7 @@ void SoldierAnimatorClass::SetupBodyMasks(const ZephyrSkeletonShared* pSkel, Pbl
                                           PblBitVector<32>& lowerBodyMask)
 {
     const PblHashTable<unsigned int, 64>& kJoints = pSkel->m_kHashCRC2Joint;
-    int iForearmJoint = (int)kJoints.Find(0xb70e2184 /* "bone_r_forarm3" */) - 1;
+    int iForearmJoint = (int)kJoints.FindValue(0xb70e2184 /* "bone_r_forarm3" */) - 1;
     upperBodyMask.SetAll();
     lowerBodyMask.ClearAll();
     upperBodyMask.m_auiData[0] &= ~1u;
@@ -459,7 +459,7 @@ void SoldierAnimatorClass::SetupBodyMasks(const ZephyrSkeletonShared* pSkel, Pbl
     {
         for (int i = 0; i < (int)(sizeof(s_auiLowerBodyJoints_b70e2184) / sizeof(unsigned int)); ++i)
         {
-            int iJoint = (int)kJoints.Find(s_auiLowerBodyJoints_b70e2184[i]) - 1;
+            int iJoint = (int)kJoints.FindValue(s_auiLowerBodyJoints_b70e2184[i]) - 1;
             unsigned int uiBit = 1 << iJoint;
             upperBodyMask.m_auiData[0] &= ~uiBit;
             lowerBodyMask.m_auiData[0] |= uiBit;
@@ -469,7 +469,7 @@ void SoldierAnimatorClass::SetupBodyMasks(const ZephyrSkeletonShared* pSkel, Pbl
     {
         for (int i = 0; i < (int)(sizeof(s_auiLowerBodyJoints) / sizeof(unsigned int)); ++i)
         {
-            int iJoint = (int)kJoints.Find(s_auiLowerBodyJoints[i]) - 1;
+            int iJoint = (int)kJoints.FindValue(s_auiLowerBodyJoints[i]) - 1;
             unsigned int uiBit = 1 << iJoint;
             upperBodyMask.m_auiData[0] &= ~uiBit;
             lowerBodyMask.m_auiData[0] |= uiBit;
@@ -676,7 +676,7 @@ static void SetupVelocity(SoldierAnimation* pAnim, ZephyrPoseDyn<32>& tempPose)
     unsigned short uiRoot = 0;
     if (SoldierAnimatorClass::Instance())
     {
-        uiRoot = (unsigned short)((int)SoldierAnimatorClass::Instance()->GetDefaultSkeleton()->m_kHashCRC2Joint.Find(
+        uiRoot = (unsigned short)((int)SoldierAnimatorClass::Instance()->GetDefaultSkeleton()->m_kHashCRC2Joint.FindValue(
                                       0x4446e9b8 /* "DummyRoot" */) -
                                   1);
     }

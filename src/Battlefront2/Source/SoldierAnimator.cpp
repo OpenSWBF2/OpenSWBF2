@@ -123,11 +123,11 @@ void SoldierAnimator::Initialize(const ZephyrSkeletonShared* pSkeleton)
 }
 
 // FUNCTION: SWBF2 0x0063ea30
-void SoldierAnimator::SetNewOwner(unsigned int uiOwnerId, const EntitySoldier* pOwner,
+void SoldierAnimator::SetNewOwner(const EntitySoldier* pOwnerId, const EntitySoldier* pOwner,
                                   const ZephyrSkeletonShared* pSkeleton, const PblBitVector<32>& upperBodyMask,
                                   const PblBitVector<32>& lowerBodyMask, float fSkeletonScale)
 {
-    mOwnerId = uiOwnerId;
+    mOwnerId = pOwnerId;
     m_bRestartJumpForJedi = false;
     m_bMoveAlert = false;
     m_bRestartWeaponAnim = false;

@@ -38,7 +38,7 @@ public:
     virtual bool IsTransparent() const;
     virtual unsigned short GetShaderChain(pcRedShader** const, unsigned short,
                                           const RenderItem*);
-    virtual int GetDiffuseMapHash(int, int);
+    virtual int GetDiffuseMapHash(const RenderItem*, int);
 
 private:
 

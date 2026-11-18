@@ -86,8 +86,6 @@ extern float netNextLanQueryTime;
 extern int netLanQueryCount;
 extern unsigned int netLanQuerySequence;
 extern unsigned __int64 netLocalGSID;
-extern unsigned int netBroadcastSendSocket;
-extern unsigned int netBroadcastRecvSocket;
 extern bool netLobbyRequestPending;
 extern bool netLeavingLobby;
 extern bool netHandlingFindPacket;

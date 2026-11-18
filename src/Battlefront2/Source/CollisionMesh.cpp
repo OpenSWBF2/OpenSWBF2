@@ -328,14 +328,14 @@ int CollisionMesh::_RayHit(const PblVector3& vStart, const PblVector3& vDir, flo
         if (!pNode->IsLeaf())
         {
             CollisionAABB lAABB(aabb, (pNode + 1)->aabb);
-            CollisionAABB gAABB(aabb, ((CollisionTreeNode*)pNode->data)->aabb);
+            CollisionAABB gAABB(aabb, pNode->GetGChild()->aabb);
             if (BoxDistSq(vStart, lAABB) < BoxDistSq(vStart, gAABB))
             {
                 const int iFirst = ((CollisionMesh*)pMesh)->_RayHit(vStart, vDir, fLength, (pNode + 1), lAABB, fT, ppHitLeaf);
-                const int iSecond = ((CollisionMesh*)pMesh)->_RayHit(vStart, vDir, fLength, ((CollisionTreeNode*)pNode->data), gAABB, fT, ppHitLeaf);
+                const int iSecond = ((CollisionMesh*)pMesh)->_RayHit(vStart, vDir, fLength, pNode->GetGChild(), gAABB, fT, ppHitLeaf);
                 return (iSecond | iFirst) != 0;
             }
-            const int iFirst = ((CollisionMesh*)pMesh)->_RayHit(vStart, vDir, fLength, ((CollisionTreeNode*)pNode->data), gAABB, fT, ppHitLeaf);
+            const int iFirst = ((CollisionMesh*)pMesh)->_RayHit(vStart, vDir, fLength, pNode->GetGChild(), gAABB, fT, ppHitLeaf);
             const int iSecond = ((CollisionMesh*)pMesh)->_RayHit(vStart, vDir, fLength, (pNode + 1), lAABB, fT, ppHitLeaf);
             return (iFirst | iSecond) != 0;
         }
@@ -393,48 +393,6 @@ bool CollisionMesh::RayTest(const PblVector3& vStart, const PblVector3& vDir, fl
         return true;
     }
     return false;
-}
-
-// FUNCTION: SWBF2 0x00460f00
-void CollisionTreeNode::AddAllocPool(int iBytes, int iIndices)
-{
-    membytes = 0;
-    memtotal = iBytes;
-    memblock = new char[iBytes];
-    nodes = 0;
-    leafs = 0;
-    indexpool = (unsigned short*)(memblock + iBytes - 2 * iIndices);
-}
-
-// FUNCTION: SWBF2 0x00460fd0
-CollisionTreeNode* ReadTree(PblFileChunk& chunk)
-{
-    PblFileChunk child = chunk.ReadNextChild();
-    switch (child._iId)
-    {
-    case CHUNK_ID('N', 'O', 'D', 'E'):
-    {
-        CollisionTreeBranch* pBranch = new CollisionTreeBranch;
-        child._pFile->ReadData(&pBranch->aabb, 6);
-        pBranch->SetLChild(ReadTree(chunk));
-        pBranch->SetGChild(ReadTree(chunk));
-        return pBranch;
-    }
-    case CHUNK_ID('L', 'E', 'A', 'F'):
-    {
-        unsigned char uNumVerts = child._pFile->Read8();
-        CollisionTreeLeaf* pLeaf = new CollisionTreeLeaf(uNumVerts);
-        child._pFile->ReadData(&pLeaf->aabb, 6);
-        unsigned short* pIndices = pLeaf->GetIndexPointer();
-        pIndices[0] = child._pFile->Read16();
-        for (int i = pLeaf->numVerts - 1; i > 0; --i)
-        {
-            pIndices[i] = child._pFile->Read16();
-        }
-        return pLeaf;
-    }
-    }
-    return 0;
 }
 
 // FUNCTION: SWBF2 0x00461120
@@ -550,24 +508,6 @@ int __cdecl _topCollisionCallback(const void* pA, const void* pB)
     return iA < iB ? -1 : 0;
 }
 
-// GLOBAL: SWBF2 0x01e30728
-char* CollisionTreeNode::memblock;
-
-// GLOBAL: SWBF2 0x01e30730
-unsigned int CollisionTreeNode::membytes;
-
-// GLOBAL: SWBF2 0x01e3072c
-unsigned int CollisionTreeNode::memtotal;
-
-// GLOBAL: SWBF2 0x01e3039c
-unsigned short* CollisionTreeNode::indexpool;
-
-// GLOBAL: SWBF2 0x01e30398
-int CollisionTreeNode::nodes;
-
-// GLOBAL: SWBF2 0x01e30370
-int CollisionTreeNode::leafs;
-
 // SYNTHETIC: SWBF2 0x00402460
 // `dynamic initializer for 'CollisionMesh::_HashTable''
 
@@ -628,11 +568,11 @@ void CollisionMesh::__GetTriHits(const PblVector3& vPos, float fRadius2, const P
         }
         CollisionAABB gAABB;
         {
-            CollisionAABB childAABB(aabb, ((CollisionTreeNode*)pNode->data)->aabb);
+            CollisionAABB childAABB(aabb, pNode->GetGChild()->aabb);
             gAABB = childAABB;
         }
         ((CollisionMesh*)pMesh)->__GetTriHits(vPos, fRadius2, vMin, vMax, pNode + 1, lAABB, list, pCache);
-        ((CollisionMesh*)pMesh)->__GetTriHits(vPos, fRadius2, vMin, vMax, (CollisionTreeNode*)pNode->data, gAABB, list, pCache);
+        ((CollisionMesh*)pMesh)->__GetTriHits(vPos, fRadius2, vMin, vMax, pNode->GetGChild(), gAABB, list, pCache);
         return;
     }
 

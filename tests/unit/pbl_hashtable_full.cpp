@@ -1,5 +1,6 @@
 #include "third_party/doctest/doctest.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include "PebbleFL/Common/PblHashTable.h"
@@ -7,10 +8,10 @@
 namespace
 {
 
-void* RetailFind(const unsigned int* pTable, int iCount, unsigned int uiHash)
+uintptr_t RetailFind(const uintptr_t* pTable, int iCount, unsigned int uiHash)
 {
     const int iHalf = iCount >> 1;
-    const unsigned int* pSlot = pTable + ((iHalf - 1) & uiHash);
+    const uintptr_t* pSlot = pTable + ((iHalf - 1) & uiHash);
 
     if (!uiHash)
     {
@@ -31,13 +32,13 @@ void* RetailFind(const unsigned int* pTable, int iCount, unsigned int uiHash)
         --pSlot;
     }
 
-    return (void*)pSlot[iHalf];
+    return pSlot[iHalf];
 }
 
-bool RetailStore(unsigned int* pTable, int iCount, unsigned int uiHash, void* pValue)
+bool RetailStore(uintptr_t* pTable, int iCount, unsigned int uiHash, uintptr_t uValue)
 {
     const int iHalf = iCount >> 1;
-    unsigned int* pSlot = pTable + ((iHalf - 1) & uiHash);
+    uintptr_t* pSlot = pTable + ((iHalf - 1) & uiHash);
 
     while (*pSlot)
     {
@@ -54,14 +55,14 @@ bool RetailStore(unsigned int* pTable, int iCount, unsigned int uiHash, void* pV
     }
 
     *pSlot = uiHash;
-    pSlot[iHalf] = (unsigned int)pValue;
+    pSlot[iHalf] = uValue;
     return true;
 }
 
-bool RetailRemove(unsigned int* pTable, int iCount, unsigned int uiHash)
+bool RetailRemove(uintptr_t* pTable, int iCount, unsigned int uiHash)
 {
     const int iHalf = iCount >> 1;
-    unsigned int* pSlot = pTable + ((iHalf - 1) & uiHash);
+    uintptr_t* pSlot = pTable + ((iHalf - 1) & uiHash);
 
     while (*pSlot != uiHash)
     {
@@ -92,10 +93,10 @@ bool RetailRemove(unsigned int* pTable, int iCount, unsigned int uiHash)
             return true;
         }
 
-        const unsigned int uiMoved = *pSlot;
-        void* const pMovedValue = (void*)pSlot[iHalf];
+        const unsigned int uiMoved = (unsigned int)*pSlot;
+        const uintptr_t uMovedValue = pSlot[iHalf];
         *pSlot = 0;
-        RetailStore(pTable, iCount, uiMoved, pMovedValue);
+        RetailStore(pTable, iCount, uiMoved, uMovedValue);
     }
 }
 
@@ -108,39 +109,44 @@ struct HashCode : PblHashTableCode
 
 int* FakeValue(unsigned int uiKey)
 {
-    return (int*)(0x10000 + uiKey * 16);
+    return (int*)(uintptr_t)(0x10000 + uiKey * 16);
+}
+
+uintptr_t FakeSlot(unsigned int uiKey)
+{
+    return (uintptr_t)FakeValue(uiKey);
 }
 
 template <int SLOTS>
 void CheckFullTable(const unsigned int* puiKeys, unsigned int uiAbsent)
 {
-    unsigned int auiTable[2 * SLOTS];
+    uintptr_t auiTable[2 * SLOTS];
     memset(auiTable, 0, sizeof(auiTable));
     for (int i = 0; i < SLOTS; ++i)
     {
-        REQUIRE(HashCode::_Store(auiTable, 2 * SLOTS, puiKeys[i], FakeValue(puiKeys[i])));
+        REQUIRE(HashCode::_Store(auiTable, 2 * SLOTS, puiKeys[i], FakeSlot(puiKeys[i])));
     }
     for (int i = 0; i < SLOTS; ++i)
     {
-        CHECK(HashCode::_Find(auiTable, 2 * SLOTS, puiKeys[i]) == FakeValue(puiKeys[i]));
+        CHECK(HashCode::_Find(auiTable, 2 * SLOTS, puiKeys[i]) == FakeSlot(puiKeys[i]));
     }
 
-    unsigned int auiBefore[2 * SLOTS];
+    uintptr_t auiBefore[2 * SLOTS];
     memcpy(auiBefore, auiTable, sizeof(auiBefore));
 
-    CHECK(HashCode::_Find(auiTable, 2 * SLOTS, uiAbsent) == (void*)0);
-    CHECK_FALSE(HashCode::_Store(auiTable, 2 * SLOTS, uiAbsent, FakeValue(uiAbsent)));
+    CHECK(HashCode::_Find(auiTable, 2 * SLOTS, uiAbsent) == 0);
+    CHECK_FALSE(HashCode::_Store(auiTable, 2 * SLOTS, uiAbsent, FakeSlot(uiAbsent)));
     CHECK_FALSE(HashCode::_Remove(auiTable, 2 * SLOTS, uiAbsent));
     CHECK(memcmp(auiBefore, auiTable, sizeof(auiBefore)) == 0);
 
     CHECK(HashCode::_Remove(auiTable, 2 * SLOTS, puiKeys[0]));
-    CHECK(HashCode::_Find(auiTable, 2 * SLOTS, puiKeys[0]) == (void*)0);
+    CHECK(HashCode::_Find(auiTable, 2 * SLOTS, puiKeys[0]) == 0);
     for (int i = 1; i < SLOTS; ++i)
     {
-        CHECK(HashCode::_Find(auiTable, 2 * SLOTS, puiKeys[i]) == FakeValue(puiKeys[i]));
+        CHECK(HashCode::_Find(auiTable, 2 * SLOTS, puiKeys[i]) == FakeSlot(puiKeys[i]));
     }
-    CHECK(HashCode::_Store(auiTable, 2 * SLOTS, uiAbsent, FakeValue(uiAbsent)));
-    CHECK(HashCode::_Find(auiTable, 2 * SLOTS, uiAbsent) == FakeValue(uiAbsent));
+    CHECK(HashCode::_Store(auiTable, 2 * SLOTS, uiAbsent, FakeSlot(uiAbsent)));
+    CHECK(HashCode::_Find(auiTable, 2 * SLOTS, uiAbsent) == FakeSlot(uiAbsent));
 
     PblHashTable<int, SLOTS> kTable;
     for (int i = 0; i < SLOTS; ++i)
@@ -178,9 +184,9 @@ TEST_CASE("hash table full table probes terminate" * doctest::test_suite("regres
 
 TEST_CASE("hash table non-full probes match retail layout" * doctest::test_suite("regression"))
 {
-    unsigned int auiTable[32];
+    uintptr_t auiTable[32];
     memset(auiTable, 0, sizeof(auiTable));
-    unsigned int auiRetail[32];
+    uintptr_t auiRetail[32];
     memset(auiRetail, 0, sizeof(auiRetail));
 
     unsigned int uiSeed = 0x2468ace1;
@@ -206,8 +212,8 @@ TEST_CASE("hash table non-full probes match retail layout" * doctest::test_suite
             {
                 continue;
             }
-            const bool bNew = HashCode::_Store(auiTable, 32, uiKey, FakeValue(uiKey));
-            const bool bOld = RetailStore(auiRetail, 32, uiKey, FakeValue(uiKey));
+            const bool bNew = HashCode::_Store(auiTable, 32, uiKey, FakeSlot(uiKey));
+            const bool bOld = RetailStore(auiRetail, 32, uiKey, FakeSlot(uiKey));
             CHECK(bNew == bOld);
             if (bNew)
             {
@@ -226,4 +232,91 @@ TEST_CASE("hash table non-full probes match retail layout" * doctest::test_suite
         }
         REQUIRE(memcmp(auiTable, auiRetail, sizeof(auiRetail)) == 0);
     }
+}
+
+TEST_CASE("pbl hashtable keeps values above 4 GB" * doctest::test_suite("regression"))
+{
+    const uintptr_t uHigh = (uintptr_t)1 << (sizeof(void*) * 8 - 4);
+    const unsigned int auiKeys[4] = { 0x11, 0x21, 0x06, 0x13 };
+    uintptr_t auValues[4];
+    for (int i = 0; i < 4; ++i)
+    {
+        auValues[i] = uHigh + 0x40 * (uintptr_t)(i + 1) + (uintptr_t)i;
+    }
+
+    PblHashTable<int, 8> kTable;
+    PblHashTable<int, 8> kValues;
+    for (int i = 0; i < 4; ++i)
+    {
+        kTable.Store(auiKeys[i], (int*)auValues[i]);
+        kValues.StoreValue(auiKeys[i], auValues[i]);
+    }
+    REQUIRE(kTable.GetNumEntries() == 4);
+    REQUIRE(kValues.GetNumEntries() == 4);
+
+    for (int i = 0; i < 4; ++i)
+    {
+        CHECK((uintptr_t)kTable.Find(auiKeys[i]) == auValues[i]);
+        CHECK(kTable.FindValue(auiKeys[i]) == auValues[i]);
+        CHECK(kTable.HasValue((const int*)auValues[i]));
+        CHECK_FALSE(kTable.HasValue((const int*)(auValues[i] - uHigh)));
+        CHECK(kValues.FindValue(auiKeys[i]) == auValues[i]);
+        CHECK((uintptr_t)kValues.Find(auiKeys[i]) == auValues[i]);
+    }
+
+    int iSeen = 0;
+    for (PblHashTable<int, 8>::Itor it = kTable.Begin(); it != kTable.End(); ++it)
+    {
+        int iFound = -1;
+        for (int i = 0; i < 4; ++i)
+        {
+            if (auiKeys[i] == it.GetKey())
+            {
+                iFound = i;
+            }
+        }
+        REQUIRE(iFound >= 0);
+        CHECK((uintptr_t)(int*)it == auValues[iFound]);
+        CHECK((uintptr_t)it.operator->() == auValues[iFound]);
+        ++iSeen;
+    }
+    CHECK(iSeen == 4);
+}
+
+namespace
+{
+
+template <int SLOTS>
+void CheckIterationOrder(const PblHashTable<int, SLOTS>& kTable, const unsigned int* puiOrder, int iCount)
+{
+    int iAt = 0;
+    for (typename PblHashTable<int, SLOTS>::Itor it = kTable.Begin(); it != kTable.End(); ++it)
+    {
+        REQUIRE(iAt < iCount);
+        CHECK(it.GetKey() == puiOrder[iAt]);
+        CHECK((int*)it == FakeValue(puiOrder[iAt]));
+        ++iAt;
+    }
+    CHECK(iAt == iCount);
+}
+
+}
+
+TEST_CASE("pbl hashtable iteration order is pinned" * doctest::test_suite("regression"))
+{
+    const unsigned int auiKeys[6] = { 0x11, 0x21, 0x31, 0x06, 0x0E, 0x13 };
+    PblHashTable<int, 8> kTable;
+    for (int i = 0; i < 6; ++i)
+    {
+        kTable.Store(auiKeys[i], FakeValue(auiKeys[i]));
+    }
+    REQUIRE(kTable.GetNumEntries() == 6);
+
+    const unsigned int auiOrder[6] = { 0x21, 0x11, 0x13, 0x0E, 0x06, 0x31 };
+    CheckIterationOrder(kTable, auiOrder, 6);
+
+    kTable.Remove(0x11);
+    REQUIRE(kTable.GetNumEntries() == 5);
+    const unsigned int auiAfterRemove[5] = { 0x31, 0x21, 0x13, 0x0E, 0x06 };
+    CheckIterationOrder(kTable, auiAfterRemove, 5);
 }

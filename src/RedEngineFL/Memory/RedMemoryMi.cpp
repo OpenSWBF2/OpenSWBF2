@@ -18,7 +18,9 @@ static_assert(sizeof(RedMiPrefix) == 16, "RedMiPrefix must stay 16 bytes");
 static mi_heap_t* sMiHeap[kRedHeapSlots];
 static unsigned int sMiGen[kRedHeapSlots];
 static const uintptr_t kMiResPages = 0x10000;
+static const uintptr_t kMiResLeaves = sizeof(void*) > 4 ? 0x8000 : 1;
 static volatile LONG salMiResBits[kMiResPages / 32];
+static volatile LONG* volatile sapMiResLeaf[kMiResLeaves];
 static void* volatile spMiFirstBase;
 static size_t suMiFirstSize;
 static bool sbMiCreateFails;
@@ -59,10 +61,42 @@ static unsigned int MiCookie(const char* pBase, unsigned int uSize, unsigned int
     return (unsigned int)(uintptr_t)pBase ^ kMiCookie ^ uCharge ^ (uSize * 0x9E3779B1u);
 }
 
+static volatile LONG* MiResLeaf(uintptr_t uIdx, bool bCreate)
+{
+    const uintptr_t uLeaf = uIdx / kMiResPages;
+    if (uLeaf == 0)
+    {
+        return salMiResBits;
+    }
+    if (uLeaf >= kMiResLeaves)
+    {
+        return 0;
+    }
+    volatile LONG* plBits = sapMiResLeaf[uLeaf];
+    if (plBits != 0 || !bCreate)
+    {
+        return plBits;
+    }
+    void* pNew = VirtualAlloc(0, sizeof(salMiResBits), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    if (pNew == 0)
+    {
+        return 0;
+    }
+    void* pOld = InterlockedCompareExchangePointer((void* volatile*)&sapMiResLeaf[uLeaf], pNew, 0);
+    if (pOld != 0)
+    {
+        VirtualFree(pNew, 0, MEM_RELEASE);
+        return (volatile LONG*)pOld;
+    }
+    return (volatile LONG*)pNew;
+}
+
 static bool MiInReservation(const void* p)
 {
     const uintptr_t uIdx = (uintptr_t)p >> 16;
-    return uIdx < kMiResPages && (salMiResBits[uIdx >> 5] & (1u << (uIdx & 31))) != 0;
+    const volatile LONG* plBits = MiResLeaf(uIdx, false);
+    const uintptr_t uBit = uIdx % kMiResPages;
+    return plBits != 0 && (plBits[uBit >> 5] & (1u << (uBit & 31))) != 0;
 }
 
 static bool MiIsCrtBlock(const void* p)
@@ -108,9 +142,15 @@ void RedMiRecordReservation(const void* p)
     }
     const uintptr_t uFirst = uBase >> 16;
     const uintptr_t uLast = (uAt - 1) >> 16;
-    for (uintptr_t uIdx = uFirst; uIdx <= uLast && uIdx < kMiResPages; ++uIdx)
+    for (uintptr_t uIdx = uFirst; uIdx <= uLast; ++uIdx)
     {
-        InterlockedBitTestAndSet(&salMiResBits[uIdx >> 5], (LONG)(uIdx & 31));
+        volatile LONG* plBits = MiResLeaf(uIdx, true);
+        if (plBits == 0)
+        {
+            break;
+        }
+        const uintptr_t uBit = uIdx % kMiResPages;
+        InterlockedBitTestAndSet(&plBits[uBit >> 5], (LONG)(uBit & 31));
     }
     if (InterlockedCompareExchangePointer(&spMiFirstBase, (void*)uBase, 0) == 0)
     {
@@ -195,9 +235,9 @@ size_t RedMiCreate(int heap, void* start, void* end, unsigned int align)
     {
         return 0;
     }
-    const unsigned int uMask = ~(align - 1);
-    const unsigned int uStart = ((unsigned int)(uintptr_t)start + align - 1) & uMask;
-    const unsigned int uEnd = (unsigned int)(uintptr_t)end & uMask;
+    const uintptr_t uMask = ~(uintptr_t)(align - 1);
+    const uintptr_t uStart = ((uintptr_t)start + align - 1) & uMask;
+    const uintptr_t uEnd = (uintptr_t)end & uMask;
     RedMiDestroy(heap);
     sMiGen[heap] = (sMiGen[heap] + 1) & 0xFFFFFFu;
     sMiHeap[heap] = sbMiCreateFails ? 0 : mi_heap_new();

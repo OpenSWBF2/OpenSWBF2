@@ -1897,8 +1897,6 @@ void ReadJoinReject(NetPktGroup& group, JoinRejectReason& eReason)
     JRR_to_Errorbox(eReason);
 }
 
-extern unsigned int netDirectSocket;
-
 // FUNCTION: SWBF2 0x005e7630
 void SendStateDst::Cancel()
 {
@@ -2777,8 +2775,6 @@ int netMatchOperation;
 
 extern int netLanRegisterState;
 extern bool isLAN;
-extern unsigned int netBroadcastSendSocket;
-extern unsigned int netBroadcastRecvSocket;
 
 extern bool netLobbyRequestPending;
 extern bool netLeavingLobby;

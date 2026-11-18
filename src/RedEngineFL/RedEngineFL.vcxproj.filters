@@ -701,6 +701,9 @@
     <ClInclude Include="Interface\RedVectorElement.h">
       <Filter>Interface</Filter>
     </ClInclude>
+    <ClInclude Include="Memory\RedAlign.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
     <ClInclude Include="Memory\RedMemory.h">
       <Filter>Memory</Filter>
     </ClInclude>
@@ -829,6 +832,9 @@
     </ClInclude>
     <ClInclude Include="movie\RedMoviePlayerRenderer.h">
       <Filter>movie</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\pc\pcRedMovieLayout.h">
+      <Filter>movie\pc</Filter>
     </ClInclude>
     <ClInclude Include="movie\pc\pcRedMoviePlayer.h">
       <Filter>movie\pc</Filter>

@@ -2,8 +2,6 @@
 
 #include "CommandLine.h"
 
-extern PlayerProfile::tProfile mDefaultProfile;
-
 namespace PlayerPrefs
 {
 
@@ -12,7 +10,7 @@ namespace PlayerPrefs
 
 // GLOBAL: SWBF2 0x01ef7fa0
 // mAllUserPrefs
-OnePrefs mAllUserPrefs[1];
+OnePrefs mAllUserPrefs[2];
 }
 
 // FUNCTION: SWBF2 0x0061c410
@@ -38,7 +36,7 @@ void PlayerPrefs::InitAll()
     PlayerPrefs::mAllUserPrefs[0].mJoystick = 0;
 
     PlayerPrefs::mAllUserPrefs[0].pProfile = PlayerProfile::GetProfile(0);
-    *(PlayerProfile::tProfile**)((char*)&mDefaultProfile + 0x10) = PlayerProfile::GetProfile(1);
+    PlayerPrefs::mAllUserPrefs[1].pProfile = PlayerProfile::GetProfile(1);
 }
 
 // FUNCTION: SWBF2 0x0061c490
@@ -46,7 +44,7 @@ int PlayerPrefs::FindByPlayerId(int iPlayer)
 {
     for (unsigned int i = 0; i < 1; ++i)
     {
-        if ((&PlayerPrefs::mAllUserPrefs[0].mPlayerId)[i * 11] == iPlayer)
+        if (PlayerPrefs::mAllUserPrefs[i].mPlayerId == iPlayer)
         {
             return i;
         }
@@ -72,7 +70,7 @@ int FindByViewport(int iValue)
 
 int FindByJoystick(int aJoystick)
 {
-    for (unsigned int i = 0; i < sizeof(mAllUserPrefs) / sizeof(mAllUserPrefs[0]); ++i)
+    for (unsigned int i = 0; i < 1; ++i)
     {
         if (mAllUserPrefs[i].mJoystick == aJoystick)
         {

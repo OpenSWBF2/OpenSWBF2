@@ -31,13 +31,13 @@ int netSocketErrorCount;
 extern float thisDrag;
 
 // GLOBAL: SWBF2 0x01fa9258
-unsigned int netDirectSocket = INVALID_SOCKET;
+SOCKET netDirectSocket = INVALID_SOCKET;
 
 // GLOBAL: SWBF2 0x01fa925c
-unsigned int netBroadcastSendSocket = INVALID_SOCKET;
+SOCKET netBroadcastSendSocket = INVALID_SOCKET;
 
 // GLOBAL: SWBF2 0x01fa9260
-unsigned int netBroadcastRecvSocket = INVALID_SOCKET;
+SOCKET netBroadcastRecvSocket = INVALID_SOCKET;
 extern int netOutBytes;
 
 void AddToBandwidth(NetPacket* pPacket, int iDest);

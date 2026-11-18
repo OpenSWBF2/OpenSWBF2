@@ -17,7 +17,7 @@ namespace Snd
 
 // GLOBAL: SWBF2 0x007e3504
 // SoundParameterized::Layer::smFreeList
-FreeList SoundParameterized::Layer::smFreeList(0x100, 1, true, 0xa0);
+FreeList SoundParameterized::Layer::smFreeList(sizeof(SoundParameterized::Layer), 1, true, 0xa0);
 
 
 // SYNTHETIC: SWBF2 0x0040b810
@@ -27,7 +27,7 @@ FreeList SoundParameterized::Layer::smFreeList(0x100, 1, true, 0xa0);
 
 // GLOBAL: SWBF2 0x007e34cc
 // SoundParameterized::Controller::Properties::smFreeList
-FreeList SoundParameterized::Controller::Properties::smFreeList(0x10, 1, true, 0x10);
+FreeList SoundParameterized::Controller::Properties::smFreeList(sizeof(SoundParameterized::Controller::Properties), 1, true, 0x10);
 
 // SYNTHETIC: SWBF2 0x0040b830
 // `dynamic initializer for 'Snd::SoundParameterized::Layer::Properties::smFreeList''
@@ -36,7 +36,7 @@ FreeList SoundParameterized::Controller::Properties::smFreeList(0x10, 1, true, 0
 
 // GLOBAL: SWBF2 0x007e34e8
 // SoundParameterized::Layer::Properties::smFreeList
-FreeList SoundParameterized::Layer::Properties::smFreeList(0x0c, 1, true, 0x10);
+FreeList SoundParameterized::Layer::Properties::smFreeList(sizeof(SoundParameterized::Layer::Properties), 1, true, 0x10);
 
 // SYNTHETIC: SWBF2 0x0040b850
 // `dynamic initializer for 'Snd::SoundParameterized::Properties::smFreeList''
@@ -45,7 +45,7 @@ FreeList SoundParameterized::Layer::Properties::smFreeList(0x0c, 1, true, 0x10);
 
 // GLOBAL: SWBF2 0x007e3520
 // SoundParameterized::Properties::smFreeList
-FreeList SoundParameterized::Properties::smFreeList(0x10, 1, true, 0x10);
+FreeList SoundParameterized::Properties::smFreeList(sizeof(SoundParameterized::Properties), 1, true, 0x10);
 
 // SYNTHETIC: SWBF2 0x0040b870
 // `dynamic initializer for 'Snd::SoundParameterized::Properties::smPropertyList''

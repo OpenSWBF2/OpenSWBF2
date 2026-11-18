@@ -7,9 +7,6 @@
 #include "PebbleFL/Common/PblJournal.h"
 #include "Steam/galaxy_api.h"
 
-extern SOCKET netDirectSocket;
-extern SOCKET netBroadcastSendSocket;
-extern SOCKET netBroadcastRecvSocket;
 extern int hostshort;
 
 extern int netSocketErrorCount;

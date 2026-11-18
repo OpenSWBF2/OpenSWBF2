@@ -291,8 +291,8 @@ void SoldierAnimationData::InitLoadTimeData()
         const unsigned int uiBase = uiAnimIndex * 2;
         do
         {
-            s_pAnimationNameTable->Store(PblHash(AnimIndexToName(uiAnimIndex, (Scope)iScope)),
-                                         (void*)((uiBase + iScope) | 0x80000000));
+            s_pAnimationNameTable->StoreValue(PblHash(AnimIndexToName(uiAnimIndex, (Scope)iScope)),
+                                              (uiBase + iScope) | 0x80000000);
         } while (++iScope < NUM_SCOPES);
     }
     for (int iPosture = 0; iPosture < NUM_POSTURES; ++iPosture)
@@ -304,8 +304,8 @@ void SoldierAnimationData::InitLoadTimeData()
             const unsigned int uiBase = uiAnimIndex * 2;
             do
             {
-                s_pAnimationNameTable->Store(PblHash(AnimIndexToName(uiAnimIndex, (Scope)iScope)),
-                                             (void*)((uiBase + iScope) | 0x80000000));
+                s_pAnimationNameTable->StoreValue(PblHash(AnimIndexToName(uiAnimIndex, (Scope)iScope)),
+                                                  (uiBase + iScope) | 0x80000000);
             } while (++iScope < NUM_SCOPES);
         }
     }
@@ -318,8 +318,8 @@ void SoldierAnimationData::InitLoadTimeData()
             const unsigned int uiBase = uiAnimIndex * 2;
             do
             {
-                s_pAnimationNameTable->Store(PblHash(AnimIndexToName(uiAnimIndex, (Scope)iScope)),
-                                             (void*)((uiBase + iScope) | 0x80000000));
+                s_pAnimationNameTable->StoreValue(PblHash(AnimIndexToName(uiAnimIndex, (Scope)iScope)),
+                                                  (uiBase + iScope) | 0x80000000);
             } while (++iScope < NUM_SCOPES);
         }
     }
@@ -336,10 +336,10 @@ void SoldierAnimationData::InitLoadTimeDataPostLoad()
         for (int iScope = 0; iScope < NUM_SCOPES; ++iScope)
         {
             const char* pcName = AnimIndexToName(uiAnimIndex, (Scope)iScope);
-            if (!s_pAnimationNameTable->Find(PblHash(pcName)))
+            if (!s_pAnimationNameTable->FindValue(PblHash(pcName)))
             {
-                s_pAnimationNameTable->Store(PblHash(pcName),
-                                             (void*)((uiAnimIndex * 2 + iScope) | 0x80000000));
+                s_pAnimationNameTable->StoreValue(PblHash(pcName),
+                                                  (uiAnimIndex * 2 + iScope) | 0x80000000);
             }
         }
     }
@@ -682,7 +682,7 @@ SoldierAnimationData* SoldierAnimationData::Find(unsigned int uiNameHash)
     {
         return 0;
     }
-    unsigned int uiIndex = (unsigned int)s_pAnimationNameTable->Find(uiNameHash);
+    unsigned int uiIndex = (unsigned int)s_pAnimationNameTable->FindValue(uiNameHash);
     if (!uiIndex)
     {
         return 0;
@@ -711,9 +711,9 @@ SoldierAnimationData* SoldierAnimationData::Find(SoldierAnimationBank::COMBO_ANI
     unsigned int uiHash =
         PblHash(SoldierAnimationBank::GetComboAnimationNameHash(eAnimation), GetScopeExtension(eScope));
     int iIndex = SoldierAnimType::GetAnimIndex(eAnimation) * NUM_SCOPES + eScope;
-    if (!s_pAnimationNameTable->Find(uiHash))
+    if (!s_pAnimationNameTable->FindValue(uiHash))
     {
-        s_pAnimationNameTable->Store(uiHash, (void*)(iIndex | 0x80000000));
+        s_pAnimationNameTable->StoreValue(uiHash, iIndex | 0x80000000);
     }
     return &s_aAnimationData[iIndex];
 }

@@ -29,7 +29,7 @@ struct RedOffThreadSource
     unsigned int uFrames;
     void* apModule[kRedOffThreadFrames];
     unsigned int auStamp[kRedOffThreadFrames];
-    unsigned int auOffset[kRedOffThreadFrames];
+    uintptr_t auOffset[kRedOffThreadFrames];
 };
 #endif
 

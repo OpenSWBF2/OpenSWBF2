@@ -53,10 +53,17 @@ function Get-MissingRuntimes([string]$dir, [string[]]$dlls) {
     return @($dlls | Where-Object { -not (Test-Path -LiteralPath (Join-Path $dir $_)) })
 }
 
-function Assert-Runtimes([string[]]$dlls) {
-    $missing = @(Get-MissingRuntimes (Join-Path $env:windir 'SysWOW64') $dlls)
+function Get-PlatformRuntimes([string[]]$dlls, [ValidateSet('Win32','x64')][string]$Platform = 'Win32') {
+    if ($Platform -eq 'x64') { return @($dlls) + 'vcruntime140_1.dll' }
+    return @($dlls)
+}
+
+function Assert-Runtimes([string[]]$dlls, [ValidateSet('Win32','x64')][string]$Platform = 'Win32') {
+    $dir = Get-SystemDllDir $Platform
+    $missing = @(Get-MissingRuntimes $dir (Get-PlatformRuntimes $dlls $Platform))
     if ($missing.Count -gt 0) {
-        Write-Host "Preflight failed: missing from SysWOW64: $($missing -join ', '). Install the DirectX June 2010 redist, the VC++ 2015-2022 x86 redistributable and the VS2013 x86 runtime."
+        $arch = Get-VsToolsTarget $Platform
+        Write-Host "Preflight failed: missing from $(Split-Path $dir -Leaf): $($missing -join ', '). Install the DirectX June 2010 redist, the VC++ 2015-2022 $arch redistributable and the VS2013 $arch runtime."
         exit 2
     }
 }

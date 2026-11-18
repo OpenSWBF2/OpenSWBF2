@@ -1456,26 +1456,26 @@ void PlayerStats::Write(NetPktGroup& group)
     if (GetBaitVal(0, 0) > GetBaitVal(0, 1))
     {
         Character* pBait = GetBait(0, 0);
-        group.WriteBits((reinterpret_cast<int>(pBait) - reinterpret_cast<int>(Character::sCharacters)) / (int)sizeof(Character), 8);
+        group.WriteBits((int)(((intptr_t)pBait - (intptr_t)Character::sCharacters) / (intptr_t)sizeof(Character)), 8);
         group.WriteBits(GetBaitVal(0, 0), 8);
     }
     else
     {
         Character* pBait = GetBait(0, 1);
-        group.WriteBits((reinterpret_cast<int>(pBait) - reinterpret_cast<int>(Character::sCharacters)) / (int)sizeof(Character), 8);
+        group.WriteBits((int)(((intptr_t)pBait - (intptr_t)Character::sCharacters) / (intptr_t)sizeof(Character)), 8);
         group.WriteBits(GetBaitVal(0, 1), 8);
     }
 
     if (GetNemesisVal(0, 0) > GetNemesisVal(0, 1))
     {
         Character* pNemesis = GetNemesis(0, 0);
-        group.WriteBits((reinterpret_cast<int>(pNemesis) - reinterpret_cast<int>(Character::sCharacters)) / (int)sizeof(Character), 8);
+        group.WriteBits((int)(((intptr_t)pNemesis - (intptr_t)Character::sCharacters) / (intptr_t)sizeof(Character)), 8);
         group.WriteBits(GetNemesisVal(0, 0), 8);
     }
     else
     {
         Character* pNemesis = GetNemesis(0, 1);
-        group.WriteBits((reinterpret_cast<int>(pNemesis) - reinterpret_cast<int>(Character::sCharacters)) / (int)sizeof(Character), 8);
+        group.WriteBits((int)(((intptr_t)pNemesis - (intptr_t)Character::sCharacters) / (intptr_t)sizeof(Character)), 8);
         group.WriteBits(GetNemesisVal(0, 1), 8);
     }
 

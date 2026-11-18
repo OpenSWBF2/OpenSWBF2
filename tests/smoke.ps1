@@ -4,6 +4,10 @@ $script:WerKeyPath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDu
 $script:WerBasePath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting'
 $script:SourceExtensions = @('.h', '.hpp', '.inl', '.c', '.cpp')
 $script:T1Suites = @('unit', 'characterisation', 'regression', 'known_bug', 'corpus', 'fuzz', 'stress')
+$script:T1PlatformSkips = @(
+    @{ Platform = 'x64'; Name = 'math corpus'; Until = 'Phase 48' },
+    @{ Platform = 'x64'; Name = 'math corpus x87 pc24'; Until = 'Phase 48' }
+)
 $script:SmokeAsanCoverage = 'ASan covers stack, globals, CRT heap and the game heaps and pools'
 $script:SmokeWerKey = $null
 
@@ -26,6 +30,19 @@ function Get-SmokeToken($class) {
         'GsFailure' { return 'CRASH' }
         default { return 'FAIL' }
     }
+}
+
+function Split-T1PlatformSkips($cases, [string]$platform, [bool]$checkStale) {
+    $names = @($cases | ForEach-Object { $_.Name })
+    $skipped = @()
+    $stale = @()
+    foreach ($r in @($script:T1PlatformSkips | Where-Object { $_.Platform -ceq $platform })) {
+        if ($names -ccontains $r.Name) { $skipped += $r }
+        elseif ($checkStale) { $stale += $r }
+    }
+    $skipNames = @($skipped | ForEach-Object { $_.Name })
+    $keep = @($cases | Where-Object { $skipNames -cnotcontains $_.Name })
+    return @{ Run = $keep; Skipped = $skipped; Stale = $stale }
 }
 
 function Test-WerKey {
@@ -900,6 +917,80 @@ function Get-GameProjects([string]$root, [string]$config) {
     return $list
 }
 
+function Get-X64ObjectsCheck([string]$root, [string]$config) {
+    $projects = @(Get-GameProjects $root $config)
+    $linkTlog = Join-Path $projects[0].TlogDir 'link.command.1.tlog'
+    $linked = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    $bad = New-Object System.Collections.Generic.List[string]
+    if (-not (Test-Path -LiteralPath $linkTlog -PathType Leaf)) { $bad.Add("no link tlog $linkTlog") }
+    else {
+        foreach ($l in [IO.File]::ReadAllLines($linkTlog, [Text.Encoding]::Unicode)) {
+            $l = $l.TrimStart([char]0xFEFF)
+            if ($l.StartsWith('^')) { foreach ($p in $l.Substring(1).Split('|')) { [void]$linked.Add($p) } }
+        }
+    }
+    $units = 0
+    $missing = New-Object System.Collections.Generic.List[string]
+    foreach ($p in $projects) {
+        $xml = New-Object xml
+        $xml.Load($p.Vcxproj)
+        $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
+        $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
+        foreach ($item in @($xml.SelectNodes('//m:ItemGroup/m:ClCompile/@Include', $ns))) {
+            $units++
+            $inc = $item.Value
+            $obj = [IO.Path]::GetFullPath((Join-Path $p.IntDir ((Split-Path $inc -Parent) + '\' + [IO.Path]::GetFileNameWithoutExtension($inc) + '.obj')))
+            if (-not (Test-Path -LiteralPath $obj -PathType Leaf)) { $missing.Add("$obj not built") }
+            elseif (-not $linked.Contains($obj)) { $missing.Add("$obj not linked") }
+        }
+    }
+    if ($units -eq 0) { $bad.Add('no ClCompile items') }
+    $detail = ('units={0} missing={1}' -f $units, $missing.Count)
+    if ($missing.Count) { $detail += ' ' + (@($missing | Select-Object -First 3) -join ', ') }
+    if ($bad.Count) { $detail += '; ' + ($bad -join '; ') }
+    return New-Object PSObject -Property @{ Name = 'x64-objects'; Ok = ($missing.Count -eq 0 -and $bad.Count -eq 0); Detail = $detail }
+}
+
+$script:SizeLiteral = '(?:0[xX][0-9A-Fa-f]+|[1-9]\d*)[uUlL]*'
+$script:SizeLiteralArg = '(?:[^,();]|\((?:[^()]|\([^()]*\))*\))+'
+$script:SizeLiteralRx = @(
+    (New-Object regex ('\bMemoryPool\s+[\w:]+\s*\(\s*"[^"\r\n]*"\s*,\s*' + $script:SizeLiteral + '\s*\)')),
+    (New-Object regex ('\bFreeList\s+[\w:]+\s*\(\s*' + $script:SizeLiteral + '\s*,')),
+    (New-Object regex ('(?:\.|->)(?:Setup|Create)\s*\(' + $script:SizeLiteralArg + ',\s*' + $script:SizeLiteral + '\s*,' + $script:SizeLiteralArg + '\)')),
+    (New-Object regex ('\bSetupMemoryPool\s*\(' + $script:SizeLiteralArg + ',\s*' + $script:SizeLiteral + '\s*,'))
+)
+
+function Get-X64SizeLiteralCheck([string]$root, [string[]]$allow = $script:SizeLiteralAllow) {
+    $root = $root.TrimEnd('\')
+    $hits = New-Object System.Collections.Generic.List[string]
+    $left = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
+    $verdictRx = New-Object regex '^(.*)\|x64:safe:(.+)$'
+    foreach ($a in @($allow)) {
+        if (-not $a) { continue }
+        $vm = $verdictRx.Match($a)
+        if (-not $vm.Success -or -not $vm.Groups[2].Value.Trim()) { $hits.Add('allow without an x64:safe reason ' + $a); continue }
+        $left[$vm.Groups[1].Value] = 1 + [int]$left[$vm.Groups[1].Value]
+    }
+    $src = Join-Path $root 'src'
+    $files = @(Get-ChildItem -LiteralPath $src -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $script:SourceExtensions -contains $_.Extension -and $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL|mimalloc)\\' })
+    foreach ($f in @($files | Sort-Object FullName)) {
+        $text = [IO.File]::ReadAllText($f.FullName)
+        $blank = $script:ByteCommentRx.Replace($text, { param($m) if ($m.Value[0] -eq '/') { [regex]::Replace($m.Value, '[^\r\n]', ' ') } else { $m.Value } })
+        $rel = $f.FullName.Substring($root.Length + 1)
+        foreach ($rx in $script:SizeLiteralRx) {
+            foreach ($m in $rx.Matches($blank)) {
+                $key = '{0}|{1}' -f $rel, ([regex]::Replace($m.Value, '\s+', ' '))
+                if ($left[$key] -gt 0) { $left[$key]--; continue }
+                $hits.Add(('{0}:{1}' -f $rel, $blank.Substring(0, $m.Index).Split("`n").Count))
+            }
+        }
+    }
+    foreach ($k in @($left.Keys | Sort-Object)) {
+        for ($i = 0; $i -lt $left[$k]; $i++) { $hits.Add('unused allow ' + $k) }
+    }
+    return New-Object PSObject -Property @{ Name = 'x64-size-literal'; Ok = ($hits.Count -eq 0); Detail = ($hits -join ', ') }
+}
+
 function Read-ClTlog($tlogDirs) {
     $flags = @{}
     foreach ($d in @($tlogDirs)) {
@@ -949,15 +1040,25 @@ function Get-ClTlogCounts($objDirs) {
     $fpFast = 0
     $fpContract = 0
     $miLines = New-Object System.Collections.Generic.List[string]
+    $we = [ordered]@{ '4311' = 0; '4312' = 0; '4302' = 0; '4477' = 0 }
+    $weAll = 0
+    $weMissing = New-Object System.Collections.Generic.List[string]
     foreach ($f in $files) {
         $isMi = $false
+        $unit = ''
         foreach ($l in (Get-Content -LiteralPath $f.FullName)) {
             if ($l -and $l.StartsWith('^')) {
+                $unit = $l.Substring(1).Split('|')[0]
                 $isMi = @($l.Substring(1).Split('|') | Where-Object { $_.EndsWith('\SRC\MIMALLOC\SRC\STATIC.C', [StringComparison]::OrdinalIgnoreCase) }).Count -gt 0
             }
             elseif ($l) {
                 $total++
                 if ($isMi) { $miLines.Add($l) }
+                $weHits = 0
+                foreach ($code in @($we.Keys)) {
+                    if ($l -cmatch ('(?:^| )/we"?' + $code + '"?(?= |$)')) { $we[$code]++; $weHits++ }
+                }
+                if ($weHits -eq $we.Count) { $weAll++ } else { $weMissing.Add($unit) }
                 if ($l -match ' /GS-( |$)') { $gsMinus++ }
                 if ($l -match ' /sdl( |$)') { $sdl++ }
                 if ($l -cmatch ' /Zc:alignedNew-( |$)') { $alignedNewOff++ }
@@ -974,6 +1075,7 @@ function Get-ClTlogCounts($objDirs) {
         Total = $total; GsMinus = $gsMinus; Sdl = $sdl
         AlignedNewOff = $alignedNewOff; InlineOff = $inlineOff; InlineOn = $inlineOn; ThrowingNew = $throwingNew
         Gl = $gl; FpFast = $fpFast; FpContract = $fpContract; MiLines = $miLines.ToArray(); Missing = $missing.ToArray()
+        We4311 = $we['4311']; We4312 = $we['4312']; We4302 = $we['4302']; We4477 = $we['4477']; WeAll = $weAll; WeMissing = $weMissing.ToArray()
     }
 }
 
@@ -997,7 +1099,7 @@ function Get-MiCrtHookCheck([string]$mapText) {
 }
 
 
-function Get-FlagChecks($game, $tests, [string]$gameConfig, [string]$testsConfig) {
+function Get-FlagChecks($game, $tests, [string]$gameConfig, [string]$testsConfig, $luac) {
     $checks = @()
     $gameMissing = @($game.Missing | Where-Object { $_ })
     $missTail = ''
@@ -1027,6 +1129,31 @@ function Get-FlagChecks($game, $tests, [string]$gameConfig, [string]$testsConfig
         Name = 'flag-banned'
         Ok = (($sum.ThrowingNew + $sum.Gl + $sum.FpFast + $sum.FpContract + $sum.GsMinus) -eq 0)
         Detail = ('/Zc:throwingNew={0} /GL={1} /fp:fast={2} /fp:contract={3} /GS-={4}' -f $sum.ThrowingNew, $sum.Gl, $sum.FpFast, $sum.FpContract, $sum.GsMinus)
+    }
+    if ($script:SmokePlatform -eq 'x64') {
+        $truncOk = ($gameMissing.Count -eq 0)
+        $truncParts = @()
+        foreach ($tb in @(@('game', $game), @('tests', $tests), @('luac', $luac))) {
+            $b = $tb[1]
+            if (-not $b -or [int]$b.Total -eq 0) {
+                $truncOk = $false
+                $truncParts += ('{0} cl entries=0' -f $tb[0])
+                continue
+            }
+            $part = ('{0} cl entries={1} /we4311={2} /we4312={3} /we4302={4} /we4477={5} all four={6}' -f $tb[0], $b.Total, [int]$b.We4311, [int]$b.We4312, [int]$b.We4302, [int]$b.We4477, [int]$b.WeAll)
+            if ([int]$b.WeAll -ne [int]$b.Total) {
+                $truncOk = $false
+                $miss = @($b.WeMissing | Where-Object { $_ })
+                $first = $(if ($miss.Count) { $miss[0] } else { 'unknown unit' })
+                $part += (' first missing {0}' -f $first)
+            }
+            $truncParts += $part
+        }
+        $checks += New-Object PSObject -Property @{
+            Name = 'x64-truncation'
+            Ok = $truncOk
+            Detail = ($truncParts -join '; ') + $missTail
+        }
     }
     $miBad = @()
     $miBags = @(, @('game', $game, $gameConfig))
@@ -1069,14 +1196,15 @@ $script:SpacerNameRx = '(?i)pad|reserv|unmodel|unknown|^_*unk|spacer|filler|tail
 $script:SerialRx = New-Object regex '\b(?:sThreadActivationKey|mCollisionSerial|sCollisionSerialNext)\b'
 $script:OffsetQual = '(?:(?:const|volatile)\s*)*'
 $script:OffsetByteType = '(?:(?:const|volatile)\s+)*(?:(?:unsigned|signed)\s+)?(?:char|__int8|BYTE|UCHAR|CHAR|INT8|UINT8|uint8_t|int8_t|std::uint8_t|std::int8_t|std::byte|byte)(?:\s+(?:const|volatile))*\s*\*\s*' + $script:OffsetQual
-$script:OffsetOperand = '(?:(?:&\s*)?(?:[\w.]|->|::|\[[^\[\];]*\])+|\((?:[^()]|\([^()]*\))*\))'
+$script:OffsetCall = '(?<=[\w\]])\((?:[^()]|\([^()]*\))*\)'
+$script:OffsetOperand = '(?:(?:&\s*)?(?:[\w.]|->|::|\[[^\[\];]*\]|' + $script:OffsetCall + ')+|\((?:[^()]|\([^()]*\))*\))'
 $script:OffsetByteCast = '(?:\(\s*' + $script:OffsetByteType + '\)\s*' + $script:OffsetOperand + '|\breinterpret_cast\s*<\s*' + $script:OffsetByteType + '>\s*\((?:[^()]|\([^()]*\))*\))'
 $script:OffsetTypeCast = '(?:\(\s*(?:(?:const|volatile|struct|class|unsigned|signed)\s+)*[A-Za-z_][\w:]*(?:\s+(?:int|char|short|long|__int\d+))?(?:\s+(?:const|volatile))*\s*[*&][\s*&]*' + $script:OffsetQual + '\)|\b(?:reinterpret|static|const)_cast\s*<[^<>;()]*[*&]\s*' + $script:OffsetQual + '>)'
 $script:OffsetOp = '\s*[+-](?![+=>-]|\s*(?:\(\s*\w+\s*\)\s*)?offsetof\b|\s*(?:\w+\s*(?:->|\.)\s*)+e_lfanew\b)'
 $script:OffsetTail = $script:OffsetOp + '[^;()]*(?:\((?:[^()]|\([^()]*\))*\)[^;()]*)*\)'
 $script:OffsetRx = @(
     (New-Object regex ($script:OffsetTypeCast + '\s*\(\s*' + $script:OffsetByteCast + $script:OffsetTail)),
-    (New-Object regex ($script:OffsetTypeCast + '\s*\(\s*(?!\d)(?:[\w.]|->|::|\[[^\[\];]*\])+' + $script:OffsetTail)),
+    (New-Object regex ($script:OffsetTypeCast + '\s*\(\s*(?!\d)(?:[\w.]|->|::|\[[^\[\];]*\]|' + $script:OffsetCall + ')+' + $script:OffsetTail)),
     (New-Object regex ($script:OffsetByteCast + $script:OffsetOp + '\s*(?:0[xX][0-9A-Fa-f]+|\d+)[uUlL]*\b'))
 )
 
@@ -1169,11 +1297,25 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     $root = $root.TrimEnd('\')
     $hits = @{}
     foreach ($d in $defs) { $hits[$d.Name] = New-Object System.Collections.Generic.List[string] }
+    $verdictRx = New-Object regex '^(.*)\|x64:(safe|fixed):(.+)$'
+    $verdictHits = New-Object System.Collections.Generic.List[string]
     $spacerLeft = @{}
-    foreach ($a in @($spacerAllow)) { if ($a) { $spacerLeft[$a] = 1 + [int]$spacerLeft[$a] } }
+    foreach ($a in @($spacerAllow)) {
+        if (-not $a) { continue }
+        $vm = $verdictRx.Match($a)
+        if ($vm.Success -and $vm.Groups[3].Value.Trim()) { $a = $vm.Groups[1].Value }
+        else { $verdictHits.Add('no verdict ' + $a) }
+        $spacerLeft[$a] = 1 + [int]$spacerLeft[$a]
+    }
     $spacerHits = New-Object System.Collections.Generic.List[string]
     $offsetLeft = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
-    foreach ($a in @($offsetAllow)) { if ($a) { $offsetLeft[$a] = 1 + [int]$offsetLeft[$a] } }
+    foreach ($a in @($offsetAllow)) {
+        if (-not $a) { continue }
+        $vm = $verdictRx.Match($a)
+        if ($vm.Success -and $vm.Groups[3].Value.Trim()) { $a = $vm.Groups[1].Value }
+        else { $verdictHits.Add('no verdict ' + $a) }
+        $offsetLeft[$a] = 1 + [int]$offsetLeft[$a]
+    }
     $offsetHits = New-Object System.Collections.Generic.List[string]
     $serialLeft = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
     foreach ($a in @($serialAllow)) { if ($a) { $serialLeft[$a] = 1 + [int]$serialLeft[$a] } }
@@ -1291,6 +1433,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
         for ($i = 0; $i -lt $offsetLeft[$k]; $i++) { $offsetHits.Add('unused allow ' + $k) }
     }
     $rows += New-Object PSObject -Property @{ Name = 'offset-hack'; Ok = ($offsetHits.Count -eq 0); Detail = ($offsetHits -join ', ') }
+    $rows += New-Object PSObject -Property @{ Name = 'allow-x64-verdict'; Ok = ($verdictHits.Count -eq 0); Detail = ($verdictHits -join ', ') }
     foreach ($k in @($serialLeft.Keys | Sort-Object)) {
         for ($i = 0; $i -lt $serialLeft[$k]; $i++) { $serialHits.Add('unused allow ' + $k) }
     }
@@ -1352,13 +1495,17 @@ function Get-PeAslr([string]$exe) {
     if ($got -lt 0x40 -or $b[0] -ne 0x4D -or $b[1] -ne 0x5A) { return 'no MZ header' }
     $e = [BitConverter]::ToInt32($b, 0x3C)
     $opt = $e + 24
-    if ($e -lt 0x40 -or $opt + 144 -gt $got) { return ('PE header at 0x{0:X} is outside the first {1} bytes' -f $e, $got) }
+    if ($e -lt 0x40 -or $opt + 2 -gt $got) { return ('PE header at 0x{0:X} is outside the first {1} bytes' -f $e, $got) }
     if ([BitConverter]::ToUInt32($b, $e) -ne 0x00004550) { return 'no PE signature' }
     $magic = [BitConverter]::ToUInt16($b, $opt)
-    if ($magic -ne 0x10B) { return ('optional header magic 0x{0:X} is not PE32' -f $magic) }
+    if ($magic -eq 0x10B) { $countAt = $opt + 92; $dirAt = $opt + 96 }
+    elseif ($magic -eq 0x20B) { $countAt = $opt + 108; $dirAt = $opt + 112 }
+    else { return ('optional header magic 0x{0:X} is not PE32 or PE32+' -f $magic) }
+    $relocAt = $dirAt + 5 * 8
+    if ($relocAt + 8 -gt $got) { return ('PE header at 0x{0:X} is outside the first {1} bytes' -f $e, $got) }
     if (([BitConverter]::ToUInt16($b, $e + 22) -band 0x0001) -ne 0) { return 'IMAGE_FILE_RELOCS_STRIPPED is set' }
     if (([BitConverter]::ToUInt16($b, $opt + 70) -band 0x0040) -eq 0) { return 'IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE is clear' }
-    if ([BitConverter]::ToUInt32($b, $opt + 92) -lt 6) { return 'no base relocation data directory' }
-    if ([BitConverter]::ToUInt32($b, $opt + 136) -eq 0 -or [BitConverter]::ToUInt32($b, $opt + 140) -eq 0) { return 'base relocation directory is empty' }
+    if ([BitConverter]::ToUInt32($b, $countAt) -lt 6) { return 'no base relocation data directory' }
+    if ([BitConverter]::ToUInt32($b, $relocAt) -eq 0 -or [BitConverter]::ToUInt32($b, $relocAt + 4) -eq 0) { return 'base relocation directory is empty' }
     return $null
 }

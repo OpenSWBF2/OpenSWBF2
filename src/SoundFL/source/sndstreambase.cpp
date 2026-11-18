@@ -224,7 +224,7 @@ bool StreamBase::LoadSegments(PblFileChunk& chunk, Segment* pSegments,
                         {
                             uiLengthSamples = pSegment->mLengthSamples;
                             uiLength = pSegment->mLength;
-                            uiAliasOffset = (unsigned int)pSegment->mAddress;
+                            uiAliasOffset = pSegment->GetOffset();
                             break;
                         }
                     }
@@ -373,8 +373,7 @@ bool StreamBase::Open(PblFileChunk& chunk, unsigned int uiHashID, const char* pc
                 {
                     for (unsigned int i = 0; i < pInfo->mNumSegments; ++i)
                     {
-                        pInfo->mSegments[i].mAddress =
-                            (char*)pInfo->mSegments[i].mAddress + iPos;
+                        pInfo->mSegments[i].SetOffset(pInfo->mSegments[i].GetOffset() + iPos);
                     }
                 }
             }

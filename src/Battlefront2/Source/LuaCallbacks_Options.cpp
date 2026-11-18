@@ -233,7 +233,7 @@ int ScriptCB_SetPlayerSide(lua_State*)
                 }
                 Viewport = LuaHelper::GetInt(NumArgs);
             }
-            if (Viewport < sizeof(PlayerPrefs::mAllUserPrefs) / sizeof(PlayerPrefs::mAllUserPrefs[0]))
+            if (Viewport < 1)
             {
                 PlayerPrefs::mAllUserPrefs[Viewport].mTeamNum = TheirTeam;
             }

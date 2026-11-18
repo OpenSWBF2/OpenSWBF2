@@ -330,7 +330,7 @@ struct OnePrefs
  
  
 
-extern OnePrefs mAllUserPrefs[1];
+extern OnePrefs mAllUserPrefs[2];
 int FindByPlayerId(int iPlayer);
 int FindByViewport(int iViewport);
 int FindByJoystick(int aJoystick);

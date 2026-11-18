@@ -52,7 +52,7 @@ FreeList SoundStream::Properties::smFreeList(sizeof(SoundStream::Properties), 1,
 
 // GLOBAL: SWBF2 0x007e3588
 // SoundStream::smFreeList
-FreeList SoundStream::smFreeList(0xcc, 1, true, 4);
+FreeList SoundStream::smFreeList(sizeof(SoundStream), 1, true, 4);
 
 // SYNTHETIC: SWBF2 0x007367f0
 // PblListDoubleSorted::`default constructor closure'
@@ -290,7 +290,7 @@ bool SoundStream::Properties::SetupStream(Stream* pStream, unsigned int uiSegmen
     }
     if (!uiSegmentID)
     {
-        uiSegmentID = (unsigned int)mSelObjectWeightList->GetObjectA();
+        uiSegmentID = (unsigned int)(uintptr_t)mSelObjectWeightList->GetObjectA();
     }
 
     const StreamBase::Segment* pSegment = pStream->FindSegment(uiSegmentID);
@@ -451,7 +451,7 @@ void __cdecl SoundStream::Play(const Properties* pProps, Source3D* pSource3D, bo
         return;
     }
 
-    const unsigned int uiSegmentID = (unsigned int)pProps->mSelObjectWeightList->GetObjectA();
+    const unsigned int uiSegmentID = (unsigned int)(uintptr_t)pProps->mSelObjectWeightList->GetObjectA();
     if (!uiSegmentID)
     {
         return;
@@ -480,7 +480,7 @@ void __cdecl SoundStream::Play(const Properties* pProps, Source3D* pSource3D, bo
     }
 
     const unsigned int uiIndex =
-        ((unsigned int)pStream - (unsigned int)EngineBase::smStreams) / sizeof(Stream);
+        (unsigned int)(((uintptr_t)pStream - (uintptr_t)EngineBase::smStreams) / sizeof(Stream));
 
     if (bQueue)
     {
@@ -563,7 +563,7 @@ void SoundStream::Play(bool bRestart)
         return;
     }
 
-    const unsigned int uiSegmentID = (unsigned int)mProperties->mSelObjectWeightList->GetObjectA();
+    const unsigned int uiSegmentID = (unsigned int)(uintptr_t)mProperties->mSelObjectWeightList->GetObjectA();
     const unsigned int uiStreamID = mProperties->mStreamID;
     const StreamBase::Info* pInfo = StreamBase::Info::Find(uiStreamID);
     if (pInfo)

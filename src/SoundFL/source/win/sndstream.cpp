@@ -196,7 +196,7 @@ void Stream::Update(float fDeltaTime)
     {
         const Segment* pSegment = mCurrentSegment;
         mSource.SetSegmentOffsetLength(
-            (unsigned int)pSegment->mAddress,
+            pSegment->GetOffset(),
             uiNumSubstreams > 1 ? pSegment->mPadding + pSegment->mLength : pSegment->mLength,
             uiNumSubstreams > 1 ? pSegment->mPadding : 0);
         if (pInfo->mNumSubstreams == 1)
@@ -342,7 +342,7 @@ void Stream::Open(File& rFile)
     mSource.Open(rFile,
                  uiNumSubstreams > 1 ? pInfo->mSubstreamInterleave * uiNumSubstreams : 0x8000,
                  8, mPackets, 0x800);
-    mSource.SetSegmentOffsetLength((unsigned int)pSegment->mAddress, pSegment->mLength,
+    mSource.SetSegmentOffsetLength(pSegment->GetOffset(), pSegment->mLength,
                                    uiNumSubstreams > 1 ? pSegment->mPadding : 0);
 
     StreamNodeSink* apSinks[3];

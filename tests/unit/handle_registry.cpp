@@ -424,7 +424,7 @@ TEST_CASE("handle registry resolves a handle whose PblHandled base is at an offs
 
 TEST_CASE("handle registry and handle layout pins hold" * doctest::test_suite("regression"))
 {
-    CHECK(sizeof(PblHandle<OffsetProbe>) == 8);
+    CHECK(sizeof(PblHandle<OffsetProbe>) == 2 * sizeof(void*));
     CHECK(offsetof(PblHandle<OffsetProbe>, mObject) == 0);
 }
 

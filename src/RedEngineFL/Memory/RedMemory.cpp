@@ -107,7 +107,7 @@ struct OffThreadSlot
     void* apFrame[kRedOffThreadFrames];
     void* apModule[kRedOffThreadFrames];
     unsigned int auStamp[kRedOffThreadFrames];
-    unsigned int auOffset[kRedOffThreadFrames];
+    uintptr_t auOffset[kRedOffThreadFrames];
 };
 
 static volatile long sMainTid;
@@ -470,7 +470,6 @@ struct ThreadBasicInfo
 
 typedef LONG(NTAPI* QueryThreadFn)(HANDLE, int, PVOID, ULONG, PULONG);
 
-const unsigned int kTebDeallocationStack = 0xE0C;
 const unsigned int kTebWowTebOffset = 0xFDC;
 const unsigned int kTeb64DeallocationStack = 0x1478;
 
@@ -484,9 +483,14 @@ void AddThreadCommit(CommitSet& rSet, const char* pTeb)
 {
     AddAllocationCommit(rSet, pTeb);
     void* pStack = 0;
-    if (ReadOwn(pTeb + kTebDeallocationStack, &pStack, sizeof(pStack)) && pStack != 0)
+    if (ReadOwn(pTeb + offsetof(NT_TIB, StackLimit), &pStack, sizeof(pStack)) && pStack != 0)
     {
         AddAllocationCommit(rSet, pStack);
+    }
+    BOOL bWow64 = FALSE;
+    if (!IsWow64Process(GetCurrentProcess(), &bWow64) || !bWow64)
+    {
+        return;
     }
     LONG lWowOffset = 0;
     if (!ReadOwn(pTeb + kTebWowTebOffset, &lWowOffset, sizeof(lWowOffset)) || lWowOffset == 0)
@@ -742,20 +746,20 @@ static void RedNoteOffThread(int heap, unsigned int size, unsigned int uiTid)
             {
                 MEMORY_BASIC_INFORMATION kInfo;
                 unsigned int uiStamp = 0;
-                const unsigned int uiAddr = (unsigned int)(UINT_PTR)apv[f];
+                const uintptr_t uAddr = (uintptr_t)apv[f];
                 rSlot.apFrame[f] = apv[f];
                 if (VirtualQuery(apv[f], &kInfo, sizeof(kInfo)) == sizeof(kInfo) && kInfo.Type == MEM_IMAGE &&
                     RedImageStamp(kInfo.AllocationBase, &uiStamp))
                 {
                     rSlot.apModule[f] = kInfo.AllocationBase;
                     rSlot.auStamp[f] = uiStamp;
-                    rSlot.auOffset[f] = uiAddr - (unsigned int)(UINT_PTR)kInfo.AllocationBase;
+                    rSlot.auOffset[f] = uAddr - (uintptr_t)kInfo.AllocationBase;
                 }
                 else
                 {
                     rSlot.apModule[f] = 0;
                     rSlot.auStamp[f] = 0;
-                    rSlot.auOffset[f] = uiAddr;
+                    rSlot.auOffset[f] = uAddr;
                 }
             }
             _InterlockedIncrement(&rSlot.lCount);
@@ -1277,12 +1281,13 @@ int RedCreateHeap(void* start, void* end, unsigned int align, char const* name)
     {
         if (!gRedHeapSlots[i].bLive)
         {
-            const unsigned int size = (unsigned int)RedMiCreate(i, start, end, align);
-            if (size == 0)
+            const size_t uRange = RedMiCreate(i, start, end, align);
+            if (uRange == 0 || uRange > 0xFFFFFFFFu)
             {
                 RedMiDestroy(i);
                 return -1;
             }
+            const unsigned int size = (unsigned int)uRange;
             RedHeapSlot& rSlot = gRedHeapSlots[i];
             rSlot.name = name;
             rSlot.size = size;

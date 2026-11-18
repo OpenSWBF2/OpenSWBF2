@@ -9,6 +9,10 @@ struct NetSocketPeerRecord
     galaxy::api::GalaxyID mGalaxyId;
     sockaddr_in mSocketAddress;
 };
+
+extern SOCKET netDirectSocket;
+extern SOCKET netBroadcastSendSocket;
+extern SOCKET netBroadcastRecvSocket;
  
  
 

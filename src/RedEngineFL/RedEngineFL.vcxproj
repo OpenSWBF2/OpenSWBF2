@@ -18,7 +18,7 @@
     <ClCompile Include="Application\pc\crtLibrary.cpp" />
     <ClCompile Include="Graphics\PC\pcRedShader.cpp" />
     <ClCompile Include="Application\pc\pcFLRender.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="Application\pc\pcRedDebug.cpp" />
     <ClCompile Include="Application\pc\pcRedDropShadow.cpp" />
@@ -67,7 +67,7 @@
     <ClCompile Include="Graphics\PC\pcRedPixelShader.cpp" />
     <ClCompile Include="Graphics\PC\pcRedPrimitive.cpp" />
     <ClCompile Include="Graphics\PC\pcRedRenderer.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="Graphics\PC\pcRedSegment.cpp" />
     <ClCompile Include="Graphics\PC\pcRedStencilShadow.cpp" />
@@ -78,23 +78,23 @@
     <ClCompile Include="Graphics\PC\pcRedVertexShader.cpp" />
     <ClCompile Include="Graphics\RedAmbientLight.cpp" />
     <ClCompile Include="Graphics\RedCamera.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="Graphics\RedColor.cpp" />
     <ClCompile Include="Graphics\RedDirectionalLight.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="Graphics\RedLight.cpp" />
     <ClCompile Include="Graphics\RedModel.cpp" />
     <ClCompile Include="Graphics\RedOmniLight.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="Graphics\RedPose.cpp" />
     <ClCompile Include="Graphics\RedShadingState.cpp" />
     <ClCompile Include="Graphics\RedShadowRegion.cpp" />
     <ClCompile Include="Graphics\RedSkeleton.cpp" />
     <ClCompile Include="Graphics\RedSpotLight.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="Interface\Red3DModelAnimator.cpp" />
     <ClCompile Include="Interface\Red3DModelElement.cpp" />
@@ -108,7 +108,7 @@
     <ClCompile Include="Interface\RedIFScreen.cpp" />
     <ClCompile Include="Interface\RedInterfaceElement.cpp" />
     <ClCompile Include="Interface\RedInterfaceScreen.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="Interface\RedShadowBlob.cpp" />
     <ClCompile Include="Interface\RedTextElement.cpp" />
@@ -242,6 +242,7 @@
     <ClInclude Include="Interface\RedShadowBlob.h" />
     <ClInclude Include="Interface\RedTextElement.h" />
     <ClInclude Include="Interface\RedVectorElement.h" />
+    <ClInclude Include="Memory\RedAlign.h" />
     <ClInclude Include="Memory\RedMemory.h" />
     <ClInclude Include="Memory\RedMemoryPool.h" />
     <ClInclude Include="Memory\engineAlloc.h" />
@@ -285,6 +286,7 @@
     <ClInclude Include="movie\RedMovie.h" />
     <ClInclude Include="movie\RedMoviePlayerBase.h" />
     <ClInclude Include="movie\RedMoviePlayerRenderer.h" />
+    <ClInclude Include="movie\pc\pcRedMovieLayout.h" />
     <ClInclude Include="movie\pc\pcRedMoviePlayer.h" />
     <ClInclude Include="movie\redpipe.h" />
     <ClInclude Include="Graphics\PC\pcDisplaySettings.h" />

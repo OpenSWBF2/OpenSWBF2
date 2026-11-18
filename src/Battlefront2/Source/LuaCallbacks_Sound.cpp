@@ -92,7 +92,7 @@ namespace GameSoundEngine
 namespace Lua_Callbacks
 {
 
-static int OpenAudioStream(const char* pcName, unsigned int uiSegment);
+static Snd::Stream* OpenAudioStream(const char* pcName, unsigned int uiSegment);
 static unsigned int GetStreamIndex(Snd::Stream* pStream);
 
 // FUNCTION: SWBF2 0x0059d0c0
@@ -501,7 +501,7 @@ int ScriptCB_PlayAudioStreamUsingProperties(lua_State*)
     {
         unsigned int uiStreamID = pProps->mStreamID;
         const char* pcFile = luaL_checklstring(LuaHelper::mState, 1, 0);
-        Snd::Stream* pStream = (Snd::Stream*)OpenAudioStream(pcFile, uiStreamID);
+        Snd::Stream* pStream = OpenAudioStream(pcFile, uiStreamID);
         if (!pStream)
         {
             return 0;
@@ -805,11 +805,11 @@ void DelayedSound::Update(float fDeltaTime)
 // FUNCTION: SWBF2 0x0059b7c0
 static unsigned int GetStreamIndex(Snd::Stream* pStream)
 {
-    return ((unsigned int)pStream - (unsigned int)Snd::EngineBase::smStreams) / sizeof(Snd::Stream);
+    return (unsigned int)(pStream - Snd::EngineBase::smStreams);
 }
 
 // FUNCTION: SWBF2 0x0059bb70
-static int OpenAudioStream(const char* pcName, unsigned int uiSegment)
+static Snd::Stream* OpenAudioStream(const char* pcName, unsigned int uiSegment)
 {
     PblFile file;
     char acSegment[256];
@@ -859,7 +859,7 @@ static int OpenAudioStream(const char* pcName, unsigned int uiSegment)
         file.Close();
         return 0;
     }
-    return (int)pStream;
+    return pStream;
 }
 
 // FUNCTION: SWBF2 0x0059bd50
@@ -873,7 +873,7 @@ int ScriptCB_OpenAudioStream(lua_State*)
         uiSegment = PblHash(pcSegment);
     }
 
-    Snd::Stream* pStream = (Snd::Stream*)OpenAudioStream(pcName, uiSegment);
+    Snd::Stream* pStream = OpenAudioStream(pcName, uiSegment);
     if (pStream)
     {
         int iStream = GetStreamIndex(pStream) + 1;

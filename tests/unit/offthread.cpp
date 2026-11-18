@@ -407,6 +407,25 @@ bool ReadCommitParts(CommitParts& rParts)
 {
     return RedCommitParts(&rParts.uPrivate, &rParts.uHeaps, &rParts.uThreads, &rParts.uCount, 0, 0);
 }
+
+struct MovedStackBaseArgs
+{
+    void* pStackBase;
+    HANDLE hMoved;
+    HANDLE hRelease;
+};
+
+DWORD WINAPI MovedStackBaseProc(void* pArg)
+{
+    MovedStackBaseArgs* pArgs = (MovedStackBaseArgs*)pArg;
+    NT_TIB* pTib = (NT_TIB*)NtCurrentTeb();
+    void* pOwnBase = pTib->StackBase;
+    pTib->StackBase = pArgs->pStackBase;
+    SetEvent(pArgs->hMoved);
+    WaitForSingleObject(pArgs->hRelease, INFINITE);
+    pTib->StackBase = pOwnBase;
+    return 0;
+}
 }
 
 TEST_CASE("thread commit counts the stack and teb pages of a live thread" * doctest::test_suite("regression"))
@@ -429,6 +448,35 @@ TEST_CASE("thread commit counts the stack and teb pages of a live thread" * doct
     CloseHandle(hRelease);
     REQUIRE(ReadCommitParts(k));
     CHECK(k.uThreads < k0.uThreads + kStackCommit);
+}
+
+TEST_CASE("thread commit counts the thread's own stack and not the block at its stack base" * doctest::test_suite("regression"))
+{
+    const unsigned int kStackCommit = 512 * 1024;
+    const unsigned int kDecoy = 8 * 1024 * 1024;
+    CommitParts k0;
+    REQUIRE(ReadCommitParts(k0));
+    char* pDecoy = (char*)VirtualAlloc(0, kDecoy, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    REQUIRE(pDecoy != (char*)0);
+    MovedStackBaseArgs kArgs;
+    kArgs.pStackBase = pDecoy;
+    kArgs.hMoved = CreateEventA(0, TRUE, FALSE, 0);
+    kArgs.hRelease = CreateEventA(0, TRUE, FALSE, 0);
+    REQUIRE(kArgs.hMoved);
+    REQUIRE(kArgs.hRelease);
+    HANDLE hThread = CreateThread(0, kStackCommit, MovedStackBaseProc, &kArgs, 0, 0);
+    REQUIRE(hThread);
+    REQUIRE(WaitForSingleObject(kArgs.hMoved, INFINITE) == WAIT_OBJECT_0);
+    CommitParts k;
+    REQUIRE(ReadCommitParts(k));
+    CHECK(k.uThreads >= k0.uThreads + kStackCommit);
+    CHECK(k.uThreads < k0.uThreads + kDecoy);
+    SetEvent(kArgs.hRelease);
+    WaitForSingleObject(hThread, INFINITE);
+    CloseHandle(hThread);
+    CloseHandle(kArgs.hRelease);
+    CloseHandle(kArgs.hMoved);
+    VirtualFree(pDecoy, 0, MEM_RELEASE);
 }
 
 TEST_CASE("heaps committed counts the segments and large blocks of every process heap" * doctest::test_suite("regression"))

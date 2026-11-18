@@ -29,7 +29,7 @@ bool FreeList::AllocBlocks(unsigned int uiNumBlocks, Block** ppFirstBlock)
         --uiNumBlocks;
 
         const unsigned int uiDataSize =
-            mEntrySize * mEntriesPerBlock + (mEntriesPerBlock + 7) / 8;
+            Block::EntriesSize(mEntrySize, mEntriesPerBlock) + (mEntriesPerBlock + 7) / 8;
 
         void* const pAllocAddress =
             mAllocFunc(mAlignment + (sizeof(Block) - 1) + uiDataSize);
@@ -39,16 +39,16 @@ bool FreeList::AllocBlocks(unsigned int uiNumBlocks, Block** ppFirstBlock)
         }
 
         char* const pEntries =
-            (char*)(((mAlignment - 1 + (unsigned int)pAllocAddress) / mAlignment)
+            (char*)(((mAlignment - 1 + (uintptr_t)pAllocAddress) / mAlignment)
                     * mAlignment);
-        Block* const pBlock = (Block*)(pEntries + mEntriesPerBlock * mEntrySize);
 
-        Block* const pNew = new (pBlock, false) Block(pAllocAddress);
+        Block* const pNew = new (pEntries + Block::EntriesSize(mEntrySize, mEntriesPerBlock), false)
+            Block(pAllocAddress);
 
         pNew->mBitmap.Initialize((unsigned char*)pNew + sizeof(Block),
                                  mEntriesPerBlock);
 #if defined(__SANITIZE_ADDRESS__)
-        PblAsanPoison(pEntries, mEntriesPerBlock * mEntrySize);
+        PblAsanPoison(pEntries, Block::EntriesSize(mEntrySize, mEntriesPerBlock));
 #endif
 
         mBlockList.AddLast(&pNew->mNode);
@@ -128,8 +128,8 @@ void FreeList::PurgeBlocks()
         {
             void* const pAllocAddress = pBlock->GetAllocationAddress();
 #if defined(__SANITIZE_ADDRESS__)
-            PblAsanUnpoison((char*)pBlock - mEntriesPerBlock * mEntrySize,
-                            mEntriesPerBlock * mEntrySize);
+            PblAsanUnpoison((char*)pBlock - Block::EntriesSize(mEntrySize, mEntriesPerBlock),
+                            Block::EntriesSize(mEntrySize, mEntriesPerBlock));
 #endif
             delete pBlock;
             mFreeFunc(pAllocAddress);

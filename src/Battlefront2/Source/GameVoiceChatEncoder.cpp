@@ -15,6 +15,12 @@
 #include "GameVoiceChatTransport.h"
 
 #include "SoundFL/source/sndstreamcodec.h"
+#include "RedEngineFL/Memory/RedAlign.h"
+
+static_assert(alignof(Snd::StreamPacket) <= alignof(void*) && sizeof(Snd::StreamPacket) % alignof(void*) == 0,
+              "encoder packets keep the audio packet after them pointer aligned");
+static_assert(alignof(VoiceChat::AudioPacket) <= alignof(void*),
+              "the encoder audio packet is placed at pointer alignment");
 
 namespace GameVoiceChat
 {
@@ -56,16 +62,18 @@ bool GameVoiceChat::Encoder::Open(unsigned int captureDeviceIndex, float fMaxPac
     const unsigned int uiEncodedBytes = GameVoiceChat::CalculateEncodedPacketSize(uiSamples);
     const unsigned int uiAlignedEncoded = (uiEncodedBytes + 3u) & ~3u;
 
-    mCaptureBuffer = (unsigned char*)VoiceChat::Alloc(uiAlignedEncoded + (uiAlignedFrame + 0x2Eu) * 2u);
+    const unsigned int uiAlign = alignof(void*);
+    const unsigned int uiPacketBytes = sizeof(Snd::StreamPacket) * 3u + sizeof(VoiceChat::AudioPacket);
+    mCaptureBuffer = (unsigned char*)VoiceChat::Alloc(uiAlignedEncoded + uiAlignedFrame * 2u + uiPacketBytes + uiAlign);
 
     if (!mCaptureBuffer)
     {
         return false;
     }
 
-    unsigned char* pCursor = (unsigned char*)(((unsigned long)mCaptureBuffer + 3u) & ~3u);
+    unsigned char* pCursor = mCaptureBuffer;
     mEncoderBuffer = pCursor + uiAlignedFrame * 2u;
-    mCapturePackets = (Snd::StreamPacket*)(mEncoderBuffer + uiAlignedEncoded);
+    mCapturePackets = (Snd::StreamPacket*)RedAlignUp(mEncoderBuffer + uiAlignedEncoded, uiAlign);
     mEncoderPackets = mCapturePackets + 2;
     mAudioPacket = (VoiceChat::AudioPacket*)(mEncoderPackets + 1);
 

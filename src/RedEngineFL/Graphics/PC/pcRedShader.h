@@ -242,7 +242,7 @@ public:
         return 1;
     }
 
-    virtual int GetDiffuseMapHash(int, int);
+    virtual int GetDiffuseMapHash(const RenderItem*, int);
 
     // FUNCTION: SWBF2 0x006b1570
     unsigned int GetPassCaps(unsigned int uiState, unsigned int uiPass) const

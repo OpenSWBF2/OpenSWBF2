@@ -896,7 +896,7 @@ void SoldierAnimatorLowResClass::SetupJointMask(const ZephyrSkeletonShared* pSke
     kMask.ClearAll();
     for (int i = 0; i < (int)pSource->m_uNumJoints; ++i)
     {
-        int iJoint = (int)pSkeleton->m_kHashCRC2Joint.Find(pSource->m_pJoints[i].m_kCrc) - 1;
+        int iJoint = (int)pSkeleton->m_kHashCRC2Joint.FindValue(pSource->m_pJoints[i].m_kCrc) - 1;
         if (iJoint >= 0)
         {
             kMask.SetBit(iJoint);

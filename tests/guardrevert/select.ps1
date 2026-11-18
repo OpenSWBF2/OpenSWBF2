@@ -3,6 +3,8 @@ $script:GuardGlobalTriggers = @(
     'BattlefrontII.vcxproj.filters',
     'BattlefrontII.sln',
     'OpenSWBF2.Game.props',
+    'OpenSWBF2.Platform.props',
+    'lib\',
     'src\LuaFL\LuaFL.vcxproj',
     'src\LuaFL\LuaFL.vcxproj.filters',
     'src\RedEngineFL\RedEngineFL.vcxproj',
@@ -386,6 +388,20 @@ function Get-GuardRowHash($Row)
         "$k=$v"
     }
     Get-GuardSha ((@($lines) -join "`n") -replace "`r`n", "`n")
+}
+
+function Get-GuardRowPlatform($Row)
+{
+    if ($Row.Platform)
+    {
+        return [string]$Row.Platform
+    }
+    'Win32'
+}
+
+function Select-GuardPlatformRows($Rows, [string]$Platform)
+{
+    $Rows | Where-Object { (Get-GuardRowPlatform $_) -ceq $Platform }
 }
 
 function Get-GuardRowKind($Row)
@@ -792,13 +808,17 @@ function Select-GuardRows($In)
             $doubt = "no tlog $noTlog"
         }
 
-        $proof = $proofs[$row.Id]
+        $proof = $proofs["$($row.Id)`t$platform"]
         $reason = $null
-        if ($null -eq $proof)
+        if (-not $platform)
+        {
+            $reason = 'platform'
+        }
+        elseif ($null -eq $proof)
         {
             $reason = 'no record'
         }
-        elseif (-not $platform -or [string]$proof.Platform -cne $platform)
+        elseif ([string]$proof.Platform -cne $platform)
         {
             $reason = 'platform'
         }

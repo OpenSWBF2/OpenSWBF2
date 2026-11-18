@@ -42,6 +42,27 @@ public:
 
     bool IsLeaf() { return isleaf != 0; }
 
+    void* GetTarget() const { return data != 0 ? (char*)this + data : 0; }
+
+    bool SetTarget(const void* pTarget)
+    {
+        if (pTarget == 0)
+        {
+            data = 0;
+            return true;
+        }
+        const ptrdiff_t iOffset = (const char*)pTarget - (const char*)this;
+        if (iOffset <= 0 || (size_t)iOffset > 0xFFFFFFFFu)
+        {
+            data = 0;
+            return false;
+        }
+        data = (unsigned int)iOffset;
+        return true;
+    }
+
+    CollisionTreeNode* GetGChild() const { return (CollisionTreeNode*)GetTarget(); }
+
     static char* memblock;
     static unsigned int membytes;
     static unsigned int memtotal;
@@ -67,7 +88,7 @@ public:
         data = 0;
     }
     void SetLChild(CollisionTreeNode*) {}
-    void SetGChild(CollisionTreeNode* pChild) { data = (unsigned int)pChild; }
+    void SetGChild(CollisionTreeNode* pChild) { SetTarget(pChild); }
 };
 
 class CollisionTreeLeaf : public CollisionTreeNode
@@ -78,12 +99,18 @@ public:
     {
         ++leafs;
         numVerts = uNumVerts;
-        data = (unsigned int)indexpool;
+        SetTarget(indexpool);
         indexpool += uNumVerts;
         isleaf = 1;
     }
-    unsigned short* GetIndexPointer() { return (unsigned short*)data; }
+    unsigned short* GetIndexPointer() const { return (unsigned short*)GetTarget(); }
 };
+
+static_assert(sizeof(CollisionTreeNode) == 12, "CollisionTreeNode layout");
+static_assert(sizeof(CollisionTreeLeaf) == 12, "CollisionTreeLeaf layout");
+static_assert(sizeof(CollisionTreeBranch) == 12, "CollisionTreeBranch layout");
+
+CollisionTreeNode* ReadTree(PblFileChunk& chunk);
 
 extern float* u8tof32_lut;
 

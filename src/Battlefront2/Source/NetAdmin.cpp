@@ -11,6 +11,7 @@
 #include "CommandLine.h"
 #include "Controllable.h"
 #include "GameLoop.h"
+#include "GameObject.h"
 #include "LuaCallbacks_Options.h"
 #include "MissionPlayList.h"
 #include "pcNetSocket.h"
@@ -2154,9 +2155,9 @@ bool NetAdmin::ParseLineRemote(int iPlayer, unsigned short* pusLine, bool bConso
                 }
 
                 Trackable* pTrackable = pCharacter->mUnit;
-                unsigned int* puFlags =
-                    (unsigned int*)((char*)pTrackable->GetGameObject() + 0x1fc);
-                *puFlags = (*puFlags & ~8u) | 0x10;
+                Damageable* pDamage = pTrackable->GetGameObject();
+                pDamage->mIsAlive = 0;
+                pDamage->mVanishing = 1;
             }
             break;
         }

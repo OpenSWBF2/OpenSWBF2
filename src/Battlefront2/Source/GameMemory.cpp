@@ -8,6 +8,7 @@
 #include "MemFailLog.h"
 #include "pcCrash.h"
 #include "PebbleFL/Common/PblCrtHeap.h"
+#include "RedEngineFL/Memory/RedAlign.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "RedEngineFL/Memory/RedMemoryMi.h"
 #include "RedEngineFL/Util/RedLog.h"
@@ -59,8 +60,7 @@ char* gArtistHeapStart;
 
 static inline char* AlignHeapStart(const void* pAddress)
 {
-    return (char*)(((unsigned int)pAddress + (GameMemory::kHeapStartAlignment - 1)) &
-                   ~(GameMemory::kHeapStartAlignment - 1));
+    return RedAlignUp(pAddress, GameMemory::kHeapStartAlignment);
 }
 
 // FUNCTION: SWBF2 0x00533b20
@@ -156,8 +156,8 @@ void GameMemory::BuildHeaps(bool bMission)
         const bool bParts = RedCommitParts(&uPrivate, &uHeapsCommitted, &uThreadsCommitted, &uThreads, 0, 0);
         const unsigned int uGameCrt = PblCrtLiveBytes();
 #endif
-        LOG(LogMemory, Inform, "OPENSWBF2 COMMIT state=%s bytes=%u", bMission ? "mission" : "shell",
-            (unsigned int)kCounters.PagefileUsage);
+        LOG(LogMemory, Inform, "OPENSWBF2 COMMIT state=%s bytes=%Iu", bMission ? "mission" : "shell",
+            kCounters.PagefileUsage);
 #ifdef OPENSWBF2_TEST
         if (bCrt && bArena && bParts)
         {

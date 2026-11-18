@@ -14,10 +14,10 @@
     <ClCompile Include="source\sndallocbitmap.cpp" />
     <ClCompile Include="source\sndbufferio.cpp" />
     <ClCompile Include="source\sndbus.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="source\snddsp.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="source\sndenginebase.cpp" />
     <ClCompile Include="source\sndfile.cpp" />
@@ -30,7 +30,7 @@
     <ClCompile Include="source\sndlistenerbase.cpp" />
     <ClCompile Include="source\sndobjectlist.cpp" />
     <ClCompile Include="source\sndobjectweightlist.cpp">
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet Condition="'$(Platform)'=='Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <ClCompile Include="source\sndparametergraph.cpp" />
     <ClCompile Include="source\sndqueue.cpp" />
