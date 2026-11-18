@@ -45,7 +45,9 @@ debug-digests	milestone	x64	-	-	needs an x64 configuration
 verify-v143	milestone	Win32	-	1	no reference step
 verify-v143	milestone	x64	-	-	needs an x64 configuration
 x64-census	milestone	Win32	127	141	reference GCEN 127
-guard-selective	plan,branch,milestone	Win32	-	30	no reference step
+guard-narrow	plan	Win32	-	-	no reference step
+guard-narrow	plan	x64	-	-	no reference step
+guard-selective	branch,milestone	Win32	-	30	no reference step
 guard-selective	branch,milestone	x64	-	-	needs an x64 configuration
 guard-full	milestone	Win32	4632	removed	covered by guard-selective; guard-revert.ps1 -Full stays a manual run; reference GR-Full 4632; -Full re-seed at 44-27 1841
 x64-t1	plan,branch,milestone	x64	-	-	no reference step

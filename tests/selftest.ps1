@@ -2048,6 +2048,111 @@ try {
     if ($why) { $failed++; Write-Host "FAILED ${n}: guard-revert row platform filter: $why" }
     else { Write-Host "OK $n guard-revert drops an x64 row from a Win32 run and keeps only it for an x64 run; a platform with no rows selects nothing and exits 0, and -Row naming another platform's row exits 2" }
     $n++
+    $nrRowNT = @{ Id = 'SELFTEST-NT'; Platform = $Platform; File = 'src\selftest-narrow-touched.cpp'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') }
+    $nrRowNI = @{ Id = 'SELFTEST-NI'; Platform = $Platform; File = 'src\selftest-narrow-idle.cpp'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') }
+    $nrLine = { param($r) @($r.Id, (Get-GuardRowHash $r), 'dd', 'td', 'ts', 'tree', 'c0ffee1', 'RED', 'GREEN', 'Debug/Release', $Platform, '2026-11-04') -join "`t" }
+    $nrIdleLine = & $nrLine $nrRowNI
+    $nrSeed = (@((@('Id', 'RowHash', 'DepDigest', 'TriggerDigest', 'Toolset', 'Tree', 'Commit', 'Result', 'Control', 'Config', 'Platform', 'Date') -join "`t"), (& $nrLine $nrRowNT), $nrIdleLine) -join "`r`n") + "`r`n"
+    $nrRun = {
+        param([string]$tag, [string[]]$changed)
+        $rf = Join-Path $grTmp "rows$n-$tag.ps1"
+        $pf = Join-Path $grTmp "proven$n-$tag.tsv"
+        $od = Join-Path $grTmp "out$n-$tag"
+        [IO.File]::WriteAllText($pf, $nrSeed)
+        Set-Content -Path $rf -Encoding ASCII -Value @(
+            "`$GuardRevertRows = @(@{ Id = 'SELFTEST-NT'; Platform = '$Platform'; File = 'src\selftest-narrow-touched.cpp'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') }, @{ Id = 'SELFTEST-NI'; Platform = '$Platform'; File = 'src\selftest-narrow-idle.cpp'; Anchor = 'x'; Replacement = 'x'; Tests = @('x') })",
+            'function Assert-Runtimes { }',
+            'function Find-GameDataRoot { }',
+            'function Find-MSBuild { ''msbuild'' }',
+            'function Build-Tests { $true }',
+            'function Set-Anchor { $script:SelftestRow = $true; $null }',
+            'function Run-Case {',
+            '    $state = ''GREEN''',
+            '    if ($script:SelftestRow) { $state = ''RED'' }',
+            '    New-Object PSObject -Property @{ State = $state; Detail = ''''; Code = 0; Text = ''''; Report = $null }',
+            '}',
+            'function Get-GuardChangedSince {',
+            '    $s = New-GuardPathSet',
+            "    foreach (`$p in @($((@($changed) | ForEach-Object { "'$_'" }) -join ', '))) { [void]`$s.Add(`$p) }",
+            '    @{ ''c0ffee1'' = $s }',
+            '}'
+        )
+        $l = (& powershell -NoProfile -Command "& '$grScript' -Platform $Platform -Narrow -ListSelected -RowsFile '$rf' -OutDir '$od-list' -ProvenFile '$pf'; exit `$LASTEXITCODE" 2>&1 | Out-String)
+        $o = (& powershell -NoProfile -Command "& '$grScript' -Platform $Platform -Narrow -RowsFile '$rf' -OutDir '$od' -ProvenFile '$pf' $grWtArg; exit `$LASTEXITCODE" 2>&1 | Out-String)
+        $c = $LASTEXITCODE
+        $f = (& powershell -NoProfile -Command "& '$grScript' -Platform $Platform -ListSelected -RowsFile '$rf' -OutDir '$od-full' -ProvenFile '$pf'; exit `$LASTEXITCODE" 2>&1 | Out-String)
+        @{ Out = $o; Code = $c; List = $l; Full = $f; OutDir = $od; Proven = $pf }
+    }
+    $nrCheck = {
+        param($r)
+        $ledger = Join-Path $r.OutDir 'ledger.tsv'
+        $summary = Join-Path $r.OutDir 'summary.txt'
+        $idle = @([IO.File]::ReadAllLines($r.Proven) | Where-Object { $_.StartsWith("SELFTEST-NI`t") })
+        if ($r.Code -ne 0) { return "narrow run exit $($r.Code): $($r.Out)" }
+        if ($r.Out -notmatch 'SELFTEST-NT\s+control=GREEN\s+reverted=RED') { return 'the touched row did not run to RED, so the case proves nothing' }
+        if ($r.Out -match 'SELFTEST-NI\s+control=') { return 'the skipped row ran' }
+        if ($r.Out -notmatch '(?m)^SKIP SELFTEST-NI T1 ') { return 'no SKIP line for the skipped row in the run output' }
+        if ($r.Out -notmatch '(?m)^selected 1 carried 0 skipped 1\r?$') { return 'run totals are not selected 1 carried 0 skipped 1' }
+        if ($r.Out -match '(?m)^CARRY SELFTEST-NI') { return 'the skipped row was printed as CARRY' }
+        if ((Test-Path -LiteralPath $ledger) -and ([IO.File]::ReadAllText($ledger) -match 'SELFTEST-NI')) { return 'the skipped row has a ledger line' }
+        if (-not (Test-Path -LiteralPath $summary)) { return 'no summary.txt' }
+        if ([IO.File]::ReadAllText($summary) -match 'SELFTEST-NI') { return 'the skipped row is in the summary table' }
+        if ($idle.Count -ne 1 -or $idle[0] -cne $nrIdleLine) { return "the skipped row's proof line changed: '$($idle -join ' / ')'" }
+        if ($r.List -notmatch '(?m)^SELECT SELFTEST-NT T1 touched src\\selftest-narrow-touched\.cpp\r?$' -or $r.List -notmatch '(?m)^SKIP SELFTEST-NI T1 ' -or $r.List -notmatch '(?m)^selected 1 carried 0 skipped 1\r?$') { return "-Narrow -ListSelected printed '$($r.List.Trim())'" }
+        if ($r.Full -notmatch '(?m)^SELECT SELFTEST-NI ' -or $r.Full -match 'skipped') { return "the listing without -Narrow did not select the skipped row: '$($r.Full.Trim())'" }
+        return $null
+    }
+    $why = $null
+    try {
+        $why = & $nrCheck (& $nrRun 'real' @('src\selftest-narrow-touched.cpp'))
+        if (-not $why) {
+            $nrMut = & $nrCheck (& $nrRun 'mutant' @('src\selftest-narrow-touched.cpp', 'src\selftest-narrow-idle.cpp'))
+            if (-not $nrMut) { $why = 'mutant survived: a change set naming the idle row passed the check' }
+            else { $nrMutWhy = $nrMut }
+        }
+    }
+    catch { $why = "threw: $_" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: guard-revert -Narrow: $why" }
+    else { Write-Host "OK $n guard-revert -Narrow runs the touched row, lists the untouched row as SKIP and never runs, ledgers or records it, and a listing without -Narrow selects it; mutant fails: $nrMutWhy" }
+    $n++
+    $nfOut = (& powershell -NoProfile -Command "& '$grScript' -Platform $Platform -Narrow -Full -ListSelected -OutDir '$(Join-Path $grTmp "out$n")' -ProvenFile '$(Join-Path $grTmp "proven$n.tsv")'; exit `$LASTEXITCODE" 2>&1 | Out-String)
+    $nfCode = $LASTEXITCODE
+    if ($nfCode -ne 2 -or $nfOut -notmatch '-Narrow and -Full cannot be combined') { $failed++; Write-Host "FAILED ${n}: guard-revert -Narrow -Full: exit $nfCode, $($nfOut.Trim())" }
+    else { Write-Host "OK $n guard-revert -Narrow -Full exits 2 naming both switches" }
+    $n++
+    $why = $null
+    try {
+        $tfText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'gate\tiers.ps1'))
+        $tfCheck = {
+            param($steps)
+            $g = @($steps | Where-Object { $_.Kind -eq 'guard' })
+            $plan = @($g | Where-Object { $_.Tiers -contains 'plan' })
+            if ($plan.Count -ne 1 -or $plan[0].Name -cne 'guard-narrow') { return "plan guard steps '$(@($plan | ForEach-Object { $_.Name }) -join ',')'" }
+            if (@($plan[0].Args) -notcontains '-Narrow') { return 'guard-narrow has no -Narrow' }
+            foreach ($t in 'branch', 'milestone') {
+                $s = @($g | Where-Object { $_.Tiers -contains $t })
+                if ($s.Count -ne 1 -or $s[0].Name -cne 'guard-selective') { return "$t guard steps '$(@($s | ForEach-Object { $_.Name }) -join ',')'" }
+                if (@($s[0].Args) -contains '-Narrow') { return "the $t guard step has -Narrow" }
+                if ($s[0].Name -ceq $plan[0].Name) { return "the $t guard step shares its name with the plan guard step" }
+            }
+            return $null
+        }
+        $tfLoad = { param([string]$text) & { . ([scriptblock]::Create($text)); , @($GateSteps) } }
+        $why = & $tfCheck (& $tfLoad $tfText)
+        if (-not $why) {
+            $tfAnchor = "Name = 'guard-selective'; Tiers = @('branch', 'milestone')"
+            $tfCount = ([regex]::Matches($tfText, [regex]::Escape($tfAnchor))).Count
+            if ($tfCount -ne 1) { $why = "mutant anchor found $tfCount times in tiers.ps1" }
+            else {
+                $tfMut = & $tfCheck (& $tfLoad $tfText.Replace($tfAnchor, "Name = 'guard-selective'; Tiers = @('plan', 'branch', 'milestone')"))
+                if (-not $tfMut) { $why = 'mutant survived: guard-selective back in the plan tier passed the check' }
+            }
+        }
+    }
+    catch { $why = "threw: $_" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: gate tiers guard steps: $why" }
+    else { Write-Host "OK $n the plan tier's only guard step is guard-narrow with -Narrow, branch and milestone run guard-selective without it, and no guard step name is shared; mutant fails: $tfMut" }
+    $n++
     $why = $null
     try {
         . (Join-Path $PSScriptRoot 'gate\keys.ps1')
@@ -2816,6 +2921,117 @@ try {
     Test-SelCase 'text-pin row left alone by an unrelated change' @{ Hashes = (Copy-SelHashes 'src\G\Other.cpp' 'new') } @('S-HARD2', 'S-SMOKE', 'S-SMOKE2', 'S-PERTURB') 'deps changed'
     Test-SelCase 'smoke row depends on every game TU it links with' @{ Hashes = (Copy-SelHashes 'src\X\pcWindow.cpp' 'new') } @('S-PIN', 'S-SMOKE', 'S-SMOKE2', 'S-PERTURB') 'deps changed'
     Test-SelCase 'perturb row depends on the mission scripts like a smoke row' @{ Hashes = (Copy-SelHashes 'data\scripts\a.lua' 'new') } @('S-SMOKE', 'S-SMOKE2', 'S-PERTURB') 'deps changed'
+    $selScriptPath = Join-Path $PSScriptRoot 'guardrevert\select.ps1'
+    function New-SelChanged([string[]]$Paths) {
+        $s = New-GuardPathSet
+        foreach ($x in $Paths) { [void]$s.Add($x) }
+        @{ 'c0ffee1' = $s }
+    }
+    function Invoke-SelMutant([string]$Anchor, [string]$With, $Over) {
+        $text = [IO.File]::ReadAllText($selScriptPath)
+        $count = ([regex]::Matches($text, [regex]::Escape($Anchor))).Count
+        if ($count -ne 1) { throw "mutant anchor '$Anchor' found $count times in select.ps1" }
+        $mut = $text.Replace($Anchor, $With)
+        $in = @{}
+        foreach ($k in $selBase.Keys) { $in[$k] = $selBase[$k] }
+        foreach ($k in $Over.Keys) { $in[$k] = $Over[$k] }
+        & {
+            . ([scriptblock]::Create($mut))
+            $r = @{}
+            foreach ($x in @(Select-GuardRows $in)) { if ($null -ne $x) { $r[$x.Id] = $x } }
+            $r
+        }
+    }
+    function Get-SelNarrowWhy($d, $full, [string[]]$Want, [string]$Reason) {
+        foreach ($id in $selAll) {
+            $x = $d[$id]
+            if ($null -eq $x) { return "no decision for $id" }
+            if ($Want -contains $id) {
+                if ($x.Action -ne 'SELECT') { return "$id $($x.Action) '$($x.Reason)', expected SELECT" }
+                if ($x.Reason -notlike $Reason) { return "$id reason '$($x.Reason)', expected '$Reason'" }
+            }
+            elseif ($full[$id].Action -eq 'SELECT') {
+                if ($x.Action -ne 'SKIP') { return "$id $($x.Action) '$($x.Reason)', expected SKIP" }
+                if ($x.Reason -cne $full[$id].Reason) { return "$id SKIP reason '$($x.Reason)', expected the full selector's '$($full[$id].Reason)'" }
+            }
+            elseif ($x.Action -ne 'CARRY') { return "$id $($x.Action) '$($x.Reason)', expected CARRY" }
+        }
+        return $null
+    }
+    function Test-SelNarrow([string]$Name, $Over, $Changed, [string[]]$Want, [string]$Reason, [string[]]$FullWant, [string]$FullReason, [string]$Anchor, [string]$With) {
+        $why = $null
+        try {
+            $full = Invoke-SelCase $Over
+            $fullSel = @($selAll | Where-Object { $full[$_].Action -eq 'SELECT' })
+            $nOver = @{ Narrow = $true; Changed = $Changed }
+            foreach ($k in $Over.Keys) { $nOver[$k] = $Over[$k] }
+            if ((@($fullSel | Sort-Object) -join ',') -ne (@($FullWant | Sort-Object) -join ',')) { $why = "the full selector selected '$($fullSel -join ',')', expected '$($FullWant -join ',')'" }
+            elseif ($FullReason -and @($fullSel | Where-Object { $full[$_].Reason -notlike $FullReason }).Count) { $why = "a full selector reason is not '$FullReason'" }
+            elseif ($Anchor -and $fullSel.Count -eq $Want.Count) { $why = 'the full selector selects no row the narrow one could skip, so the case proves nothing' }
+            else { $why = Get-SelNarrowWhy (Invoke-SelCase $nOver) $full $Want $Reason }
+            if (-not $why -and $Anchor) {
+                $mWhy = Get-SelNarrowWhy (Invoke-SelMutant $Anchor $With $nOver) $full $Want $Reason
+                if (-not $mWhy) { $why = "mutant survived: '$Anchor' -> '$With'" }
+                else { $Name = "$Name; mutant '$With' fails: $mWhy" }
+            }
+        }
+        catch { $why = "threw: $_" }
+        Write-SelResult $Name $why
+    }
+    $nwLibFull = @('S-LIB', 'S-PIN', 'S-HDR', 'S-ASAN', 'S-CANARY', 'S-BASE', 'S-SMOKE', 'S-SMOKE2', 'S-PERTURB')
+    Test-SelNarrow 'narrow: a changed revert target selects only the rows on that file' @{ Hashes = (Copy-SelHashes 'src\G\Lib.cpp' 'new') } (New-SelChanged @('src\G\Lib.cpp')) @('S-LIB', 'S-ASAN', 'S-BASE') 'touched src\G\Lib.cpp' $nwLibFull 'deps changed' 'if ($changedSet.Contains($p))' 'if ($false)'
+    Test-SelNarrow 'narrow: a changed test source selects only its rows' @{ Hashes = (Copy-SelHashes 'tests\unit\t_pin.cpp' 'new') } (New-SelChanged @('tests\unit\t_pin.cpp')) @('S-PIN') 'touched tests\unit\t_pin.cpp' @('S-PIN') 'deps changed' $null $null
+    Test-SelNarrow 'narrow: a global trigger change selects no untouched row' @{ Hashes = (Copy-SelHashes 'tests\common.ps1' 'new') } (New-SelChanged @('tests\common.ps1')) @() $null $selAll 'global trigger' 'if ($In.Narrow -and ' 'if ($false -and '
+    Test-SelNarrow 'narrow: a skipped row stays stale and the branch selector selects it' @{ Hashes = (Copy-SelHashes 'tests\common.ps1' 'new') } (New-SelChanged @('tests\common.ps1')) @() $null $selAll 'global trigger' "`$action = 'SKIP'" "`$action = 'CARRY'"
+    Test-SelNarrow 'narrow: a proof commit with no diff selects the row' @{ Hashes = (Copy-SelHashes 'src\G\Lib.cpp' 'new') } @{} $nwLibFull 'proof commit c0ffee1 unknown' $nwLibFull 'deps changed' $null $null
+    Test-SelNarrow 'narrow: a proof commit that could not be diffed selects the row' @{ Hashes = (Copy-SelHashes 'src\G\Lib.cpp' 'new') } @{ 'c0ffee1' = $null } $nwLibFull 'proof commit c0ffee1 unknown' $nwLibFull 'deps changed' $null $null
+    $why = $null
+    try {
+        $nwRows = @($selRows | ForEach-Object { $_.Clone() })
+        ($nwRows | Where-Object { $_.Id -eq 'S-PIN' }).Anchor = 'z'
+        $nwD = Invoke-SelCase @{ Rows = $nwRows; Proofs = $p2; Narrow = $true; Changed = (New-SelChanged @()) }
+        $nwSel = @($selAll | Where-Object { $nwD[$_].Action -eq 'SELECT' } | Sort-Object)
+        $nwOther = @($selAll | Where-Object { $nwD[$_].Action -ne 'SELECT' -and $nwD[$_].Action -ne 'CARRY' })
+        if (($nwSel -join ',') -ne 'S-HARD2,S-PIN') { $why = "selected '$($nwSel -join ',')', expected 'S-HARD2,S-PIN'" }
+        elseif ($nwD['S-HARD2'].Reason -ne 'no record' -or $nwD['S-PIN'].Reason -ne 'row changed') { $why = "reasons '$($nwD['S-HARD2'].Reason)' and '$($nwD['S-PIN'].Reason)'" }
+        elseif ($nwOther.Count) { $why = "$($nwOther[0]) is $($nwD[$nwOther[0]].Action)" }
+    }
+    catch { $why = "threw: $_" }
+    Write-SelResult 'narrow: a row with no record and an edited row are selected with an empty change set' $why
+    $why = $null
+    try {
+        $cgRepo = Join-Path $selTmp 'changed'
+        New-Item -ItemType Directory -Path (Join-Path $cgRepo 'sub') -Force | Out-Null
+        $cgGit = {
+            param([string[]]$a)
+            $ErrorActionPreference = 'Continue'
+            $o = & git -C $cgRepo -c user.name=selftest -c user.email=selftest@invalid -c core.autocrlf=false @a 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "git $($a -join ' '): $o" }
+            $o
+        }
+        & $cgGit @('init', '-q') | Out-Null
+        [IO.File]::WriteAllText((Join-Path $cgRepo 'a.txt'), "a`n")
+        [IO.File]::WriteAllText((Join-Path $cgRepo 'b.txt'), "b`n")
+        & $cgGit @('add', 'a.txt', 'b.txt') | Out-Null
+        & $cgGit @('commit', '-q', '-m', 'base') | Out-Null
+        & $cgGit @('config', 'core.autocrlf', 'true') | Out-Null
+        & $cgGit @('config', 'core.safecrlf', 'warn') | Out-Null
+        $cgCommit = "$(& $cgGit @('rev-parse', 'HEAD'))".Trim()
+        [IO.File]::WriteAllText((Join-Path $cgRepo 'a.txt'), "a2`n")
+        [IO.File]::WriteAllText((Join-Path $cgRepo 'sub\c.txt'), "c`n")
+        $cgWarn = @(& { $ErrorActionPreference = 'Continue'; & git -C $cgRepo diff --name-only $cgCommit 2>&1 } | Where-Object { $_ -is [Management.Automation.ErrorRecord] })
+        $cg = Get-GuardChangedSince $cgRepo @($cgCommit, 'deadbeef0000')
+        $cgSet = $cg[$cgCommit]
+        if ($cgWarn.Count -eq 0) { $why = 'git wrote no warning to stderr, so the case proves nothing' }
+        elseif ($null -eq $cgSet) { $why = 'no set for the commit' }
+        elseif (-not $cgSet.Contains('a.txt')) { $why = "an edited file is missing: '$(@($cgSet) -join ', ')'" }
+        elseif (-not $cgSet.Contains('sub\c.txt')) { $why = "an untracked file is missing or not backslashed: '$(@($cgSet) -join ', ')'" }
+        elseif ($cgSet.Contains('b.txt')) { $why = 'an unchanged file is in the set' }
+        elseif ($cgSet.Count -ne 2) { $why = "set '$(@($cgSet) -join ', ')'" }
+        elseif (-not $cg.ContainsKey('deadbeef0000') -or $null -ne $cg['deadbeef0000']) { $why = 'an unknown commit is not mapped to null' }
+    }
+    catch { $why = "threw: $_" }
+    Write-SelResult 'narrow: changed since a commit holds edited and untracked files only, git stderr never enters it, and an unknown commit maps to null' $why
     $p = Join-Path $selRoot 'src\G\Lib.h'
     (Get-Item -LiteralPath $p).LastWriteTime = (Get-Date).AddHours(1)
     $stale = Read-ClReadTlog $testsTlog $selRoot

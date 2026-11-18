@@ -9,6 +9,7 @@ param(
     [ValidateSet('', 'Debug', 'Release', 'Test')][string]$Configuration = '',
     [ValidateSet('Win32', 'x64')][string]$Platform = 'Win32',
     [switch]$Full,
+    [switch]$Narrow,
     [switch]$ListSelected,
     [string]$ProvenFile,
     [string]$Resume,
@@ -27,6 +28,7 @@ $script:ProofColumns = @('Id', 'RowHash', 'DepDigest', 'TriggerDigest', 'Toolset
 $script:LedgerColumns = $script:ProofColumns + @('Outcome')
 if ($BuildJobs -lt 1) { Write-Host "-BuildJobs $BuildJobs must be at least 1."; exit 2 }
 if ($Workers -lt 1) { Write-Host "-Workers $Workers must be at least 1."; exit 2 }
+if ($Narrow -and $Full) { Write-Host '-Narrow and -Full cannot be combined.'; exit 2 }
 if (-not $WorktreeRoot) { $WorktreeRoot = "$root-worktrees" }
 $WorktreeRoot = [IO.Path]::GetFullPath($WorktreeRoot).TrimEnd('\')
 if ($env:TEMP -and $WorktreeRoot.StartsWith([IO.Path]::GetFullPath($env:TEMP), [StringComparison]::OrdinalIgnoreCase)) { Write-Host 'WorktreeRoot must not be under TEMP: MSBuild incremental builds miss header changes there.'; exit 2 }
@@ -863,6 +865,10 @@ try {
         Toolset = $script:Toolset
         Platform = $Platform
     }
+    if ($Narrow) {
+        $selIn.Narrow = $true
+        $selIn.Changed = Get-GuardChangedSince $root @($rows | ForEach-Object { $proofs["$($_.Id)`t$Platform"] } | Where-Object { $_ -and $_.Commit } | ForEach-Object { [string]$_.Commit })
+    }
     $script:Decisions = @{}
     foreach ($d in @(Select-GuardRows $selIn)) {
         $p = $proofs["$($d.Id)`t$Platform"]
@@ -872,10 +878,16 @@ try {
         $script:Decisions[$d.Id] = $d
     }
     $carryLines = @()
+    $skipLines = @()
     $listLines = @()
     foreach ($r in $rows) {
         $d = $script:Decisions[$r.Id]
         if ($d.Action -eq 'SELECT') { $listLines += "SELECT $($d.Id) $($d.Kind) $($d.Reason)" }
+        elseif ($d.Action -eq 'SKIP') {
+            $line = "SKIP $($d.Id) $($d.Kind) $($d.Reason)"
+            $skipLines += $line
+            $listLines += $line
+        }
         else {
             $p = $proofs["$($d.Id)`t$Platform"]
             $line = "CARRY $($d.Id) $($d.Kind) $($p.Commit) $($p.Tree) $($p.Date)"
@@ -885,6 +897,7 @@ try {
     }
     $rows = @($rows | Where-Object { $script:Decisions[$_.Id].Action -eq 'SELECT' })
     $totals = "selected $($rows.Count) carried $($carryLines.Count)"
+    if ($Narrow) { $totals += " skipped $($skipLines.Count)" }
     if ($ListSelected) {
         $listLines | ForEach-Object { Write-Host $_ }
         Write-Host $totals
@@ -892,6 +905,7 @@ try {
     }
     if ($rows.Count -eq 0) {
         $carryLines | ForEach-Object { Write-Host $_ }
+        $skipLines | ForEach-Object { Write-Host $_ }
         Write-Host $totals
         exit 0
     }
@@ -1036,6 +1050,7 @@ try {
     }
     Write-Host ''
     $carryLines | ForEach-Object { Write-Host $_ }
+    $skipLines | ForEach-Object { Write-Host $_ }
     Write-Host $totals
     $lines | ForEach-Object { Write-Host $_ }
     $lines | Set-Content -Path (Join-Path $OutDir 'summary.txt') -Encoding ASCII

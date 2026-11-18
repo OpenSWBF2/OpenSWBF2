@@ -489,6 +489,31 @@ function Get-GuardTuInfo($Ctx, $Reads, [string]$Tag, [string]$Tu)
     $info
 }
 
+function Get-GuardChangedSince([string]$Root, [string[]]$Commits)
+{
+    $untracked = @(Get-KeyGitList $Root @('ls-files', '--others', '--exclude-standard', '-z'))
+    $changed = @{}
+    foreach ($c in @($Commits | Where-Object { $_ } | Select-Object -Unique))
+    {
+        try
+        {
+            $diff = @(Get-KeyGitList $Root @('-c', 'core.quotepath=off', 'diff', '--name-only', '--no-renames', '-z', $c, '--'))
+        }
+        catch
+        {
+            $changed[$c] = $null
+            continue
+        }
+        $set = New-GuardPathSet
+        foreach ($p in ($diff + $untracked))
+        {
+            [void]$set.Add($p.Replace('/', '\'))
+        }
+        $changed[$c] = $set
+    }
+    return $changed
+}
+
 function Select-GuardRows($In)
 {
     $cmp = [StringComparison]::OrdinalIgnoreCase
@@ -851,6 +876,47 @@ function Select-GuardRows($In)
         if ($null -ne $reason)
         {
             $action = 'SELECT'
+        }
+        if ($In.Narrow -and $action -eq 'SELECT' -and @('no record', 'row changed', 'platform') -notcontains $reason)
+        {
+            $direct = New-Object 'System.Collections.Generic.List[string]'
+            $direct.Add($file)
+            foreach ($t in @($row.Tests))
+            {
+                if ($t -and $testSources[$t])
+                {
+                    $direct.Add([string]$testSources[$t])
+                }
+            }
+            $changedSet = $null
+            if ($null -ne $In.Changed -and $commit -and $In.Changed.ContainsKey([string]$commit))
+            {
+                $changedSet = $In.Changed[[string]$commit]
+            }
+            if ($null -eq $changedSet)
+            {
+                $reason = "proof commit $commit unknown"
+            }
+            else
+            {
+                $touched = $null
+                foreach ($p in $direct)
+                {
+                    if ($changedSet.Contains($p))
+                    {
+                        $touched = $p
+                        break
+                    }
+                }
+                if ($null -ne $touched)
+                {
+                    $reason = "touched $touched"
+                }
+                else
+                {
+                    $action = 'SKIP'
+                }
+            }
         }
         [pscustomobject]@{
             Id = $row.Id
