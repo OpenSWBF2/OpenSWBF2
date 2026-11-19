@@ -22,7 +22,7 @@ if (-not $NoBuild) {
 
 $exeDir = Join-Path $root "bin\$Platform\$Configuration"
 $gameExe = Join-Path $exeDir 'BattlefrontII.exe'
-$reason = Get-SmokePrecheck (Find-GameDataRoot) $exeDir
+$reason = Get-SmokePrecheck (Find-GameDataRoot) $exeDir $false $Platform
 if ($reason) { Write-Host "[SKIP] laa-compare - $reason"; exit 0 }
 
 if (-not $OutDir) { $OutDir = New-StampedDir (Join-Path $root 'artifacts\laa-compare') }
@@ -66,7 +66,7 @@ try {
         New-SmokeWorkerDir $exeDir $d
         Copy-Item -LiteralPath $nolaaExe -Destination $d -Force
     }
-    $batch = Start-SmokeBatch $items $workDirs
+    $batch = Start-SmokeBatch $items $workDirs $exeDir
 
     $base = @(); $laa = @()
     for ($i = 0; $i -lt $items.Count; $i++) {

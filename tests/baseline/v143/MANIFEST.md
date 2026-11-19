@@ -19,13 +19,13 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 
 | File | SHA-256 | Produced by |
 |------|---------|-------------|
-| `CAUSES.md` | 83D7755E49C7DCB2110F115C3A3949BD830DD3659A97B0718F39387F2FFFC499 | written by hand from the comparison against `tests/baseline/vs2013/` |
-| `smoke-all-digests.txt` | C0819DA81647F7CD98EDFC4F2FFC43058B6315D6D60F7E6A5CC72744DBB107F3 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
+| `CAUSES.md` | 0DBEDF4D98F220410303AD2FF636495D7250D2A8CEE4FFB0B38795526E2398C1 | written by hand from the comparison against `tests/baseline/vs2013/` |
+| `smoke-all-digests.txt` | 02F13CF0B7571E9ADE6626A5CFF93266064274B7888CEF33B2DD46A1DC1EC16C | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `pool-sizes.txt` | A2FA679AC1174C9082D1E3DE216F82FC16B5E20B35A41C09AC4F081CF9643D72 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `mem-peaks.txt` | D24B076240DC0D686B07C7F1D33EF273F88E928C863E9C11878061FF3A7D41B0 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `cloth-headroom.txt` | 7C388EDBA9ADC4CF1D82A8C66FD7409CAF534B023E630AB59F9844312104F720 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
-| `hardening.txt` | 29E32267803146140D755D1AE66DF8A8812C589D29073B46B2762B80610615D9 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
-| `offthread.txt` | 2B9FED6438B7D0420F888CB01F09342EB45425F9ED2EEA7B6B17A06A42264414 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
+| `hardening.txt` | 1A67C5F6F2F98B8BEB1867B3831446998C4D34F8DA5F2859605E241B8A6664D5 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
+| `offthread.txt` | B03F4F83ECBC41057BB8D177F7FDA7FAEF29C492CB03F0A270D1605253D76BB3 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
 | `lua-bins.txt` | A6E3FF46D1E8A6D69232061361199590BC6FB0C1AEEF6EFF0A0E19F69DA5936A | `capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All` |
 | `digests-debug.txt` | B0856D73AF662CC495ECC019194E0DE150C71A8BA648B9211A33C29AEB18A122 | `capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug` |
 | `digests.txt` | 9AE18CAC28450E27A9AD9992321734DFAE2BBBFF90C50FAA6EBD99518B89D6B7 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
@@ -57,5 +57,9 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 - Phase 43 (static-library split) re-captured, with the user's approval, `initializers.txt` and `initializers-di.txt` from the 4919bf44 Release map (C-SPLIT-STEAM-INIT), and added the `crash-stickdelete` row to `smoke-all-digests.txt` (the `dedicated` row keeps its pinned value) and the `crt-heap-ban` and `mimalloc-crt-hooks` lines to `hardening.txt`.
 - Phase 44 (plan 44-18) re-captured, with the user's approval, `initializers.txt`, `initializers-di.txt` and `initializers-discarded.txt` without the section:offset column (C-INIT-ADDR); every other byte equals the previous files. The `CAUSES.md` hash had not been updated after 44-14 and is current again.
 - Phase 44 (plan 44-18d) added one row each to `smoke-all-digests.txt` and `offthread.txt` for the new `crash-stall` case (C-CASE-CRASHSTALL); no other row changed.
+- Phase 46 (plan 46-05) added one row each to `smoke-all-digests.txt` and `offthread.txt` for the new `crash-delayload` case (C-CASE-CRASHDELAYLOAD); no other row changed.
+- Phase 46 (plan 46-07) added the `unicows-staged` line to `hardening.txt` (C-HARDEN-UNICOWS). The `hardening.txt` and `CAUSES.md` hashes had not been updated after 46-01, 46-04 and 46-05 and are current again.
+- Phase 46 (plan 46-12) added the `d3dx9-pins` line to `hardening.txt` (C-HARDEN-D3DX9).
+- Phase 46 (plan 46-13) added the `steamid-abi` and `steam-api64-pins` lines to `hardening.txt` (C-HARDEN-STEAMID, C-HARDEN-STEAMPIN).
 - `capture-vs2013.ps1 -Verify -Baseline v143` checks this manifest. `-Archive` assumes the VS2013 build identity and is not used for this directory.
 - `compare-tables.ps1` holds the reader of every file here, and the `baseline-readers` hardening check fails on a file with no reader.

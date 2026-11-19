@@ -55,14 +55,14 @@ function ifs_mpgs_login_fnOnFail()
     ifs_mpgs_login_fnSetPieceVis(this, nil, 1, nil)
     IFObj_fnSetVis(this.LoginAsTextA, 1)
     IFObj_fnSetVis(this.LoginAsTextB, 1)
-    local error = ScriptCB_LastSignInError()
+    local error, text = ScriptCB_LastSignInError()
     IFText_fnSetString(this.LoginAsTextA, "ifs.mp.galaxy.error")
-    IFText_fnSetString(this.LoginAsTextB, error)
+    if text then
+        IFText_fnSetUString(this.LoginAsTextB, ScriptCB_tounicode(text))
+    else
+        IFText_fnSetString(this.LoginAsTextB, error)
+    end
 end
-
-
-
-
 
 
 

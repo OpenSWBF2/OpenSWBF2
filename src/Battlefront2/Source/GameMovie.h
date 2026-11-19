@@ -2,6 +2,12 @@
 
 class RedMovie;
 
+namespace Snd
+{
+template <class T, int N>
+class Queue;
+}
+
 class GameMovie
 {
 public:
@@ -49,6 +55,12 @@ public:
     static int sTextureHeap;
     static bool sMemoryReserved;
 };
+
+extern int g_InGameMoviePlayerState;
+extern int g_InGameMoviePlayerFrame;
+extern char ingame_movie_idname[256];
+extern char g_InGameMovieFilename[256];
+extern Snd::Queue<unsigned int, 12> g_InGameMovieQueue;
 
 void UpdatInGameMovie();
 

@@ -153,7 +153,9 @@
     <ClCompile Include="movie\RedMovie.cpp" />
     <ClCompile Include="movie\RedMoviePlayerBase.cpp" />
     <ClCompile Include="movie\RedMoviePlayerRenderer.cpp" />
-    <ClCompile Include="movie\pc\pcRedMoviePlayer.cpp" />
+    <ClCompile Include="movie\pc\pcRedMoviePlayer.cpp" Condition="'$(Platform)'=='Win32'" />
+    <ClCompile Include="movie\pc\pcRedMoviePlayerNull.cpp" Condition="'$(Platform)'=='x64'" />
+    <ClCompile Include="movie\pc\pcRedMoviePlayerNullObject.cpp" Condition="'$(Platform)'=='x64'" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application\RedPath.h" />

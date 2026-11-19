@@ -7,7 +7,7 @@ param(
     [switch]$Fuzz,
     [int]$Seed = 1,
     [int]$Iterations = 100000,
-    [ValidateSet('None','Standard','Dedicated','Crash','All','Twice','Perturb','Soak')][string]$Smoke = 'Standard',
+    [ValidateSet('None','Standard','Dedicated','Crash','All','Twice','Perturb','Soak','Vendor')][string]$Smoke = 'Standard',
     [switch]$FactoryLog,
     [int]$MiPurge = -1,
     [ValidateSet('Debug','Release','Test','Asan')][string]$SmokeConfiguration = 'Release',
@@ -281,7 +281,7 @@ elseif ($runUnit) {
 
 $hardDir = Join-Path $outDir 'hardening'
 if ($hardenActive -and -not $Rejudge) {
-    Assert-Runtimes $GameRuntimes $Platform
+    Assert-Runtimes (Get-GameRuntimes $Platform @($(if ($smokeActive) { $Smoke } else { 'None' }))) $Platform
     $exeDir = Join-Path $root "bin\$Platform\$SmokeConfiguration"
     $gameExe = Join-Path $exeDir 'BattlefrontII.exe'
     $gameDataRoot = Find-GameDataRoot
@@ -291,12 +291,12 @@ if ($hardenActive -and -not $Rejudge) {
         if ($LASTEXITCODE -ne 0) { Write-Host 'Build failed.'; exit 2 }
     }
     $exeLines = @("exe.BattlefrontII.exe=$(Get-RunExeHash $gameExe)")
-    foreach ($f in @($script:SmokeWorkerFiles + (Get-AsanRuntimeName)) | Where-Object { $_ -like '*.dll' }) {
+    foreach ($f in @((Get-SmokeWorkerFiles $Platform) + (Get-AsanRuntimeName)) | Where-Object { $_ -like '*.dll' }) {
         $dp = Join-Path $exeDir $f
         if (Test-Path -LiteralPath $dp -PathType Leaf) { $exeLines += "dll.$f=$(Get-KeyFileSha $dp)" }
     }
     $exeLines | Add-Content -Path (Join-Path $outDir 'run-params.txt') -Encoding ASCII
-    $reason = Get-SmokePrecheck $gameDataRoot $exeDir $asanSmoke
+    $reason = Get-SmokePrecheck $gameDataRoot $exeDir $asanSmoke $Platform
 
     $vendorHits = @(Get-ChildItem -LiteralPath (Join-Path $root 'src\LuaFL'), (Join-Path $root 'src\ZlibFL'), (Join-Path $root 'src\mimalloc') -Recurse -File -ErrorAction SilentlyContinue |
         Where-Object { Select-String -LiteralPath $_.FullName -Pattern 'RedLog.h' -SimpleMatch -Quiet })
@@ -331,8 +331,34 @@ if ($hardenActive -and -not $Rejudge) {
                 $bad++
             }
         }
-        $binaryNames = @(@(Get-HardeningChecks '' '' 0 0 0) + @(Get-MiCrtHookCheck '') + @(Get-ImportChecks '') | Where-Object { $_.Name -ne 'sdl' } | ForEach-Object { $_.Name }) + @('aslr-pe', 'aslr-pe-tests')
+        $binaryNames = @(@(Get-HardeningChecks '' '' 0 0 0) + @(Get-MiCrtHookCheck '') | Where-Object { $_.Name -ne 'sdl' } | ForEach-Object { $_.Name }) + @('aslr-pe', 'aslr-pe-tests')
         foreach ($name in $binaryNames) { Add-SmokeResult "[SKIP] hardening:$name - Phase 52" 'SKIP' }
+        if (-not (Test-Path -LiteralPath $gameExe)) {
+            if ($NoBuild -and -not $Hardening) { Add-SmokeResult '[SKIP] hardening:exe - not built (-NoBuild)' 'SKIP' }
+            else {
+                Add-SmokeResult "[FAIL] hardening:exe - not found: $gameExe" 'FAIL'
+                $bad++
+            }
+        }
+        else {
+            $imp = (& (Find-Dumpbin $Platform) /imports $gameExe) -join "`n"
+            if ($LASTEXITCODE -ne 0) {
+                Add-SmokeResult "[FAIL] hardening:dumpbin - exit $LASTEXITCODE" 'FAIL'
+                $bad++
+            }
+            else {
+                foreach ($c in @(Get-ImportChecks $imp $Platform) + @(Get-UnicowsCheck $root $Platform $exeDir $imp) + @(Get-D3dxPinsCheck $root) + @(Get-SteamApi64PinsCheck $root)) {
+                    if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
+                    else {
+                        Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
+                        $bad++
+                    }
+                }
+                $saCheck = Get-SteamApi64StagedCheck $root $exeDir $imp
+                Add-SmokeResult (Get-D3dxStagedLine (New-Object PSObject -Property @{ Status = $saCheck.Status; Name = "hardening:$($saCheck.Name)"; Detail = $saCheck.Detail })) $saCheck.Status
+                if ($saCheck.Status -eq 'FAIL') { $bad++ }
+            }
+        }
     }
     elseif (-not (Test-Path -LiteralPath $gameExe)) {
         if ($NoBuild -and -not $Hardening) { Add-SmokeResult '[SKIP] hardening:exe - not built (-NoBuild)' 'SKIP' }
@@ -377,7 +403,7 @@ if ($hardenActive -and -not $Rejudge) {
                     $bad++
                 }
             }
-            foreach ($c in (Get-ImportChecks $imp)) {
+            foreach ($c in @(Get-ImportChecks $imp $Platform) + @(Get-UnicowsCheck $root $Platform $exeDir $imp) + @(Get-D3dxPinsCheck $root) + @(Get-SteamApi64PinsCheck $root)) {
                 if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
                 else {
                     Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
@@ -438,6 +464,10 @@ if ($smokeActive) {
     }
     function Invoke-SmokeCaseJudge($sc, $res) {
         $caseDir = $res.CaseDir
+        if ($res.Class -ceq 'Skipped') {
+            Add-SmokeResult (Get-SmokeSkipLine $sc.Name $res.SkipReason) 'SKIP'
+            return
+        }
         if ($sc.Expect.Perturb) {
             $pClass = $res.Class
             if ($res.Asan) {
@@ -561,11 +591,11 @@ if ($smokeActive) {
         $items = @()
         foreach ($sc in $smokeCases) {
             $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
-            $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $extraArg; CaseDir = $caseDir; AsanOptions = (Get-SmokeCaseAsan $caseDir) }
+            $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $extraArg; CaseDir = $caseDir; AsanOptions = (Get-SmokeCaseAsan $caseDir); Omit = $sc.Omit; Swap = $sc.Swap; NeedsFile = $sc.NeedsFile; SkipReason = $sc.SkipReason }
         }
         try {
             foreach ($d in $workDirs) { New-SmokeWorkerDir $exeDir $d }
-            $batch = Start-SmokeBatch $items $workDirs
+            $batch = Start-SmokeBatch $items $workDirs $exeDir
             $caseIndex = -1
             foreach ($sc in $smokeCases) {
                 $caseIndex++
@@ -577,6 +607,15 @@ if ($smokeActive) {
             foreach ($d in $workDirs) { Remove-HarnessTree $d }
         }
         Invoke-SmokeRunChecks
+    }
+    if ($Smoke -eq 'Vendor') {
+        $vsFile = Join-Path $outDir 'vendor-d3dx9-staged.txt'
+        if (-not $Rejudge) { Get-D3dxStagedLine (Get-D3dxStagedCheck $root $Platform (Join-Path $root "bin\$Platform\$SmokeConfiguration")) | Set-Content -LiteralPath $vsFile -Encoding ASCII }
+        $vsLine = '[FAIL] vendor:d3dx9-staged - no archived output'
+        if (Test-Path -LiteralPath $vsFile -PathType Leaf) { $vsLine = [IO.File]::ReadAllText($vsFile).Trim() }
+        $vsTok = $(if ($vsLine -cmatch '^\[(PASS|FAIL|SKIP)\] vendor:d3dx9-staged') { $Matches[1] } else { 'FAIL' })
+        Add-SmokeResult $vsLine $vsTok
+        if ($vsTok -eq 'FAIL') { $bad++ }
     }
 }
 

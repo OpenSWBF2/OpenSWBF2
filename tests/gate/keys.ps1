@@ -24,8 +24,6 @@ $script:StepColumns = @('Step', 'RunKey', 'JudgeKey', 'Platform', 'Config', 'Tie
 
 $script:StepKeyColumns = @('Step', 'Platform', 'Config', 'Tier')
 
-$script:VendorDlls = @('steam_api.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'binkw32.dll', 'unicows.dll')
-
 $script:SteamOverlayApp = '6060'
 
 function Get-KeyBytesSha([byte[]]$Bytes) {
@@ -163,14 +161,13 @@ function Get-GameDataManifestHash([string]$GameDataRoot) {
     return Get-KeyTextSha ($arr -join "`n")
 }
 
-function Get-VendorDllHashes([string]$WorkerDir, [string]$SystemDir) {
+function Get-VendorDllHashes([string]$WorkerDir, [string]$SystemDir, [ValidateSet('Win32', 'x64')][string]$Platform) {
     $h = [ordered]@{}
-    foreach ($d in $script:VendorDlls) {
+    foreach ($d in @(Get-SmokeWorkerFiles $Platform | Where-Object { $_ -like '*.dll' })) {
         $p = Join-Path $WorkerDir $d
-        $h[$d] = $(if ($WorkerDir -and [IO.File]::Exists($p)) { Get-KeyFileSha $p } else { '-' })
+        if (-not ($WorkerDir -and [IO.File]::Exists($p)) -and $d -eq 'd3dx9_43.dll' -and $SystemDir) { $p = Join-Path $SystemDir $d }
+        $h[$d] = $(if ([IO.File]::Exists($p)) { Get-KeyFileSha $p } else { '-' })
     }
-    $p = Join-Path $SystemDir 'd3dx9_43.dll'
-    $h['d3dx9_43.dll'] = $(if ($SystemDir -and [IO.File]::Exists($p)) { Get-KeyFileSha $p } else { '-' })
     return $h
 }
 

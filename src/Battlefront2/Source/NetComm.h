@@ -128,6 +128,7 @@ public:
     static NetArch GetMyArch();
 
     static bool IsLAN();
+    static bool IsWanReady();
     static void SetBandwidthPercent(int percent);
     static void SendVoice(int iDest, PktType type, NetPacket* pPacket, int voiceDataOffset);
 

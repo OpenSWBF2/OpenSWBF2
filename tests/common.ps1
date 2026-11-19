@@ -66,11 +66,13 @@ function Find-GameDataRoot {
     return $null
 }
 
-function Get-SmokePrecheck($gameDataRoot, $exeDir, $asan = $false) {
+$script:SmokeRequiredDlls = @{ Win32 = @('binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll'); x64 = @() }
+
+function Get-SmokePrecheck($gameDataRoot, $exeDir, $asan = $false, [ValidateSet('Win32', 'x64')][string]$platform = $script:SmokePlatform) {
     if (-not $gameDataRoot) { return 'no retail GameData found (set SWBF2_GAMEDATA or install Steam App 6060)' }
     if (-not (Test-Path -LiteralPath (Join-Path $exeDir 'BattlefrontII.exe'))) { return "BattlefrontII.exe not found in $exeDir" }
-    $dlls = @('binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll')
-    if ($asan) { $dlls += Get-AsanRuntimeName }
+    $dlls = @($script:SmokeRequiredDlls[$platform])
+    if ($asan) { $dlls += $script:AsanRuntimeNames[$platform] }
     foreach ($dll in $dlls) {
         if (-not (Test-Path -LiteralPath (Join-Path $exeDir $dll))) { return "$dll missing beside the exe in $exeDir" }
     }

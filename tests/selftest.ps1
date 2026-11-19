@@ -153,6 +153,26 @@ try {
         if ($why) { $failed++; Write-Host "FAILED ${n}: $($sc[0]): $why" }
         else { Write-Host "OK $n $($sc[0])" }
     }
+    $n++
+    $werTmp = Join-Path $smokeTmp 'wer'
+    New-Item -ItemType Directory -Path $werTmp | Out-Null
+    $werStub = Join-Path $smokeTmp 'werstub.ps1'
+    Set-Content -Path $werStub -Encoding ASCII -Value "param(`$d)`r`nSet-Content -Path (Join-Path `$d ""powershell.exe.`$PID.dmp"") -Value own`r`nStart-Sleep -Milliseconds 50`r`nSet-Content -Path (Join-Path `$d 'powershell.exe.1.dmp') -Value other`r`n[Environment]::Exit(-1073740791)"
+    $werCaseDir = Join-Path $smokeTmp "case$n"
+    New-Item -ItemType Directory -Path $werCaseDir | Out-Null
+    $savedWerFolder = ${function:Get-WerDumpFolder}
+    try {
+        ${function:Get-WerDumpFolder} = [scriptblock]::Create("'$werTmp'")
+        $psWer = Join-Path $env:windir 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        $r = Invoke-SmokeCase "t$n" $psWer $smokeTmp ('-NoProfile -ExecutionPolicy Bypass -File "' + $werStub + '" "' + $werTmp + '"') $werCaseDir
+    }
+    finally { ${function:Get-WerDumpFolder} = $savedWerFolder }
+    $werCopied = @(Get-ChildItem -LiteralPath $werCaseDir -Filter '*.dmp')
+    $why = $null
+    if ($r.Class -ne 'GsFailure') { $why = "class $($r.Class), expected GsFailure" }
+    elseif ($werCopied.Count -ne 1 -or ([IO.File]::ReadAllText($werCopied[0].FullName).Trim()) -cne 'own') { $why = "copied '$(@($werCopied | ForEach-Object { $_.Name }) -join ',')', expected only the dump named for the case's own process id" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: smoke fast-fail copies the WER dump of its own process: $why" }
+    else { Write-Host "OK $n smoke fast-fail copies the WER dump of its own process" }
     $stallFixtures = @(
         @('stall clock: changed turns or steps reset the silence', @{ Progress = '1/1'; Seen = $true; CpuMs = 100.0; SilenceMs = 2500.0; SilentMaxMs = 2500.0; Stalled = $false; Kill = $false }, @(@{ Progress = '1/2'; State = 'Wait'; WaitReason = 'UserRequest'; CpuMs = 150.0; IntervalMs = 1000.0 }), 0.0, 2500.0, $false, $false),
         @('stall clock: unchanged progress with the main thread in Wait adds the whole interval', @{ Progress = '1/1'; Seen = $true; CpuMs = 100.0; SilenceMs = 0.0; SilentMaxMs = 0.0; Stalled = $false; Kill = $false }, @(@{ Progress = '1/1'; State = 'Wait'; WaitReason = 'UserRequest'; CpuMs = 150.0; IntervalMs = 1000.0 }), 1000.0, 1000.0, $false, $false),
@@ -351,6 +371,25 @@ public static class StallStub
     if ($rtW -cne 'a.dll' -or $rtX -cne 'a.dll,vcruntime140_1.dll') { $failed++; Write-Host "FAILED ${n}: runtime list per platform: Win32 '$rtW', x64 '$rtX'" }
     else { Write-Host "OK $n x64 runtime preflight adds vcruntime140_1.dll and the Win32 list is unchanged" }
     $n++
+    $grw = @(Get-GameRuntimes 'Win32' @('Standard')) -join ','
+    $grwMix = @(Get-GameRuntimes 'Win32' @('None', 'Crash')) -join ','
+    $grwOff = @(Get-GameRuntimes 'Win32' @('Vendor', 'None')) -join ','
+    $grwEmpty = @(Get-GameRuntimes 'Win32' @()) -join ','
+    $grx = @(Get-GameRuntimes 'x64' @('Standard')) -join ','
+    $grBase = @($GameRuntimes) -join ','
+    if ($grBase -match 'msvc[rp]120' -or $grBase -match 'd3dx9' -or @($T1Runtimes) -notcontains 'd3dx9_43.dll' -or $grw -cne "$grBase,msvcr120.dll,msvcp120.dll" -or $grwMix -cne $grw -or $grwOff -cne $grBase -or $grwEmpty -cne $grBase -or $grx -cne $grBase) { $failed++; Write-Host "FAILED ${n}: VS2013 runtime only for Win32 Galaxy-on groups: Win32 Standard '$grw', None+Crash '$grwMix', Vendor+None '$grwOff', none '$grwEmpty', x64 '$grx'" }
+    else { Write-Host "OK $n VS2013 runtime is required only for Win32 groups that expect Galaxy on, never for Vendor, None or x64; game runs need no system d3dx9, the tests exe does" }
+    $n++
+    $pxDir = Join-Path $smokeTmp 'precheck-x64'
+    New-Item -ItemType Directory -Force -Path (Join-Path $pxDir 'data\_lvl_pc') | Out-Null
+    Set-Content -Path (Join-Path $pxDir 'data\_lvl_pc\shell.lvl') -Value 'x'
+    foreach ($f in 'BattlefrontII.exe', 'steam_appid.txt') { Set-Content -Path (Join-Path $pxDir $f) -Value 'x' }
+    $pxX = Get-SmokePrecheck $smokeTmp $pxDir $false 'x64'
+    $pxW = Get-SmokePrecheck $smokeTmp $pxDir $false 'Win32'
+    $pxA = Get-SmokePrecheck $smokeTmp $pxDir $true 'x64'
+    if ($null -ne $pxX -or $pxW -notmatch '^binkw32\.dll missing beside the exe' -or $pxA -notmatch '^clang_rt\.asan_dynamic-x86_64\.dll missing') { $failed++; Write-Host "FAILED ${n}: smoke precheck per platform: x64 '$pxX', Win32 '$pxW', x64 asan '$pxA'" }
+    else { Write-Host "OK $n smoke precheck on x64 needs no vendor DLL, Win32 still needs binkw32.dll and the x64 ASan runtime is still required" }
+    $n++
     $ao = $null
     try { $ao = Get-AsanOptions 'C:\x\case' } catch {}
     if ($ao -cne "exitcode=66:log_path='C:\x\case\asan'") { $failed++; Write-Host "FAILED ${n}: asan options quote the log path: got '$ao'" }
@@ -414,14 +453,19 @@ public static class StallStub
     if ($why) { $failed++; Write-Host "FAILED ${n}: asan canary state classifier: $why" }
     else { Write-Host "OK $n asan canary state classifier" }
     $n++
+    $exclPlat = $script:SmokePlatform
+    $script:SmokePlatform = 'Win32'
     $allNames = @(Get-SmokeCases 'All' @() $false $null | ForEach-Object { $_.Name })
     $exclCfg = $script:SmokeDigestConfiguration
     $script:SmokeDigestConfiguration = 'Test'
     $allNames += @(Get-SmokeCases 'Standard' @() $false $null | ForEach-Object { $_.Name })
     $script:SmokeDigestConfiguration = $exclCfg
+    $script:SmokePlatform = 'x64'
+    $allNames += @(Get-SmokeCases 'Vendor' @() $false $null | ForEach-Object { $_.Name })
+    $script:SmokePlatform = $exclPlat
     $excl = @($script:SmokeAsanExcluded)
     $missing = @($excl | Where-Object { $allNames -notcontains $_ })
-    if ($excl.Count -ne 18 -or $missing.Count -gt 0) { $failed++; Write-Host "FAILED ${n}: asan exclusions: count $($excl.Count), unknown '$($missing -join ', ')'" }
+    if ($excl.Count -ne 23 -or $missing.Count -gt 0) { $failed++; Write-Host "FAILED ${n}: asan exclusions: count $($excl.Count), unknown '$($missing -join ', ')'" }
     else { Write-Host "OK $n asan exclusions name real smoke cases" }
 }
 finally {
@@ -926,6 +970,76 @@ foreach ($sc in $objScenarios) {
     }
 }
 $n++
+$ocRoot = Join-Path $env:TEMP ("openswbf2-x64objcond-" + [guid]::NewGuid().ToString('N'))
+$ocPlat = $script:SmokePlatform
+$ocWhy = $null
+$ocMutWhy = $null
+try {
+    New-Item -ItemType Directory -Force -Path $ocRoot | Out-Null
+    Set-Content -Encoding UTF8 -Path (Join-Path $ocRoot 'BattlefrontII.vcxproj') -Value @(
+        '<?xml version="1.0" encoding="utf-8"?>',
+        '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">',
+        '  <ItemGroup>',
+        '    <ClCompile Include="All.cpp" />',
+        '    <ClCompile Include="Win.cpp" Condition="''$(Platform)''==''Win32''" />',
+        '  </ItemGroup>',
+        '  <ItemGroup Condition="''$(Platform)''==''x64''">',
+        '    <ClCompile Include="Wide.cpp" />',
+        '  </ItemGroup>',
+        '</Project>'
+    )
+    foreach ($oc in @(@('x64', @('All', 'Wide')), @('Win32', @('All', 'Win')))) {
+        $ocInt = Join-Path $ocRoot "obj\$($oc[0])\Test"
+        New-Item -ItemType Directory -Force -Path (Join-Path $ocInt 'BattlefrontII.tlog') | Out-Null
+        $ocObjs = @($oc[1] | ForEach-Object { Join-Path $ocInt "$_.obj" })
+        foreach ($o in $ocObjs) { Set-Content -Path $o -Value 'obj' -Encoding ASCII }
+        Set-Content -Encoding Unicode -Path (Join-Path $ocInt 'BattlefrontII.tlog\link.command.1.tlog') -Value @(('^' + ($ocObjs -join '|')), '/OUT:"X.EXE"')
+        $script:SmokePlatform = $oc[0]
+        $c = Get-X64ObjectsCheck $ocRoot 'Test'
+        if (-not $c.Ok -or $c.Detail -notmatch '^units=2 missing=0') { $ocWhy = "$($oc[0]) ok=$($c.Ok): $($c.Detail)"; break }
+    }
+    if (-not $ocWhy) {
+        $ocAnchor = 'if (-not (Test-MsBuildItemIncluded $item $script:SmokePlatform $config)) { continue }'
+        $ocDef = (Get-Command Get-X64ObjectsCheck).Definition
+        $ocHits = ([regex]::Matches($ocDef, [regex]::Escape($ocAnchor))).Count
+        if ($ocHits -ne 1) { $ocWhy = "mutant anchor found $ocHits times in Get-X64ObjectsCheck" }
+        else {
+            $script:SmokePlatform = 'x64'
+            $ocMut = & {
+                Set-Item -Path function:Get-X64ObjectsCheck -Value ([scriptblock]::Create($ocDef.Replace($ocAnchor, '')))
+                Get-X64ObjectsCheck $ocRoot 'Test'
+            }
+            if ($ocMut.Ok -or $ocMut.Detail -notmatch '\\Win\.obj not built') { $ocWhy = "a Get-X64ObjectsCheck mutant that ignores Condition did not report Win.obj missing on x64: ok=$($ocMut.Ok) $($ocMut.Detail)" }
+            else { $ocMutWhy = $ocMut.Detail }
+        }
+    }
+    if (-not $ocWhy) {
+        $ocCond = @(
+            @("'`$(Platform)'=='x64' and '`$(Configuration)'=='Release'", 'x64', 'Release', $true),
+            @("'`$(Platform)'=='x64' and '`$(Configuration)'=='Release'", 'x64', 'Test', $false),
+            @("'`$(Configuration)'=='Test'", 'Win32', 'Test', $true),
+            @('', 'Win32', 'Test', $true)
+        )
+        foreach ($cc in $ocCond) {
+            if ((Test-MsBuildCondition $cc[0] $cc[1] $cc[2]) -ne $cc[3]) { $ocWhy = "condition '$($cc[0])' on $($cc[1])|$($cc[2]) is not $($cc[3])"; break }
+        }
+    }
+    if (-not $ocWhy) {
+        foreach ($bad in @("'`$(Platform)'!='x64'", "Exists('x.dll')", "'`$(Platform)'=='x64' or '`$(Platform)'=='Win32'", "'`$(SWBF2_VENDOR_X64)'==''")) {
+            $threw = $false
+            try { [void](Test-MsBuildCondition $bad 'x64' 'Test') } catch { $threw = $_.Exception.Message -like 'unsupported MSBuild condition:*' }
+            if (-not $threw) { $ocWhy = "unsupported condition '$bad' did not throw"; break }
+        }
+    }
+}
+catch { $ocWhy = "threw: $_" }
+finally {
+    $script:SmokePlatform = $ocPlat
+    Remove-Item -Recurse -Force $ocRoot -ErrorAction SilentlyContinue
+}
+if ($ocWhy) { $failed++; Write-Host "FAILED ${n}: x64-objects honours item and ItemGroup Condition per platform: $ocWhy" }
+else { Write-Host "OK $n x64-objects honours item and ItemGroup Condition per platform (x64 needs All and Wide, Win32 needs All and Win), unsupported condition forms throw; mutant without Condition fails: $ocMutWhy" }
+$n++
 $xhRoot = Join-Path $env:TEMP ("openswbf2-x64hard-" + [guid]::NewGuid().ToString('N'))
 try {
     $xhTests = Join-Path $xhRoot 'tests'
@@ -946,7 +1060,8 @@ try {
     Set-Content -Encoding Unicode -Path (Join-Path $xhTlog 'link.command.1.tlog') -Value @(('^' + (Join-Path $xhInt 'A.OBJ')), '/OUT:"X.EXE"')
     $xhOut = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $xhTests 'run.ps1') -Platform x64 -Configuration Test -NoBuild -Hardening 2>&1 | ForEach-Object { "$_" } }
     $xhRows = @($xhOut | Where-Object { $_ -cmatch '^\[(PASS|FAIL|SKIP)\] hardening:' })
-    $xhBin = @(@(Get-HardeningChecks '' '' 0 0 0) + @(Get-MiCrtHookCheck '') + @(Get-ImportChecks '') | Where-Object { $_.Name -ne 'sdl' } | ForEach-Object { $_.Name }) + @('aslr-pe', 'aslr-pe-tests')
+    $xhImp = @(Get-ImportChecks '' 'x64' | ForEach-Object { $_.Name })
+    $xhBin = @(@(Get-HardeningChecks '' '' 0 0 0) + @(Get-MiCrtHookCheck '') | Where-Object { $_.Name -ne 'sdl' } | ForEach-Object { $_.Name }) + @('aslr-pe', 'aslr-pe-tests')
     $why = $null
     foreach ($bn in $xhBin) {
         $rows = @($xhRows | Where-Object { $_ -cmatch ('^\[(PASS|FAIL|SKIP)\] hardening:' + [regex]::Escape($bn) + '(?= |$)') })
@@ -954,13 +1069,15 @@ try {
     }
     $xhTlogNames = @('sdl', 'flag-alignednew', 'flag-inline', 'flag-alignednew-tests', 'flag-banned', 'x64-truncation', 'mimalloc-defines', 'x64-objects')
     $dupes = @($xhRows | ForEach-Object { ($_ -split ' ')[1] } | Where-Object { $xhTlogNames -contains $_.Substring('hardening:'.Length) } | Group-Object | Where-Object { $_.Count -ne 1 } | ForEach-Object { $_.Name })
-    if (-not $why -and @($xhRows | Where-Object { $_ -like '*hardening:dumpbin*' }).Count) { $why = 'dumpbin ran on x64' }
+    $xhSkipped = @($xhRows | Where-Object { $_ -clike '*- Phase 52' } | ForEach-Object { (($_ -split ' ')[1]).Substring('hardening:'.Length) } | Where-Object { $xhImp -contains $_ })
+    if (-not $why -and $xhSkipped.Count) { $why = "import rows skipped on x64: $($xhSkipped -join ', ')" }
+    if (-not $why -and @($xhRows | Where-Object { $_ -cmatch '^\[FAIL\] hardening:dumpbin - exit [1-9]' }).Count -ne 1) { $why = 'dumpbin /imports did not run once on the x64 exe that is not a PE' }
     if (-not $why -and $dupes.Count) { $why = "rows repeated: $($dupes -join ', ')" }
     if (-not $why) {
         foreach ($want in '[PASS] hardening:x64-truncation', '[PASS] hardening:x64-objects') { if ($xhRows -cnotcontains $want) { $why = "no $want" } }
     }
-    if ($why) { $failed++; Write-Host "FAILED ${n}: x64 hardening runs no Win32 binary check: $why"; $xhOut | ForEach-Object { Write-Host "    $_" } }
-    else { Write-Host "OK $n x64 hardening with an x64 exe present runs no Win32 binary check and passes x64-truncation and x64-objects" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: x64 hardening runs the import rows and no other Win32 binary check: $why"; $xhOut | ForEach-Object { Write-Host "    $_" } }
+    else { Write-Host "OK $n x64 hardening with an x64 exe present runs dumpbin /imports for the import rows, skips the other Win32 binary checks and passes x64-truncation and x64-objects" }
 }
 finally {
     Remove-Item -Recurse -Force $xhRoot -ErrorAction SilentlyContinue
@@ -1147,11 +1264,263 @@ finally {
 $n++
 $impGood = "Dump of file C:\X\BattlefrontII.exe`n`n  Section contains the following imports:`n`n    KERNEL32.dll`n              1000 Import Address Table`n                 1A0 GetTickCount`n`n    api-ms-win-crt-environment-l1-1-0.dll`n                   0 getenv`n"
 $impBad = $impGood + "`n    bcrypt.dll`n                   0 BCryptGenRandom`n"
-$okGood = @(Get-ImportChecks $impGood | Where-Object { $_.Name -eq 'import-modules' })
-$okBad = @(Get-ImportChecks $impBad | Where-Object { $_.Name -eq 'import-modules' })
-$okEmpty = @(Get-ImportChecks '' | Where-Object { $_.Name -eq 'import-modules' })
-if ($okGood.Count -ne 1 -or -not $okGood[0].Ok -or $okBad[0].Ok -or $okBad[0].Detail -notmatch 'bcrypt\.dll' -or $okEmpty[0].Ok -or $okEmpty[0].Detail -notmatch 'kernel32\.dll not found') { $failed++; Write-Host "FAILED ${n}: import-modules allows only listed DLLs: good=$($okGood.Ok) bad=$($okBad.Ok) empty=$($okEmpty.Ok)" }
-else { Write-Host "OK $n import-modules allows only listed DLLs" }
+function Get-SelImportRow($imp, [string]$plat, [string]$name) { return , @(Get-ImportChecks $imp $plat | Where-Object { $_.Name -eq $name }) }
+foreach ($plat in 'Win32', 'x64') {
+    $okGood = Get-SelImportRow $impGood $plat 'import-modules'
+    $okBad = Get-SelImportRow $impBad $plat 'import-modules'
+    $okEmpty = Get-SelImportRow '' $plat 'import-modules'
+    if ($okGood.Count -ne 1 -or -not $okGood[0].Ok -or $okBad[0].Ok -or $okBad[0].Detail -notmatch 'bcrypt\.dll' -or $okEmpty[0].Ok -or $okEmpty[0].Detail -notmatch 'kernel32\.dll not found') { $failed++; Write-Host "FAILED ${n}: import-modules allows only listed DLLs on ${plat}: good=$($okGood.Ok) bad=$($okBad.Ok) empty=$($okEmpty.Ok)" }
+    else { Write-Host "OK $n import-modules allows only listed DLLs on $plat" }
+    $n++
+}
+$impDelay = $impGood + "`n  Section contains the following delay load imports:`n`n    steam_api.dll`n              00000001 Characteristics`n              0041C958 Address of HMODULE`n              0041C944 Import Address Table`n              0041B7EC Import Name Table`n              0041B808 Bound Import Name Table`n              00000000 Unload Import Name Table`n                     0 time date stamp`n`n          0040125A             313 SteamAPI_Shutdown`n`n  Summary`n`n        1000 .data`n"
+$impBink = $impGood + "`n    binkw32.dll`n                   0 _BinkOpen@8`n"
+$delayAllowSaved = $script:ImportDelayAllow
+foreach ($plat in 'Win32', 'x64') {
+    $why = $null
+    try {
+        $script:ImportDelayAllow = @{ Win32 = @(); x64 = @() }
+        $gm = Get-SelImportRow $impGood $plat 'import-modules'
+        $gd = Get-SelImportRow $impGood $plat 'import-delay-modules'
+        $dm = Get-SelImportRow $impDelay $plat 'import-modules'
+        $dd = Get-SelImportRow $impDelay $plat 'import-delay-modules'
+        if ($gm.Count -ne 1 -or $gd.Count -ne 1 -or -not $gm[0].Ok -or -not $gd[0].Ok) { $why = "static-only fixture: modules=$($gm.Ok) delay=$($gd.Ok)" }
+        elseif ($dd.Count -ne 1 -or $dd[0].Ok -or $dd[0].Detail -cne 'delay imports outside the allow list: steam_api.dll') { $why = "unlisted delay import: ok=$($dd.Ok) detail=$($dd.Detail)" }
+        elseif (-not $dm[0].Ok) { $why = "static half saw the delay import: $($dm[0].Detail)" }
+        else {
+            $script:ImportDelayAllow[$plat] = @('steam_api.dll')
+            $ld = Get-SelImportRow $impDelay $plat 'import-delay-modules'
+            if (-not $ld[0].Ok) { $why = "listed delay import failed: $($ld[0].Detail)" }
+        }
+    }
+    finally { $script:ImportDelayAllow = $delayAllowSaved }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: import-delay-modules on ${plat} fails only an unlisted delay import: $why" }
+    else { Write-Host "OK $n import-delay-modules on $plat fails an unlisted delay import, passes a listed one and keeps it out of import-modules" }
+    $n++
+}
+$bw = Get-SelImportRow $impBink 'Win32' 'import-modules'
+$bx = Get-SelImportRow $impBink 'x64' 'import-modules'
+if (-not $bw[0].Ok -or $bx[0].Ok -or $bx[0].Detail -notmatch 'binkw32\.dll') { $failed++; Write-Host "FAILED ${n}: import-modules lists are per platform: Win32=$($bw[0].Ok) x64=$($bx[0].Ok) $($bx[0].Detail)" }
+else { Write-Host "OK $n import-modules lists are per platform (binkw32.dll passes on Win32, fails on x64)" }
+$n++
+$bx64 = Get-SelImportRow ($impGood + "`n    binkw64.dll`n                   0 BinkOpen`n") 'x64' 'import-modules'
+if ($bx64.Count -ne 1 -or $bx64[0].Ok -or $bx64[0].Detail -notmatch 'binkw64\.dll') { $failed++; Write-Host "FAILED ${n}: x64 import-modules fails a binkw64.dll import: ok=$($bx64.Ok) $($bx64.Detail)" }
+else { Write-Host "OK $n x64 import-modules fails a binkw64.dll import (x64 links the null movie player and no Bink)" }
+$n++
+$impAnchor = 'Section contains the following delay load imports:'
+$impDef = (Get-Command Get-ImportChecks).Definition
+$impHits = ([regex]::Matches($impDef, [regex]::Escape($impAnchor))).Count
+if ($impHits -ne 1) { $failed++; Write-Host "FAILED ${n}: delay-import mutant anchor found $impHits times in Get-ImportChecks" }
+else {
+    $impMut = @(& {
+        Set-Item -Path function:Get-ImportChecks -Value ([scriptblock]::Create($impDef.Replace($impAnchor, 'OPENSWBF2 NO SUCH DUMPBIN HEADER')))
+        Get-ImportChecks $impDelay 'Win32' | Where-Object { $_.Name -eq 'import-delay-modules' }
+    })
+    if ($impMut.Count -ne 1 -or -not $impMut[0].Ok) { $failed++; Write-Host "FAILED ${n}: a Get-ImportChecks mutant that ignores the delay section still fails the delay fixture: ok=$($impMut.Ok) $($impMut.Detail)" }
+    else { Write-Host "OK $n delay-import fixture discriminates: a Get-ImportChecks mutant that ignores the delay section passes import-delay-modules on it" }
+}
+$n++
+$ucDir = Join-Path $tmp 'unicows'
+$ucOut = Join-Path $ucDir 'out'
+$ucOutBad = Join-Path $ucDir 'outbad'
+$ucSrc = Join-Path $ucDir 'src'
+$ucSrcBad = Join-Path $ucDir 'srcbad'
+foreach ($d in $ucOut, $ucOutBad, $ucSrc, $ucSrcBad) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
+Set-Content -LiteralPath (Join-Path $ucOutBad 'unicows.dll') -Value 'x' -Encoding ASCII
+Set-Content -LiteralPath (Join-Path $ucSrc 'a.cpp') -Value 'int a;' -Encoding ASCII
+Set-Content -LiteralPath (Join-Path $ucSrcBad 'a.cpp') -Value 'LoadLibraryA("unicows.dll");' -Encoding ASCII
+$ucShipped = [IO.File]::ReadAllText((Join-Path (Split-Path $PSScriptRoot -Parent) 'BattlefrontII.vcxproj'))
+$ucProj = '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><Target Name="StageGameData"><ItemGroup><GameDataFile Include="$(SWBF2_GAMEDATA)\steam_api.dll" />{0}</ItemGroup><Copy SourceFiles="{1}" DestinationFolder="$(OutDir)" /><Delete Files="$(OutDir)unicows.dll" /></Target></Project>'
+$ucCopyGood = '@(GameDataFile)'
+$ucCases = @(
+    @('the shipped project with a clean output, worker list, imports and src', $true, $ucOut, $ucShipped, $null, $impGood, $ucSrc, $null),
+    @('a project with only the Delete of the stale copy', $true, $ucOut, ($ucProj -f '', $ucCopyGood), @('BattlefrontII.exe', 'steam_appid.txt'), $impGood, $ucSrc, $null),
+    @('unicows.dll in the output folder', $false, $ucOutBad, $ucShipped, $null, $impGood, $ucSrc, 'staged in '),
+    @('a GameDataFile item naming unicows', $false, $ucOut, ($ucProj -f '<GameDataFile Include="$(SWBF2_GAMEDATA)\unicows.dll" />', $ucCopyGood), $null, $impGood, $ucSrc, 'vcxproj GameDataFile'),
+    @('a VendorFile item naming unicows', $false, $ucOut, ($ucProj -f '<VendorFile Include="$(SWBF2_VENDOR_X64)\unicows.dll" />', $ucCopyGood), $null, $impGood, $ucSrc, 'vcxproj VendorFile'),
+    @('a Copy whose SourceFiles names unicows', $false, $ucOut, ($ucProj -f '', '$(SWBF2_GAMEDATA)\unicows.dll'), $null, $impGood, $ucSrc, 'vcxproj Copy'),
+    @('unicows.dll in the worker list', $false, $ucOut, $ucShipped, @('BattlefrontII.exe', 'unicows.dll'), $impGood, $ucSrc, 'worker list'),
+    @('unicows.dll in the static import section', $false, $ucOut, $ucShipped, $null, ($impGood + "`n    UNICOWS.dll`n                   0 GetModuleHandleW`n"), $ucSrc, 'static import'),
+    @('unicows.dll in the delay import section', $false, $ucOut, $ucShipped, $null, ($impDelay.Replace('    steam_api.dll', '    unicows.dll')), $ucSrc, 'delay import'),
+    @('a src file naming unicows', $false, $ucOut, $ucShipped, $null, $impGood, $ucSrcBad, 'named in ')
+)
+foreach ($uc in $ucCases) {
+    $c = Get-UnicowsCheck '' $Platform $uc[2] $uc[5] $uc[3] $uc[4] $uc[6]
+    $why = $null
+    if ($c.Name -ne 'unicows-staged' -or $c.Ok -ne $uc[1]) { $why = "ok=$($c.Ok) $($c.Detail)" }
+    elseif ($uc[7] -and $c.Detail -notlike "*$($uc[7])*") { $why = "detail does not name '$($uc[7])': $($c.Detail)" }
+    elseif ($uc[1] -and $c.Detail) { $why = "passing case has detail: $($c.Detail)" }
+    $verb = 'fails'
+    if ($uc[1]) { $verb = 'passes' }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: unicows-staged $verb on $($uc[0]): $why" }
+    else { Write-Host "OK $n unicows-staged $verb on $($uc[0])" }
+    $n++
+}
+$dpRoot = Split-Path $PSScriptRoot -Parent
+$dpPins = [IO.File]::ReadAllText((Join-Path $dpRoot 'lib\vendor-pins.props'))
+$dpProj = [IO.File]::ReadAllText((Join-Path $dpRoot 'BattlefrontII.vcxproj'))
+$dpWin32Verify = '<VerifyFileHash Condition="''$(Platform)''==''Win32''" File="$(D3dxDll)" Algorithm="SHA256" Hash="$(D3dxWin32Sha256)" />'
+$dpX64Verify = '<VerifyFileHash Condition="''$(Platform)''==''x64''" File="$(D3dxDll)" Algorithm="SHA256" Hash="$(D3dxX64Sha256)" />'
+$dpNupkgVerify = '<VerifyFileHash File="$(D3dxNupkg)" Algorithm="SHA256" Hash="$(D3dxNupkgSha256)" />'
+$dpX64Pin = (Get-VendorPins $dpRoot)['D3dxX64Sha256']
+$dpCases = @(
+    @('the shipped pins and project', $true, $dpPins, $dpProj, $null),
+    @('a 63-digit DLL pin', $false, $dpPins.Replace($dpX64Pin, $dpX64Pin.Substring(1)), $dpProj, 'D3dxX64Sha256 is not 64 hex digits'),
+    @('an upper-case nupkg pin', $false, $dpPins.Replace('ead0906ae8a26c18', 'EAD0906AE8A26C18'), $dpProj, 'D3dxNupkgSha256 is not 64 hex digits'),
+    @('a project without the Win32 DLL VerifyFileHash', $false, $dpPins, $dpProj.Replace($dpWin32Verify, ''), 'against $(D3dxWin32Sha256)'),
+    @('a project without the x64 DLL VerifyFileHash', $false, $dpPins, $dpProj.Replace($dpX64Verify, ''), 'against $(D3dxX64Sha256)'),
+    @('a project whose cache VerifyFileHash is conditional', $false, $dpPins, $dpProj.Replace($dpNupkgVerify, $dpNupkgVerify.Replace('<VerifyFileHash ', '<VerifyFileHash Condition="false" ')), 'of $(D3dxNupkg) against'),
+    @('a project that does not import the pins', $false, $dpPins, $dpProj.Replace('<Import Project="lib\vendor-pins.props" />', ''), 'does not import'),
+    @('a project that extracts only a missing cached DLL', $false, $dpPins, $dpProj.Replace('<Unzip Condition="''$(D3dxDllHash)'' != ''$(D3dxDllSha256)''"', '<Unzip Condition="!Exists(''$(D3dxDll)'')"'), 'not conditioned on the cached DLL hash')
+)
+foreach ($dp in $dpCases) {
+    $c = Get-D3dxPinsCheck $dpRoot $dp[2] $dp[3]
+    $why = $null
+    if ($dp[3] -ceq $dpProj -and $dp[2] -ceq $dpPins -and -not $dp[1]) { $why = 'fixture did not change its input' }
+    elseif ($c.Name -ne 'd3dx9-pins' -or $c.Ok -ne $dp[1]) { $why = "ok=$($c.Ok) $($c.Detail)" }
+    elseif ($dp[4] -and $c.Detail -notlike "*$($dp[4])*") { $why = "detail does not name '$($dp[4])': $($c.Detail)" }
+    elseif ($dp[1] -and $c.Detail) { $why = "passing case has detail: $($c.Detail)" }
+    $verb = $(if ($dp[1]) { 'passes' } else { 'fails' })
+    if ($why) { $failed++; Write-Host "FAILED ${n}: d3dx9-pins $verb on $($dp[0]): $why" }
+    else { Write-Host "OK $n d3dx9-pins $verb on $($dp[0])" }
+    $n++
+}
+$dsDir = Join-Path $tmp 'd3dx9-staged'
+$dsGoodBytes = [Text.Encoding]::ASCII.GetBytes('good')
+$dsSha = [Security.Cryptography.SHA256]::Create()
+$dsGoodPin = ([BitConverter]::ToString($dsSha.ComputeHash($dsGoodBytes)) -replace '-', '').ToLowerInvariant()
+$dsSha.Dispose()
+$dsPins = $dpPins.Replace($dpX64Pin, $dsGoodPin)
+$dsCases = @(
+    @('a staged folder whose copy matches the pin', 'PASS', $true, 'good', $null),
+    @('a staged folder whose copy has another hash', 'FAIL', $true, 'bad', 'pin is'),
+    @('a staged folder without the copy', 'FAIL', $true, $null, 'missing'),
+    @('an output folder that was not staged', 'SKIP', $false, $null, 'not staged')
+)
+$dsI = 0
+foreach ($ds in $dsCases) {
+    $dsI++
+    $d = Join-Path $dsDir "c$dsI"
+    New-Item -ItemType Directory -Force -Path $d | Out-Null
+    if ($ds[2]) { New-Item -ItemType Directory -Force -Path (Join-Path $d 'data') | Out-Null }
+    if ($ds[3]) { [IO.File]::WriteAllBytes((Join-Path $d 'd3dx9_43.dll'), [Text.Encoding]::ASCII.GetBytes($ds[3])) }
+    $c = Get-D3dxStagedCheck $dpRoot 'x64' $d $dsPins
+    $line = Get-D3dxStagedLine $c
+    $why = $null
+    if ($c.Status -ne $ds[1]) { $why = "status $($c.Status): $line" }
+    elseif ($ds[4] -and $line -notlike "*$($ds[4])*") { $why = "line does not name '$($ds[4])': $line" }
+    elseif ($ds[1] -eq 'PASS' -and $line -cne '[PASS] vendor:d3dx9-staged') { $why = "unexpected line: $line" }
+    elseif ($ds[1] -eq 'SKIP' -and $line -cne '[SKIP] vendor:d3dx9-staged - not staged') { $why = "unexpected line: $line" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: vendor:d3dx9-staged is $($ds[1]) on $($ds[0]): $why" }
+    else { Write-Host "OK $n vendor:d3dx9-staged is $($ds[1]) on $($ds[0])" }
+    $n++
+}
+$vdPlat = $script:SmokePlatform
+foreach ($vp in 'Win32', 'x64') {
+    $script:SmokePlatform = $vp
+    $vdCases = @(Get-SmokeCases 'Vendor' @() $false $null)
+    $vdOther = $(if ($vp -eq 'x64') { 'Win32' } else { 'x64' })
+    $vdGood = "OPENSWBF2 VENDOR steam=on galaxy=off d3dx9=C:\Dev\Open SWBF2\artifacts\smoke-workers\$vp\Release\guard\w12\D3DX9_43.DLL msvcr120=0 msvcp120=0"
+    $vdBad = @(
+        'OPENSWBF2 VENDOR steam=on galaxy=off d3dx9=C:\WINDOWS\SYSTEM32\d3dx9_43.dll msvcr120=0 msvcp120=0',
+        "OPENSWBF2 VENDOR steam=on galaxy=off d3dx9=C:\Dev\OpenSWBF2\bin\$vp\Release\d3dx9_43.dll msvcr120=0 msvcp120=0",
+        "OPENSWBF2 VENDOR steam=on galaxy=off d3dx9=C:\Dev\OpenSWBF2\artifacts\smoke-workers\$vdOther\Release\smoke\w1\d3dx9_43.dll msvcr120=0 msvcp120=0",
+        "OPENSWBF2 VENDOR steam=on galaxy=off d3dx9=C:\Dev\OpenSWBF2\artifacts\smoke-workers\$vp\Release\smoke\w1\sub\d3dx9_43.dll msvcr120=0 msvcp120=0"
+    )
+    $why = $null
+    if ($vdCases.Count -lt 3) { $why = "only $($vdCases.Count) Vendor cases" }
+    foreach ($vc in $vdCases) {
+        if ($why) { break }
+        $rx = @($vc.Expect.LogRx | Where-Object { $_ -like '*smoke-workers*d3dx9_43*' })
+        if ($rx.Count -ne 1) { $why = "$($vc.Name) has $($rx.Count) worker d3dx9 patterns"; break }
+        if ($vdGood -notmatch $rx[0]) { $why = "$($vc.Name) rejects a worker-folder d3dx9 path"; break }
+        foreach ($b in $vdBad) { if ($b -match $rx[0]) { $why = "$($vc.Name) accepts $b"; break } }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: every $vp Vendor case requires d3dx9 from its own worker folder: $why" }
+    else { Write-Host "OK $n every $vp Vendor case requires d3dx9 from its own worker folder and rejects the system, bin and other-platform paths" }
+    $n++
+}
+$script:SmokePlatform = $vdPlat
+$c = Get-D3dxStagedCheck $dpRoot 'Win32' (Join-Path $dsDir 'c1') $dsPins
+if ($c.Status -ne 'FAIL') { $failed++; Write-Host "FAILED ${n}: vendor:d3dx9-staged on Win32 judged an x64-pinned copy $($c.Status)" }
+else { Write-Host "OK $n vendor:d3dx9-staged judges each platform against its own pin" }
+$n++
+$spPin = (Get-VendorPins $dpRoot)['SteamApi64Sha256']
+$spVerify = [regex]::Match($dpProj, '<VerifyFileHash [^>]*File="\$\(SWBF2_VENDOR_X64\)\\steam_api64\.dll"[^>]*/>').Value
+$spCopy = [regex]::Match($dpProj, '<Copy [^>]*SourceFiles="\$\(SWBF2_VENDOR_X64\)\\steam_api64\.dll"[^>]*/>').Value
+$spCases = @(
+    @('the shipped pin and project', $true, $dpPins, $dpProj, $null),
+    @('a 63-digit steam_api64 pin', $false, $dpPins.Replace($spPin, $spPin.Substring(1)), $dpProj, 'SteamApi64Sha256 is not 64 hex digits'),
+    @('a Copy without a VerifyFileHash', $false, $dpPins, $dpProj.Replace($spVerify, ''), 'without a VerifyFileHash'),
+    @('a VerifyFileHash after the Copy', $false, $dpPins, $dpProj.Replace($spVerify + "`r`n    " + $spCopy, $spCopy + "`r`n    " + $spVerify), 'without a VerifyFileHash'),
+    @('a VerifyFileHash with another condition', $false, $dpPins, $dpProj.Replace($spVerify, $spVerify.Replace('<VerifyFileHash Condition="', '<VerifyFileHash Condition="false and ')), 'without a VerifyFileHash'),
+    @('a project that never copies steam_api64.dll', $false, $dpPins, $dpProj.Replace($spCopy, ''), 'has no Copy')
+)
+foreach ($sp in $spCases) {
+    $c = Get-SteamApi64PinsCheck $dpRoot $sp[2] $sp[3]
+    $why = $null
+    if (-not $spVerify -or -not $spCopy) { $why = 'StageVendor steam_api64 steps not found in BattlefrontII.vcxproj' }
+    elseif ($sp[3] -ceq $dpProj -and $sp[2] -ceq $dpPins -and -not $sp[1]) { $why = 'fixture did not change its input' }
+    elseif ($c.Name -ne 'steam-api64-pins' -or $c.Ok -ne $sp[1]) { $why = "ok=$($c.Ok) $($c.Detail)" }
+    elseif ($sp[4] -and $c.Detail -notlike "*$($sp[4])*") { $why = "detail does not name '$($sp[4])': $($c.Detail)" }
+    elseif ($sp[1] -and $c.Detail) { $why = "passing case has detail: $($c.Detail)" }
+    $verb = $(if ($sp[1]) { 'passes' } else { 'fails' })
+    if ($why) { $failed++; Write-Host "FAILED ${n}: steam-api64-pins $verb on $($sp[0]): $why" }
+    else { Write-Host "OK $n steam-api64-pins $verb on $($sp[0])" }
+    $n++
+}
+$saNames = @('SteamAPI_Init', 'SteamAPI_RestartAppIfNecessary', 'SteamAPI_Shutdown', 'SteamAPI_RunCallbacks', 'SteamAPI_RegisterCallResult', 'SteamAPI_UnregisterCallResult', 'SteamAPI_GetHSteamPipe', 'SteamAPI_GetHSteamUser', 'SteamInternal_ContextInit', 'SteamInternal_CreateInterface')
+$saDef = "LIBRARY steam_api64.dll`r`nEXPORTS`r`n" + (($saNames | ForEach-Object { "    $_" }) -join "`r`n") + "`r`n"
+$saImp = "  Section contains the following imports:`n`n    KERNEL32.dll`n             140123456 Import Address Table`n                         0 SteamAPI_NotDelayed`n`n  Section contains the following delay load imports:`n`n    steam_api64.dll`n              00000001 Characteristics`n      00000001421D9F80 Address of HMODULE`n                     0 time date stamp`n`n" + (($saNames | ForEach-Object { "                                    000000014048319F     3 $_" }) -join "`n") + "`n`n    Galaxy64.dll`n              00000001 Characteristics`n`n                                    0000000140483300     0 Galaxy_NotInSteam`n"
+$saExp = "    ordinal hint RVA      name`n`n" + (($saNames | ForEach-Object { "          1    0 00001200 $_" }) -join "`n") + "`n          9    8 00001300 SteamAPI_Other`n"
+$saDir = Join-Path $tmp 'steam-api64-staged'
+$saGoodBytes = [Text.Encoding]::ASCII.GetBytes('good')
+$saSha = [Security.Cryptography.SHA256]::Create()
+$saGoodPin = ([BitConverter]::ToString($saSha.ComputeHash($saGoodBytes)) -replace '-', '').ToLowerInvariant()
+$saSha.Dispose()
+$saPins = $dpPins.Replace($spPin, $saGoodPin)
+$saCases = @(
+    @('a staged copy with the pin and every export', 'PASS', 'good', $saExp, $saImp, $saDef, $null),
+    @('a staged copy with another hash', 'FAIL', 'bad', $saExp, $saImp, $saDef, 'pin is'),
+    @('exports without SteamAPI_RunCallbacks', 'FAIL', 'good', ($saExp -replace '(?m)^.* SteamAPI_RunCallbacks\r?\n', ''), $saImp, $saDef, 'SteamAPI_RunCallbacks imported by the exe is not exported, SteamAPI_RunCallbacks in steam_api64.def'),
+    @('a .def name the DLL does not export', 'FAIL', 'good', $saExp, $saImp, ($saDef + "    SteamAPI_Missing`r`n"), 'SteamAPI_Missing in steam_api64.def is not exported'),
+    @('an exe without a steam_api64.dll delay import', 'FAIL', 'good', $saExp, $saImp.Replace('    steam_api64.dll', '    other64.dll'), $saDef, 'no steam_api64.dll delay import'),
+    @('an output folder without the copy', 'SKIP', $null, $saExp, $saImp, $saDef, 'not staged')
+)
+$saI = 0
+foreach ($sa in $saCases) {
+    $saI++
+    $d = Join-Path $saDir "c$saI"
+    New-Item -ItemType Directory -Force -Path $d | Out-Null
+    if ($sa[2]) { [IO.File]::WriteAllBytes((Join-Path $d 'steam_api64.dll'), [Text.Encoding]::ASCII.GetBytes($sa[2])) }
+    $c = Get-SteamApi64StagedCheck $dpRoot $d $sa[4] $sa[3] $saPins $sa[5]
+    $line = Get-D3dxStagedLine (New-Object PSObject -Property @{ Status = $c.Status; Name = "hardening:$($c.Name)"; Detail = $c.Detail })
+    $why = $null
+    if ($c.Status -ne $sa[1]) { $why = "status $($c.Status): $line" }
+    elseif ($sa[6] -and $line -notlike "*$($sa[6])*") { $why = "line does not name '$($sa[6])': $line" }
+    elseif ($sa[1] -eq 'PASS' -and $line -cne '[PASS] hardening:steam-api64-staged') { $why = "unexpected line: $line" }
+    elseif ($sa[1] -eq 'SKIP' -and $line -cne '[SKIP] hardening:steam-api64-staged - not staged') { $why = "unexpected line: $line" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: steam-api64-staged is $($sa[1]) on $($sa[0]): $why" }
+    else { Write-Host "OK $n steam-api64-staged is $($sa[1]) on $($sa[0])" }
+    $n++
+}
+$sdDir = Join-Path $env:TEMP ("openswbf2-steamid-" + [guid]::NewGuid().ToString('N'))
+try {
+    foreach ($d in 'src\Steam', 'src\Foo') { New-Item -ItemType Directory -Path (Join-Path $sdDir $d) | Out-Null }
+    Set-Content -Encoding ASCII -Path (Join-Path $sdDir 'src\Steam\steamworks.h') -Value @('class CSteamID;', 'class ISteamUser', '{', '    virtual CSteamID GetSteamID() = 0;', '    virtual void EndAuthSession(CSteamID) = 0;', '};')
+    Set-Content -Encoding ASCII -Path (Join-Path $sdDir 'src\Foo\a.cpp') -Value @('void A(ISteamUser* pUser) { pUser->GetSteamID(); }', 'void B(ISteamUser& k) { k.EndAuthSession(x); }', 'void C(CSteamID kId);', 'class CSteamID;', 'void D(const CSteamID* pId, CSteamID& kId);', 'void E() { pUser->BLoggedOn(); }', 'int F() { return ISteamUser::AdvertiseGame (a, b, c); }')
+    $bad = @(Get-SourceChecks $sdDir -Only 'steamid-abi')
+    Remove-Item -LiteralPath (Join-Path $sdDir 'src\Foo\a.cpp')
+    $good = @(Get-SourceChecks $sdDir -Only 'steamid-abi')
+    $sdNote = '(settle the x64 CSteamID hidden-return and by-value convention first)'
+    $sdWant = (@('src\Foo\a.cpp:1', 'src\Foo\a.cpp:2', 'src\Foo\a.cpp:3', 'src\Foo\a.cpp:7') | ForEach-Object { "$_ $sdNote" }) -join ', '
+    if ($bad.Count -ne 1 -or $bad[0].Ok -or $bad[0].Detail -ne $sdWant) { $failed++; Write-Host "FAILED ${n}: steamid-abi flags CSteamID calls and by-value uses outside steamworks.h: $($bad.Detail)" }
+    elseif ($good.Count -ne 1 -or -not $good[0].Ok) { $failed++; Write-Host "FAILED ${n}: steamid-abi flags CSteamID calls and by-value uses outside steamworks.h: steamworks.h declarations flagged $($good.Detail)" }
+    else { Write-Host "OK $n steamid-abi flags CSteamID calls and by-value uses outside steamworks.h" }
+}
+finally {
+    Remove-Item -Recurse -Force $sdDir -ErrorAction SilentlyContinue
+}
 $n++
 $allCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con', 'quux1c_con Pass', 'foo7c_ctf Fatal', 'foo5c_ass TimeOut', 'dag1c_ctf Pass', 'spa3c_ass Pass') $false $null)
 $testAllCfg = $script:SmokeDigestConfiguration
@@ -1165,6 +1534,7 @@ foreach ($badLine in 'baz1c_con Bogus', 'qux1c_con GsFailure', 'foo3c_ctf Pass a
     try { Get-SmokeCases 'All' @($badLine) $false $null | Out-Null } catch { $rejected++ }
 }
 $why = $null
+$dlWin32 = [int]($script:SmokePlatform -eq 'Win32')
 $nvRx = '(?m)OPENSWBF2 NOVICTORY\r?$'
 $nvLog = "[t=0.000] [f=0] LogCore Inform pcMain.cpp:1: OPENSWBF2 NOVICTORY`r`n"
 $soakRx = 'OPENSWBF2 MISSION RUNNING|OPENSWBF2 SIM DIGEST turns=1500 |OPENSWBF2 SOAK turns=|'
@@ -1181,8 +1551,9 @@ elseif (-not $byName['tat3c_con'].Expect.LogRx -or $byName['tat3c_con'].Expect.C
 elseif ('FATAL: exception 0xC0000005 at 0x658FA553 (d3dx9_43.dll+0x1BA553) build 6ADE5B7C1C4C000' -notmatch @($byName['tat3c_con'].Expect.LogRx)[0]) { $why = 'Fatal LogRx does not match the recorded tat3 crash' }
 elseif ($byName['bar1c_con'].Expect.Class -ne 'Pass' -or $byName['quux1c_con'].Expect.Class -ne 'Pass') { $why = 'missing or Pass class must be Pass' }
 elseif ($rejected -ne 7) { $why = 'unknown classes, GsFailure, any third token and Pass flag or assault lines without a digest row must be rejected' }
-elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 44 -or $byName.ContainsKey('crash-buildheapfail') -or -not $byName.ContainsKey('fatal-init')) { $why = 'dedicated or crash cases changed' }
-elseif (@($testAllCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 45 -or @($testAllCases | Where-Object { $_.Name -eq 'crash-buildheapfail' }).Count -ne 1) { $why = 'Test crash cases changed' }
+elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne (44 + $dlWin32) -or $byName.ContainsKey('crash-buildheapfail') -or -not $byName.ContainsKey('fatal-init')) { $why = 'dedicated or crash cases changed' }
+elseif (@($testAllCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne (45 + $dlWin32) -or @($testAllCases | Where-Object { $_.Name -eq 'crash-buildheapfail' }).Count -ne 1) { $why = 'Test crash cases changed' }
+elseif ($dlWin32 -and ((@($byName['crash-delayload'].Omit) -join ',') -cne 'steam_api.dll' -or @($byName['crash-delayload'].Expect.LogRx) -notcontains 'FATAL: exception 0xC06D007E at 0x[0-9A-F]+ \([^)]+\) dll=steam_api\.dll build ')) { $why = 'crash-delayload must omit steam_api.dll and pin the dll= FATAL line' }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
 else { Write-Host "OK $n all-missions parsing" }
 $n++
@@ -1220,13 +1591,15 @@ $psrc = Join-Path $env:TEMP ("openswbf2-parallel-" + [guid]::NewGuid().ToString(
 $why = $null
 $pbatch = $null
 $pdirs = @()
+$pPlat = $script:SmokePlatform
+$script:SmokePlatform = 'Win32'
 try {
     New-Item -ItemType Directory -Path (Join-Path $psrc 'data') | Out-Null
     Copy-Item -LiteralPath $env:ComSpec -Destination (Join-Path $psrc 'BattlefrontII.exe')
     Set-Content -Path (Join-Path $psrc 'binkw32.dll') -Value 'x'
     Set-Content -Path (Join-Path $psrc 'data\marker.txt') -Value 'x'
     foreach ($w in 1, 2) {
-        $d = Join-Path $psrc "workers\w$w"
+        $d = Join-Path $psrc "artifacts\smoke-workers\Win32\Release\smoke\w$w"
         New-SmokeWorkerDir $psrc $d
         $pdirs += $d
         $link = Get-Item -LiteralPath (Join-Path $d 'data') -Force
@@ -1244,7 +1617,7 @@ try {
             (New-Object PSObject -Property @{ Name = 'fast'; ExeName = 'BattlefrontII.exe'; ArgLine = '/c exit 0'; CaseDir = (Join-Path $psrc 'case-fast') }),
             (New-Object PSObject -Property @{ Name = 'alt'; ExeName = 'BattlefrontII-alt.exe'; ArgLine = '/c exit 0'; CaseDir = (Join-Path $psrc 'case-alt') })
         )
-        $pbatch = Start-SmokeBatch $items $pdirs
+        $pbatch = Start-SmokeBatch $items $pdirs $psrc
         $slow = Receive-SmokeCase $pbatch 0
         $fast = Receive-SmokeCase $pbatch 1
         $alt = Receive-SmokeCase $pbatch 2
@@ -1275,9 +1648,134 @@ finally {
     if ($pbatch) { Stop-SmokeBatch $pbatch }
     foreach ($d in $pdirs) { Remove-HarnessTree $d }
     Remove-Item -Recurse -Force $psrc -ErrorAction SilentlyContinue
+    $script:SmokePlatform = $pPlat
 }
 if ($why) { $failed++; Write-Host "FAILED ${n}: parallel smoke: $why" }
 else { Write-Host "OK $n parallel smoke" }
+$vPlat = $script:SmokePlatform
+$script:SmokePlatform = 'Win32'
+$vroot = Join-Path $env:TEMP ("openswbf2-vendorsync-" + [guid]::NewGuid().ToString('N'))
+$vsrc = Join-Path $vroot 'src'
+$vswap = Join-Path $vroot 'swapsrc\steam_api64.dll'
+$vdir = Join-Path $vroot 'artifacts\smoke-workers\Win32\Release\smoke\w1'
+$vcount = Join-Path $vroot 'starts.txt'
+$vabsent = Join-Path $vroot 'absent\steam_api64.dll'
+$vbatch = $null
+$vres = [ordered]@{ a = 'not run'; b = 'not run'; c = 'not run'; d = 'not run'; batch = 'not run'; mutant = 'not run' }
+function Get-SelSha([string]$p) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return [BitConverter]::ToString($sha.ComputeHash([IO.File]::ReadAllBytes($p))) }
+    finally { $sha.Dispose() }
+}
+try {
+    New-Item -ItemType Directory -Path (Join-Path $vsrc 'data'), (Split-Path $vswap) | Out-Null
+    Copy-Item -LiteralPath $env:ComSpec -Destination (Join-Path $vsrc 'BattlefrontII.exe')
+    foreach ($f in 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll') { Set-Content -Path (Join-Path $vsrc $f) -Value "std $f" -Encoding ASCII }
+    Set-Content -Path $vswap -Value 'swap source' -Encoding ASCII
+    $vapi = Join-Path $vdir 'steam_api.dll'
+    $omitCase = New-Object PSObject -Property @{ Name = 'omit'; Omit = @('steam_api.dll') }
+    $plainCase = New-Object PSObject -Property @{ Name = 'plain' }
+    $swapCase = New-Object PSObject -Property @{ Name = 'swap'; Swap = @{ 'steam_api.dll' = $vswap } }
+    New-SmokeWorkerDir $vsrc $vdir
+    Clear-SmokeWorkerDir $vdir
+    Sync-SmokeWorkerFiles $vsrc $vdir $omitCase
+    $aGone = -not [IO.File]::Exists($vapi)
+    $aOthers = [IO.File]::Exists((Join-Path $vdir 'Galaxy.dll')) -and [IO.File]::Exists((Join-Path $vdir 'BattlefrontII.exe'))
+    Clear-SmokeWorkerDir $vdir
+    Sync-SmokeWorkerFiles $vsrc $vdir $plainCase
+    if (-not $aGone) { $vres.a = 'Omit left steam_api.dll in the worker' }
+    elseif (-not $aOthers) { $vres.a = 'Omit removed more than the named file' }
+    elseif (-not [IO.File]::Exists($vapi) -or [IO.File]::ReadAllText($vapi).Trim() -cne 'std steam_api.dll') { $vres.a = 'the next case without Omit did not get steam_api.dll back' }
+    else { $vres.a = $null }
+    $srcShaBefore = Get-SelSha $vswap
+    $srcTimeBefore = [IO.File]::GetLastWriteTimeUtc($vswap)
+    Clear-SmokeWorkerDir $vdir
+    Sync-SmokeWorkerFiles $vsrc $vdir $swapCase
+    $swapped = [IO.File]::ReadAllText($vapi).Trim()
+    Clear-SmokeWorkerDir $vdir
+    Sync-SmokeWorkerFiles $vsrc $vdir $plainCase
+    if ($swapped -cne 'swap source') { $vres.b = "worker steam_api.dll after Swap holds '$swapped'" }
+    elseif (-not [IO.File]::Exists($vswap) -or (Get-SelSha $vswap) -cne $srcShaBefore -or [IO.File]::GetLastWriteTimeUtc($vswap) -ne $srcTimeBefore) { $vres.b = 'the swap source changed' }
+    elseif ([IO.File]::ReadAllText($vapi).Trim() -cne 'std steam_api.dll') { $vres.b = 'the next case did not get the standard steam_api.dll back after a Swap' }
+    else { $vres.b = $null }
+    $cBad = @()
+    foreach ($bad in @(@{ Omit = @('steam_api.dll', '..\x.dll') }, @{ Omit = @('steam_api.dll', 'data') }, @{ Omit = @('steam_api.dll', 'sub\x.dll') }, @{ Omit = @('steam_api.dll', 'BattlefrontII.exe') }, @{ Swap = @{ '..\steam_api.dll' = $vswap } }, @{ Swap = @{ 'data' = $vswap } })) {
+        $bc = New-Object PSObject -Property (@{ Name = 'bad' } + $bad)
+        $threw = $false
+        try { Sync-SmokeWorkerFiles $vsrc $vdir $bc } catch { $threw = $_.Exception.Message -like 'REFUSING worker file name*' }
+        if (-not $threw) { $cBad += "'$(@($bad.Omit) + @($bad.Swap.Keys) -join ',')' not refused" }
+        elseif (-not [IO.File]::Exists($vapi)) { $cBad += 'a refused case still removed steam_api.dll' }
+    }
+    $threw = $false
+    try { Sync-SmokeWorkerFiles $vsrc $vsrc $plainCase } catch { $threw = $_.Exception.Message -like 'REFUSING to sync*not a worker folder*' }
+    if (-not $threw) { $cBad += 'a folder outside artifacts\smoke-workers was not refused' }
+    foreach ($np in '\steam_api64.dll', 'rel\steam_api64.dll', '') {
+        foreach ($nc in @(@{ NeedsFile = @($np) }, @{ Swap = @{ 'steam_api.dll' = $np } })) {
+            $threw = $false
+            try { $null = Get-SmokeCaseSkip (New-Object PSObject -Property (@{ Name = 'bad' } + $nc)) } catch { $threw = $_.Exception.Message -like '*is not an absolute path' }
+            if (-not $threw) { $cBad += "needed path '$np' that is not fully qualified was not refused" }
+        }
+    }
+    $vres.c = $(if ($cBad.Count) { $cBad -join '; ' } else { $null })
+    $vcases = @(
+        (New-Object PSObject -Property @{ Name = 'needs-reason'; ExeName = 'BattlefrontII.exe'; ArgLine = "/c echo needs-reason>>`"$vcount`""; CaseDir = (Join-Path $vroot 'case-needs-reason'); NeedsFile = @($vabsent); SkipReason = 'SWBF2_VENDOR_X64 not set' }),
+        (New-Object PSObject -Property @{ Name = 'needs-path'; ExeName = 'BattlefrontII.exe'; ArgLine = "/c echo needs-path>>`"$vcount`""; CaseDir = (Join-Path $vroot 'case-needs-path'); NeedsFile = @($vabsent) }),
+        (New-Object PSObject -Property @{ Name = 'swap-absent'; ExeName = 'BattlefrontII.exe'; ArgLine = "/c echo swap-absent>>`"$vcount`""; CaseDir = (Join-Path $vroot 'case-swap-absent'); Swap = @{ 'steam_api.dll' = $vabsent } }),
+        (New-Object PSObject -Property @{ Name = 'omit'; ExeName = 'BattlefrontII.exe'; ArgLine = "/c echo omit>>`"$vcount`"& type steam_api.dll"; CaseDir = (Join-Path $vroot 'case-omit'); Omit = @('steam_api.dll') }),
+        (New-Object PSObject -Property @{ Name = 'plain'; ExeName = 'BattlefrontII.exe'; ArgLine = "/c echo plain>>`"$vcount`"& type steam_api.dll"; CaseDir = (Join-Path $vroot 'case-plain') }),
+        (New-Object PSObject -Property @{ Name = 'swap'; ExeName = 'BattlefrontII.exe'; ArgLine = "/c echo swap>>`"$vcount`"& type steam_api.dll"; CaseDir = (Join-Path $vroot 'case-swap'); Swap = @{ 'steam_api.dll' = $vswap } })
+    )
+    $vbatch = Start-SmokeBatch $vcases @($vdir) $vsrc
+    $vr = @(for ($i = 0; $i -lt $vcases.Count; $i++) { Receive-SmokeCase $vbatch $i })
+    $starts = @()
+    if ([IO.File]::Exists($vcount)) { $starts = @([IO.File]::ReadAllLines($vcount) | ForEach-Object { $_.Trim() }) }
+    $dBad = @()
+    foreach ($exp in @(@(0, 'SWBF2_VENDOR_X64 not set'), @(1, "$vabsent not found"), @(2, "$vabsent not found"))) {
+        $r = $vr[$exp[0]]
+        $line = Get-SmokeSkipLine $r.Name $r.SkipReason
+        $arc = Read-SmokeCaseArchive $r.CaseDir $false
+        if ($r.Class -cne 'Skipped' -or (Get-SmokeToken $r.Class) -cne 'SKIP') { $dBad += "$($r.Name) class $($r.Class)" }
+        elseif ($line -cne "[SKIP] smoke:$($r.Name) class=Skipped - $($exp[1])") { $dBad += "$($r.Name) line '$line'" }
+        elseif ($arc.Problem -or $arc.Class -cne 'Skipped' -or $arc.SkipReason -cne $exp[1]) { $dBad += "$($r.Name) archive problem '$($arc.Problem)' class '$($arc.Class)' reason '$($arc.SkipReason)'" }
+    }
+    if (($starts -join ',') -cne 'omit,plain,swap') { $dBad += "process starts '$($starts -join ',')', expected omit,plain,swap" }
+    $vres.d = $(if ($dBad.Count) { $dBad -join '; ' } else { $null })
+    if ($vr[3].LogText -match 'std steam_api\.dll') { $vres.batch = 'batch case with Omit still saw steam_api.dll' }
+    elseif ($vr[4].LogText -notmatch 'std steam_api\.dll') { $vres.batch = 'batch case after an Omit case did not see the restored steam_api.dll' }
+    elseif ($vr[5].LogText -notmatch 'swap source') { $vres.batch = 'batch case with Swap did not see the swap source' }
+    elseif ($vr[3].WorkDir -ne $vr[4].WorkDir -or $vr[4].WorkDir -ne $vr[5].WorkDir) { $vres.batch = 'batch cases did not share the one worker' }
+    else { $vres.batch = $null }
+    $syncDef = (Get-Command Sync-SmokeWorkerFiles).Definition
+    $anchor = '[IO.File]::Copy($s, $d)'
+    if (([regex]::Matches($syncDef, [regex]::Escape($anchor))).Count -ne 1) { $vres.mutant = "anchor '$anchor' not found exactly once" }
+    else {
+        $mutSync = [scriptblock]::Create($syncDef.Replace($anchor, ''))
+        Clear-SmokeWorkerDir $vdir
+        & $mutSync $vsrc $vdir $omitCase
+        Clear-SmokeWorkerDir $vdir
+        & $mutSync $vsrc $vdir $plainCase
+        if ([IO.File]::Exists($vapi)) { $vres.mutant = 'a Sync-SmokeWorkerFiles mutant without the re-sync copy still restored steam_api.dll' }
+        else { $vres.mutant = $null }
+    }
+}
+catch { foreach ($k in @($vres.Keys)) { if ($vres[$k] -ceq 'not run') { $vres[$k] = "threw: $($_.Exception.Message)" } } }
+finally {
+    if ($vbatch) { Stop-SmokeBatch $vbatch }
+    Remove-HarnessTree $vdir
+    Remove-Item -Recurse -Force $vroot -ErrorAction SilentlyContinue
+    $script:SmokePlatform = $vPlat
+}
+foreach ($vt in @(
+        @('a', 'worker re-sync: a case with Omit removes only that file and the next case gets it back'),
+        @('b', 'worker swap: Swap copies the source under the target name, leaves the source unchanged and the next case gets the standard file back'),
+        @('c', 'worker omit/swap names with a separator, .., data or the exe, a folder outside artifacts\smoke-workers and a needed path that is not fully qualified are refused before any change'),
+        @('d', 'NeedsFile or a Swap source that is absent gives the SKIP line with SkipReason or <path> not found, archives it and starts no process'),
+        @('batch', 'Start-SmokeBatch re-syncs and applies Omit and Swap before every case in a reused worker'),
+        @('mutant', 'worker re-sync discriminates: a mutant without the re-sync copy leaves steam_api.dll missing for the next case'))) {
+    $n++
+    if ($vres[$vt[0]]) { $failed++; Write-Host "FAILED ${n}: $($vt[1]): $($vres[$vt[0]])" }
+    else { Write-Host "OK $n $($vt[1])" }
+}
 function New-LaaRec($l, $lr, $wr, $frames = 9274, $dur = 309) {
     return New-Object PSObject -Property @{ Key = "geo1c_con`t ${dur}s`tL=Rep`t28u@$l`P`t ${lr}r`t 0p`tW=CIS`t28u@10 `t ${wr}r`t 0p"; Frames = $frames }
 }
@@ -1385,7 +1883,7 @@ try {
     $capReq = 0
     foreach ($cfg in 'Release', 'Test', 'Asan') {
         $script:SmokeDigestConfiguration = $cfg
-        foreach ($g in 'Standard', 'Twice', 'Dedicated', 'Crash', 'All', 'Perturb', 'Soak') {
+        foreach ($g in 'Standard', 'Twice', 'Dedicated', 'Crash', 'All', 'Perturb', 'Soak', 'Vendor') {
             foreach ($sk in 'Short', 'Long') {
                 foreach ($hg in $false, $true) {
                     foreach ($c in @(Get-SmokeCases $g $capMissions $false $null $hg $sk)) {
@@ -1398,7 +1896,7 @@ try {
                         elseif ([regex]::Matches($c.Args, ' -soakturns \d+').Count -ne 1) { $capWhy = "$cfg $g $sk $($c.Name) does not carry exactly one -soakturns: $($c.Args)" }
                         elseif ($req -eq $forbid) { $capWhy = "$cfg $g $sk $($c.Name) requires=$req forbids=$forbid the SOAK line" }
                         elseif ($forbid -and -not $c.Args.EndsWith(" -soakturns $script:SmokeTurnCap")) { $capWhy = "$cfg $g $sk $($c.Name) forbids the SOAK line but does not end at the work cap: $($c.Args)" }
-                        elseif ((@($c.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'Args,Expect,Name,Twice') { $capWhy = "$cfg $g $sk $($c.Name) carries fields other than Name, Args, Expect and Twice: $(@($c.PSObject.Properties.Name) -join ',')" }
+                        elseif ((@($c.PSObject.Properties.Name | Where-Object { $_ -notin 'Omit', 'Swap', 'NeedsFile', 'SkipReason' } | Sort-Object) -join ',') -cne 'Args,Expect,Name,Twice') { $capWhy = "$cfg $g $sk $($c.Name) carries fields other than Name, Args, Expect, Twice and the worker file fields: $(@($c.PSObject.Properties.Name) -join ',')" }
                         elseif (($c.Args -replace '^.*(?:^| )-hangtimeout (\S+)(?: .*)?$', '$1') -cne $(if ($c.Name -eq 'crash-hang') { '5' } else { '0' }) -or [regex]::Matches($c.Args, '(?:^| )-hangtimeout ').Count -ne 1) { $capWhy = "$cfg $g $sk $($c.Name) does not carry exactly one -hangtimeout 0 (crash-hang: 5): $($c.Args)" }
                     }
                 }
@@ -2180,6 +2678,95 @@ try {
     catch { $why = "threw: $_" }
     if ($why) { $failed++; Write-Host "FAILED ${n}: guard proofs keyed by (Id, Platform): $why" }
     else { Write-Host "OK $n a Win32 and an x64 proof for one Id coexist after a merge, each merge replaces only its own platform, and proven.tsv reads back every line ($realLines)" }
+    $n++
+    $skFix = Join-Path $grTmp "skip$n.ps1"
+    Set-Content -LiteralPath $skFix -Encoding ASCII -Value @'
+param([string]$gr, [string]$dir, [string]$from, [string]$to)
+$ErrorActionPreference = 'Stop'
+$Platform = 'Win32'
+$names = @('Add-GuardSkip', 'Add-GuardProof', 'Add-GuardEntry', 'Invoke-GuardLocked', 'Invoke-GuardSmokeRow', 'Get-GuardRowGroup')
+$ast = [Management.Automation.Language.Parser]::ParseFile($gr, [ref]$null, [ref]$null)
+$defs = @($ast.FindAll({ param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst] -and $names -contains $a.Name }, $false))
+if ($defs.Count -ne $names.Count) { 'found ' + $defs.Count + ' of ' + $names.Count + ' functions'; exit 0 }
+$text = @($defs | ForEach-Object { $_.Extent.Text }) -join "`r`n"
+if ($from) {
+    if ([regex]::Matches($text, [regex]::Escape($from)).Count -ne 1) { "mutant anchor '$from' not found once"; exit 0 }
+    $text = $text.Replace($from, $to)
+}
+. ([scriptblock]::Create($text))
+function Get-GuardControl([string]$key) { $script:Ctl }
+function Get-GuardSmokeCase { $null }
+function Set-GuardGameConfig { }
+function Run-Smoke { $script:Rev }
+function Invoke-GuardRevertedRow($r, [scriptblock]$judge) {
+    $script:RevRuns++
+    $o = @{ Result = 'BUILD-FAIL'; Detail = ''; Code = '' }
+    & $judge $o
+    return $o
+}
+$script:DefaultGameConfiguration = 'Release'
+$script:Decisions = @{ 'SELFTEST-SK' = @{ RowHash = 'rh'; DepDigest = 'dd'; TriggerDigest = 'td'; Doubt = $false } }
+$script:Toolset = 'ts'; $script:Tree = 'tree'; $script:Commit = 'c0ffee1'; $script:ProofConfig = 'Debug/Release'; $script:TreeClean = $true
+$script:GuardMutex = New-Object System.Threading.Mutex($false)
+$row = @{ Id = 'SELFTEST-SK'; Kind = 'Smoke'; Case = 'selftest-case' }
+$skip = { param($why) New-Object PSObject -Property @{ Ok = $false; Class = 'Skipped'; Code = 0; Dumps = 0; LogText = ''; SkipReason = $why } }
+$pass = New-Object PSObject -Property @{ Ok = $true; Class = 'Pass'; Code = 0; Dumps = 0; LogText = ''; SkipReason = $null }
+$red = New-Object PSObject -Property @{ Ok = $false; Class = 'Fatal'; Code = 1; Dumps = 0; LogText = ''; SkipReason = $null }
+$runs = @(
+    @{ Tag = 'control-skip'; Ctl = (& $skip 'selftest needs a file'); Rev = $red; Skip = 'selftest needs a file'; RevRuns = 0 },
+    @{ Tag = 'revert-skip'; Ctl = $pass; Rev = (& $skip 'selftest file gone'); Skip = 'selftest file gone'; RevRuns = 1 },
+    @{ Tag = 'red'; Ctl = $pass; Rev = $red; Skip = $null; RevRuns = 1 }
+)
+foreach ($k in $runs) {
+    $script:Ctl = $k.Ctl
+    $script:Rev = $k.Rev
+    $script:RevRuns = 0
+    $script:LedgerFile = Join-Path $dir "ledger-$($k.Tag).tsv"
+    $script:PartialFile = Join-Path $dir "partial-$($k.Tag).tsv"
+    $script:JobEntries = New-Object System.Collections.ArrayList
+    $script:JobLines = New-Object System.Collections.ArrayList
+    $null = Invoke-GuardSmokeRow $row 6> $null
+    $e = @($script:JobEntries)
+    $led = @(Get-Content -LiteralPath $script:LedgerFile -ErrorAction SilentlyContinue)
+    $part = @(Get-Content -LiteralPath $script:PartialFile -ErrorAction SilentlyContinue)
+    $line = (@($script:JobLines) -join ' / ')
+    if ($e.Count -ne 1 -or $led.Count -ne 1) { "$($k.Tag): $($e.Count) entries and $($led.Count) ledger lines"; exit 0 }
+    if ($script:RevRuns -ne $k.RevRuns) { "$($k.Tag): reverted run $($script:RevRuns) times, expected $($k.RevRuns)"; exit 0 }
+    if ($k.Skip) {
+        if (-not $e[0].Fail) { "$($k.Tag): a skipped row does not fail the run"; exit 0 }
+        if ($e[0].Control -cne 'SKIP' -or $e[0].Reverted -cne 'SKIP' -or $e[0].Detail -cne $k.Skip) { "$($k.Tag): entry $($e[0].Control)/$($e[0].Reverted)/$($e[0].Detail)"; exit 0 }
+        if ($line -cnotmatch ('^SELFTEST-SK +SKIP ' + [regex]::Escape($k.Skip) + ' \(unproven\)$')) { "$($k.Tag): line '$line'"; exit 0 }
+        if ($line -match 'GREEN|RED') { "$($k.Tag): line '$line' names GREEN or RED"; exit 0 }
+        if (-not $led[0].EndsWith("`tFAIL")) { "$($k.Tag): ledger outcome is not FAIL"; exit 0 }
+        if ($part.Count) { "$($k.Tag): a skipped row recorded a proof"; exit 0 }
+    }
+    else {
+        if ($e[0].Fail -or $e[0].Reverted -cne 'RED' -or $part.Count -ne 1) { "$($k.Tag): a RED row is not proven (fail $($e[0].Fail), reverted $($e[0].Reverted), $($part.Count) proofs)"; exit 0 }
+    }
+}
+'OK'
+'@
+    $skRun = {
+        param([string]$tag, [string]$from, [string]$to)
+        $d = Join-Path $grTmp "skip$n-$tag"
+        New-Item -ItemType Directory -Force -Path $d | Out-Null
+        $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $skFix, '-gr', $grScript, '-dir', $d)
+        if ($from) { $a += @('-from', $from, '-to', $to) }
+        ((& powershell @a 2>&1 | ForEach-Object { "$_" }) -join ' / ').Trim()
+    }
+    $why = $null
+    $skMutWhy = @()
+    $skReal = & $skRun 'real' '' ''
+    if ($skReal -cne 'OK') { $why = $skReal }
+    else {
+        foreach ($m in @(@('proof', "Add-GuardProof `$r 'SKIP' 'SKIP' `$false", "Add-GuardProof `$r 'SKIP' 'SKIP' `$true"), @('pass', "'' `$reason `$true @(", "'' `$reason `$false @("))) {
+            $mw = & $skRun $m[0] $m[1] $m[2]
+            if ($mw -ceq 'OK' -or $mw -match 'mutant anchor') { $why = "mutant $($m[0]) survived: $mw"; break }
+            $skMutWhy += "$($m[0]): $mw"
+        }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: a guard smoke row whose case skips: $why" }
+    else { Write-Host "OK $n a guard smoke row whose case skips in the control or the revert reports SKIP <reason>, fails the run and records no proof, and a RED row is still proven; mutants fail: $($skMutWhy -join '; ')" }
     $rsTest = 'lua next order ignores allocation padding under serial order'
     $rsWrite = {
         param([string]$path, [string]$countFile, [int]$rowCount, [string]$r1)
@@ -3203,6 +3790,17 @@ finally {
     Remove-Item -LiteralPath $cbTmp -Recurse -Force -ErrorAction SilentlyContinue
 }
 . (Join-Path $PSScriptRoot 'gate\keys.ps1')
+$vkDir = Join-Path $tmp 'vendor-keys'
+$vkWork = Join-Path $vkDir 'bin'
+$vkSys = Join-Path $vkDir 'sys'
+foreach ($d in $vkWork, $vkSys) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
+[IO.File]::WriteAllText((Join-Path $vkSys 'd3dx9_43.dll'), 'system')
+$vkSysOnly = (Get-VendorDllHashes $vkWork $vkSys 'x64')['d3dx9_43.dll']
+[IO.File]::WriteAllText((Join-Path $vkWork 'd3dx9_43.dll'), 'staged')
+$vkStaged = (Get-VendorDllHashes $vkWork $vkSys 'x64')['d3dx9_43.dll']
+if ($vkSysOnly -cne (Get-KeyFileSha (Join-Path $vkSys 'd3dx9_43.dll')) -or $vkStaged -cne (Get-KeyFileSha (Join-Path $vkWork 'd3dx9_43.dll'))) { $failed++; Write-Host "FAILED ${n}: vendor key d3dx9 hash: system-only '$vkSysOnly', staged '$vkStaged'" }
+else { Write-Host "OK $n vendor key hashes the staged d3dx9 beside the exe and falls back to the system copy" }
+$n++
 $kTmp = Join-Path $env:TEMP ('openswbf2-keys-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $kTmp | Out-Null
 try {

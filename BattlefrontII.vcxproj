@@ -11,6 +11,7 @@
     <CopyAsanBinariesToOutDir Condition="'$(Configuration)'=='Asan'">true</CopyAsanBinariesToOutDir>
   </PropertyGroup>
   <Import Project="OpenSWBF2.Game.props" />
+  <Import Project="lib\vendor-pins.props" />
   <PropertyGroup>
     <TargetName>BattlefrontII</TargetName>
     <LinkIncremental>false</LinkIncremental>
@@ -34,8 +35,10 @@
       <GenerateMapFile>true</GenerateMapFile>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <MapFileName>$(IntDir)$(TargetName).map</MapFileName>
-      <AdditionalDependencies Condition="'$(Platform)'=='Win32'">kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;lib\Win32\binkw32.lib;lib\Win32\steam_api.lib;lib\Win32\Galaxy.lib</AdditionalDependencies>
-      <AdditionalDependencies Condition="'$(Platform)'=='x64'">kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;$(IntDir)binkw64.lib;$(IntDir)steam_api64.lib;$(IntDir)Galaxy64.lib</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Platform)'=='Win32'">kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;lib\Win32\binkw32.lib;lib\Win32\steam_api.lib;lib\Win32\Galaxy.lib;delayimp.lib</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Platform)'=='x64'">kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;$(IntDir)steam_api64.lib;$(IntDir)Galaxy64.lib;delayimp.lib</AdditionalDependencies>
+      <DelayLoadDLLs Condition="'$(Platform)'=='Win32'">steam_api.dll;Galaxy.dll</DelayLoadDLLs>
+      <DelayLoadDLLs Condition="'$(Platform)'=='x64'">steam_api64.dll;Galaxy64.dll</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -299,6 +302,7 @@
     <ClCompile Include="src\Battlefront2\Source\HintManager.cpp" />
     <ClCompile Include="src\Battlefront2\Source\IFaceSoldierAnimator.cpp" />
     <ClCompile Include="src\Battlefront2\Source\IdleHelper.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\InGameMovie.cpp" />
     <ClCompile Include="src\Battlefront2\Source\ItemTimerDisplay.cpp" />
     <ClCompile Include="src\Battlefront2\Source\JetJumpHintHelper.cpp" />
     <ClCompile Include="src\Battlefront2\Source\LeafEffect.cpp" />
@@ -573,6 +577,7 @@
     <ClCompile Include="src\PebbleFL\Common\PblVector.cpp" />
     <ClCompile Include="src\Steam\gfGalaxy.cpp" />
     <ClCompile Include="src\Steam\gfSteamAuth.cpp" />
+    <ClCompile Include="src\Steam\gfVendor.cpp" />
     <ClCompile Include="src\lglcd\lgLcd.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -1201,6 +1206,7 @@
     <ClInclude Include="src\Steam\galaxy_api.h" />
     <ClInclude Include="src\Steam\gfGalaxy.h" />
     <ClInclude Include="src\Steam\gfSteamAuth.h" />
+    <ClInclude Include="src\Steam\gfVendor.h" />
     <ClInclude Include="src\Steam\steamworks.h" />
     <ClInclude Include="src\Steam\utf8.h" />
     <ClInclude Include="src\ZlibFL\crc32.h" />
@@ -1253,7 +1259,7 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemGroup Condition="'$(Platform)'=='x64'">
-    <X64ImportDef Include="lib\x64\binkw64.def;lib\x64\steam_api64.def;lib\x64\Galaxy64.def" />
+    <X64ImportDef Include="lib\x64\steam_api64.def;lib\x64\Galaxy64.def" />
   </ItemGroup>
   <Target Name="GenerateX64ImportLibs" BeforeTargets="ClCompile" Condition="'$(Platform)'=='x64'" Inputs="@(X64ImportDef)" Outputs="@(X64ImportDef->'$(IntDir)%(Filename).lib')">
     <MakeDir Directories="$(IntDir)" />
@@ -1273,10 +1279,41 @@
       <GameDataFile Include="$(SWBF2_GAMEDATA)\Galaxy.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\Galaxy.dll')" />
       <GameDataFile Include="$(SWBF2_GAMEDATA)\GalaxyPeer.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\GalaxyPeer.dll')" />
       <GameDataFile Include="$(SWBF2_GAMEDATA)\steam_api.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\steam_api.dll')" />
-      <GameDataFile Include="$(SWBF2_GAMEDATA)\unicows.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\unicows.dll')" />
     </ItemGroup>
     <Copy SourceFiles="@(GameDataFile)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
     <WriteLinesToFile File="$(OutDir)steam_appid.txt" Lines="6060" Overwrite="true" />
     <MakeDir Directories="$(OutDir)SaveGames" />
+  </Target>
+  <PropertyGroup>
+    <D3dxCache>$(LOCALAPPDATA)\OpenSWBF2\vendor\</D3dxCache>
+    <D3dxNupkgName>microsoft.dxsdk.d3dx.$(D3dxVersion).nupkg</D3dxNupkgName>
+    <D3dxNupkg>$(D3dxCache)$(D3dxNupkgName)</D3dxNupkg>
+    <D3dxDir>$(D3dxCache)$(D3dxVersion)\</D3dxDir>
+    <D3dxArch Condition="'$(Platform)'=='Win32'">x86</D3dxArch>
+    <D3dxArch Condition="'$(Platform)'=='x64'">x64</D3dxArch>
+    <D3dxDll>$(D3dxDir)build\native\release\bin\$(D3dxArch)\D3DX9_43.dll</D3dxDll>
+    <D3dxDllSha256 Condition="'$(Platform)'=='Win32'">$(D3dxWin32Sha256)</D3dxDllSha256>
+    <D3dxDllSha256 Condition="'$(Platform)'=='x64'">$(D3dxX64Sha256)</D3dxDllSha256>
+    <D3dxDownloadName>$(D3dxNupkgName).$([System.Guid]::NewGuid().ToString('N')).download</D3dxDownloadName>
+  </PropertyGroup>
+  <Target Name="StageVendor" AfterTargets="Build" Condition="'$(SWBF2_NOSTAGE)' != 'true'">
+    <Delete Files="$(OutDir)unicows.dll" />
+    <DownloadFile Condition="!Exists('$(D3dxNupkg)')" SourceUrl="$(D3dxNupkgUrl)" DestinationFolder="$(D3dxCache)" DestinationFileName="$(D3dxDownloadName)" />
+    <VerifyFileHash Condition="!Exists('$(D3dxNupkg)')" File="$(D3dxCache)$(D3dxDownloadName)" Algorithm="SHA256" Hash="$(D3dxNupkgSha256)" />
+    <Move Condition="!Exists('$(D3dxNupkg)')" SourceFiles="$(D3dxCache)$(D3dxDownloadName)" DestinationFiles="$(D3dxNupkg)" />
+    <Delete Files="$(D3dxCache)$(D3dxDownloadName)" />
+    <VerifyFileHash File="$(D3dxNupkg)" Algorithm="SHA256" Hash="$(D3dxNupkgSha256)" />
+    <GetFileHash Condition="Exists('$(D3dxDll)')" Files="$(D3dxDll)" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="D3dxDllHash" />
+    </GetFileHash>
+    <Unzip Condition="'$(D3dxDllHash)' != '$(D3dxDllSha256)'" SourceFiles="$(D3dxNupkg)" DestinationFolder="$(D3dxDir)" Include="build\native\release\bin\**\D3DX9_43.dll" SkipUnchangedFiles="false" OverwriteReadOnlyFiles="true" />
+    <VerifyFileHash Condition="'$(Platform)'=='Win32'" File="$(D3dxDll)" Algorithm="SHA256" Hash="$(D3dxWin32Sha256)" />
+    <VerifyFileHash Condition="'$(Platform)'=='x64'" File="$(D3dxDll)" Algorithm="SHA256" Hash="$(D3dxX64Sha256)" />
+    <Copy SourceFiles="$(D3dxDll)" DestinationFiles="$(OutDir)d3dx9_43.dll" SkipUnchangedFiles="true" />
+    <VerifyFileHash Condition="'$(Platform)'=='x64' and '$(SWBF2_VENDOR_X64)' != '' and Exists('$(SWBF2_VENDOR_X64)\steam_api64.dll')" File="$(SWBF2_VENDOR_X64)\steam_api64.dll" Algorithm="SHA256" Hash="$(SteamApi64Sha256)" />
+    <Copy Condition="'$(Platform)'=='x64' and '$(SWBF2_VENDOR_X64)' != '' and Exists('$(SWBF2_VENDOR_X64)\steam_api64.dll')" SourceFiles="$(SWBF2_VENDOR_X64)\steam_api64.dll" DestinationFiles="$(OutDir)steam_api64.dll" SkipUnchangedFiles="true" />
+    <Message Importance="high" Condition="'$(Platform)'=='x64' and '$(SWBF2_VENDOR_X64)' == ''" Text="SWBF2_VENDOR_X64 not set" />
+    <Message Importance="high" Condition="'$(Platform)'=='x64' and '$(SWBF2_VENDOR_X64)' != '' and !Exists('$(SWBF2_VENDOR_X64)')" Text="SWBF2_VENDOR_X64=$(SWBF2_VENDOR_X64) not found" />
+    <Message Importance="high" Condition="'$(Platform)'=='x64' and '$(SWBF2_VENDOR_X64)' != '' and Exists('$(SWBF2_VENDOR_X64)')" Text="SWBF2_VENDOR_X64=$(SWBF2_VENDOR_X64)" />
   </Target>
 </Project>

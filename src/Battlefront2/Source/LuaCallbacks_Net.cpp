@@ -33,6 +33,8 @@
 #include "NetMatch.h"
 #include "Steam/gfGalaxy.h"
 #include "BootDisplay.h"
+#include "pcCrash.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 void JRR_to_Errorbox(JoinRejectReason eReason);
 extern int hostVoteThreshold;
@@ -299,6 +301,12 @@ int ScriptCB_StartLoginDedicatedServer(lua_State* L)
 {
     const int iViewport = FLInputManager::Instance()->GetPrimaryPort();
     NetSetup::StartLogin(iViewport, false, 0, 0, 0, false);
+    if (!NetSetup::IsAutoNetLan() && !gf::isInitialized())
+    {
+        const char* const pcReason = "online dedicated server needs Galaxy; use -lan for LAN and direct IP";
+        LOG(LogNet, Fatal, "%s", pcReason);
+        pcCrash::FatalExit(pcReason);
+    }
     PlayerProfile::ResetAllProfiles();
 
     unsigned short ausName[30];
@@ -3650,6 +3658,12 @@ int ScriptCB_BeginLobby(lua_State*)
         {
             return 0;
         }
+        if (!NetComm::IsWanReady())
+        {
+            LOG(LogNet, Warning, "online hosting needs a Galaxy login; hosting refused");
+            NetMatch::SetGameError("ifs.mp.galaxy.SIGNIN_SERVICE_NOT_AVAILABLE", GuiManager::ERROR_LEAVE_SESSION);
+            return 0;
+        }
         unsigned int index = 0;
         PlayerProfile::tProfile* profile = PlayerProfile::GetCurProfile();
         if (profile)
@@ -3739,6 +3753,10 @@ int Lua_Callbacks::ScriptCB_LastSignInError(lua_State* L)
     case 5:
         lua_pushstring(LuaHelper::mState, "ifs.mp.galaxy.SIGNIN_INVALID_CREDENTIALS");
         return 1;
+    case 6:
+        lua_pushstring(LuaHelper::mState, "ifs.mp.galaxy.SIGNIN_SERVICE_NOT_AVAILABLE");
+        lua_pushstring(LuaHelper::mState, gf::vendor::LobbyOffText(sizeof(void*) == 8));
+        return 2;
     default:
         lua_pushstring(LuaHelper::mState, "ifs.mp.galaxy.SIGNIN_SERVICE_NOT_SIGNED_IN");
         return 1;

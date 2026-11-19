@@ -17,6 +17,7 @@ crash-capexhaust	none	none
 crash-check	none	none
 crash-debugbreak	none	none
 crash-debugheapoom	none	none
+crash-delayload	none	none
 crash-divzero	none	none
 crash-fastfail	none	none
 crash-gammadrawfail	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/2651921600 snd=49.923 state=0x65CD7716	geo1c_con	 309s	L=Rep	28u@12P	 55r	 0p	W=CIS	28u@13 	 88r	 0p

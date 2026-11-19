@@ -27,6 +27,8 @@
 #include "Factory.h"
 #include "LuaCallbacks_Mission.h"
 #include "StickInfo.h"
+#include "Steam/gfVendor.h"
+#include "Steam/steamworks.h"
 
 typedef BOOL (WINAPI* MiniDumpWriteDumpFn)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
     PMINIDUMP_EXCEPTION_INFORMATION, PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
@@ -264,8 +266,15 @@ static void WriteFatalLine(EXCEPTION_POINTERS* pInfo)
     }
     else
     {
-        wsprintfA(gFatalLine, "FATAL: exception 0x%08X at 0x%08IX (%.64s+0x%IX) build %s dump %.400s\r\n", uiCode,
-            uAddr, acModule, uOffset, gBuildId, acPath);
+        char acDll[80];
+        acDll[0] = 0;
+        const char* pcDll = gf::vendor::LastDelayLoadFailure();
+        if ((uiCode == 0xC06D007E || uiCode == 0xC06D007F) && pcDll[0] != 0)
+        {
+            wsprintfA(acDll, " dll=%.64s", pcDll);
+        }
+        wsprintfA(gFatalLine, "FATAL: exception 0x%08X at 0x%08IX (%.64s+0x%IX)%s build %s dump %.400s\r\n", uiCode,
+            uAddr, acModule, uOffset, acDll, gBuildId, acPath);
     }
     AppendLog(gFatalLine);
     WriteEnsureSummary();
@@ -847,6 +856,15 @@ void pcCrash::FatalInit(char const* pcWhat, unsigned int uiSize)
     pcCrash::Exit(1);
 }
 
+void pcCrash::FatalExit(char const* pcReason)
+{
+    char acLine[256];
+    wsprintfA(acLine, "FATAL: %.200s\r\n", pcReason);
+    AppendLog(acLine);
+    WriteEnsureSummary();
+    pcCrash::Exit(1);
+}
+
 static int LuaAllocHuge(lua_State* L)
 {
     lua_newuserdata(L, 0x04000000);
@@ -1314,7 +1332,7 @@ void pcCrash::RunMissionCrashTest()
 void pcCrash::SetCrashTest(char const* pcKind)
 {
     static char const* const apcKinds[] = { "nullderef", "divzero", "stackoverflow", "debugbreak", "abort",
-        "invalidparam", "fastfail", "arenaoom", "debugheapoom", "heapfail", "capexhaust", "midoublefree",
+        "invalidparam", "fastfail", "delayload", "arenaoom", "debugheapoom", "heapfail", "capexhaust", "midoublefree",
         "luaoom", "luapanic", "hang", "check", "resetrecover", "resetfatal", "resetinitlost",
         "resetflap", "resetlaterinit", "applymode", "applymodesmall", "applyfail", "applypresentfail", "applyadapter",
         "applytargetfail", "gammapass", "gammafallback", "gammadrawfail",
@@ -1380,5 +1398,9 @@ void pcCrash::RunCrashTest()
     else if (strcmp(gCrashKind, "fastfail") == 0)
     {
         __fastfail(7);
+    }
+    else if (strcmp(gCrashKind, "delayload") == 0)
+    {
+        SteamAPI_RunCallbacks();
     }
 }

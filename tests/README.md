@@ -11,7 +11,7 @@ Output is `bin\Tests\<Platform>\<Config>\OpenSWBF2Tests.exe`. Configurations are
 ## Requirements
 
 - VS2022 with the x86 C++ tools, Windows SDK 10.0.26100.0 and DirectX SDK June 2010. `tests\vstools.ps1` finds the toolchain and exits 2 if it is missing.
-- In `C:\Windows\SysWOW64`: `d3dx9_43.dll`, `vcruntime140.dll` and `msvcp140.dll`. Smoke runs also need `msvcr120.dll` and `msvcp120.dll`.
+- In `C:\Windows\SysWOW64`: `vcruntime140.dll` and `msvcp140.dll`, plus `d3dx9_43.dll` for the tests exe only; game runs load the `d3dx9_43.dll` the build stages beside the exe. Win32 smoke runs outside the Vendor group also need `msvcr120.dll` and `msvcp120.dll`, because they expect Galaxy on; x64 runs do not. Without them, `vendor-present` and `vendor-vcrt-off` skip.
 - Smoke runs need retail GameData (`SWBF2_GAMEDATA` or the Steam install). Without it, those cases skip.
 
 ## Run
@@ -29,7 +29,7 @@ This builds the tests, then runs each case in its own process and the Standard s
 | `-Suite` | run one suite |
 | `-Filter` | wildcard on the case name |
 | `-Fuzz`, `-Seed`, `-Iterations` | run the `stress` suite with a seed and iteration count |
-| `-Smoke` | `None`, `Standard` (default), `Twice`, `Dedicated`, `Crash`, `All`, `Perturb` or `Soak` |
+| `-Smoke` | `None`, `Standard` (default), `Twice`, `Dedicated`, `Crash`, `All`, `Perturb`, `Soak` or `Vendor` |
 | `-SmokeConfiguration` | game build used for smoke runs (default `Release`, or `Test`/`Asan` to match `-Configuration`) |
 | `-Soak` | `Short` (default, turn 9300) or `Long` (turn 617300): where `-Smoke All` ends its `TimeOut` missions |
 | `-Jobs N` | parallel smoke workers (default: half the logical processors, at most 8) |
@@ -57,17 +57,18 @@ A failing fuzz case prints its seed and iteration. Replay it on the test exe wit
 
 Smoke runs launch the real `BattlefrontII.exe` headless. Each case writes `run.log`, `stdout.txt` and `stderr.txt` (the first and last MiB of each stream), `finalscore.log` and any dump to `artifacts\tests\<timestamp>\smoke\<case>\`, and the run writes its switches, exe hashes and WER state to `run-params.txt`.
 
-Every case runs in a clean worker folder under `artifacts\smoke-workers\<Platform>\<Config>\smoke\w<N>`, cleared before each case, because the exe reads `display.ini`, `SaveGames` and chat files from its own folder. Two runs at once on one configuration need disjoint worker ranges: `-WorkerBase <n>` starts a run at worker n+1, and every run must stay within the logical processor count. Run `tests\firewall.ps1` once from an elevated PowerShell to allow every worker path on the local subnet and clear stale rules; `-List` previews the changes and `-Root` takes more trees.
+Every case runs in a clean worker folder under `artifacts\smoke-workers\<Platform>\<Config>\smoke\w<N>`, cleared before each case, because the exe reads `display.ini`, `SaveGames` and chat files from its own folder. Before each case the worker's DLLs are copied again from the build folder, then the case's `Omit` (file names to remove) and `Swap` (target name to a read-only source path) are applied to that worker copy only. A case whose `NeedsFile` path or `Swap` source is missing prints `[SKIP]` with its `SkipReason` and does not start. Two runs at once on one configuration need disjoint worker ranges: `-WorkerBase <n>` starts a run at worker n+1, and every run must stay within the logical processor count. Run `tests\firewall.ps1` once from an elevated PowerShell to allow every worker path on the local subnet and clear stale rules; `-List` previews the changes and `-Root` takes more trees.
 
 | Group | What it runs |
 |-------|--------------|
 | `Standard` | geo1c_con, `heapcap`, the display-switch cases, the digest cases and `novictory-con`; the display-switch cases that check only start-up lines end at turn 1 (`-soakturns 1`); Test and Asan builds add `repeat-water` (`nab2g_c -repeatmission`, both turn-1500 digests equal); Asan adds `asan-hot1g_con` and `asan-spa3c_ass` |
 | `Twice` | the same missions twice with a fixed seed; the results and digest traces must match |
 | `Dedicated` | dedicated-server cases |
-| `Crash` | deliberate faults through `-crashtest <kind>`, including `crash-capexhaust`, `pool-full`, `pool-full-strict` and `crash-stall` (a supervised hang the harness reports and the game dumps); each must leave the expected exit code, log line and dump |
+| `Crash` | deliberate faults through `-crashtest <kind>`, including `crash-capexhaust`, `pool-full`, `pool-full-strict`, `crash-stall` (a supervised hang the harness reports and the game dumps) and `crash-delayload` (a Steam call with `steam_api.dll` absent; the FATAL line names the DLL); each must leave the expected exit code, log line and dump |
 | `All` | every mission in `tests\smoke\missions-all.txt` (`<mission> [<class>]`), plus Dedicated and Crash; a Release run then compares digests, mem-peaks, pool-sizes and CLOTH exactly against the tables in `tests\baseline\v143` through `compare-tables.ps1` and fails on any moved row; a Test run compares the Lua pool bins, spill counts included, against `lua-bins.txt` and the main section of `offthread.txt` (source thread ids ignored) |
 | `Perturb` | Test or Asan only: seven digest missions, each as a base run, under `-perturbheap` pad/fill/pool (one seed per mission, 1 and 2 alternating down the list), `-hogaddrspace` and `-repeatmission`; each run is traced for the whole mission (nab2g_c, which never ends, to turn 100000) and every turn must equal its base line for line; writes `perturb.tsv` |
 | `Soak` | `asan-soak`: nab2g_c run to turn 815800 with `-soakturns`, for the long ASan run; no other group holds it |
+| `Vendor` | start-up runs with every vendor DLL present, or with one removed or swapped for one of the wrong bitness; each service turned off must log exactly one `OPENSWBF2 VENDOR <service> off` Warning; Win32 runs pass at turn 1, x64 runs end at the `-crashtest fastfail` carrier right after the probe; `vendor-wan-nogalaxy` starts an online dedicated server without `Galaxy.dll` and must exit 1 with a FATAL line naming `-lan` |
 
 A case fails on any Error, Bug or Fatal line in its `run.log` unless a regex in `tests\smoke\expected-errors.txt` covers it. In T1, declare an expected error with `ExpectLog("text")` or `ExpectEnsure("text")`.
 
@@ -134,9 +135,11 @@ A weekly and on-demand `full` job calls the scripts directly, not `gate.ps1`: Re
 
 `bin\Win32\<Config>\data` contains junctions into the retail GameData. Anything that follows them can delete the retail install. Remove staged output only with `tests\run.ps1 -Clean`. Any extra worktree that builds the game must set `SWBF2_NOSTAGE=true`. Worker folders and worktrees are removed only through `Remove-HarnessTree` in `smoke.ps1`, which unlinks a worker's own `data` junction and refuses any other junction; never force-remove a worktree.
 
+x64 builds take their vendor DLLs from the folder named by `SWBF2_VENDOR_X64` (see the top-level README) and stage nothing when it is unset. `unicows.dll` is no longer staged; staging deletes a stale copy from the output folder.
+
 ## Hardening
 
-The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/GS`, `/sdl`), its imports (`import-modules` fails on a DLL outside `$script:ImportModuleAllow` in `smoke\cases.ps1`), the required and banned compiler flags in the exe and every library project, the `static.c` mimalloc defines for each configuration, that mimalloc's CRT hooks sit in `.CRT$XIB`/`.CRT$XLB`/`.CRT$XLY` in the map (`mimalloc-crt-hooks`), and these source patterns:
+The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/GS`, `/sdl`), its imports (`import-modules` and `import-delay-modules` check the static and delay import tables against per-platform lists in `smoke\cases.ps1`; on x64 the import rows run while the other binary checks wait for Phase 52), that `unicows.dll` is not staged, listed as a staging or worker file, imported, or named under `src` (`unicows-staged`), that the hashes in `lib\vendor-pins.props` are well formed and the `StageVendor` target checks the D3DX package and each platform's `d3dx9_43.dll` against them and extracts the DLL again whenever the cached copy's hash differs (`d3dx9-pins`), that the `steam_api64.dll` pin is well formed and `StageVendor` checks the file against it before every copy (`steam-api64-pins`), on x64 that the staged `steam_api64.dll` has the pinned hash and exports every function the exe delay-imports from it and every name in `lib\x64\steam_api64.def` (`steam-api64-staged`, SKIP when not staged), the required and banned compiler flags in the exe and every library project, the `static.c` mimalloc defines for each configuration, that mimalloc's CRT hooks sit in `.CRT$XIB`/`.CRT$XLB`/`.CRT$XLY` in the map (`mimalloc-crt-hooks`), and these source patterns:
 
 | Check | Fails on |
 |-------|----------|
@@ -153,21 +156,25 @@ The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/G
 | `mi-api-ban` | a mimalloc API call outside `src\mimalloc` and `RedMemoryMi.cpp` |
 | `snd-alloc-size-t` | `SndAlloc`, `SndTempAlloc` or a sound allocator function pointer with a 32-bit size type |
 | `galaxy-getter-cast` | a Galaxy getter returning `void*`, or a cast or `void*` temporary on a Galaxy getter's result |
+| `galaxy-factory-seam` | a `GalaxyFactory::` call outside `src\Steam\gfVendor.cpp` |
+| `steamid-abi` | a call of an `ISteamUser` method that returns or takes `CSteamID`, or a by-value `CSteamID` outside `src\Steam\steamworks.h`; the x64 convention for them is not settled |
 | `t1-suite` | a test case that `run.ps1` would never run |
 | `addr-order` | a cast of `this` or a pointer to an integer, `char*` or `void*` for ordering, a pointer cast to an integer as an `Add(`/`Move(` key, a pointer relational compare, `std::less`/`std::greater` on a pointer type, or `PblPtrOrderKey`/`PblPtrAfter`, under `src\Battlefront2` and `src\PebbleFL`, outside `$script:AddrOrderAllow` (`smoke\cases.ps1`); pointers are found by name (`this`, `p` and `pp` prefixes), so a pointer named otherwise is not caught |
 
 When the game and tests configurations are both Release, `compare-tables.ps1 -Hardening` compares the hardening lines with `baseline\v143\hardening.txt` (`tables:hardening`).
 
+A `-Smoke Vendor` run also prints `vendor:d3dx9-staged`: it passes when the staged `d3dx9_43.dll` beside the exe has the platform's pinned hash, fails when it differs or is missing, and skips when the output folder was not staged. It is not a hardening line, so a Release hardening run without staging still matches the pinned table.
+
 ## Gate tiers
 
 | Tier | When | Command | Steps |
 |------|------|---------|-------|
-| Per plan | every change | `tests\gate.ps1 -Tier plan -Platform Win32,x64` | Debug, Release and Test builds on both platforms; `run.ps1` (Debug T1, hardening, Release Standard smoke); x64 Test T1; `selftest.ps1 -Configuration Test`; narrow `guard-revert.ps1 -Narrow` (rows added or edited, or whose revert target or test file changed since their proof) |
+| Per plan | every change | `tests\gate.ps1 -Tier plan -Platform Win32,x64` | Debug, Release and Test builds on both platforms; `run.ps1` (Debug T1, hardening, Release Standard smoke); Release `-Smoke Vendor`; x64 Test T1; `selftest.ps1 -Configuration Test`; narrow `guard-revert.ps1 -Narrow` (rows added or edited, or whose revert target or test file changed since their proof) |
 | Pull request | CI `test` and `asan` jobs | `tests\gate.ps1 -Tier pr [-Job test\|asan]` | test: Debug and Test builds, `run.ps1 -Configuration Test`, `selftest.ps1 -Configuration Test`; asan: Debug and Asan builds, `run.ps1 -Asan`, `-Asan -Smoke Dedicated`, `selftest.ps1 -Configuration Asan` |
-| Branch close | before merging a branch | `tests\gate.ps1 -Tier branch -Platform Win32,x64` | all four builds; `run.ps1`; Release `-Smoke Twice` and `-Smoke All`; `selftest.ps1 -Configuration Test`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
-| Milestone close | before a release | `tests\gate.ps1 -Tier milestone -Platform Win32,x64` | all four builds; `run.ps1`; Release Twice and All; Test default, Perturb and All at the short count; Asan default, Dedicated and Soak; both self-tests; `capture-vs2013.ps1 -Collect`, `-Map`, `-Layouts`, Debug `-DebugDigests` and `-Verify -Baseline v143` with their compares; `x64-census.ps1`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
+| Branch close | before merging a branch | `tests\gate.ps1 -Tier branch -Platform Win32,x64` | all four builds; `run.ps1`; Release `-Smoke Twice`, `-Smoke All` and `-Smoke Vendor`; `selftest.ps1 -Configuration Test`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
+| Milestone close | before a release | `tests\gate.ps1 -Tier milestone -Platform Win32,x64` | all four builds; `run.ps1`; Release Twice, All and Vendor; Test default, Perturb and All at the short count; Asan default, Dedicated and Soak; both self-tests; `capture-vs2013.ps1 -Collect`, `-Map`, `-Layouts`, Debug `-DebugDigests` and `-Verify -Baseline v143` with their compares; `x64-census.ps1`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
 
-Plan, PR and branch runs, and every Test All run, end `TimeOut` missions at turn 9300 (`-Soak Short`), so the soak past turn 9300 is proven only in milestone and weekly runs, by Release All at the long count (`-Soak Long`, turn 617300) and the ASan `Soak` group. `guard-revert.ps1 -Full` is a manual run. x64 steps build, run T1 and the tlog checks and never start the game exe; `-Platform` defaults to `Win32`. Wall times per step, before and after, are in `tests\baseline\gate-times.tsv`; a full milestone run writes `after_s`.
+Plan, PR and branch runs, and every Test All run, end `TimeOut` missions at turn 9300 (`-Soak Short`), so the soak past turn 9300 is proven only in milestone and weekly runs, by Release All at the long count (`-Soak Long`, turn 617300) and the ASan `Soak` group. `guard-revert.ps1 -Full` is a manual run. x64 steps build, run T1 and the tlog checks, and start the game exe only for the Vendor group, which exits right after the vendor DLL probe; `-Platform` defaults to `Win32`. Wall times per step, before and after, are in `tests\baseline\gate-times.tsv`; a full milestone run writes `after_s`.
 
     tests\gate.ps1 -Tier plan|pr|branch|milestone [-Platform Win32,x64] [-Step <names>] [-Resume] [-ListOrder]
 
@@ -179,7 +186,7 @@ Before any step the gate checks the machine and exits 2 if any check fails: Stea
 
     powershell -File tests\guard-revert.ps1 [-Row ID,...] [-Narrow] [-Configuration Test] [-Workers N]
 
-This proves the regression tests catch their bugs. For each row in `tests\guardrevert\rows.ps1`, it reverts one fix in a worktree, rebuilds and runs the named cases. With the fix (`Control`), every row must be GREEN. With the fix reverted, every row must be RED. STILL-GREEN means the test does not detect the revert. A smoke row with `Config` builds and runs that game configuration instead of Release. The table is saved to `artifacts\guard-revert\<stamp>\summary.txt`.
+This proves the regression tests catch their bugs. For each row in `tests\guardrevert\rows.ps1`, it reverts one fix in a worktree, rebuilds and runs the named cases. With the fix (`Control`), every row must be GREEN. With the fix reverted, every row must be RED. STILL-GREEN means the test does not detect the revert. A smoke row whose case skips (a needed file is absent) prints `SKIP <reason>`, records no proof and fails the run as unproven. A smoke row with `Config` builds and runs that game configuration instead of Release. The table is saved to `artifacts\guard-revert\<stamp>\summary.txt`.
 
 By default it re-runs only the rows whose dependencies changed since their recorded proof in `tests\guardrevert\proven.tsv`. `-Full` runs every row, and `-ListSelected` prints the decision for each row without building. Dependencies come from the main tree's tlogs, so its Debug and Asan test builds and its Release game build must be current, or the affected rows are re-run. A `CARRY` line names the commit where the proof was recorded. That commit can be local-only and later squashed away; the proof rests on its tree and a digest of the row's dependency contents. `-Platform` (default `Win32`) picks the build paths, and a proof only carries on the platform it was recorded on. `-Narrow` selects only rows that were added or edited, or whose revert target or test file changed since the commit of their proof; it ignores global triggers and other dependency changes, prints the other stale rows as `SKIP` and records nothing for them, so they stay stale until a branch or milestone run proves them. It cannot be combined with `-Full`.
 

@@ -38,7 +38,7 @@ function Get-CensusProjects([string]$config) {
     return $list
 }
 
-function Get-ProjectUnits($proj) {
+function Get-ProjectUnits($proj, [string]$config) {
     $dir = Split-Path $proj.Vcxproj -Parent
     $xml = New-Object xml
     $xml.Load($proj.Vcxproj)
@@ -46,6 +46,7 @@ function Get-ProjectUnits($proj) {
     $ns.AddNamespace('m', $msNs)
     $units = New-Object System.Collections.Generic.List[object]
     foreach ($n in @($xml.SelectNodes('//m:ItemGroup/m:ClCompile[@Include]', $ns))) {
+        if (-not (Test-MsBuildItemIncluded $n 'x64' $config)) { continue }
         $inc = $n.GetAttribute('Include')
         $incs = @($inc)
         if ($inc.Contains('*')) {
@@ -171,7 +172,7 @@ foreach ($cfg in $Configurations) {
                 foreach ($w in [regex]::Matches($cmd, '(?<=^|\s)/W\d(?=\s|$)')) { [void]$levels.Add("$($p.Name) $($w.Value)") }
             }
         }
-        foreach ($u in (Get-ProjectUnits $p)) {
+        foreach ($u in (Get-ProjectUnits $p $cfg)) {
             $key = $p.Name + ',' + (ConvertTo-RepoPath $u.Src)
             if (-not $unitState.ContainsKey($key)) { $unitState[$key] = New-Object System.Collections.Generic.List[string]; $unitOrder.Add($key) }
             $total++

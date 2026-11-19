@@ -91,7 +91,7 @@ char gSignedStringBuffer[256];
 // FUNCTION: SWBF2 0x0052e4d0
 void InitializeGalaxyInstance()
 {
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::CreateInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyCreateInstance();
     pGalaxy->Init("48393168095086872",
                             "2eb6e8e813464e74a4854c94648b12f07c4a2e2446dfcac4bd83d782c580b31a",
                             ".", false);
@@ -100,40 +100,40 @@ void InitializeGalaxyInstance()
 // FUNCTION: SWBF2 0x0052e4f0
 void ShutdownGalaxyInstance()
 {
-    if (galaxy::api::GalaxyFactory::GetInstance())
+    if (gf::vendor::GalaxyGetInstance())
     {
-        galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+        galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
         pGalaxy->Shutdown();
-        galaxy::api::GalaxyFactory::ResetInstance();
+        gf::vendor::GalaxyResetInstance();
     }
 }
 
 // FUNCTION: SWBF2 0x0052e510
 galaxy::api::IUser* GetGalaxyUserInterface()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return 0;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->User();
 }
 
 // FUNCTION: SWBF2 0x0052e530
 galaxy::api::IFriends* GetGalaxyFriendsInterface()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return 0;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->Friends();
 }
 
 // FUNCTION: SWBF2 0x0052e550
 galaxy::api::IError* GetGalaxyLastError()
 {
-    galaxy::api::IErrorManager* pErrors = galaxy::api::GalaxyFactory::GetErrorManager();
+    galaxy::api::IErrorManager* pErrors = gf::vendor::GalaxyGetErrorManager();
     return pErrors->GetLastError();
 }
 
@@ -282,6 +282,10 @@ bool gf::SteamAuthProvider::Init(unsigned int uiAppId, bool& bRestarting)
 {
     m_bInitialized = false;
     bRestarting = false;
+    if (!gf::vendor::IsOn(gf::vendor::SERVICE_STEAM))
+    {
+        return false;
+    }
     if (SteamAPI_RestartAppIfNecessary(uiAppId))
     {
         bRestarting = true;
@@ -382,13 +386,14 @@ bool gf::checkError()
 bool gf::initialize()
 {
     gGalaxyInitialized = false;
-    if (!gSteamAuthProvider || !gSteamAuthProvider->IsInitialized())
+    if (!gSteamAuthProvider || !gSteamAuthProvider->IsInitialized() ||
+        !gf::vendor::IsOn(gf::vendor::SERVICE_GALAXY))
     {
         return false;
     }
 
     InitializeGalaxyInstance();
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         gGalaxyInitialized = false;
         return false;

@@ -31,6 +31,7 @@ extern int netHeroRulePlayer, netHeroRuleRespawn, netHeroRuleRespawnVal;
 #include "FLGuiManager.h"
 #include "ShellLoop.h"
 #include "PebbleFL/Common/PblRandom.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 galaxy::api::IFriends* GetGalaxyFriends();
 galaxy::api::IUser* GetGalaxyUser();
@@ -396,6 +397,12 @@ void NetMatch::EndConnect(NetAddr&, NetKey&, int) {}
 void NetMatch::StartLogin(int iViewport, bool bArg2, char const* pcArg3, char const* pcArg4,
                 char const* pcArg5, bool bArg6)
 {
+    if (!gf::vendor::IsOn(gf::vendor::SERVICE_GALAXY))
+    {
+        netLoginFailureReason = 6;
+        LOG(LogCore, Inform, "OPENSWBF2 GALAXY login skipped: %s", gf::vendor::LobbyOffText(sizeof(void*) == 8));
+        return;
+    }
     if (!gf::isInitialized() && gf::initialize())
     {
         gGalaxyAuthListener = gf::Allocate<gf::GalaxyAuthListener>(iViewport);

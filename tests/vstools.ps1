@@ -1,6 +1,8 @@
 $script:VsToolsByPlatform = @{}
 $T1Runtimes = 'd3dx9_43.dll', 'vcruntime140.dll', 'msvcp140.dll'
-$GameRuntimes = $T1Runtimes + 'msvcr120.dll', 'msvcp120.dll'
+$GameRuntimes = 'vcruntime140.dll', 'msvcp140.dll'
+$GalaxyRuntimes = 'msvcr120.dll', 'msvcp120.dll'
+$GalaxyOffGroups = 'Vendor', 'None'
 
 function Get-VsTools([ValidateSet('Win32','x64')][string]$Platform = 'Win32') {
     $tools = Find-VsTools $Platform
@@ -56,6 +58,11 @@ function Get-MissingRuntimes([string]$dir, [string[]]$dlls) {
 function Get-PlatformRuntimes([string[]]$dlls, [ValidateSet('Win32','x64')][string]$Platform = 'Win32') {
     if ($Platform -eq 'x64') { return @($dlls) + 'vcruntime140_1.dll' }
     return @($dlls)
+}
+
+function Get-GameRuntimes([ValidateSet('Win32','x64')][string]$Platform, [string[]]$Groups) {
+    if ($Platform -eq 'Win32' -and @($Groups | Where-Object { $_ -and $GalaxyOffGroups -notcontains $_ }).Count) { return @($GameRuntimes) + $GalaxyRuntimes }
+    return @($GameRuntimes)
 }
 
 function Assert-Runtimes([string[]]$dlls, [ValidateSet('Win32','x64')][string]$Platform = 'Win32') {

@@ -1762,6 +1762,113 @@ the P42 runs already print it.
   capture equals the pinned file plus that one line, byte for byte.
 - Status: re-pinned under phase 45 decision D-53, 2026-11-17.
 
+### C-HARDEN-DELAYIMPORTS
+
+- No digest row moved. `hardening.txt` gains one row, `[PASS] hardening:import-delay-modules`; no
+  other row moves.
+- Cause: the import check now splits `dumpbin /imports` at `Section contains the following delay
+  load imports:` and judges the delay-import table against its own per-platform list in
+  `tests\smoke\cases.ps1` (phase 46 D-22, VEND-07), so the hardening output has one more line.
+- Captured from `run.ps1 -Configuration Release -Smoke None -Hardening` with
+  `capture-vs2013.ps1 -NoBuild -Tables -Baseline v143 -HardeningDir` into a scratch `-OutDir`; the
+  capture equals the pinned file plus that one line, byte for byte.
+- Status: re-pinned under phase 46 decision D-02, 2026-11-18.
+
+### C-HARDEN-GALAXYSEAM
+
+- No digest row moved. `hardening.txt` gains one row, `[PASS] hardening:galaxy-factory-seam`,
+  after `galaxy-getter-cast`; no other row moves.
+- Cause: a new source check (phase 46 D-07) fails on any `GalaxyFactory::` call under `src` outside
+  `src\Steam\gfVendor.cpp`, so the hardening output has one more line. The same plan delay-loads
+  `steam_api.dll` and `Galaxy.dll`; `import-modules`, `import-delay-modules` and `safeseh` keep
+  their PASS rows because the allow-lists move those DLLs from the static to the delay list.
+- Captured from `run.ps1 -Platform Win32 -Configuration Release -NoBuild -Smoke None -Hardening`
+  with `capture-vs2013.ps1 -NoBuild -Tables -Baseline v143 -HardeningDir` into a scratch
+  `-OutDir`; the capture equals the pinned file plus that one line, byte for byte.
+- Status: re-pinned under phase 46 decision D-07, 2026-11-18.
+
+### C-HARDEN-UNICOWS
+
+- No digest row moved. `hardening.txt` gains one row, `[PASS] hardening:unicows-staged`, after
+  `import-delay-modules`; no other row moves.
+- Cause: a new check (phase 46 D-20). `unicows.dll` is no longer staged, the `StageVendor` target
+  deletes a stale copy from the output folder, and `unicows-staged` fails when the file is in the
+  output folder, in a `GameDataFile`, `VendorFile` or `Copy` item of `BattlefrontII.vcxproj`, in the
+  worker file list, in either import section of the exe, or named under `src`. Nothing imports it,
+  so the row passes and the hardening output has one more line.
+- Captured from `run.ps1 -Platform Win32 -Configuration Release -Smoke None -Hardening` with
+  `capture-vs2013.ps1 -NoBuild -Tables -Baseline v143 -HardeningDir` into a scratch `-OutDir`; the
+  capture equals the pinned file plus that one line, byte for byte.
+- Status: re-pinned under phase 46 decision D-20, 2026-11-18.
+
+### C-HARDEN-D3DX9
+
+- No digest row moved. `hardening.txt` gains one row, `[PASS] hardening:d3dx9-pins`, after
+  `unicows-staged`; no other row moves.
+- Cause: a new check (phase 46 D-17). `d3dx9_43.dll` now ships beside the exe from
+  `Microsoft.DXSDK.D3DX` 9.29.952.8, pinned in `lib\vendor-pins.props`. `d3dx9-pins` reads build
+  files only: it fails when a pin is not 64 lower-case hex digits, when `BattlefrontII.vcxproj` does
+  not import the pins, or when `StageVendor` lacks the `VerifyFileHash` of the cached package or of
+  the Win32 or x64 DLL against its pin. It prints the same line in staged, `SWBF2_NOSTAGE`, guard
+  worker and CI runs, so it can be pinned.
+- The check of the staged file itself is the separate line `vendor:d3dx9-staged`, printed only by
+  `-Smoke Vendor` runs and never part of the hardening output: a Release hardening run without
+  staging would print SKIP for it where the pinned table says PASS.
+- Captured from `run.ps1 -Platform Win32 -Configuration Release -Smoke None -Hardening` with
+  `capture-vs2013.ps1 -NoBuild -Tables -Baseline v143 -HardeningDir` into a scratch `-OutDir`; the
+  capture equals the pinned file plus that one line, byte for byte.
+- Status: re-pinned under phase 46 decision D-17, 2026-11-18.
+
+### C-HARDEN-STEAMID
+
+- No digest row moved. `hardening.txt` gains one row, `[PASS] hardening:steamid-abi`, after
+  `galaxy-factory-seam`; no other row moves.
+- Cause: a new source check (phase 46 D-38). `steamworks.h` declares `ISteamUser` methods that
+  return or take `CSteamID` by value, whose x64 hidden-return and by-value convention against the
+  real `steam_api64.dll` is not settled. `steamid-abi` fails on a call of `GetSteamID`,
+  `InitiateGameConnection`, `BeginAuthSession`, `EndAuthSession`, `UserHasLicenseForApp` or
+  `AdvertiseGame` anywhere under `src`, and on a by-value `CSteamID` outside `steamworks.h`. No
+  code does either, so the row passes.
+- Captured from `run.ps1 -Platform Win32 -Configuration Release -Smoke Vendor` (its hardening step)
+  with `capture-vs2013.ps1 -NoBuild -Tables -Baseline v143 -HardeningDir` into a scratch `-OutDir`;
+  the capture equals the previous pinned file plus this line and the `steam-api64-pins` line, byte
+  for byte.
+- Status: re-pinned under phase 46 decision D-38, 2026-11-18.
+
+### C-HARDEN-STEAMPIN
+
+- No digest row moved. `hardening.txt` gains one row, `[PASS] hardening:steam-api64-pins`, after
+  `d3dx9-pins`; no other row moves.
+- Cause: a new check (phase 46 D-14, D-15). x64 builds stage `steam_api64.dll` from
+  `SWBF2_VENDOR_X64`, pinned as `SteamApi64Sha256` in `lib\vendor-pins.props`. `steam-api64-pins`
+  reads build files only: it fails when the pin is not 64 lower-case hex digits, when `StageVendor`
+  has no `Copy` of the file, or when a `Copy` has no `VerifyFileHash` of the same file against the
+  pin, under the same condition, before it. It prints the same line in staged, `SWBF2_NOSTAGE`,
+  guard worker and CI runs, so it can be pinned. The staged file itself is checked by the x64-only
+  `steam-api64-staged` row (hash and exports), which x64 prints and no pinned table holds.
+- Captured with C-HARDEN-STEAMID, from the same run and capture.
+- Status: re-pinned under phase 46 decisions D-14 and D-15, 2026-11-18.
+
+### C-CASE-CRASHDELAYLOAD
+
+- No digest row moved. `smoke-all-digests.txt` and `offthread.txt` each gain one row for the new
+  Crash case `crash-delayload`; no other row moves.
+- Cause: a new smoke case. `crash-delayload` runs the standard mission on Win32 with
+  `steam_api.dll` removed from the worker and `-crashtest delayload`, which calls
+  `SteamAPI_RunCallbacks` past the vendor seam, so the delay-load helper raises 0xC06D007E and the
+  game writes its FATAL line naming `steam_api.dll` and one dump, then exits 3. The fault comes at
+  frame 1, before the first turn, so it logs no SIM DIGEST line (`none none`, the same as the
+  other `-crashtest` faults) and no off-thread allocation (`0 0 0`).
+- Captured from `run.ps1 -Platform Win32 -Configuration Release -NoBuild -Smoke Crash`
+  (`capture-vs2013.ps1 -NoBuild -Tables -Baseline v143 -SmokeAllDir`) and
+  `run.ps1 -Platform Win32 -Configuration Test -Smoke Crash`
+  (`capture-vs2013.ps1 -Configuration Test -NoBuild -Tables -Baseline v143 -OffThreadDir`), each
+  into a scratch `-OutDir`. Every other Crash row in both captures equals the pinned row, byte for
+  byte.
+  - row: smoke-all-digests crash-delayload
+  - row: offthread crash-delayload
+- Status: added under phase 46 decision D-06, 2026-11-18.
+
 ## Policy
 
 The v143 files in `tests/corpus/` and this directory are the reference from now on. The digest

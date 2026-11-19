@@ -813,6 +813,9 @@
     <ClCompile Include="src\Battlefront2\Source\IdleHelper.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\InGameMovie.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\ItemTimerDisplay.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -1606,6 +1609,9 @@
       <Filter>src\Steam</Filter>
     </ClCompile>
     <ClCompile Include="src\Steam\gfSteamAuth.cpp">
+      <Filter>src\Steam</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Steam\gfVendor.cpp">
       <Filter>src\Steam</Filter>
     </ClCompile>
     <ClCompile Include="src\lglcd\lgLcd.cpp">
@@ -3477,6 +3483,9 @@
       <Filter>src\Steam</Filter>
     </ClInclude>
     <ClInclude Include="src\Steam\gfSteamAuth.h">
+      <Filter>src\Steam</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Steam\gfVendor.h">
       <Filter>src\Steam</Filter>
     </ClInclude>
     <ClInclude Include="src\Steam\steamworks.h">
