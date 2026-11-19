@@ -3,6 +3,9 @@
 [fatal-init]
 ^\[t=\d+\.\d{3}\] \[f=\d+\] LogLoad Fatal Battlefront2\\Source\\GameState\.cpp:\d+: Could not open MISSION\\no_such_mission\.lvl$
 
+[vendor-wan-nogalaxy]
+^\[t=\d+\.\d{3}\] \[f=\d+\] LogNet Fatal Battlefront2\\Source\\LuaCallbacks_Net\.cpp:\d+: online dedicated server needs Galaxy; use -lan for LAN and direct IP$
+
 [crash-heapfail]
 ^\[t=\d+\.\d{3}\] \[f=\d+\] LogMemory Error Battlefront2\\Source\\MemFailLog\.cpp:\d+: alloc failure heap Runtime \(\d+\) size 268435456
 

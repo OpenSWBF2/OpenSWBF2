@@ -4,37 +4,69 @@ $script:SoakLongTurns = 617300
 $script:SmokeTurnCap = $script:SoakLongTurns
 $script:PerturbSoakTurns = 100000
 $script:SmokeCapRx = '(?s)\A(?!.*OPENSWBF2 SOAK turns=)'
-$script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-check', 'crash-hang', 'crash-stall', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat', 'crash-capexhaust')
+$script:SteamIfaceRx = @('OPENSWBF2 STEAM iface=SteamClient ok', 'OPENSWBF2 STEAM iface=SteamUser ok', 'OPENSWBF2 STEAM iface=SteamFriends ok', 'OPENSWBF2 STEAM iface=SteamUtils ok')
+$script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-delayload', 'crash-check', 'crash-hang', 'crash-stall', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat', 'crash-capexhaust', 'vendor-x64-none', 'vendor-x64-steam-wrongbits', 'vendor-x64-galaxy-wrongbits', 'vendor-x64-steam-on')
 $script:SmokeAddrSpaceRx = 'OPENSWBF2 ADDRSPACE arena=0x[89A-F][0-9A-F]{7} arena_end=0x[0-9A-F]{8} laa=1 steam=1 steam_api=0x(?!0{8})[0-9A-F]{8} Galaxy=0x(?!0{8})[0-9A-F]{8} GalaxyPeer=0x[0-9A-F]{8} binkw32=0x(?!0{8})[0-9A-F]{8}'
-$script:ImportModuleAllow = @(
-    'advapi32.dll',
-    'api-ms-win-crt-convert-l1-1-0.dll',
-    'api-ms-win-crt-environment-l1-1-0.dll',
-    'api-ms-win-crt-filesystem-l1-1-0.dll',
-    'api-ms-win-crt-heap-l1-1-0.dll',
-    'api-ms-win-crt-locale-l1-1-0.dll',
-    'api-ms-win-crt-math-l1-1-0.dll',
-    'api-ms-win-crt-runtime-l1-1-0.dll',
-    'api-ms-win-crt-stdio-l1-1-0.dll',
-    'api-ms-win-crt-string-l1-1-0.dll',
-    'api-ms-win-crt-time-l1-1-0.dll',
-    'api-ms-win-crt-utility-l1-1-0.dll',
-    'binkw32.dll',
-    'd3d9.dll',
-    'd3dx9_43.dll',
-    'dinput8.dll',
-    'dsound.dll',
-    'galaxy.dll',
-    'gdi32.dll',
-    'kernel32.dll',
-    'msvcp140.dll',
-    'ole32.dll',
-    'steam_api.dll',
-    'user32.dll',
-    'vcruntime140.dll',
-    'winmm.dll',
-    'ws2_32.dll'
-)
+$script:ImportStaticAllow = @{
+    Win32 = @(
+        'advapi32.dll',
+        'api-ms-win-crt-convert-l1-1-0.dll',
+        'api-ms-win-crt-environment-l1-1-0.dll',
+        'api-ms-win-crt-filesystem-l1-1-0.dll',
+        'api-ms-win-crt-heap-l1-1-0.dll',
+        'api-ms-win-crt-locale-l1-1-0.dll',
+        'api-ms-win-crt-math-l1-1-0.dll',
+        'api-ms-win-crt-runtime-l1-1-0.dll',
+        'api-ms-win-crt-stdio-l1-1-0.dll',
+        'api-ms-win-crt-string-l1-1-0.dll',
+        'api-ms-win-crt-time-l1-1-0.dll',
+        'api-ms-win-crt-utility-l1-1-0.dll',
+        'binkw32.dll',
+        'd3d9.dll',
+        'd3dx9_43.dll',
+        'dinput8.dll',
+        'dsound.dll',
+        'gdi32.dll',
+        'kernel32.dll',
+        'msvcp140.dll',
+        'ole32.dll',
+        'user32.dll',
+        'vcruntime140.dll',
+        'winmm.dll',
+        'ws2_32.dll'
+    )
+    x64 = @(
+        'advapi32.dll',
+        'api-ms-win-crt-convert-l1-1-0.dll',
+        'api-ms-win-crt-environment-l1-1-0.dll',
+        'api-ms-win-crt-filesystem-l1-1-0.dll',
+        'api-ms-win-crt-heap-l1-1-0.dll',
+        'api-ms-win-crt-locale-l1-1-0.dll',
+        'api-ms-win-crt-math-l1-1-0.dll',
+        'api-ms-win-crt-runtime-l1-1-0.dll',
+        'api-ms-win-crt-stdio-l1-1-0.dll',
+        'api-ms-win-crt-string-l1-1-0.dll',
+        'api-ms-win-crt-time-l1-1-0.dll',
+        'api-ms-win-crt-utility-l1-1-0.dll',
+        'd3d9.dll',
+        'd3dx9_43.dll',
+        'dinput8.dll',
+        'dsound.dll',
+        'gdi32.dll',
+        'kernel32.dll',
+        'msvcp140.dll',
+        'ole32.dll',
+        'user32.dll',
+        'vcruntime140.dll',
+        'vcruntime140_1.dll',
+        'winmm.dll',
+        'ws2_32.dll'
+    )
+}
+$script:ImportDelayAllow = @{
+    Win32 = @('galaxy.dll', 'steam_api.dll')
+    x64 = @('galaxy64.dll', 'steam_api64.dll')
+}
 $script:MiDefines = @{
     Debug = @('MI_DEBUG=2', 'MI_SECURE=0')
     Release = @('MI_DEBUG=0', 'MI_SECURE=4')
@@ -112,7 +144,7 @@ $script:SpacerAllow = @(
     'src\RedEngineFL\Interface\RedBorderElement.h|mOtherPositionAttributes|[0x0c-0x08]|x64:safe:bytes inside a float vertex record that is 0x1c bytes on both platforms',
     'src\RedEngineFL\Interface\RedBorderElement.h|mOtherTextureAttributes|[0x1c-0x14]|x64:safe:bytes inside a float vertex record that is 0x1c bytes on both platforms',
     'src\RedEngineFL\Interface\RedBorderElement.h|mReservedTail|[0x260-0x254]|x64:safe:unread tail pad bytes; members are read by name and the class size is sizeof on each platform',
-    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.h|pad1c|[0xd0-0x1c]|x64:safe:mirror of the x86 binkw32 BINK struct; no x64 Bink is linked before Phase 46 which replaces the struct with the x64 SDK layout',
+    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.h|pad1c|[0xd0-0x1c]|x64:safe:mirror of the binkw32 BINK struct, read only by the Win32 Bink player; x64 links the null movie player and no Bink',
     'src\SoundFL\source\sndenginebase.h|smVoiceStorage|[]|x64:fixed:45-08 sizes the storage as count * sizeof(T) with alignas(T) and a static_assert at the definition',
     'src\SoundFL\source\sndenginebase.h|smStreamStorage|[]|x64:fixed:45-08 sizes the storage as count * sizeof(T) with alignas(T) and a static_assert at the definition',
     'src\SoundFL\source\sndglobals.cpp|acMessage|[0x800]|x64:safe:char buffer bounded by sizeof or a fixed char count; no pointer-sized element',
@@ -287,6 +319,56 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             $cases += New-Object PSObject -Property @{ Name = 'repeat-digest'; Args = "$standard $htail -repeatmission"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $scanRx + $hrx) }; Twice = 0 }
         }
     }
+    if ($which -eq 'Vendor' -and $script:SmokePlatform -eq 'Win32') {
+        $t1rx = '(?m)OPENSWBF2 SOAK turns=1\r?$'
+        $vArgs = "$standard $htail -soakturns 1"
+        $vRt = @($GalaxyRuntimes | ForEach-Object { Join-Path (Get-SystemDllDir 'Win32') $_ })
+        $vRtSkip = 'VS2013 x86 runtime not installed'
+        $vRtOff = 'OPENSWBF2 VENDOR steam=on galaxy=off d3dx9=[^\r\n]* msvcr120=0 msvcp120=0'
+        $cases += New-Object PSObject -Property @{ Name = 'vendor-present'; Args = $vArgs; NeedsFile = $vRt; SkipReason = $vRtSkip; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 VENDOR steam=on galaxy=on d3dx9=[^\r\n]* msvcr120=1 msvcp120=1', '(?s)\A(?!.*OPENSWBF2 VENDOR \w+ off)', $t1rx) + $script:SteamIfaceRx + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'vendor-steam-missing'; Args = $vArgs; Omit = @('steam_api.dll'); Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 VENDOR steam off: steam_api\.dll missing', 'OPENSWBF2 VENDOR steam=off galaxy=on', '(?s)\A(?!.*VENDOR steam off.*VENDOR steam off)', $t1rx) + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'vendor-galaxy-missing'; Args = $vArgs; Omit = @('Galaxy.dll'); Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 VENDOR galaxy off: Galaxy\.dll missing', $vRtOff, '(?s)\A(?!.*VENDOR galaxy off.*VENDOR galaxy off)', $t1rx) + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'vendor-vcrt-off'; Args = $vArgs; Omit = @('Galaxy.dll'); NeedsFile = $vRt; SkipReason = $vRtSkip; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 VENDOR galaxy off: Galaxy\.dll missing', $vRtOff, '(?s)\A(?!.*VENDOR galaxy off.*VENDOR galaxy off)', $t1rx) + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'vendor-galaxypeer-missing'; Args = $vArgs; Omit = @('GalaxyPeer.dll'); Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 VENDOR galaxy off: GalaxyPeer\.dll missing', 'OPENSWBF2 VENDOR steam=on galaxy=off', '(?s)\A(?!.*VENDOR galaxy off.*VENDOR galaxy off)', $t1rx) + $hrx) }; Twice = 0 }
+        $vSteam64 = Join-Path $PSScriptRoot 'SWBF2_VENDOR_X64-not-set\steam_api64.dll'
+        $vSkip = 'SWBF2_VENDOR_X64 not set'
+        if ($env:SWBF2_VENDOR_X64) {
+            $vSteam64 = Join-Path $env:SWBF2_VENDOR_X64 'steam_api64.dll'
+            $vSkip = 'steam_api64.dll not in SWBF2_VENDOR_X64'
+        }
+        $cases += New-Object PSObject -Property @{ Name = 'vendor-steam-wrongbits'; Args = $vArgs; Swap = @{ 'steam_api.dll' = $vSteam64 }; NeedsFile = @($vSteam64); SkipReason = $vSkip; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 VENDOR steam off: steam_api\.dll wrong bitness', 'OPENSWBF2 VENDOR steam=off galaxy=on', '(?s)\A(?!.*VENDOR steam off.*VENDOR steam off)', $t1rx) + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'vendor-wan-nogalaxy'; Args = "/autonet dedicated -nopregame -playercount 0 $standard 100 100 $htail"; Omit = @('Galaxy.dll'); Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = @('OPENSWBF2 VENDOR galaxy off: Galaxy\.dll missing', '(?s)\A(?!.*VENDOR galaxy off.*VENDOR galaxy off)', 'OPENSWBF2 GALAXY login skipped: Online lobbies are not available because Galaxy could not be loaded\. LAN and direct IP games work\.', 'FATAL: online dedicated server needs Galaxy') }; Twice = 0 }
+    }
+    if ($which -eq 'Vendor' -and $script:SmokePlatform -eq 'x64') {
+        $vArgs = "$standard $tail -crashtest fastfail"
+        $werKey = $script:SmokeWerKey
+        if ($null -eq $werKey) { $werKey = Test-WerKey }
+        $vGame = Find-GameDataRoot
+        $vSkip = 'no retail GameData found'
+        if (-not $vGame) { $vGame = Join-Path $PSScriptRoot 'GameData-not-found' }
+        $vSteamOnce = '(?s)\A(?!.*VENDOR steam off.*VENDOR steam off)'
+        $vGalaxyOnce = '(?s)\A(?!.*VENDOR galaxy off.*VENDOR galaxy off)'
+        $vRtOff = 'OPENSWBF2 VENDOR steam=\w+ galaxy=off d3dx9=[^\r\n]* msvcr120=0 msvcp120=0'
+        $vSpecs = @(
+            @{ Name = 'vendor-x64-none'; Omit = @('steam_api64.dll', 'Galaxy64.dll', 'GalaxyPeer64.dll'); LogRx = @('OPENSWBF2 VENDOR steam off: steam_api64\.dll missing', 'OPENSWBF2 VENDOR galaxy off: Galaxy64\.dll missing', 'OPENSWBF2 VENDOR steam=off galaxy=off', $vSteamOnce, $vGalaxyOnce, $vRtOff) },
+            @{ Name = 'vendor-x64-steam-wrongbits'; Swap = @{ 'steam_api64.dll' = (Join-Path $vGame 'steam_api.dll') }; LogRx = @('OPENSWBF2 VENDOR steam off: steam_api64\.dll wrong bitness', $vSteamOnce, $vRtOff) },
+            @{ Name = 'vendor-x64-galaxy-wrongbits'; Swap = @{ 'Galaxy64.dll' = (Join-Path $vGame 'Galaxy.dll') }; LogRx = @('OPENSWBF2 VENDOR galaxy off: Galaxy64\.dll wrong bitness', $vGalaxyOnce, $vRtOff) },
+            @{ Name = 'vendor-x64-steam-on'; Omit = @('Galaxy64.dll', 'GalaxyPeer64.dll'); NeedsFile = @(Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "bin\x64\$script:SmokeDigestConfiguration\steam_api64.dll"); SkipReason = 'SWBF2_VENDOR_X64 not set'; LogRx = (@('OPENSWBF2 VENDOR steam=on galaxy=off', '(?s)\A(?!.*VENDOR steam off)', 'OPENSWBF2 VENDOR galaxy off: Galaxy64\.dll missing', $vGalaxyOnce, $vRtOff) + $script:SteamIfaceRx) }
+        )
+        foreach ($s in $vSpecs) {
+            $x = @{ Class = 'GsFailure'; Code = 3221226505; LogRx = $s.LogRx }
+            if ($werKey) { $x.MinDumps = 1 }
+            $c = New-Object PSObject -Property @{ Name = $s.Name; Args = $vArgs; Expect = $x; Twice = 0 }
+            if ($s.Omit) { $c | Add-Member -NotePropertyName Omit -NotePropertyValue $s.Omit }
+            if ($s.Swap) { $c | Add-Member -NotePropertyName Swap -NotePropertyValue $s.Swap; $c | Add-Member -NotePropertyName SkipReason -NotePropertyValue $vSkip }
+            if ($s.NeedsFile) { $c | Add-Member -NotePropertyName NeedsFile -NotePropertyValue $s.NeedsFile; $c | Add-Member -NotePropertyName SkipReason -NotePropertyValue $s.SkipReason }
+            $cases += $c
+        }
+    }
+    if ($which -eq 'Vendor') {
+        $vD3dx = '(?i)OPENSWBF2 VENDOR steam=\w+ galaxy=\w+ d3dx9=[a-z]:\\[^\r\n]*\\artifacts\\smoke-workers\\' + $script:SmokePlatform + '\\[^\\\r\n]+\\[^\\\r\n]+\\w\d+\\d3dx9_43\.dll msvcr120='
+        foreach ($c in @($cases | Where-Object { $_.Name -like 'vendor-*' })) { $c.Expect.LogRx = @($c.Expect.LogRx) + $vD3dx }
+    }
     if ($which -eq 'All') {
         foreach ($line in $missions) {
             $tok = @($line.Trim() -split '\s+')
@@ -322,6 +404,15 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         if ($null -eq $werKey) { $werKey = Test-WerKey }
         if ($werKey) { $ff.MinDumps = 1 }
         $cases += New-Object PSObject -Property @{ Name = 'crash-fastfail'; Args = "$standard $tail -crashtest fastfail"; Expect = $ff; Twice = 0 }
+        if ($script:SmokePlatform -eq 'Win32') {
+            $cases += New-Object PSObject -Property @{
+                Name = 'crash-delayload'
+                Args = "$standard $tail -crashtest delayload"
+                Omit = @('steam_api.dll')
+                Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('FATAL:.*\.dmp', 'FATAL: exception 0xC06D007E at 0x[0-9A-F]+ \([^)]+\) dll=steam_api\.dll build ', 'OPENSWBF2 VENDOR steam off: steam_api\.dll missing', '(?s)\A(?!.*VENDOR steam off.*VENDOR steam off)') }
+                Twice = 0
+            }
+        }
         $cases += New-Object PSObject -Property @{
             Name = 'fatal-init'
             Args = "no_such_mission $tail"

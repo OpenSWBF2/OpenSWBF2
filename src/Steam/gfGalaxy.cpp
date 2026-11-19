@@ -31,66 +31,66 @@ unsigned int gListedLobbyCount;
 // FUNCTION: SWBF2 0x005d45f0
 void ProcessGalaxyData()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     pGalaxy->ProcessData();
 }
 
 // FUNCTION: SWBF2 0x005d4610
 galaxy::api::IUser* GetGalaxyUser()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return 0;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->User();
 }
 
 // FUNCTION: SWBF2 0x005d4630
 galaxy::api::IFriends* GetGalaxyFriends()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return 0;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->Friends();
 }
 
 // FUNCTION: SWBF2 0x005d4650
 galaxy::api::IMatchmaking* GetGalaxyMatchmaking()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return 0;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->Matchmaking();
 }
 
 // FUNCTION: SWBF2 0x005d4670
 galaxy::api::IStats* GetGalaxyStats()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return 0;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->Stats();
 }
 
 // FUNCTION: SWBF2 0x005dafe0
 galaxy::api::INetworking* GetGalaxyNetworkingInterface()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return 0;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->Networking();
 }
 

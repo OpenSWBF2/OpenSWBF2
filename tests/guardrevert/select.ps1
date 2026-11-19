@@ -185,11 +185,14 @@ function Get-GuardCaseTexts($Rows, [string]$DefaultConfig, [string]$Root)
     $sets = @{}
     $savedConfig = $script:SmokeDigestConfiguration
     $savedPerturb = $env:OPENSWBF2_PERTURB_MISSIONS
+    $savedPlatform = $script:SmokePlatform
     try
     {
         foreach ($row in $Rows)
         {
             $kind = Get-GuardRowKind $row
+            $plat = Get-GuardRowPlatform $row
+            $script:SmokePlatform = $plat
             $cases = @()
             if ($kind -eq 'Smoke')
             {
@@ -198,20 +201,21 @@ function Get-GuardCaseTexts($Rows, [string]$DefaultConfig, [string]$Root)
                 {
                     $cfg = $DefaultConfig
                 }
-                if (-not $sets.ContainsKey($cfg))
+                $setKey = "$cfg|$plat"
+                if (-not $sets.ContainsKey($setKey))
                 {
                     $script:SmokeDigestConfiguration = $cfg
                     $set = @{}
-                    foreach ($w in 'Crash', 'Standard')
+                    foreach ($w in 'Crash', 'Standard', 'Vendor')
                     {
                         foreach ($c in (Get-SmokeCases $w @() $false $null))
                         {
                             $set[$c.Name] = $c
                         }
                     }
-                    $sets[$cfg] = $set
+                    $sets[$setKey] = $set
                 }
-                $c = $sets[$cfg][[string]$row.Case]
+                $c = $sets[$setKey][[string]$row.Case]
                 if ($null -ne $c)
                 {
                     $cases = @($c)
@@ -269,6 +273,7 @@ function Get-GuardCaseTexts($Rows, [string]$DefaultConfig, [string]$Root)
     {
         $script:SmokeDigestConfiguration = $savedConfig
         $env:OPENSWBF2_PERTURB_MISSIONS = $savedPerturb
+        $script:SmokePlatform = $savedPlatform
     }
     $texts
 }

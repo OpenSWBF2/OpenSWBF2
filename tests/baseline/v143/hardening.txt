@@ -10,6 +10,8 @@
 [PASS] hardening:crt-heap-ban
 [PASS] hardening:snd-alloc-size-t
 [PASS] hardening:galaxy-getter-cast
+[PASS] hardening:galaxy-factory-seam
+[PASS] hardening:steamid-abi
 [PASS] hardening:handle-raw
 [PASS] hardening:char-spacer
 [PASS] hardening:offset-hack
@@ -37,5 +39,9 @@
 [PASS] hardening:import-AdjustWindowRectExForDpi
 [PASS] hardening:import-shcore
 [PASS] hardening:import-modules
+[PASS] hardening:import-delay-modules
+[PASS] hardening:unicows-staged
+[PASS] hardening:d3dx9-pins
+[PASS] hardening:steam-api64-pins
 [PASS] hardening:aslr-pe
 [PASS] hardening:aslr-pe-tests

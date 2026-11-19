@@ -1,6 +1,8 @@
 #ifndef GF_GALAXY_API_H
 #define GF_GALAXY_API_H
 
+#include "gfVendor.h"
+
 namespace galaxy
 {
 namespace api
@@ -221,7 +223,7 @@ public:
 
 inline IListenerRegistrar* ListenerRegistrar()
 {
-    IGalaxy* pGalaxy = GalaxyFactory::GetInstance();
+    IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->GetListenerRegistrar();
 }
 

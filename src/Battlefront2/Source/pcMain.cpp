@@ -26,6 +26,7 @@
 #include "SoundFL/source/sndsource3d.h"
 #include "Steam/gfSteamAuth.h"
 #include "Steam/galaxy_api.h"
+#include "Steam/gfVendor.h"
 #include "CommandLine.h"
 #include "pcCrash.h"
 #include "GameLoop.h"
@@ -457,6 +458,7 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     char szKey[64];
     strncpy(szKey, "952F41D039DB4507A84B40488E76932F 0123456789ABCDECAT0123456IPA", 0x3D);
 
+    gf::vendor::Probe();
     bool bRestarting = false;
     if (!gf::_sap()->Init(0x17AC, bRestarting) && bRestarting)
     {
@@ -530,8 +532,11 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
             "Galaxy=0x%08IX GalaxyPeer=0x%08IX binkw32=0x%08IX",
             uArena, uArena + uArenaSize,
             pcCrash::IsLargeAddressAware() ? 1 : 0, gf::_sap()->IsInitialized() ? 1 : 0,
-            (uintptr_t)GetModuleHandleA("steam_api.dll"), (uintptr_t)GetModuleHandleA("Galaxy.dll"),
-            (uintptr_t)GetModuleHandleA("GalaxyPeer.dll"), (uintptr_t)GetModuleHandleA("binkw32.dll"));
+            (uintptr_t)GetModuleHandleA(gf::vendor::DllName("steam_api.dll", "steam_api64.dll")),
+            (uintptr_t)GetModuleHandleA(gf::vendor::DllName("Galaxy.dll", "Galaxy64.dll")),
+            (uintptr_t)GetModuleHandleA(gf::vendor::DllName("GalaxyPeer.dll", "GalaxyPeer64.dll")),
+            (uintptr_t)GetModuleHandleA("binkw32.dll"));
+        gf::vendor::WriteLog();
         RedMiRegisterOutput();
         char acMiOptions[256];
         RedMiFormatOptions(acMiOptions, sizeof(acMiOptions));
@@ -760,22 +765,22 @@ void PumpWaitingMessages()
 // FUNCTION: SWBF2 0x00617bb0
 galaxy::api::INetworking* GetGalaxyNetworking()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return 0;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->Networking();
 }
 
 // FUNCTION: SWBF2 0x00617bd0
 galaxy::api::INetworking* GetGalaxyHostNetworking()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return 0;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->ServerNetworking();
 }
 

@@ -14,6 +14,7 @@
 
 #include "NetSetup.h"
 #include "Steam/galaxy_api.h"
+#include "Steam/gfGalaxy.h"
 
 bool __fastcall RoutesToHostDestination(unsigned int uType);
 extern int netCurMaxHosts, netCurMaxPlayers;
@@ -401,22 +402,22 @@ unsigned __int64* __fastcall CopyEnteredLobbyId(unsigned __int64* pID)
 // FUNCTION: SWBF2 0x005b2300
 galaxy::api::IMatchmaking* GetGalaxyMatchmakingForNetComm()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return 0;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->Matchmaking();
 }
 
 // FUNCTION: SWBF2 0x005b2320
 galaxy::api::INetworking* GetGalaxyNetworkingForNetComm()
 {
-    if (!galaxy::api::GalaxyFactory::GetInstance())
+    if (!gf::vendor::GalaxyGetInstance())
     {
         return 0;
     }
-    galaxy::api::IGalaxy* pGalaxy = galaxy::api::GalaxyFactory::GetInstance();
+    galaxy::api::IGalaxy* pGalaxy = gf::vendor::GalaxyGetInstance();
     return pGalaxy->Networking();
 }
 
@@ -425,9 +426,10 @@ void DoRecvs();
 void SendLow(NetPacket* pPacket);
 bool RecvGroup(NetPktGroup& group, NetPacket* pPacket);
 void __fastcall HandleCommPacketOut(NetPacket* pPacket);
-namespace gf
+
+bool NetComm::IsWanReady()
 {
-bool checkError();
+    return isLAN || gf::isInitialized();
 }
 
 // FUNCTION: SWBF2 0x005b2740

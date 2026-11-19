@@ -21,6 +21,7 @@ crash-capexhaust	0	0	0
 crash-check	0	0	0
 crash-debugbreak	0	0	0
 crash-debugheapoom	0	0	0
+crash-delayload	0	0	0
 crash-divzero	0	0	0
 crash-fastfail	-	-	-
 crash-gammadrawfail	0	0	0

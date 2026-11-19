@@ -243,6 +243,39 @@ public:
     ISteamFriends* SteamFriends() const { return m_pSteamFriends; }
     ISteamUtils* SteamUtils() const { return m_pSteamUtils; }
 
+    enum
+    {
+        kInterfaceCount = 21
+    };
+
+    static const char* InterfaceName(int i)
+    {
+        static const char* const apcNames[kInterfaceCount] = {
+            "SteamClient", "SteamUser", "SteamFriends", "SteamUtils", "SteamMatchmaking", "SteamUserStats",
+            "SteamApps", "SteamMatchmakingServers", "SteamNetworking", "SteamRemoteStorage", "SteamScreenshots",
+            "SteamHTTP", "SteamUnifiedMessages", "Controller", "SteamUGC", "SteamAppList", "SteamMusic",
+            "SteamMusicRemote", "SteamHTMLSurface", "SteamInventory", "SteamVideo"};
+        return i >= 0 && i < kInterfaceCount ? apcNames[i] : "";
+    }
+
+    unsigned int InterfaceMask() const
+    {
+        const void* const apInterfaces[kInterfaceCount] = {
+            m_pSteamClient, m_pSteamUser, m_pSteamFriends, m_pSteamUtils, m_pSteamMatchmaking, m_pSteamUserStats,
+            m_pSteamApps, m_pSteamMatchmakingServers, m_pSteamNetworking, m_pSteamRemoteStorage, m_pSteamScreenshots,
+            m_pSteamHTTP, m_pSteamUnifiedMessages, m_pController, m_pSteamUGC, m_pSteamAppList, m_pSteamMusic,
+            m_pSteamMusicRemote, m_pSteamHTMLSurface, m_pSteamInventory, m_pSteamVideo};
+        unsigned int uMask = 0;
+        for (int i = 0; i < kInterfaceCount; ++i)
+        {
+            if (apInterfaces[i])
+            {
+                uMask |= 1u << i;
+            }
+        }
+        return uMask;
+    }
+
 private:
     ISteamClient* m_pSteamClient;
     ISteamUser* m_pSteamUser;
@@ -274,6 +307,7 @@ inline void __cdecl SteamInternal_OnContextInit(void* p)
     {
         ((CSteamAPIContext*)p)->Init();
     }
+    gf::vendor::SetSteamInterfaces(((CSteamAPIContext*)p)->InterfaceMask());
 }
 
 inline CSteamAPIContext& SteamInternal_ModuleContext()

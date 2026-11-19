@@ -54,8 +54,10 @@ void NetSocket::SetAddr(NetSocketPeerRecord& peer, int ip, int port)
     peer.mSocketAddress.sin_port = htons(port);
 }
 bool __fastcall IsAdminPacketAuthorized(const unsigned char*) { return false; }
+bool gGalaxyInitializedStub;
+namespace gf { bool isInitialized() { return gGalaxyInitializedStub; } }
 namespace gf { bool checkError() { return false; } }
-namespace galaxy { namespace api { IGalaxy* GalaxyFactory::GetInstance() { return 0; } } }
+namespace gf { namespace vendor { galaxy::api::IGalaxy* GalaxyGetInstance() { return 0; } } }
 int gExitCalls;
 int gLastExitCode;
 namespace pcCrash { void __cdecl Exit(int iCode) { ++gExitCalls; gLastExitCode = iCode; } }

@@ -153,7 +153,7 @@ function Get-GateKey($X, $Tc) {
             $d = [ordered]@{}
             foreach ($f in [IO.Directory]::GetFiles($X.DllDir, '*.dll')) { $d[[IO.Path]::GetFileName($f)] = Get-KeyFileSha $f }
             $dlls = $(if ($d.Count) { $d } else { 'none' })
-            $vendor = Get-VendorDllHashes $X.DllDir (Get-SystemDllDir $X.Platform)
+            $vendor = Get-VendorDllHashes $X.DllDir (Get-SystemDllDir $X.Platform) $X.Platform
         }
     }
     $files = $script:TreeFiles.Clone()
@@ -323,6 +323,13 @@ function Test-GateStepStartsGame($S, [string]$Plat) {
     return [bool]@(Select-GuardPlatformRows @($GuardRevertRows) $Plat | Where-Object { @('Smoke', 'Perturb') -contains (Get-GuardRowKind $_) }).Count
 }
 
+function Get-GateStepSmokeGroup($S) {
+    $a = @($S.Args)
+    $i = [Array]::IndexOf($a, '-Smoke')
+    if ($S.Kind -ne 'guard' -and $i -ge 0 -and $i + 1 -lt $a.Count) { return [string]$a[$i + 1] }
+    return 'Standard'
+}
+
 function Get-GateStepConfigs($Steps) {
     $set = @()
     foreach ($s in @($Steps)) {
@@ -370,7 +377,7 @@ function Get-GatePreflightInput($Steps, [string[]]$Platforms) {
             MSBuild = [bool]($t -and [IO.File]::Exists($t.MSBuild))
             Dumpbin = [bool]($t -and [IO.File]::Exists((Join-Path $t.Bin 'dumpbin.exe')))
             RuntimeDir = Get-SystemDllDir $plat
-            MissingRuntimes = @(Get-MissingRuntimes (Get-SystemDllDir $plat) (Get-PlatformRuntimes $GameRuntimes $plat))
+            MissingRuntimes = @(Get-MissingRuntimes (Get-SystemDllDir $plat) (Get-PlatformRuntimes (Get-GameRuntimes $plat @($ps | Where-Object { Test-GateStepStartsGame $_ $plat } | ForEach-Object { Get-GateStepSmokeGroup $_ })) $plat))
         }
     }
     Add-Type -AssemblyName Microsoft.VisualBasic

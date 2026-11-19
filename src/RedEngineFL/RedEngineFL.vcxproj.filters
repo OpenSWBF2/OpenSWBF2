@@ -408,6 +408,12 @@
     <ClCompile Include="movie\pc\pcRedMoviePlayer.cpp">
       <Filter>movie\pc</Filter>
     </ClCompile>
+    <ClCompile Include="movie\pc\pcRedMoviePlayerNull.cpp">
+      <Filter>movie\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="movie\pc\pcRedMoviePlayerNullObject.cpp">
+      <Filter>movie\pc</Filter>
+    </ClCompile>
     <ClCompile Include="input\pc\pcRedLogitechLCD.cpp">
       <Filter>input\pc</Filter>
     </ClCompile>
