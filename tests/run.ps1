@@ -7,7 +7,7 @@ param(
     [switch]$Fuzz,
     [int]$Seed = 1,
     [int]$Iterations = 100000,
-    [ValidateSet('None','Standard','Dedicated','Crash','All','Twice','Perturb','Soak','Vendor')][string]$Smoke = 'Standard',
+    [ValidateSet('None','Standard','Dedicated','Crash','All','Twice','Perturb','Soak','Vendor','Boot')][string]$Smoke = 'Standard',
     [switch]$FactoryLog,
     [int]$MiPurge = -1,
     [ValidateSet('Debug','Release','Test','Asan')][string]$SmokeConfiguration = 'Release',
@@ -630,13 +630,25 @@ function Invoke-TableCapture([string]$dir, [string[]]$captureArgs) {
 }
 
 $tablesSkip = $null
+$compareSkip = $null
 if (-not $smokeActive) { $tablesSkip = 'no smoke run' }
 elseif ($Smoke -ne 'All') { $tablesSkip = "smoke group is $Smoke" }
 elseif ($SmokeConfiguration -ne 'Release') { $tablesSkip = "smoke configuration is $SmokeConfiguration" }
-elseif ($HogAddrSpace) { $tablesSkip = '-HogAddrSpace' }
 elseif ($MiPurge -ge 0) { $tablesSkip = '-MiPurge' }
 elseif ($Movies) { $tablesSkip = '-Movies' }
+elseif ($HogAddrSpace) { $compareSkip = '-HogAddrSpace' }
 if ($tablesSkip) { Write-Host "[SKIP] tables:compare - $tablesSkip" }
+elseif ($compareSkip) {
+    $tablesDir = Join-Path $outDir 'tables'
+    $tablesCode = Invoke-TableCapture $tablesDir @('-Tables', '-SmokeAllDir', $outDir, '-OutDir', $tablesDir)
+    if ($tablesCode -eq 0) { Write-Host "[SKIP] tables:compare - $compareSkip" }
+    else {
+        $tablesLine = "[FAIL] tables:capture exit $tablesCode"
+        $bad++
+        Write-Host $tablesLine
+        $results += New-Object PSObject -Property @{ Line = $tablesLine; Final = 'FAIL'; Known = $false }
+    }
+}
 else {
     $tablesDir = Join-Path $outDir 'tables'
     $tablesCode = Invoke-TableCapture $tablesDir @('-Tables', '-SmokeAllDir', $outDir, '-OutDir', $tablesDir)

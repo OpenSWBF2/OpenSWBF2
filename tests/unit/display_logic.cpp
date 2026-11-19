@@ -1471,6 +1471,24 @@ TEST_CASE("display logic cursor plan" * doctest::test_suite("unit"))
     CHECK(p.bHideDrawn);
 }
 
+TEST_CASE("display logic moves the system cursor only from the foreground window"
+          * doctest::test_suite("unit"))
+{
+    CHECK(OwnsSystemCursor(true, true, true));
+    CHECK_FALSE(OwnsSystemCursor(true, true, false));
+    CHECK_FALSE(OwnsSystemCursor(false, true, true));
+    CHECK_FALSE(OwnsSystemCursor(true, false, true));
+    int iOwned = 0;
+    for (int i = 0; i < 8; ++i)
+    {
+        if (OwnsSystemCursor((i & 1) != 0, (i & 2) != 0, (i & 4) != 0))
+        {
+            ++iOwned;
+        }
+    }
+    CHECK(iOwned == 1);
+}
+
 TEST_CASE("display logic cursor button latch" * doctest::test_suite("unit"))
 {
     unsigned int uiLatched = 0;

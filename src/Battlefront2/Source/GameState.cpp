@@ -1247,6 +1247,8 @@ void GameState::ShellState::Enter()
     SystemTimeStamp.Mark(GetSystemTimeBase());
 }
 
+static unsigned int suShellSoakUpdates;
+
 // FUNCTION: SWBF2 0x0053ba70
 void GameState::ShellState::Update(float fDeltaTime, float)
 {
@@ -1263,6 +1265,14 @@ void GameState::ShellState::Update(float fDeltaTime, float)
     }
 #endif
     ShellLoop::Update(fDeltaTime);
+    if (gSoakTurns > 0 && !gMissionOnCommandLine && suShellSoakUpdates < (unsigned int)gSoakTurns)
+    {
+        if (++suShellSoakUpdates == (unsigned int)gSoakTurns)
+        {
+            LOG(LogSim, Inform, "OPENSWBF2 SOAK shell=%u", suShellSoakUpdates);
+            GameLoop::PostRunComplete();
+        }
+    }
 }
 
 // FUNCTION: SWBF2 0x0053ba50

@@ -543,6 +543,7 @@
     <ClCompile Include="src\Battlefront2\Source\WeatherEffect.cpp" />
     <ClCompile Include="src\Battlefront2\Source\WorldShadowMapEffect.cpp" />
     <ClCompile Include="src\Battlefront2\Source\gamespyStatsManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\pcAddrSpace.cpp" />
     <ClCompile Include="src\Battlefront2\Source\pcCrash.cpp" />
     <ClCompile Include="src\Battlefront2\Source\pcMain.cpp" />
     <ClCompile Include="src\Battlefront2\Source\pcNetSocket.cpp" />
@@ -584,6 +585,7 @@
     <ResourceCompile Include="BattlefrontII.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Battlefront2\Source\pcAddrSpace.h" />
     <ClInclude Include="src\Battlefront2\Source\pcCrash.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcDynamicSprite.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcFLJoystick.h" />

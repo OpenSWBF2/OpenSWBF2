@@ -19,13 +19,14 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 
 | File | SHA-256 | Produced by |
 |------|---------|-------------|
-| `CAUSES.md` | 0DBEDF4D98F220410303AD2FF636495D7250D2A8CEE4FFB0B38795526E2398C1 | written by hand from the comparison against `tests/baseline/vs2013/` |
-| `smoke-all-digests.txt` | 02F13CF0B7571E9ADE6626A5CFF93266064274B7888CEF33B2DD46A1DC1EC16C | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
+| `CAUSES.md` | 40894BE10F76B13FBFA5196E1A9F49529DEE234B72AB82AA4E05AAE972AA79E9 | written by hand from the comparison against `tests/baseline/vs2013/` |
+| `smoke-all-digests.txt` | 8D0250F595A13012B400A0C104844C675791F0D1413E5D42E2F4DE7BECAA3E35 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `pool-sizes.txt` | A2FA679AC1174C9082D1E3DE216F82FC16B5E20B35A41C09AC4F081CF9643D72 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `mem-peaks.txt` | D24B076240DC0D686B07C7F1D33EF273F88E928C863E9C11878061FF3A7D41B0 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
+| `mem-peaks-x64.txt` | 76D87EF85DA1685C3D5DD2C975CA1444BC2B9912A46F2DEBC790157D61EA8DA0 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Platform x64 -Configuration Release -Smoke All -HogAddrSpace` |
 | `cloth-headroom.txt` | 7C388EDBA9ADC4CF1D82A8C66FD7409CAF534B023E630AB59F9844312104F720 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `hardening.txt` | 1A67C5F6F2F98B8BEB1867B3831446998C4D34F8DA5F2859605E241B8A6664D5 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
-| `offthread.txt` | B03F4F83ECBC41057BB8D177F7FDA7FAEF29C492CB03F0A270D1605253D76BB3 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
+| `offthread.txt` | 8DB5C6AC2EFA4531BE0618584D35A3A21CB6FBD0E12809421BD5ED69AAD40BC4 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
 | `lua-bins.txt` | A6E3FF46D1E8A6D69232061361199590BC6FB0C1AEEF6EFF0A0E19F69DA5936A | `capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All` |
 | `digests-debug.txt` | B0856D73AF662CC495ECC019194E0DE150C71A8BA648B9211A33C29AEB18A122 | `capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug` |
 | `digests.txt` | 9AE18CAC28450E27A9AD9992321734DFAE2BBBFF90C50FAA6EBD99518B89D6B7 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
@@ -61,5 +62,8 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 - Phase 46 (plan 46-07) added the `unicows-staged` line to `hardening.txt` (C-HARDEN-UNICOWS). The `hardening.txt` and `CAUSES.md` hashes had not been updated after 46-01, 46-04 and 46-05 and are current again.
 - Phase 46 (plan 46-12) added the `d3dx9-pins` line to `hardening.txt` (C-HARDEN-D3DX9).
 - Phase 46 (plan 46-13) added the `steamid-abi` and `steam-api64-pins` lines to `hardening.txt` (C-HARDEN-STEAMID, C-HARDEN-STEAMPIN).
+- Phase 47 (plan 47-03) added C-COMBO-BLOCKS to `CAUSES.md`; no table changed.
+- Phase 47 (plan 47-04) added C-CASE-CRASHEARLY: `smoke-all-digests.txt` and `offthread.txt` gained the `crash-early` and `crash-heapinit` rows, and C-CASE-PARTICLESOUND: both gained the `crash-particlesound` row; no other row moved.
+- Phase 47 (plan 47-09) added `mem-peaks-x64.txt`, the x64 Release `-Smoke All -HogAddrSpace` peaks the x64 heap sizes are derived from, and C-HEAPCAP-X64-RULE, -Application, -Lua, -Runtime and -KEPT to `CAUSES.md`; no x86 table changed.
 - `capture-vs2013.ps1 -Verify -Baseline v143` checks this manifest. `-Archive` assumes the VS2013 build identity and is not used for this directory.
 - `compare-tables.ps1` holds the reader of every file here, and the `baseline-readers` hardening check fails on a file with no reader.

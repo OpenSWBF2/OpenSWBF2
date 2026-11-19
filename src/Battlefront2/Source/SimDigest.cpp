@@ -1,5 +1,7 @@
 #include "SimDigest.h"
 
+#include <stdio.h>
+
 #include "AIGoalManager.h"
 #include "Character.h"
 #include "CommandLine.h"
@@ -156,9 +158,92 @@ unsigned int SimDigest::StateHash()
     return uHash;
 }
 
+#ifdef OPENSWBF2_TEST
+static unsigned int FloatBits(float fValue)
+{
+    unsigned int uBits;
+    memcpy(&uBits, &fValue, 4);
+    return uBits;
+}
+
+static void DetailObject(unsigned int uTurn, const char* pcHead, const GameObject* pObject)
+{
+    if (!pObject)
+    {
+        LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u %s none", uTurn, pcHead);
+        return;
+    }
+    const PblVector3& vPos = pObject->GetPosition();
+    const PblVector3& vVel = pObject->GetVelocity();
+    LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u %s pos=%08X %08X %08X vel=%08X %08X %08X hp=%08X objteam=%d", uTurn,
+        pcHead, FloatBits(vPos.x), FloatBits(vPos.y), FloatBits(vPos.z), FloatBits(vVel.x), FloatBits(vVel.y),
+        FloatBits(vVel.z), FloatBits(pObject->mCurHealth), pObject->GetTeam());
+}
+
+static void DetailTurn(unsigned int uTurn)
+{
+    char acHead[64];
+    LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u time=%08X", uTurn, FloatBits(GameLoop::GetMissionTime()));
+    int iLimit = Character::sCharacters ? Character::sCharacterLimit : 0;
+    for (int i = 0; i < iLimit; ++i)
+    {
+        const Character& kCharacter = Character::sCharacters[i];
+        const Controllable* pControllable = kCharacter.GetControllable();
+        _snprintf(acHead, sizeof(acHead) - 1, "char=%d team=%d class=%d", i, (int)kCharacter.mTeamNumber,
+            (int)kCharacter.mClassIndex);
+        acHead[sizeof(acHead) - 1] = 0;
+        DetailObject(uTurn, acHead, pControllable ? pControllable->GetGameObject() : 0);
+    }
+    int iTeams = Team::sTeams ? Team::GetCount() : 0;
+    for (int i = 0; i < iTeams; ++i)
+    {
+        const Team* pTeam = Team::sTeams[i];
+        if (!pTeam)
+        {
+            LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u team=%d none", uTurn, i);
+            continue;
+        }
+        LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u team=%d points=%d reinforcements=%d", uTurn, i, pTeam->GetPoints(),
+            pTeam->GetCurReinforcements());
+    }
+    int iPosts = CommandPost::sPostCount ? *CommandPost::sPostCount : 0;
+    for (int i = 0; i < iPosts && i < LocalLimits::kMaxPosts; ++i)
+    {
+        const CommandPost* pPost = CommandPost::FindPostByIndex(i);
+        if (!pPost)
+        {
+            LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u post=%d none", uTurn, i);
+            continue;
+        }
+        const GameObject* pObject = pPost->GetGameObject();
+        LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u post=%d index=%d team=%d capture=%08X neutralize=%08X", uTurn, i,
+            pPost->GetIndex(), pObject ? pObject->GetTeam() : -1, FloatBits(pPost->mCaptureTimer),
+            FloatBits(pPost->mNeutralizeTimer));
+    }
+    const PblHashTable<EntityEx, 1024>& kMap = EntityEx::GetEntityMap();
+    for (PblHashTable<EntityEx, 1024>::Itor it = kMap.Begin(); it != kMap.End(); ++it)
+    {
+        const EntityEx* pEntity = it;
+        if (!pEntity || !pEntity->IsRtti(GameObject::GetRtti()))
+        {
+            continue;
+        }
+        _snprintf(acHead, sizeof(acHead) - 1, "obj=0x%08X", it.GetKey());
+        acHead[sizeof(acHead) - 1] = 0;
+        DetailObject(uTurn, acHead, static_cast<const GameObject*>(pEntity));
+    }
+}
+#endif
+
 void SimDigest::TraceTurn()
 {
     ++suTraceTurn;
+#ifdef OPENSWBF2_TEST
+    if (gDigestDetail > 0 && suTraceTurn >= (unsigned int)gDigestDetail && suTraceTurn - (unsigned int)gDigestDetail < 3u)
+    {
+        DetailTurn(suTraceTurn);
+    }
+#endif
     if (gDigestTrace > 0 && suTraceTurn <= (unsigned int)gDigestTrace)
     {
         LOG(LogSim, Inform, "OPENSWBF2 DIGEST TRACE turn=%u state=0x%08X rand=%u/%u", suTraceTurn, StateHash(),

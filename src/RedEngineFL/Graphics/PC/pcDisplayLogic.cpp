@@ -1071,6 +1071,11 @@ CursorPlan CursorPlanFor(bool bShown, DisplayMode eMode, bool bActive, bool bSof
     return p;
 }
 
+bool OwnsSystemCursor(bool bAppActive, bool bHaveWindow, bool bWindowIsForeground)
+{
+    return bAppActive && bHaveWindow && bWindowIsForeground;
+}
+
 unsigned int CursorButtonLatch(unsigned int uiRawDown, unsigned int uiPrevRawDown, bool bBlockNew,
                                unsigned int& uiLatched)
 {

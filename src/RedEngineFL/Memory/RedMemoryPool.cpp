@@ -10,6 +10,16 @@
 
 static const unsigned int kPoolBlockAlign = (unsigned int)sizeof(void*);
 
+static bool RefusesSize(const char* pcLabel, unsigned int uiSize, unsigned int uiBlock)
+{
+    if (uiSize <= uiBlock)
+    {
+        return false;
+    }
+    LOG(LogMemory, Warning, "Memory pool \"%s\" refused size %u block %u", pcLabel, uiSize, uiBlock);
+    return true;
+}
+
 #ifdef OPENSWBF2_TEST
 static PBL_ASAN_NO_SANITIZE void* PerturbShuffleChunk(void* pChunk, unsigned int uiCount, unsigned int uiSize)
 {
@@ -175,6 +185,10 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
     {
         Create(mCount, mSize, mGrow);
     }
+    if (RefusesSize(mLabel, uiSize, mSize))
+    {
+        return 0;
+    }
 
     if (mFree == 0)
     {
@@ -316,6 +330,10 @@ PBL_ASAN_NO_SANITIZE void MemoryPool::SortFreeList()
 
 PBL_ASAN_NO_SANITIZE void* MemoryPool::AllocateAt(void* pBlock, unsigned int uiSize)
 {
+    if (RefusesSize(mLabel, uiSize, mSize))
+    {
+        return 0;
+    }
     char* pcPrev = 0;
     for (char* pcNode = (char*)mFree; pcNode != 0; pcPrev = pcNode, pcNode = *(char**)pcNode)
     {
@@ -355,6 +373,10 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::AllocateRun(unsigned int uiCount, unsigne
     if (mPool == 0)
     {
         Create(mCount, mSize, mGrow);
+    }
+    if (RefusesSize(mLabel, uiSize, mSize))
+    {
+        return 0;
     }
     if (uiCount == 0 || mUsed + uiCount > mCount)
     {

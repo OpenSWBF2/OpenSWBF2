@@ -552,6 +552,82 @@ function Test-SameRunAs($caseDir, $refDir) {
     return $null
 }
 
+function Get-MinidumpException([string]$path, [ref]$why) {
+    $why.Value = $null
+    try {
+        $b = [IO.File]::ReadAllBytes($path)
+        $u32 = { param([long]$o) if ($o -lt 0 -or $o + 4 -gt $b.Length) { throw "truncated at offset $o" }; [BitConverter]::ToUInt32($b, [int]$o) }
+        $u64 = { param([long]$o) if ($o -lt 0 -or $o + 8 -gt $b.Length) { throw "truncated at offset $o" }; [BitConverter]::ToUInt64($b, [int]$o) }
+        if ($b.Length -lt 32 -or [Text.Encoding]::ASCII.GetString($b, 0, 4) -cne 'MDMP') { throw 'no MDMP signature' }
+        $count = & $u32 8
+        $dir = [long](& $u32 12)
+        $exc = $null
+        $mods = $null
+        for ($i = 0; $i -lt $count; $i++) {
+            $e = $dir + 12 * $i
+            $type = & $u32 $e
+            if ($type -eq 6 -and $null -eq $exc) { $exc = [long](& $u32 ($e + 8)) }
+            elseif ($type -eq 4 -and $null -eq $mods) { $mods = [long](& $u32 ($e + 8)) }
+        }
+        if ($null -eq $exc) { throw 'no ExceptionStream' }
+        if ($null -eq $mods) { throw 'no ModuleListStream' }
+        $res = New-Object PSObject -Property @{ Code = (& $u32 ($exc + 8)); Address = (& $u64 ($exc + 24)); Module = $null; Base = $null; Size = $null }
+        $n = & $u32 $mods
+        for ($i = 0; $i -lt $n; $i++) {
+            $m = $mods + 4 + 108 * $i
+            $base = & $u64 $m
+            $size = & $u32 ($m + 8)
+            if ($res.Address -lt $base -or $res.Address - $base -ge $size) { continue }
+            $nameRva = [long](& $u32 ($m + 20))
+            $len = [long](& $u32 $nameRva)
+            if ($nameRva + 4 + $len -gt $b.Length) { throw "truncated module name at offset $nameRva" }
+            $res.Module = [IO.Path]::GetFileName([Text.Encoding]::Unicode.GetString($b, [int]$nameRva + 4, [int]$len))
+            $res.Base = $base
+            $res.Size = $size
+            break
+        }
+        return $res
+    }
+    catch {
+        $why.Value = $_.Exception.Message
+        return $null
+    }
+}
+
+function Get-DumpFatalMismatch($res) {
+    $d = @($res.Dumps)
+    if ($d.Count -ne 1) { return "DumpMatchesFatal mismatch: expected one dump, found $($d.Count)" }
+    $f = [regex]::Match([string]$res.LogText, 'FATAL: exception 0x([0-9A-F]{8}) at 0x([0-9A-F]{1,16}) \(([^()\r\n]+)\+0x([0-9A-F]{1,16})\)')
+    if (-not $f.Success) { return 'DumpMatchesFatal mismatch: no FATAL exception line' }
+    $why = $null
+    $x = Get-MinidumpException $d[0].FullName ([ref]$why)
+    if (-not $x) { return "DumpMatchesFatal mismatch: dump $($d[0].Name): $why" }
+    $fCode = [Convert]::ToUInt32($f.Groups[1].Value, 16)
+    $fAddr = [Convert]::ToUInt64($f.Groups[2].Value, 16)
+    $fMod = $f.Groups[3].Value
+    $fOff = [Convert]::ToUInt64($f.Groups[4].Value, 16)
+    $bad = @()
+    if ($x.Code -ne $fCode) { $bad += ('code dump 0x{0:X8} FATAL 0x{1:X8}' -f $x.Code, $fCode) }
+    if ($x.Address -ne $fAddr) { $bad += ('address dump 0x{0:X} FATAL 0x{1:X}' -f $x.Address, $fAddr) }
+    $xMod = $(if ($x.Module) { $x.Module } else { 'none' })
+    if ($xMod -ine $fMod) { $bad += "module dump $xMod FATAL $fMod" }
+    if ($null -eq $x.Base) { $bad += ('offset dump none FATAL 0x{0:X}' -f $fOff) }
+    elseif ($x.Address - $x.Base -ne $fOff) { $bad += ('offset dump 0x{0:X} FATAL 0x{1:X}' -f ($x.Address - $x.Base), $fOff) }
+    if ($bad.Count) { return 'DumpMatchesFatal mismatch: ' + ($bad -join '; ') }
+    return $null
+}
+
+function Get-HeapCapMismatchX64($res) {
+    $ct = Join-Path $PSScriptRoot 'baseline\compare-tables.ps1'
+    $dir = Join-Path $PSScriptRoot 'baseline\v143'
+    $log = Join-Path $res.CaseDir 'run.log'
+    $out = @(& { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $ct -Tables $dir -Baseline $dir -MemPeaksX64 -RunLog $log 2>&1 | ForEach-Object { "$_" } })
+    if ($LASTEXITCODE -eq 0) { return $null }
+    $lines = @($out | Where-Object { $_ -cmatch '^\s+\S' } | ForEach-Object { $_.Trim() })
+    if ($lines.Count -eq 0) { $lines = @("compare-tables exited $LASTEXITCODE`: $($out -join ' ')") }
+    return 'HeapCapsX64 mismatch: ' + ($lines -join '; ')
+}
+
 function Test-SmokeExpect($case, $res) {
     $x = $case.Expect
     if ($res.Class -ne $x.Class) { return $false }
@@ -560,6 +636,22 @@ function Test-SmokeExpect($case, $res) {
     $n = @($res.Dumps).Count
     if ($x.ContainsKey('MinDumps') -and $n -lt $x.MinDumps) { return $false }
     if ($x.ContainsKey('MaxDumps') -and $n -gt $x.MaxDumps) { return $false }
+    if ($x.ContainsKey('DumpMatchesFatal') -and $x.DumpMatchesFatal) {
+        $dmf = Get-DumpFatalMismatch $res
+        if ($dmf) {
+            Write-Host "    $dmf"
+            $res.LogText = [string]$res.LogText + "`r`n" + $dmf
+            return $false
+        }
+    }
+    if ($x.ContainsKey('HeapCapsX64') -and $x.HeapCapsX64) {
+        $hcm = Get-HeapCapMismatchX64 $res
+        if ($hcm) {
+            Write-Host "    $hcm"
+            $res.LogText = [string]$res.LogText + "`r`n" + $hcm
+            return $false
+        }
+    }
     $logged = [regex]::Matches([string]$res.LogText, 'OPENSWBF2 SOAK turns=(\d+)')
     if ($logged.Count -eq 0) { $logged = [regex]::Matches([string]$res.LogText, 'OPENSWBF2 SIM DIGEST turns=(\d+)') }
     if ($logged.Count -gt 0) {
@@ -1224,12 +1316,22 @@ function Get-X64ObjectsCheck([string]$root, [string]$config) {
 
 $script:SizeLiteral = '(?:0[xX][0-9A-Fa-f]+|[1-9]\d*)[uUlL]*'
 $script:SizeLiteralArg = '(?:[^,();]|\((?:[^()]|\([^()]*\))*\))+'
-$script:SizeLiteralRx = @(
-    (New-Object regex ('\bMemoryPool\s+[\w:]+\s*\(\s*"[^"\r\n]*"\s*,\s*' + $script:SizeLiteral + '\s*\)')),
-    (New-Object regex ('\bFreeList\s+[\w:]+\s*\(\s*' + $script:SizeLiteral + '\s*,')),
-    (New-Object regex ('(?:\.|->)(?:Setup|Create)\s*\(' + $script:SizeLiteralArg + ',\s*' + $script:SizeLiteral + '\s*,' + $script:SizeLiteralArg + '\)')),
-    (New-Object regex ('\bSetupMemoryPool\s*\(' + $script:SizeLiteralArg + ',\s*' + $script:SizeLiteral + '\s*,'))
-)
+$script:SizeFourArg = '(?:4[uUlL]*\s*\*' + $script:SizeLiteralArg + '|(?:[^,();]|\((?:[^()]|\([^()]*\))*\))+?[*+]\s*4[uUlL]*(?=\s*[,)]))'
+$script:SizeArg = '(?:' + $script:SizeLiteral + '|' + $script:SizeFourArg + ')'
+$script:SizeFourLocalRx = New-Object regex '\b(?<name>[A-Za-z_]\w*)\s*=(?!=)\s*(?:4[uUlL]*\s*\*[^;{}]+|[^;{}=]+?[*+]\s*4[uUlL]*)\s*;'
+
+function New-SizeLiteralRx([string]$size, [string]$alloc) {
+    return @(
+        (New-Object regex ('\bMemoryPool\s+[\w:]+\s*\(\s*"[^"\r\n]*"\s*,\s*' + $size + '\s*\)')),
+        (New-Object regex ('\bFreeList\s+[\w:]+\s*\(\s*' + $size + '\s*,')),
+        (New-Object regex ('(?:\.|->)(?:Setup|Create)\s*\(' + $script:SizeLiteralArg + ',\s*' + $size + '\s*,' + $script:SizeLiteralArg + '\)')),
+        (New-Object regex ('\bSetupMemoryPool\s*\(' + $script:SizeLiteralArg + ',\s*' + $size + '\s*,')),
+        (New-Object regex ('\bUpdateMemoryPoolSize\s*\(\s*' + $size + '\s*\)')),
+        (New-Object regex ('\bRed(?:Alloc|Realloc)\w*\s*\((?:' + $script:SizeLiteralArg + ',)*\s*' + $alloc + '\s*[,)]'))
+    )
+}
+
+$script:SizeLiteralRx = New-SizeLiteralRx $script:SizeArg $script:SizeFourArg
 
 function Get-X64SizeLiteralCheck([string]$root, [string[]]$allow = $script:SizeLiteralAllow) {
     $root = $root.TrimEnd('\')
@@ -1248,7 +1350,13 @@ function Get-X64SizeLiteralCheck([string]$root, [string[]]$allow = $script:SizeL
         $text = [IO.File]::ReadAllText($f.FullName)
         $blank = $script:ByteCommentRx.Replace($text, { param($m) if ($m.Value[0] -eq '/') { [regex]::Replace($m.Value, '[^\r\n]', ' ') } else { $m.Value } })
         $rel = $f.FullName.Substring($root.Length + 1)
-        foreach ($rx in $script:SizeLiteralRx) {
+        $fileRx = $script:SizeLiteralRx
+        $locals = @($script:SizeFourLocalRx.Matches($blank) | ForEach-Object { $_.Groups['name'].Value } | Select-Object -Unique)
+        if ($locals.Count) {
+            $localArg = '\b(?:' + (@($locals | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')\b'
+            $fileRx = @($script:SizeLiteralRx) + @(New-SizeLiteralRx $localArg $localArg)
+        }
+        foreach ($rx in $fileRx) {
             foreach ($m in $rx.Matches($blank)) {
                 $key = '{0}|{1}' -f $rel, ([regex]::Replace($m.Value, '\s+', ' '))
                 if ($left[$key] -gt 0) { $left[$key]--; continue }

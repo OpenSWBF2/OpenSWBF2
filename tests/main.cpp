@@ -13,6 +13,7 @@
 #include "RedEngineFL/Util/RedWarning.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "Battlefront2/Platform/Pc/pcProgress.h"
+#include "Battlefront2/Source/pcAddrSpace.h"
 
 char gCurrentCase[256];
 unsigned int gFuzzSeed = 1;
@@ -107,6 +108,89 @@ static int RunCrashChild(const char* pcKind)
     return 2;
 }
 
+static char* HogPut(char* p, char* pEnd, const char* pc)
+{
+    while (*pc && p < pEnd)
+    {
+        *p++ = *pc++;
+    }
+    return p;
+}
+
+static char* HogHex(char* p, char* pEnd, uintptr_t u)
+{
+    p = HogPut(p, pEnd, "0x");
+    for (int i = (int)sizeof(u) * 8 - 4; i >= 0 && p < pEnd; i -= 4)
+    {
+        *p++ = "0123456789ABCDEF"[(u >> i) & 15];
+    }
+    return p;
+}
+
+static void RunHogChild()
+{
+    char acText[512];
+    char* const pEnd = acText + sizeof(acText) - 1;
+    char* p = acText;
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    const uintptr_t uLimit = sizeof(void*) == 8 ? (uintptr_t)0x100000000ull : (uintptr_t)0x80000000u;
+    const uintptr_t uHog = pcAddrSpace::HogLimit();
+    const uintptr_t uMin = pcAddrSpace::MinRegion();
+    const unsigned int uReserved = pcAddrSpace::ReserveBelow(uHog, uMin);
+    const unsigned int uFree = pcAddrSpace::FreeRegionsBelow(uLimit, uMin, false);
+    unsigned int uCode = 0;
+    if (uFree != 0)
+    {
+        uCode = 10;
+    }
+    p = HogPut(p, pEnd, "hog limit=");
+    p = HogHex(p, pEnd, uLimit);
+    p = HogPut(p, pEnd, " hoglimit=");
+    p = HogHex(p, pEnd, uHog);
+    p = HogPut(p, pEnd, " reserved=");
+    p = HogHex(p, pEnd, uReserved);
+    p = HogPut(p, pEnd, " free=");
+    p = HogHex(p, pEnd, uFree);
+    if (sizeof(void*) == 8)
+    {
+        const unsigned int uGranules = pcAddrSpace::FreeRegionsBelow(uLimit, 0x10000, true);
+        void* pVa = VirtualAlloc(0, 0x10000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        HANDLE hHeap = HeapCreate(0, 0, 0);
+        void* pHeap = hHeap ? HeapAlloc(hHeap, 0, 64) : 0;
+        void* pMalloc = malloc(0x400000);
+        if (uCode == 0 && uGranules != 0)
+        {
+            uCode = 11;
+        }
+        if (uCode == 0 && (uintptr_t)pVa < uLimit)
+        {
+            uCode = 12;
+        }
+        if (uCode == 0 && (uintptr_t)pHeap < uLimit)
+        {
+            uCode = 13;
+        }
+        if (uCode == 0 && (uintptr_t)pMalloc < uLimit)
+        {
+            uCode = 14;
+        }
+        p = HogPut(p, pEnd, " granules=");
+        p = HogHex(p, pEnd, uGranules);
+        p = HogPut(p, pEnd, " va=");
+        p = HogHex(p, pEnd, (uintptr_t)pVa);
+        p = HogPut(p, pEnd, " heap=");
+        p = HogHex(p, pEnd, (uintptr_t)pHeap);
+        p = HogPut(p, pEnd, " malloc=");
+        p = HogHex(p, pEnd, (uintptr_t)pMalloc);
+    }
+    p = HogPut(p, pEnd, " code=");
+    p = HogHex(p, pEnd, uCode);
+    p = HogPut(p, pEnd, "\n");
+    DWORD uWritten = 0;
+    WriteFile(hOut, acText, (DWORD)(p - acText), &uWritten, 0);
+    TerminateProcess(GetCurrentProcess(), uCode);
+}
+
 extern void __cdecl PblTraceP(const char* Format, ...);
 int FloatCorpusGenerate(const char* pcOutDir);
 
@@ -114,6 +198,10 @@ int main(int argc, char** argv)
 {
     for (int i = 1; i < argc; ++i)
     {
+        if (strcmp(argv[i], "--hog-child") == 0)
+        {
+            RunHogChild();
+        }
         if (strcmp(argv[i], "--debug-output-child") == 0)
         {
             RedWarning::Init();

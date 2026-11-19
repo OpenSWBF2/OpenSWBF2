@@ -52,7 +52,9 @@ bool gLogFinalScore;
 bool gExitOnGameOver;
 bool gNoVictory;
 int gDigestTrace;
+int gDigestDetail;
 int gSoakTurns;
+bool gMissionOnCommandLine;
 bool gFactoryLog;
 bool gNoFocusPause;
 bool gAllowUploads = LocalLimits::kUploadsDefault;
@@ -60,7 +62,8 @@ bool gSeedSet;
 unsigned int gSeed;
 static bool sbNoVictoryNetLogged;
 static unsigned int suTestOnlyIgnored;
-static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", "shellfirst", "exitonmovieclose" };
+static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", "shellfirst", "exitonmovieclose",
+    "digestdetail" };
 // GLOBAL: SWBF2 0x007e6310
 int gBootLaggerPing = 300;
 
@@ -359,6 +362,8 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
     HUD::gScreenGroupEditEnabled = false;
     gNoVictory = false;
     gSoakTurns = 0;
+    gDigestDetail = 0;
+    gMissionOnCommandLine = false;
     sbNoVictoryNetLogged = false;
     suTestOnlyIgnored = 0;
     bool bNamed = false;
@@ -370,6 +375,7 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
         char* pcArg = apcArgv[i];
         if (pcArg[0] != '/' && pcArg[0] != '-' && pcArg[0] != '+')
         {
+            gMissionOnCommandLine = true;
 
             if (autoNetEnabled)
             {
@@ -466,6 +472,26 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
                 ++i;
                 gDigestTrace = ulValue > 100000ul ? 100000 : (int)ulValue;
             }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "digestdetail") == 0)
+        {
+            const char* pcValue = i + 1 < iArgc ? apcArgv[i + 1] : 0;
+            char* pcEnd = 0;
+            unsigned long ulValue = pcValue ? strtoul(pcValue, &pcEnd, 10) : 0;
+            if (!pcValue || pcValue[0] == '-' || pcEnd == pcValue || *pcEnd)
+            {
+                LOG(LogCore, Warning, "-digestdetail needs a number, ignored");
+            }
+            else
+            {
+                ++i;
+#ifdef OPENSWBF2_TEST
+                gDigestDetail = ulValue > 100000ul ? 100000 : (int)ulValue;
+#endif
+            }
+            NoteTestOnlyArg(4);
             continue;
         }
 

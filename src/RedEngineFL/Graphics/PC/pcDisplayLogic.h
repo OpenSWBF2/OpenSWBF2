@@ -377,6 +377,8 @@ struct CursorPlan
 
 CursorPlan CursorPlanFor(bool bShown, DisplayMode eMode, bool bActive, bool bSoftware, bool bNoRender);
 
+bool OwnsSystemCursor(bool bAppActive, bool bHaveWindow, bool bWindowIsForeground);
+
 unsigned int CursorButtonLatch(unsigned int uiRawDown, unsigned int uiPrevRawDown, bool bBlockNew,
                                unsigned int& uiLatched);
 

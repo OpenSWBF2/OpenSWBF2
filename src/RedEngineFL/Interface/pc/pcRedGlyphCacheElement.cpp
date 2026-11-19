@@ -233,12 +233,14 @@ void RedGlyphCacheElement::ReallocateCache()
         return;
     }
 
-    const unsigned int uiBytes = uiNumTextures * 4;
-    m_puiNumGlyphs = (unsigned int*)RedAllocFromHeap(__RedCurrHeap, uiBytes, 0);
-    memset(m_puiNumGlyphs, 0, uiBytes);
-    m_ppGlyphData = (void**)RedAllocFromHeap(__RedCurrHeap, uiBytes, 0);
-    memset(m_ppGlyphData, 0, uiBytes);
-    m_ppInterfaceShader = (pcInterfaceShader**)RedAllocFromHeap(__RedCurrHeap, uiBytes + 4, 0);
+    const size_t uiCountBytes = uiNumTextures * sizeof(unsigned int);
+    const size_t uiDataBytes = uiNumTextures * sizeof(void*);
+    m_puiNumGlyphs = (unsigned int*)RedAllocFromHeap(__RedCurrHeap, uiCountBytes, 0);
+    memset(m_puiNumGlyphs, 0, uiCountBytes);
+    m_ppGlyphData = (void**)RedAllocFromHeap(__RedCurrHeap, uiDataBytes, 0);
+    memset(m_ppGlyphData, 0, uiDataBytes);
+    m_ppInterfaceShader = (pcInterfaceShader**)RedAllocFromHeap(
+        __RedCurrHeap, (uiNumTextures + 1) * sizeof(pcInterfaceShader*), 0);
     m_ppInterfaceShader[uiNumTextures] = 0;
 
     for (unsigned int i = 0; i < uiNumTextures; i++)

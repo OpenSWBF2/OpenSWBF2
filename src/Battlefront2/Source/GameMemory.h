@@ -3,9 +3,10 @@
 namespace GameMemory
 {
 
-const unsigned int kApplicationHeapSize = 0xF40000;
+const unsigned int kArenaSize = sizeof(void*) == 8 ? 0x5B42160 : 0x4000000;
+const unsigned int kApplicationHeapSize = sizeof(void*) == 8 ? 0x1560010 : 0xF40000;
 const unsigned int kGamespyHeapSize = 0x200000;
-const unsigned int kLuaHeapSize = 0x1000000;
+const unsigned int kLuaHeapSize = sizeof(void*) == 8 ? 0x1BE0000 : 0x1000000;
 const unsigned int kArtistHeapSize = 0x2000;
 const unsigned int kTempLoadBlockSize = 0x200000;
 const unsigned int kTempLoadHeapSize = 0x1FFF00;

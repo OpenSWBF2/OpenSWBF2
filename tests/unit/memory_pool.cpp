@@ -391,6 +391,40 @@ TEST_CASE("move heap end moves only the aligned block it transfers" * doctest::t
     RedDestroyHeap(iLow);
 }
 
+TEST_CASE("memory pool refuses a request larger than its block" * doctest::test_suite("regression"))
+{
+    MemoryPool kPool("t1refuse", 24);
+    kPool.Create(8, 24, 0);
+    REQUIRE(kPool.GetSize() == 24);
+    {
+        LogCapture capture;
+        CHECK(kPool.Allocate(32) == (void*)0);
+        CHECK(kPool.mUsed == 0);
+        CHECK(capture.Count("Memory pool \"t1refuse\" refused size 32 block 24") == 1);
+    }
+    void* pFull = kPool.Allocate(24);
+    void* pSmall = kPool.Allocate(16);
+    REQUIRE(pFull);
+    REQUIRE(pSmall);
+    CHECK(kPool.mUsed == 2);
+    kPool.Free(pSmall);
+    kPool.Free(pFull);
+    {
+        LogCapture capture;
+        CHECK(kPool.AllocateAt(kPool.mFree, 25) == (void*)0);
+        CHECK(kPool.AllocateRun(2, 48) == (void*)0);
+        CHECK(kPool.mUsed == 0);
+        CHECK(capture.Count("Memory pool \"t1refuse\" refused size 25 block 24") == 1);
+        CHECK(capture.Count("Memory pool \"t1refuse\" refused size 48 block 24") == 1);
+    }
+    void* pAt = kPool.AllocateAt(kPool.mFree, 24);
+    REQUIRE(pAt);
+    void* pRun = kPool.AllocateRun(2, 24);
+    REQUIRE(pRun);
+    CHECK(kPool.mUsed == 3);
+    kPool.Destroy();
+}
+
 TEST_CASE("memory pool create refuses overflowing count" * doctest::test_suite("regression"))
 {
     MemoryPool kPool("t1ovf", 16);

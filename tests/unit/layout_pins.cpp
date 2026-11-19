@@ -62,6 +62,111 @@
 #include "GameSpyFL/md5.h"
 #include "Battlefront2/Source/NetAdmin.h"
 #include "Battlefront2/Source/ParticleEmitterObject.h"
+#include "Battlefront2/Source/Combo.h"
+#include "Battlefront2/Source/OrdnanceBeacon.h"
+#include "Battlefront2/Source/OrdnanceBeam.h"
+#include "Battlefront2/Source/OrdnanceBullet.h"
+#include "Battlefront2/Source/OrdnanceFatRay.h"
+#include "Battlefront2/Source/OrdnanceGrapplingHook.h"
+#include "Battlefront2/Source/OrdnanceGrenade.h"
+#include "Battlefront2/Source/OrdnanceHaywire.h"
+#include "Battlefront2/Source/OrdnanceLaser.h"
+#include "Battlefront2/Source/OrdnanceMeleeThrow.h"
+#include "Battlefront2/Source/OrdnanceMissile.h"
+#include "Battlefront2/Source/OrdnanceShell.h"
+#include "Battlefront2/Source/OrdnanceSticky.h"
+#include "Battlefront2/Source/WeaponBinoculars.h"
+#include "Battlefront2/Source/WeaponCannon.h"
+#include "Battlefront2/Source/WeaponCatapult.h"
+#include "Battlefront2/Source/WeaponDestruct.h"
+#include "Battlefront2/Source/WeaponGrapplingHook.h"
+#include "Battlefront2/Source/WeaponMelee.h"
+#include "Battlefront2/Source/WeaponShield.h"
+
+static_assert(sizeof(Combo::State) % 4 == 0, "combo state block");
+static_assert(sizeof(Combo::Transition) % 4 == 0, "combo transition block");
+static_assert(sizeof(Combo::Condition) % 4 == 0, "combo condition block");
+static_assert(sizeof(Combo::Attack) % 4 == 0, "combo attack block");
+static_assert(sizeof(Combo::DamageSample) % 4 == 0, "combo damage sample block");
+
+static_assert(sizeof(WeaponAreaEffect) == 0x150, "weapon pool UpdateMemoryPoolSize WeaponAreaEffect");
+static_assert(sizeof(WeaponBinoculars) == 0x110, "weapon pool UpdateMemoryPoolSize WeaponBinoculars");
+static_assert(sizeof(WeaponCannon) == 0x160, "weapon pool UpdateMemoryPoolSize WeaponCannon");
+static_assert(sizeof(WeaponDestruct) == 0x120, "weapon pool UpdateMemoryPoolSize WeaponDestruct");
+static_assert(sizeof(WeaponDetonator) == 0x120, "weapon pool UpdateMemoryPoolSize WeaponDetonator");
+static_assert(sizeof(WeaponDisguise) == 0x120, "weapon pool UpdateMemoryPoolSize WeaponDisguise");
+static_assert(sizeof(WeaponDispenser) == 0x120, "weapon pool UpdateMemoryPoolSize WeaponDispenser");
+static_assert(sizeof(WeaponGrapplingHook) == 0x170, "weapon pool UpdateMemoryPoolSize WeaponGrapplingHook");
+static_assert(sizeof(WeaponGrenade) == 0x120, "weapon pool UpdateMemoryPoolSize WeaponGrenade");
+static_assert(sizeof(WeaponInvisibility) == 0x130, "weapon pool UpdateMemoryPoolSize WeaponInvisibility");
+static_assert(sizeof(WeaponLaser) == 0x120, "weapon pool UpdateMemoryPoolSize WeaponLaser");
+static_assert(sizeof(WeaponLauncher) == 0x180, "weapon pool UpdateMemoryPoolSize WeaponLauncher");
+static_assert(sizeof(WeaponMelee) == 0x1c0, "weapon pool UpdateMemoryPoolSize WeaponMelee");
+static_assert(sizeof(WeaponMeleeThrow) == 0x160, "weapon pool UpdateMemoryPoolSize WeaponMeleeThrow");
+static_assert(sizeof(WeaponRemote) == 0x130, "weapon pool UpdateMemoryPoolSize WeaponRemote");
+static_assert(sizeof(WeaponRepair) == 0x120, "weapon pool UpdateMemoryPoolSize WeaponRepair");
+static_assert(sizeof(WeaponShield) == 0x1a0, "weapon pool UpdateMemoryPoolSize WeaponShield");
+static_assert(sizeof(WeaponTowCable) == 0x170, "weapon pool UpdateMemoryPoolSize WeaponTowCable");
+static_assert(sizeof(Weapon) == 0x110, "weapon pool UpdateMemoryPoolSize Weapon");
+static_assert(sizeof(WeaponCatapult) == 0x170, "weapon pool UpdateMemoryPoolSize WeaponCatapult");
+static_assert(sizeof(OrdnanceBeacon) == 324, "ordnance pool UpdateMemoryPoolSize OrdnanceBeacon");
+static_assert(sizeof(OrdnanceBullet) == 300, "ordnance pool UpdateMemoryPoolSize OrdnanceBullet");
+static_assert(sizeof(OrdnanceFatRay) == 308, "ordnance pool UpdateMemoryPoolSize OrdnanceFatRay");
+static_assert(sizeof(OrdnanceGrapplingHook) == 356, "ordnance pool UpdateMemoryPoolSize OrdnanceGrapplingHook");
+static_assert(sizeof(OrdnanceGrenade) == 316, "ordnance pool UpdateMemoryPoolSize OrdnanceGrenade");
+static_assert(sizeof(OrdnanceHaywire) == 320, "ordnance pool UpdateMemoryPoolSize OrdnanceHaywire");
+static_assert(sizeof(OrdnanceLaser) == 328, "ordnance pool UpdateMemoryPoolSize OrdnanceLaser");
+static_assert(sizeof(OrdnanceMeleeThrow) == 384, "ordnance pool UpdateMemoryPoolSize OrdnanceMeleeThrow");
+static_assert(sizeof(OrdnanceMissile) == 360, "ordnance pool UpdateMemoryPoolSize OrdnanceMissile");
+static_assert(sizeof(OrdnanceShell) == 304, "ordnance pool UpdateMemoryPoolSize OrdnanceShell");
+static_assert(sizeof(OrdnanceSticky) == 320, "ordnance pool UpdateMemoryPoolSize OrdnanceSticky");
+static_assert(sizeof(OrdnanceBeam) == 268, "ordnance pool UpdateMemoryPoolSize OrdnanceBeam");
+
+static constexpr unsigned int PoolSizeMax(const unsigned int* puSizes, unsigned int uCount)
+{
+    return uCount == 0 ? 0u : (puSizes[0] > PoolSizeMax(puSizes + 1, uCount - 1) ? puSizes[0] : PoolSizeMax(puSizes + 1, uCount - 1));
+}
+
+static constexpr unsigned int kWeaponPoolSizes[] = {
+    sizeof(WeaponAreaEffect),
+    sizeof(WeaponBinoculars),
+    sizeof(WeaponCannon),
+    sizeof(WeaponDestruct),
+    sizeof(WeaponDetonator),
+    sizeof(WeaponDisguise),
+    sizeof(WeaponDispenser),
+    sizeof(WeaponGrapplingHook),
+    sizeof(WeaponGrenade),
+    sizeof(WeaponInvisibility),
+    sizeof(WeaponLaser),
+    sizeof(WeaponLauncher),
+    sizeof(WeaponMelee),
+    sizeof(WeaponMeleeThrow),
+    sizeof(WeaponRemote),
+    sizeof(WeaponRepair),
+    sizeof(WeaponShield),
+    sizeof(WeaponTowCable),
+    sizeof(Weapon),
+    sizeof(WeaponCatapult),
+};
+
+static constexpr unsigned int kOrdnancePoolSizes[] = {
+    sizeof(OrdnanceBeacon),
+    sizeof(OrdnanceBullet),
+    sizeof(OrdnanceFatRay),
+    sizeof(OrdnanceGrapplingHook),
+    sizeof(OrdnanceGrenade),
+    sizeof(OrdnanceHaywire),
+    sizeof(OrdnanceLaser),
+    sizeof(OrdnanceMeleeThrow),
+    sizeof(OrdnanceMissile),
+    sizeof(OrdnanceShell),
+    sizeof(OrdnanceSticky),
+    sizeof(OrdnanceBeam),
+};
+
+static_assert(PoolSizeMax(kWeaponPoolSizes, sizeof(kWeaponPoolSizes) / sizeof(kWeaponPoolSizes[0])) == 0x1c0, "weapon pool block");
+static_assert(PoolSizeMax(kOrdnancePoolSizes, sizeof(kOrdnancePoolSizes) / sizeof(kOrdnancePoolSizes[0])) == 384, "ordnance pool block");
 
 static_assert(sizeof(Thread) == 0x18, "thread size");
 static_assert(sizeof(Weapon) == 0x110, "weapon size");

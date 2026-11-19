@@ -68,7 +68,7 @@ TEST_CASE("command line keeps -perturbheap and -repeatmission out of the mission
 
 TEST_CASE("command line reports test-only switches it ignores" * doctest::test_suite("regression"))
 {
-    Parse("-perturbheap 1:pad -repeatmission 2 -shellfirst -exitonmovieclose geo1c_con");
+    Parse("-perturbheap 1:pad -repeatmission 2 -shellfirst -exitonmovieclose -digestdetail 4 geo1c_con");
     std::string ignored;
     const char* pcName = 0;
     int iCount = 0;
@@ -81,11 +81,11 @@ TEST_CASE("command line reports test-only switches it ignores" * doctest::test_s
             ignored += " ";
         }
     }
-    CHECK(iCount == 4);
+    CHECK(iCount == 5);
 #ifdef OPENSWBF2_TEST
     CHECK(ignored == "");
 #else
-    CHECK(ignored == "perturbheap repeatmission shellfirst exitonmovieclose ");
+    CHECK(ignored == "perturbheap repeatmission shellfirst exitonmovieclose digestdetail ");
 #endif
 
     Parse("geo1c_con");
@@ -99,6 +99,40 @@ TEST_CASE("command line reports test-only switches it ignores" * doctest::test_s
     }
     CHECK(ignored == "");
     CHECK_FALSE(TestOnlyArgIgnored(-1, &pcName));
+}
+
+TEST_CASE("command line -digestdetail takes a turn in Test builds and keeps it out of the mission name" * doctest::test_suite("regression"))
+{
+    {
+        LogCapture capture;
+        Parse("-digestdetail 4 geo1c_con");
+        CHECK(Mission() == "geo1c_con");
+#ifdef OPENSWBF2_TEST
+        CHECK(gDigestDetail == 4);
+#else
+        CHECK(gDigestDetail == 0);
+#endif
+        Parse("geo1c_con -digestdetail 999999");
+#ifdef OPENSWBF2_TEST
+        CHECK(gDigestDetail == 100000);
+#else
+        CHECK(gDigestDetail == 0);
+#endif
+        CHECK(capture.Count("-digestdetail needs a number, ignored") == 0);
+    }
+    const char* apcBad[] = { "-digestdetail abc geo1c_con", "-digestdetail -5 geo1c_con", "geo1c_con -digestdetail" };
+    for (int n = 0; n < 3; ++n)
+    {
+        CAPTURE(n);
+        LogCapture capture;
+        Parse(apcBad[n]);
+        CHECK(gDigestDetail == 0);
+        CHECK(capture.Count("-digestdetail needs a number, ignored") == 1);
+    }
+    Parse("geo1c_con -digestdetail 7");
+    CHECK(Mission() == "geo1c_con");
+    Parse("geo1c_con");
+    CHECK(gDigestDetail == 0);
 }
 
 TEST_CASE("command line sets -novictory and keeps parsing after it" * doctest::test_suite("regression"))

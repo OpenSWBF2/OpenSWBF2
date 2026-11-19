@@ -29,7 +29,7 @@ This builds the tests, then runs each case in its own process and the Standard s
 | `-Suite` | run one suite |
 | `-Filter` | wildcard on the case name |
 | `-Fuzz`, `-Seed`, `-Iterations` | run the `stress` suite with a seed and iteration count |
-| `-Smoke` | `None`, `Standard` (default), `Twice`, `Dedicated`, `Crash`, `All`, `Perturb`, `Soak` or `Vendor` |
+| `-Smoke` | `None`, `Standard` (default), `Twice`, `Dedicated`, `Crash`, `All`, `Perturb`, `Soak`, `Vendor` or `Boot` |
 | `-SmokeConfiguration` | game build used for smoke runs (default `Release`, or `Test`/`Asan` to match `-Configuration`) |
 | `-Soak` | `Short` (default, turn 9300) or `Long` (turn 617300): where `-Smoke All` ends its `TimeOut` missions |
 | `-Jobs N` | parallel smoke workers (default: half the logical processors, at most 8) |
@@ -64,11 +64,12 @@ Every case runs in a clean worker folder under `artifacts\smoke-workers\<Platfor
 | `Standard` | geo1c_con, `heapcap`, the display-switch cases, the digest cases and `novictory-con`; the display-switch cases that check only start-up lines end at turn 1 (`-soakturns 1`); Test and Asan builds add `repeat-water` (`nab2g_c -repeatmission`, both turn-1500 digests equal); Asan adds `asan-hot1g_con` and `asan-spa3c_ass` |
 | `Twice` | the same missions twice with a fixed seed; the results and digest traces must match |
 | `Dedicated` | dedicated-server cases |
-| `Crash` | deliberate faults through `-crashtest <kind>`, including `crash-capexhaust`, `pool-full`, `pool-full-strict`, `crash-stall` (a supervised hang the harness reports and the game dumps) and `crash-delayload` (a Steam call with `steam_api.dll` absent; the FATAL line names the DLL); each must leave the expected exit code, log line and dump |
+| `Crash` | deliberate faults through `-crashtest <kind>`, including `crash-capexhaust`, `pool-full`, `pool-full-strict`, `crash-stall` (a supervised hang the harness reports and the game dumps), `crash-delayload` and its x64 twin `crash-delayload-x64` (a Steam call with `steam_api.dll` or `steam_api64.dll` absent; the FATAL line names the DLL), `crash-early` and `crash-heapinit` (faults before the command line is parsed and during heap start-up); each must leave the expected exit code, log line and dump; on x64 `crash-nullderef` runs under `-hogaddrspace` and its dump's exception address, module and offset must equal the FATAL line's |
 | `All` | every mission in `tests\smoke\missions-all.txt` (`<mission> [<class>]`), plus Dedicated and Crash; a Release run then compares digests, mem-peaks, pool-sizes and CLOTH exactly against the tables in `tests\baseline\v143` through `compare-tables.ps1` and fails on any moved row; a Test run compares the Lua pool bins, spill counts included, against `lua-bins.txt` and the main section of `offthread.txt` (source thread ids ignored) |
 | `Perturb` | Test or Asan only: seven digest missions, each as a base run, under `-perturbheap` pad/fill/pool (one seed per mission, 1 and 2 alternating down the list), `-hogaddrspace` and `-repeatmission`; each run is traced for the whole mission (nab2g_c, which never ends, to turn 100000) and every turn must equal its base line for line; writes `perturb.tsv` |
 | `Soak` | `asan-soak`: nab2g_c run to turn 815800 with `-soakturns`, for the long ASan run; no other group holds it |
 | `Vendor` | start-up runs with every vendor DLL present, or with one removed or swapped for one of the wrong bitness; each service turned off must log exactly one `OPENSWBF2 VENDOR <service> off` Warning; Win32 runs pass at turn 1, x64 runs end at the `-crashtest fastfail` carrier right after the probe; `vendor-wan-nogalaxy` starts an online dedicated server without `Galaxy.dll` and must exit 1 with a FATAL line naming `-lan` |
+| `Boot` | headless boot: on both platforms the shell, ended after 300 updates (x64 under `-hogaddrspace`); on x64 also hot1g_con, tat2g_eli and nab2g_c to turn 1500 under `-hogaddrspace` |
 
 A case fails on any Error, Bug or Fatal line in its `run.log` unless a regex in `tests\smoke\expected-errors.txt` covers it. In T1, declare an expected error with `ExpectLog("text")` or `ExpectEnsure("text")`.
 
@@ -94,7 +95,9 @@ When a state has ended and the next one builds its heaps, the game logs `OPENSWB
 
 `-exitonmovieclose` (Test and Asan builds only, with `-exitongameover`) ends the run once the mission is running and a Bink movie has closed (`OPENSWBF2 MOVIE close`). The Test Standard group runs `campaign-movies`, `nab2g_c` with rendering and sound on and this switch, which must log `OPENSWBF2 MOVIE open`, `OPENSWBF2 MOVIE close` and, in the exit report, `OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0`.
 
-Other builds skip `-perturbheap`, its value, `-repeatmission`, `-shellfirst` and `-exitonmovieclose`, and log `-<switch> needs a Test or Asan build, ignored`.
+`-digestdetail <turn>` (Test and Asan builds only) logs `OPENSWBF2 DETAIL turn=<t> ...` lines for that turn and the next two: the mission time, then each character's, team's, command post's and world object's fields that the sim digest hashes, floats as raw bits. It does not change the digest. The Win32 Test Standard group runs it as `digest-detail` on geo1c_con, which must keep the geo1c_con digest.
+
+Other builds skip `-perturbheap`, its value, `-repeatmission`, `-shellfirst`, `-exitonmovieclose` and `-digestdetail` with its value, and log `-<switch> needs a Test or Asan build, ignored`.
 
 ### Game switches
 
@@ -169,12 +172,12 @@ A `-Smoke Vendor` run also prints `vendor:d3dx9-staged`: it passes when the stag
 
 | Tier | When | Command | Steps |
 |------|------|---------|-------|
-| Per plan | every change | `tests\gate.ps1 -Tier plan -Platform Win32,x64` | Debug, Release and Test builds on both platforms; `run.ps1` (Debug T1, hardening, Release Standard smoke); Release `-Smoke Vendor`; x64 Test T1; `selftest.ps1 -Configuration Test`; narrow `guard-revert.ps1 -Narrow` (rows added or edited, or whose revert target or test file changed since their proof) |
+| Per plan | every change | `tests\gate.ps1 -Tier plan -Platform Win32,x64` | Debug, Release and Test builds on both platforms; `run.ps1` (Debug T1, hardening, Release Standard smoke); Release `-Smoke Vendor`; the Release Boot group; x64 Test T1; `selftest.ps1 -Configuration Test`; narrow `guard-revert.ps1 -Narrow` (rows added or edited, or whose revert target or test file changed since their proof) |
 | Pull request | CI `test` and `asan` jobs | `tests\gate.ps1 -Tier pr [-Job test\|asan]` | test: Debug and Test builds, `run.ps1 -Configuration Test`, `selftest.ps1 -Configuration Test`; asan: Debug and Asan builds, `run.ps1 -Asan`, `-Asan -Smoke Dedicated`, `selftest.ps1 -Configuration Asan` |
-| Branch close | before merging a branch | `tests\gate.ps1 -Tier branch -Platform Win32,x64` | all four builds; `run.ps1`; Release `-Smoke Twice`, `-Smoke All` and `-Smoke Vendor`; `selftest.ps1 -Configuration Test`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
-| Milestone close | before a release | `tests\gate.ps1 -Tier milestone -Platform Win32,x64` | all four builds; `run.ps1`; Release Twice, All and Vendor; Test default, Perturb and All at the short count; Asan default, Dedicated and Soak; both self-tests; `capture-vs2013.ps1 -Collect`, `-Map`, `-Layouts`, Debug `-DebugDigests` and `-Verify -Baseline v143` with their compares; `x64-census.ps1`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
+| Branch close | before merging a branch | `tests\gate.ps1 -Tier branch -Platform Win32,x64` | all four builds; `run.ps1`; Release `-Smoke Twice`, `-Smoke All` and `-Smoke Vendor`; Release `-Smoke Boot` and Asan `-Smoke Boot` (x64); the Crash group on x64; `selftest.ps1 -Configuration Test`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
+| Milestone close | before a release | `tests\gate.ps1 -Tier milestone -Platform Win32,x64` | all four builds; `run.ps1`; Release Twice, All and Vendor; Release Boot and Asan Boot (x64); Test default, Perturb and All at the short count; Asan default, Dedicated and Soak; both self-tests; `capture-vs2013.ps1 -Collect`, `-Map`, `-Layouts`, Debug `-DebugDigests` and `-Verify -Baseline v143` with their compares; `x64-census.ps1`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
 
-Plan, PR and branch runs, and every Test All run, end `TimeOut` missions at turn 9300 (`-Soak Short`), so the soak past turn 9300 is proven only in milestone and weekly runs, by Release All at the long count (`-Soak Long`, turn 617300) and the ASan `Soak` group. `guard-revert.ps1 -Full` is a manual run. x64 steps build, run T1 and the tlog checks, and start the game exe only for the Vendor group, which exits right after the vendor DLL probe; `-Platform` defaults to `Win32`. Wall times per step, before and after, are in `tests\baseline\gate-times.tsv`; a full milestone run writes `after_s`.
+Plan, PR and branch runs, and every Test All run, end `TimeOut` missions at turn 9300 (`-Soak Short`), so the soak past turn 9300 is proven only in milestone and weekly runs, by Release All at the long count (`-Soak Long`, turn 617300) and the ASan `Soak` group. `guard-revert.ps1 -Full` is a manual run. x64 steps build, run T1 and the tlog checks, and start the game exe for the Vendor group, which exits right after the vendor DLL probe, and for the Boot and Crash groups; `-Platform` defaults to `Win32`. Wall times per step, before and after, are in `tests\baseline\gate-times.tsv`; a full milestone run writes `after_s`.
 
     tests\gate.ps1 -Tier plan|pr|branch|milestone [-Platform Win32,x64] [-Step <names>] [-Resume] [-ListOrder]
 

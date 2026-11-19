@@ -79,7 +79,7 @@ TEST_CASE("script clamp refuses outside range when configured" * doctest::test_s
 
 TEST_CASE("script ceilings respect the runtime heap" * doctest::test_suite("regression"))
 {
-    const unsigned int uRuntime = 0x4000000 - GameMemory::kApplicationHeapSize - GameMemory::kGamespyHeapSize -
+    const unsigned int uRuntime = GameMemory::kArenaSize - GameMemory::kApplicationHeapSize - GameMemory::kGamespyHeapSize -
                                   GameMemory::kLuaHeapSize - GameMemory::kArtistHeapSize;
     CHECK(IsPowerOfTwo(kPoolBytesMax));
     CHECK(IsPowerOfTwo(kTempHeapMax));
