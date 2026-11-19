@@ -114,7 +114,9 @@ function Run-Smoke([string]$wt, [string]$tag, $case) {
             Copy-Item (Join-Path $wt "bin\$Platform\$script:GameConfiguration\BattlefrontII.exe") $runDir -Force
             Sync-SmokeWorkerFiles $srcBin $runDir $case
             $argLine = $case.Args.Replace('{CASEDIR}', $caseDir)
-            $res = Invoke-SmokeCase $case.Name (Join-Path $runDir 'BattlefrontII.exe') $runDir $argLine $caseDir
+            $asanOptions = $null
+            if ($script:GameConfiguration -eq 'Asan') { $asanOptions = Get-AsanOptions $caseDir }
+            $res = Invoke-SmokeCase $case.Name (Join-Path $runDir 'BattlefrontII.exe') $runDir $argLine $caseDir $asanOptions
         }
         finally { Remove-HarnessTree $runDir }
     }
@@ -334,7 +336,7 @@ function Get-GuardAllowLists([string]$path) {
 function Get-GuardSmokeCase([string]$config, [string]$name) {
     if (-not $script:SmokeCaseSets.ContainsKey($config)) {
         $set = @{}
-        foreach ($w in 'Crash', 'Standard', 'Vendor') {
+        foreach ($w in 'Crash', 'Standard', 'Vendor', 'Boot') {
             foreach ($c in (Get-SmokeCases $w @() $false $null)) { $set[$c.Name] = $c }
         }
         $script:SmokeCaseSets[$config] = $set
@@ -930,6 +932,7 @@ try {
     $table = @()
     $script:LedgerFile = Join-Path $OutDir 'ledger.tsv'
     $script:PartialFile = Join-Path $OutDir 'proven.partial.tsv'
+    if (-not $Resume -and (Test-Path -LiteralPath $script:PartialFile)) { Remove-Item -LiteralPath $script:PartialFile -Force }
     if ($Resume) {
         $ledger = Read-GuardProofs $script:LedgerFile
         $resumedIds = @($rows | Where-Object { Test-GuardResumed $ledger["$($_.Id)`t$Platform"] $script:Decisions[$_.Id] } | ForEach-Object { $_.Id })
@@ -962,7 +965,7 @@ try {
     $smokeCases = @{}
     $smokeGroups = @{}
     if ($script:GuardSmokeLoaded) {
-        foreach ($w in 'Crash', 'Standard', 'Vendor') {
+        foreach ($w in 'Crash', 'Standard', 'Vendor', 'Boot') {
             foreach ($c in (Get-SmokeCases $w @() $false $null)) {
                 if ($smokeCases.ContainsKey($c.Name)) { throw "smoke case '$($c.Name)' is defined more than once" }
                 $smokeCases[$c.Name] = $c
@@ -1053,7 +1056,7 @@ try {
         }
         catch { Write-Host "STATUS CHECK FAILED: $($_.Exception.Message)" }
         if ($script:TreeChanged) { Write-Host 'PROOFS NOT RECORDED: main tree changed during the run' }
-        else {
+        elseif ($script:TreeClean) {
             try { Merge-GuardProofs }
             catch { Write-Host "PROOF MERGE FAILED: $($_.Exception.Message)"; $cleanupFailed = $true }
         }

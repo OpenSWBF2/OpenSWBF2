@@ -2143,7 +2143,7 @@ void RedVariableWidthFont::CreateCustom(const CustomFontData& cfd)
         RedFreeToHeap(__RedCurrHeap, m_apTextures, 0);
     }
     m_apTextures = (RedTexture**)RedAllocFromHeap(
-        __RedCurrHeap, (unsigned int)m_uiNumTextures * 4, 0);
+        __RedCurrHeap, (unsigned int)m_uiNumTextures * sizeof(RedTexture*), 0);
     for (unsigned int i = 0; i < (unsigned int)m_uiNumTextures; i++)
     {
         m_apTextures[i] = 0;
@@ -2438,7 +2438,7 @@ void RedVariableWidthFont::Read(PblFileChunk& chunk)
                 RedFreeToHeap(__RedCurrHeap, m_apTextures, 0);
             }
             m_apTextures = (RedTexture**)RedAllocFromHeap(
-                __RedCurrHeap, (unsigned int)m_uiNumTextures * 4, 0);
+                __RedCurrHeap, (unsigned int)m_uiNumTextures * sizeof(RedTexture*), 0);
 
             for (unsigned char i = 0; i < m_uiNumTextures; i++)
             {

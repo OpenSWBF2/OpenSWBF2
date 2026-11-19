@@ -23,6 +23,7 @@ crash-debugbreak	0	0	0
 crash-debugheapoom	0	0	0
 crash-delayload	0	0	0
 crash-divzero	0	0	0
+crash-early	0	0	0
 crash-fastfail	-	-	-
 crash-gammadrawfail	0	0	0
 crash-gammafallback	0	0	0
@@ -30,6 +31,7 @@ crash-gammalost	0	0	0
 crash-gammapass	0	0	0
 crash-hang	0	0	0
 crash-heapfail	0	0	0
+crash-heapinit	0	0	0
 crash-invalidparam	0	0	0
 crash-luaoom	0	0	0
 crash-luapanic	0	0	0
@@ -42,6 +44,7 @@ crash-menurevertsave	0	0	0
 crash-menusavefail	0	0	0
 crash-midoublefree	0	0	0
 crash-nullderef	0	0	0
+crash-particlesound	0	0	0
 crash-poolcount	0	0	0
 crash-resetfatal	0	0	0
 crash-resetflap	0	0	0

@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "pcCrash.h"
+#include "pcAddrSpace.h"
 #include "Battlefront2/Platform/Pc/pcProgress.h"
 #include "CommandLine.h"
 #include "GameMemory.h"
@@ -27,6 +28,8 @@
 #include "Factory.h"
 #include "LuaCallbacks_Mission.h"
 #include "StickInfo.h"
+#include "FLEffect.h"
+#include "ParticleEmitter.h"
 #include "Steam/gfVendor.h"
 #include "Steam/steamworks.h"
 
@@ -352,6 +355,21 @@ static void __cdecl AbortHandler(int)
     RaiseCrash(0xE0000003);
 }
 
+static char const* FindArg(char const* pcCmd, char const* pcName, int* piLen);
+
+static void ReadLogArg()
+{
+    int iLen = 0;
+    char const* pcVal = FindArg(GetCommandLineA(), "-log", &iLen);
+    if (pcVal != 0 && iLen > 0 && iLen < MAX_PATH)
+    {
+        char acPath[MAX_PATH];
+        memcpy(acPath, pcVal, iLen);
+        acPath[iLen] = 0;
+        pcCrash::SetLogPath(acPath);
+    }
+}
+
 static void InstallHandlers()
 {
     gpfnUef = UefStub;
@@ -369,6 +387,7 @@ void pcCrash::Install()
         return;
     }
     gbInstalled = true;
+    ReadLogArg();
     pcProgress::Open();
 
     wchar_t awcSys[MAX_PATH];
@@ -664,11 +683,25 @@ bool pcCrash::FindCommandArg(char const* pcName, char const** ppcVal, int* piLen
     return pcVal != 0;
 }
 
-bool pcCrash::SimulateAllocFailure(char const* pcKind)
+static bool CrashTestKindIs(char const* pcKind)
 {
     int iLen = 0;
     char const* pcVal = FindArg(GetCommandLineA(), "-crashtest", &iLen);
     return pcVal != 0 && iLen == lstrlenA(pcKind) && _strnicmp(pcVal, pcKind, iLen) == 0;
+}
+
+bool pcCrash::SimulateAllocFailure(char const* pcKind)
+{
+    return CrashTestKindIs(pcKind);
+}
+
+void pcCrash::EarlyCrashTest(char const* pcKind)
+{
+    if (CrashTestKindIs(pcKind))
+    {
+        volatile int* piNull = 0;
+        *piNull = 1;
+    }
 }
 
 void pcCrash::ReserveLowAddressSpace()
@@ -678,44 +711,7 @@ void pcCrash::ReserveLowAddressSpace()
     {
         return;
     }
-    const uintptr_t kLimit = 0x80000000u;
-    const size_t kMinRegion = 0x100000u;
-    SYSTEM_INFO si;
-    GetSystemInfo(&si);
-    const uintptr_t uGran = si.dwAllocationGranularity;
-    uintptr_t uAt = (uintptr_t)si.lpMinimumApplicationAddress;
-    int iRetry = 0;
-    while (uAt < kLimit)
-    {
-        MEMORY_BASIC_INFORMATION mbi;
-        if (!VirtualQuery((void*)uAt, &mbi, sizeof(mbi)))
-        {
-            break;
-        }
-        uintptr_t uBase = (uintptr_t)mbi.BaseAddress;
-        uintptr_t uEnd = uBase + mbi.RegionSize;
-        if (uEnd < uBase || uEnd > kLimit)
-        {
-            uEnd = kLimit;
-        }
-        if (mbi.State == MEM_FREE)
-        {
-            uintptr_t uFrom = (uBase + uGran - 1) & ~(uGran - 1);
-            if (uEnd > uFrom && (uEnd - uFrom >= kMinRegion || uEnd == kLimit))
-            {
-                if (!VirtualAlloc((void*)uFrom, uEnd - uFrom, MEM_RESERVE, PAGE_NOACCESS) && iRetry < 16)
-                {
-                    iRetry++;
-                    continue;
-                }
-            }
-        }
-        if (uEnd == kLimit)
-        {
-            break;
-        }
-        uAt = uEnd;
-    }
+    pcAddrSpace::ReserveBelow(pcAddrSpace::HogLimit(), pcAddrSpace::MinRegion());
 }
 
 #ifdef OPENSWBF2_TEST
@@ -833,13 +829,7 @@ void pcCrash::FatalInit(char const* pcWhat, unsigned int uiSize)
 {
     if (gLogPath[0] == 0)
     {
-        int iLen = 0;
-        char const* pcVal = FindArg(GetCommandLineA(), "-log", &iLen);
-        if (pcVal != 0 && iLen > 0 && iLen < MAX_PATH)
-        {
-            memcpy(gLogPath, pcVal, iLen);
-            gLogPath[iLen] = 0;
-        }
+        ReadLogArg();
     }
     char acLine[256];
     int iLen = wsprintfA(acLine, "FATAL: out of memory allocating %.64s (%u bytes)", pcWhat, uiSize);
@@ -1213,6 +1203,70 @@ static void StickDeleteTest()
         bGameObject, bStuck, bCleared, bFell);
 }
 
+static ParticleEmitter* StartParticleSound(const ParticleEmitterClass* pClass)
+{
+    ParticleEmitter* pEmitter = ParticleEmitter::Create(pClass);
+    if (!pEmitter)
+    {
+        return 0;
+    }
+    ParticleEmitterInfoData* pInfo = ParticleEmitterInfoData::Create();
+    if (!pInfo)
+    {
+        delete pEmitter;
+        return 0;
+    }
+    pInfo->mPrev = 0;
+    pInfo->mNext = 0;
+    pInfo->mStartTime = 0.0f;
+    pInfo->mLifeTime = 0.0f;
+    pInfo->mVelocity = PblVector3(0.0f, 0.0f, 0.0f);
+    pInfo->mInitialVelocity = PblVector3(0.0f, 0.0f, 0.0f);
+    pInfo->mMatrix = gMatrixIdentity;
+    pEmitter->Register(pInfo);
+    pInfo->Release();
+    pEmitter->Update(0.0f);
+    pEmitter->Update(0.0f);
+    if (!pEmitter->mAmbientSound.GetVoiceVirtual())
+    {
+        delete pEmitter;
+        return 0;
+    }
+    return pEmitter;
+}
+
+static void ParticleSoundTest()
+{
+    const ParticleEmitterClass* pClass = 0;
+    ParticleEmitter* pEmitter = 0;
+    for (PblHashTable<FLEffectClass, 256>::Itor it(FLEffect::s_EffectClasses); it && !pEmitter; ++it)
+    {
+        if (it->mType != 1)
+        {
+            continue;
+        }
+        pClass = static_cast<const ParticleEmitterClass*>((FLEffectClass*)it);
+        pEmitter = StartParticleSound(pClass);
+    }
+    if (!pEmitter)
+    {
+        LOG(LogCore, Warning, "OPENSWBF2 PARTICLESOUND no emitter class plays an ambient sound");
+        return;
+    }
+    delete pEmitter;
+    ParticleEmitter* pReset = StartParticleSound(pClass);
+    if (!pReset)
+    {
+        LOG(LogCore, Warning, "OPENSWBF2 PARTICLESOUND restart failed");
+        return;
+    }
+    pReset->Reset(pClass);
+    const int iVoiceAfterReset = pReset->mAmbientSound.GetVoiceVirtual() != 0;
+    delete pReset;
+    LOG(LogCore, Inform, "OPENSWBF2 PARTICLESOUND class=0x%08X deleted=1 reset=1 voice_after_reset=%d",
+        pClass->m_uiClassName, iVoiceAfterReset);
+}
+
 void pcCrash::RunMissionCrashTest()
 {
     static bool sbRan;
@@ -1323,6 +1377,11 @@ void pcCrash::RunMissionCrashTest()
         sbRan = true;
         StickDeleteTest();
     }
+    else if (strcmp(gCrashKind, "particlesound") == 0)
+    {
+        sbRan = true;
+        ParticleSoundTest();
+    }
     else
     {
         sbRan = true;
@@ -1338,7 +1397,8 @@ void pcCrash::SetCrashTest(char const* pcKind)
         "applytargetfail", "gammapass", "gammafallback", "gammadrawfail",
         "gammalost", "menuconfirm", "menukeep", "menusavefail", "adaptercancel",
         "adapteraccept", "shellstretch", "menuorder", "menuorderrev",
-        "menurevertsave", "menuapplyfail", "poolcount", "poolfull", "stickdelete" };
+        "menurevertsave", "menuapplyfail", "poolcount", "poolfull", "stickdelete",
+        "particlesound" };
     if (pcKind == 0)
     {
         return;

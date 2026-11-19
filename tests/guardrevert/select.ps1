@@ -206,7 +206,7 @@ function Get-GuardCaseTexts($Rows, [string]$DefaultConfig, [string]$Root)
                 {
                     $script:SmokeDigestConfiguration = $cfg
                     $set = @{}
-                    foreach ($w in 'Crash', 'Standard', 'Vendor')
+                    foreach ($w in 'Crash', 'Standard', 'Vendor', 'Boot')
                     {
                         foreach ($c in (Get-SmokeCases $w @() $false $null))
                         {

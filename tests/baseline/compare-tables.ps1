@@ -6,7 +6,9 @@ param(
     [switch]$Hardening,
     [switch]$Collect,
     [switch]$Map,
-    [switch]$DebugDigests
+    [switch]$DebugDigests,
+    [switch]$MemPeaksX64,
+    [string]$RunLog
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +17,7 @@ if (-not $Baseline) { $Baseline = Join-Path $PSScriptRoot 'v143' }
 $script:BaselineReaders = @(
     @{ File = 'cloth-headroom.txt'; Reader = 'Tables'; Label = 'tables:cloth'; KeyCols = 1 }
     @{ File = 'mem-peaks.txt'; Reader = 'Tables'; Label = 'tables:mem-peaks'; KeyCols = 4 }
+    @{ File = 'mem-peaks-x64.txt'; Reader = 'MemPeaksX64'; Label = 'tables:mem-peaks-x64'; Pair = 'mem-peaks.txt' }
     @{ File = 'pool-sizes.txt'; Reader = 'Tables'; Label = 'tables:pool-sizes'; KeyCols = 1 }
     @{ File = 'smoke-all-digests.txt'; Reader = 'Tables'; Label = 'tables:digests'; KeyCols = 1; Skip = @('dedicated') }
     @{ File = 'lua-bins.txt'; Reader = 'LuaBins'; Label = 'tables:lua-bins'; KeyCols = 3 }
@@ -92,6 +95,111 @@ function Compare-Table([string]$label, [string]$name, [int]$keyCols, [string[]]$
     return 0
 }
 
+function Compare-MemPeaksKeys([string]$label, [string]$name, [string]$pair) {
+    $base = Read-Keyed $Baseline $pair 4 @() $false ''
+    $new = Read-Keyed $Tables $name 4 @() $false ''
+    $bad = @()
+    foreach ($k in ($new.Keys | Sort-Object)) {
+        foreach ($l in @($new[$k])) {
+            $c = @($l -split "`t")
+            if ($c.Count -ne 10) { $bad += "$name row has $($c.Count) columns: $l" }
+            elseif ($c[2] -ceq 'heap' -and ($c[4] -cnotmatch '^\d+$' -or $c[6] -cnotmatch '^\d+$')) { $bad += "$name heap row without a cap and peak: $l" }
+        }
+    }
+    $bm = @($base.Keys | ForEach-Object { @($_ -split "`t")[0] } | Sort-Object -Unique)
+    $nm = @($new.Keys | ForEach-Object { @($_ -split "`t")[0] } | Sort-Object -Unique)
+    if (($bm -join ' ') -cne ($nm -join ' ')) { $bad += "$name covers $($nm.Count) missions and $pair $($bm.Count)" }
+    $poolOnlyNew = 0
+    $poolOnlyBase = 0
+    foreach ($k in ($base.Keys | Sort-Object)) {
+        $pool = @($k -split "`t")[2] -ceq 'pool'
+        if (-not $new.ContainsKey($k)) {
+            if ($pool) { $poolOnlyBase++ } else { $bad += "$k missing from $name" }
+        }
+        elseif (-not $pool -and @($base[$k]).Count -ne @($new[$k]).Count) { $bad += "$k has $(@($new[$k]).Count) rows in $name and $(@($base[$k]).Count) in $pair" }
+    }
+    foreach ($k in ($new.Keys | Sort-Object)) {
+        if (-not $base.ContainsKey($k)) {
+            if (@($k -split "`t")[2] -ceq 'pool') { $poolOnlyNew++ } else { $bad += "$k not in $pair" }
+        }
+    }
+    if ($bad.Count) {
+        Write-Host "[FAIL] $label keys=$($new.Count)"
+        foreach ($l in $bad) { Write-Host "    $l" }
+        return 1
+    }
+    Write-Host "[PASS] $label keys=$($new.Count) missions=$($nm.Count) pool-keys-only-here=$poolOnlyNew pool-keys-only-in-pair=$poolOnlyBase"
+    return 0
+}
+
+function Read-HeapPeaks([string]$path) {
+    if (-not (Test-Path -LiteralPath $path)) { throw "$path not found" }
+    $peak = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
+    $caps = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
+    foreach ($line in [IO.File]::ReadAllLines($path)) {
+        if (-not $line -or $line.StartsWith('#') -or $line.StartsWith("mission`t")) { continue }
+        $c = @($line -split "`t")
+        if ($c.Count -ne 10 -or $c[2] -cne 'heap') { continue }
+        if ($c[4] -cnotmatch '^\d+$' -or $c[6] -cnotmatch '^\d+$') { throw "$path heap row without a cap and peak: $line" }
+        $p = [decimal]$c[6]
+        if (-not $peak.ContainsKey($c[3]) -or $p -gt $peak[$c[3]]) { $peak[$c[3]] = $p }
+        if (-not $caps.ContainsKey($c[3])) { $caps[$c[3]] = @() }
+        if ($caps[$c[3]] -cnotcontains $c[4]) { $caps[$c[3]] = @($caps[$c[3]]) + $c[4] }
+    }
+    return @{ Peak = $peak; Caps = $caps }
+}
+
+function Get-HeapCapsX64([string]$x64Path, [string]$x86Path, [ref]$bad) {
+    $p64 = Read-HeapPeaks $x64Path
+    $p86 = Read-HeapPeaks $x86Path
+    $want = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
+    foreach ($h in ($p86.Caps.Keys | Sort-Object)) {
+        $caps = @($p86.Caps[$h])
+        if ($caps.Count -ne 1) { $bad.Value += "$h has $($caps.Count) caps in $x86Path`: $($caps -join ', ')"; continue }
+        if (-not $p64.Peak.ContainsKey($h)) { $bad.Value += "$h has no heap rows in $x64Path"; continue }
+        $cap86 = [decimal]$caps[0]
+        $peak64 = $p64.Peak[$h]
+        $peak86 = $p86.Peak[$h]
+        $w = $cap86
+        if ($peak64 -gt 0 -and $peak86 -gt 0) {
+            $d = [decimal]::Ceiling([decimal]::Ceiling($peak64 * $cap86 / $peak86) / 65536) * 65536
+            if ($d -gt $cap86) { $w = $d }
+        }
+        $want[$h] = $w
+    }
+    foreach ($h in ($p64.Peak.Keys | Sort-Object)) { if (-not $p86.Caps.ContainsKey($h)) { $bad.Value += "$h has no heap rows in $x86Path" } }
+    return $want
+}
+
+function Compare-HeapCapsX64([string]$label, [string]$name, [string]$pair, [string]$runLog) {
+    $bad = @()
+    $want = Get-HeapCapsX64 (Join-Path $Tables $name) (Join-Path $Baseline $pair) ([ref]$bad)
+    $derived = @($want.Keys | Sort-Object | ForEach-Object { "$_=$($want[$_])" }) -join ' '
+    if ($runLog) {
+        if (-not (Test-Path -LiteralPath $runLog)) { $bad += "$runLog not found" }
+        else {
+            $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+            $ms = [regex]::Matches([IO.File]::ReadAllText($runLog), 'OPENSWBF2 MEMREPORT heap=(\S+) cap=(\d+) ')
+            if ($ms.Count -eq 0) { $bad += "$runLog has no MEMREPORT heap lines" }
+            foreach ($m in $ms) {
+                $h = $m.Groups[1].Value
+                $c = [decimal]$m.Groups[2].Value
+                [void]$seen.Add($h)
+                if (-not $want.ContainsKey($h)) { $bad += "$h logged cap $c has no derived cap" }
+                elseif ($c -ne $want[$h]) { $bad += "$h logged cap $c derived $($want[$h])" }
+            }
+            if ($ms.Count) { foreach ($h in ($want.Keys | Sort-Object)) { if (-not $seen.Contains($h)) { $bad += "$h derived $($want[$h]) not logged" } } }
+        }
+    }
+    if ($bad.Count) {
+        Write-Host "[FAIL] $label heaps=$($want.Count)"
+        foreach ($l in ($bad | Select-Object -Unique)) { Write-Host "    $l" }
+        return 1
+    }
+    Write-Host "[PASS] $label $derived"
+    return 0
+}
+
 function Compare-Bytes([string]$label, [string]$name) {
     $bp = Join-Path $Baseline $name
     $tp = Join-Path $Tables $name
@@ -138,7 +246,11 @@ if ($entries.Count -eq 0) {
     $fail++
 }
 foreach ($e in $entries) {
-    if ($e.KeyCols) {
+    if ($e.Pair) {
+        $fail += Compare-MemPeaksKeys $e.Label $e.File $e.Pair
+        $fail += Compare-HeapCapsX64 'tables:heap-caps-x64' $e.File $e.Pair $RunLog
+    }
+    elseif ($e.KeyCols) {
         $skip = @()
         if ($e.Skip) { $skip = @($e.Skip) }
         $fail += Compare-Table $e.Label $e.File $e.KeyCols $skip ([bool]$e.OffThread) ([string]$e.KeyPattern)

@@ -420,7 +420,8 @@ void RedMouse::SetCursorPos(int iX, int iY)
     }
 #endif
 
-    if (gAppActive && hGlobalWnd)
+    if (DisplayLogic::OwnsSystemCursor(gAppActive, hGlobalWnd != 0,
+                                       hGlobalWnd != 0 && GetForegroundWindow() == hGlobalWnd))
     {
         RECT rc;
         int iCx = 0;
@@ -432,6 +433,7 @@ void RedMouse::SetCursorPos(int iX, int iY)
                                             iCy);
         POINT pt = { iCx, iCy };
         ClientToScreen(hGlobalWnd, &pt);
+        LOG(LogCore, Inform, "OPENSWBF2 CURSOR warp x=%d y=%d", (int)pt.x, (int)pt.y);
         ::SetCursorPos(pt.x, pt.y);
     }
 }
@@ -502,7 +504,9 @@ static void ReconcileCursor(RedMouse& kMouse)
         ::SetCursor(0);
     }
 
-    if (kPlan.bClip && hGlobalWnd)
+    if (kPlan.bClip
+        && DisplayLogic::OwnsSystemCursor(gAppActive, hGlobalWnd != 0,
+                                          hGlobalWnd != 0 && GetForegroundWindow() == hGlobalWnd))
     {
         RECT kClient;
         GetClientRect(hGlobalWnd, &kClient);

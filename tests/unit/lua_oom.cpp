@@ -10,6 +10,7 @@
 #include "RedEngineFL/Memory/RedMemoryMi.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "LuaFL/include/lua.h"
+#include "lobject.h"
 
 namespace
 {
@@ -131,6 +132,11 @@ TEST_CASE("lua oom is raised as LUA_ERRMEM" * doctest::test_suite("regression"))
     }
     CHECK(lua_cpcall(L, AllocSmall, 0) == 0);
     lua_close(L);
+}
+
+TEST_CASE("lua userdata header is four pointer widths" * doctest::test_suite("unit"))
+{
+    CHECK(sizeof(Udata) == 4 * sizeof(void*));
 }
 
 TEST_CASE("lua failed shrink keeps the old block" * doctest::test_suite("regression"))

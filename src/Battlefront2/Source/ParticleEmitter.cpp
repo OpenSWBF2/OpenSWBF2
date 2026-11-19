@@ -3,6 +3,7 @@
 #include "ParticleEmitterObject.h"
 #include "Battlefront2Lod.h"
 #include "PebbleFL/Common/PblRandom.h"
+#include "SoundFL/source/sndvoicevirtual.h"
 
 extern NoLodData noloddata;
 
@@ -14,6 +15,16 @@ extern ParticleEmitterObject sPEO;
 namespace ParticleSystem
 {
 bool IsLodActive(int iLod);
+}
+
+static void MoveAmbientSound(GameSoundControllable& rSound, ParticleEmitterInfoData* pInfo)
+{
+    Snd::VoiceVirtual* pVoice = rSound.GetVoiceVirtual();
+    if (pVoice)
+    {
+        pVoice->SetPosition(&pInfo->mMatrix.GetTranslation());
+        pVoice->SetVelocity(&pInfo->mVelocity);
+    }
 }
 
 // SYNTHETIC: SWBF2 0x00405be0
@@ -92,6 +103,7 @@ ParticleEmitter::ParticleEmitter(const ParticleEmitterClass* pClass)
 // FUNCTION: SWBF2 0x0060a130
 void ParticleEmitter::Reset(const ParticleEmitterClass* pClass)
 {
+    mAmbientSound.Stop(true);
     while (mFirstInfo)
     {
         ParticleEmitterInfoData* pNext = mFirstInfo->mNext;
@@ -141,6 +153,7 @@ void ParticleEmitter::Reset(const ParticleEmitterClass* pClass)
 // FUNCTION: SWBF2 0x0060a090
 ParticleEmitter::~ParticleEmitter()
 {
+    mAmbientSound.Stop(false);
     while (mFirstInfo)
     {
         ParticleEmitterInfoData* pNext = mFirstInfo->mNext;
@@ -246,6 +259,7 @@ bool ParticleEmitter::Update(float fTime)
                 mFirstInfo->mPrev->mNext = pNext;
             }
             mSpawnDelay -= mFirstInfo->mLifeTime;
+            MoveAmbientSound(mAmbientSound, pNext);
             mFirstInfo->Release();
             mFirstInfo = pNext;
         }

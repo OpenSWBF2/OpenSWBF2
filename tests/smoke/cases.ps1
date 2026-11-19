@@ -5,8 +5,9 @@ $script:SmokeTurnCap = $script:SoakLongTurns
 $script:PerturbSoakTurns = 100000
 $script:SmokeCapRx = '(?s)\A(?!.*OPENSWBF2 SOAK turns=)'
 $script:SteamIfaceRx = @('OPENSWBF2 STEAM iface=SteamClient ok', 'OPENSWBF2 STEAM iface=SteamUser ok', 'OPENSWBF2 STEAM iface=SteamFriends ok', 'OPENSWBF2 STEAM iface=SteamUtils ok')
-$script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-delayload', 'crash-check', 'crash-hang', 'crash-stall', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat', 'crash-capexhaust', 'vendor-x64-none', 'vendor-x64-steam-wrongbits', 'vendor-x64-galaxy-wrongbits', 'vendor-x64-steam-on')
+$script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-delayload', 'crash-delayload-x64', 'crash-early', 'crash-heapinit', 'crash-check', 'crash-hang', 'crash-stall', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat', 'crash-capexhaust', 'vendor-x64-none', 'vendor-x64-steam-wrongbits', 'vendor-x64-galaxy-wrongbits', 'vendor-x64-steam-on')
 $script:SmokeAddrSpaceRx = 'OPENSWBF2 ADDRSPACE arena=0x[89A-F][0-9A-F]{7} arena_end=0x[0-9A-F]{8} laa=1 steam=1 steam_api=0x(?!0{8})[0-9A-F]{8} Galaxy=0x(?!0{8})[0-9A-F]{8} GalaxyPeer=0x[0-9A-F]{8} binkw32=0x(?!0{8})[0-9A-F]{8}'
+$script:SmokeAddrSpaceRxX64 = 'OPENSWBF2 ADDRSPACE arena=0x[1-9A-F][0-9A-F]{8,15} arena_end=0x[1-9A-F][0-9A-F]{8,15} laa=1 steam=(?:0 steam_api=0x0{8}|1 steam_api=0x[1-9A-F][0-9A-F]{8,15}) Galaxy=0x0{8} GalaxyPeer=0x0{8} binkw32=0x0{8}'
 $script:ImportStaticAllow = @{
     Win32 = @(
         'advapi32.dll',
@@ -199,7 +200,8 @@ $script:SizeLiteralAllow = @(
     'src\Battlefront2\Source\pcCrash.cpp|MemoryPool kSmall("crashtestsmall", 16)|x64:safe:crash-test pool of raw 16-byte blocks; no object type is placed in it',
     'src\Battlefront2\Source\pcCrash.cpp|.Create(4, 16, 0)|x64:safe:crash-test pool of raw 16-byte blocks; no object type is placed in it',
     'src\Battlefront2\Source\pcCrash.cpp|MemoryPool kPool("crashtestpool", 16)|x64:safe:crash-test pool of raw 16-byte blocks; no object type is placed in it',
-    'src\Battlefront2\Source\pcCrash.cpp|.Create(2, 16, 0)|x64:safe:crash-test pool of raw 16-byte blocks; no object type is placed in it'
+    'src\Battlefront2\Source\pcCrash.cpp|.Create(2, 16, 0)|x64:safe:crash-test pool of raw 16-byte blocks; no object type is placed in it',
+    'src\Battlefront2\Source\LuaMemory.cpp|->Create(pInfo->mCount, pInfo->mBin * 4, 0)|x64:safe:a Lua bin counts 4-byte units of a Lua request size (LocatePool takes (uiSize + 3) >> 2), so mBin * 4 is the byte block size of the bin, not a pointer count'
 )
 $script:SerialAllow = @(
     'src\Battlefront2\Source\CollisionObject.cpp|static unsigned int sCollisionSerialNext = 0;',
@@ -238,6 +240,11 @@ $script:FastcallAllow = @(
     'src\Battlefront2\Source\SkyDome.cpp|typedef void(__fastcall* SceneObjectFn)(void* pThis, void*);'
 )
 
+function Get-SmokeAddrSpaceRx {
+    if ($script:SmokePlatform -eq 'x64') { return $script:SmokeAddrSpaceRxX64 }
+    return $script:SmokeAddrSpaceRx
+}
+
 function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $false, $soak = 'Short') {
     $soakTurns = $null
     if ($soak -eq 'Short') { $soakTurns = $script:SoakShortTurns }
@@ -250,9 +257,10 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
     $htail = $tail
     $pass = @{ Class = 'Pass' }
     $hrx = @()
+    $noWarpRx = '(?s)\A(?!.*OPENSWBF2 CURSOR warp)'
     if ($hog) {
         $htail = "$tail -hogaddrspace"
-        $hrx = @($script:SmokeAddrSpaceRx)
+        $hrx = @(Get-SmokeAddrSpaceRx)
         $pass = @{ Class = 'Pass'; LogRx = $hrx }
     }
     $cases = @()
@@ -293,8 +301,8 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         $cases += New-Object PSObject -Property @{ Name = 'fps-0'; Args = "$standard $htail -fps 0 -soakturns 1"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=0 ', 'pacing: fps cap is uncapped', $t1rx) + $hrx) }; Twice = 0 }
         $cases += New-Object PSObject -Property @{ Name = 'fps-30'; Args = "$standard $htail -fps 30 -soakturns 1"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 PACING fps=30 ', $t1rx) + $hrx) }; Twice = 0 }
         $rtTail = $htail -replace ' -fixedrate 30', ''
-        $cases += New-Object PSObject -Property @{ Name = 'pacing-realtime'; Args = "nab2g_c $rtTail -fps 30 -soakturns 300"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 PACING fps=30 ', 'OPENSWBF2 SOAK turns=') + $hrx) }; Twice = 0 }
-        $cases += New-Object PSObject -Property @{ Name = 'pacing-realtime-uncapped'; Args = "nab2g_c $rtTail -fps 0 -soakturns 300"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 PACING fps=0 ', 'OPENSWBF2 SOAK turns=') + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'pacing-realtime'; Args = "nab2g_c $rtTail -fps 30 -soakturns 300"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 PACING fps=30 ', 'OPENSWBF2 SOAK turns=', $noWarpRx) + $hrx) }; Twice = 0 }
+        $cases += New-Object PSObject -Property @{ Name = 'pacing-realtime-uncapped'; Args = "nab2g_c $rtTail -fps 0 -soakturns 300"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 PACING fps=0 ', 'OPENSWBF2 SOAK turns=', $noWarpRx) + $hrx) }; Twice = 0 }
         $badIni = Join-Path $PSScriptRoot 'display-bad.ini'
         $cases += New-Object PSObject -Property @{ Name = 'display-badini'; Args = "$standard $htail -adapter abc -refresh 99999 -displayini `"$badIni`" -soakturns 1"; Expect = @{ Class = 'Pass'; LogRx = (@($t1rx) + $hrx) }; Twice = 0 }
         $waitIni = Join-Path $PSScriptRoot 'display-waitquery.ini'
@@ -313,9 +321,14 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             $cases += New-Object PSObject -Property @{ Name = 'commit-flat'; Args = "$standard $htail -repeatmission 16"; Expect = @{ Class = 'Pass'; SameDigests = 17; CommitFlat = 0; CommitCycles = 16; CommitSettled = 8; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $hrx) }; Twice = 0 }
             if ($script:SmokeDigestConfiguration -eq 'Test') {
                 $mvTail = (($htail -replace '(^| )-norender(?= )', '') -replace '(^| )-nosound(?= )', '') -replace '^\s+', ''
+                if ($script:SmokePlatform -eq 'Win32') {
+                    $ddPinned = Get-DigestExpected $standard
+                    $ddDigestRx = $(if ($ddPinned) { '(?m)' + [regex]::Escape($ddPinned) + '\r?$' } else { '(?!)' })
+                    $cases += New-Object PSObject -Property @{ Name = 'digest-detail'; Args = "$standard $htail -digestdetail 4 -soakturns 1501"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 DETAIL turn=4 time=[0-9A-F]{8}\r?$', '(?m)OPENSWBF2 DETAIL turn=5 time=[0-9A-F]{8}\r?$', '(?m)OPENSWBF2 DETAIL turn=6 time=[0-9A-F]{8}\r?$', 'OPENSWBF2 DETAIL turn=4 char=0 team=-?\d+ class=-?\d+ ', 'OPENSWBF2 DETAIL turn=6 obj=0x[0-9A-F]{8} pos=[0-9A-F]{8} [0-9A-F]{8} [0-9A-F]{8} vel=[0-9A-F]{8} [0-9A-F]{8} [0-9A-F]{8} hp=[0-9A-F]{8} objteam=-?\d+', 'OPENSWBF2 DETAIL turn=5 team=\d+ points=', '(?s)\A(?!.*OPENSWBF2 DETAIL turn=(?![456] ))', $ddDigestRx, 'OPENSWBF2 SOAK turns=') + $hrx) }; Twice = 0 }
+                }
                 $cases += New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = "nab2g_c $mvTail -win -exitonmovieclose"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', 'OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0') + $hrx) }; Twice = 0 }
             }
-            $cases += New-Object PSObject -Property @{ Name = 'repeat-water'; Args = "nab2g_c $htail -repeatmission -soakturns 1501"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 REPEAT to_shell mission=nab2g_c\r?$', '(?m)OPENSWBF2 REPEAT to_mission mission=nab2g_c\r?$', 'OPENSWBF2 SIM DIGEST turns=', 'OPENSWBF2 SOAK turns=') + $hrx) }; Twice = 0 }
+            $cases += New-Object PSObject -Property @{ Name = 'repeat-water'; Args = "nab2g_c $htail -repeatmission -soakturns 1501"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 REPEAT to_shell mission=nab2g_c\r?$', '(?m)OPENSWBF2 REPEAT to_mission mission=nab2g_c\r?$', 'OPENSWBF2 SIM DIGEST turns=', 'OPENSWBF2 SOAK turns=', $noWarpRx) + $hrx) }; Twice = 0 }
             $cases += New-Object PSObject -Property @{ Name = 'repeat-digest'; Args = "$standard $htail -repeatmission"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $scanRx + $hrx) }; Twice = 0 }
         }
     }
@@ -369,6 +382,20 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         $vD3dx = '(?i)OPENSWBF2 VENDOR steam=\w+ galaxy=\w+ d3dx9=[a-z]:\\[^\r\n]*\\artifacts\\smoke-workers\\' + $script:SmokePlatform + '\\[^\\\r\n]+\\[^\\\r\n]+\\w\d+\\d3dx9_43\.dll msvcr120='
         foreach ($c in @($cases | Where-Object { $_.Name -like 'vendor-*' })) { $c.Expect.LogRx = @($c.Expect.LogRx) + $vD3dx }
     }
+    if ($which -eq 'Boot') {
+        $shellRx = @('(?m)OPENSWBF2 SOAK shell=300\r?$', 'OPENSWBF2 RUN COMPLETE', '(?s)\A(?!.*OPENSWBF2 MISSION RUNNING)')
+        $shellArgs = "$tail -soakturns 300"
+        if ($script:SmokePlatform -eq 'x64') {
+            $shellRx += $script:SmokeAddrSpaceRxX64
+            $shellArgs = "$tail -hogaddrspace -soakturns 300"
+        }
+        $cases += New-Object PSObject -Property @{ Name = 'boot-shell'; Args = $shellArgs; Expect = @{ Class = 'Pass'; LogRx = $shellRx }; Twice = 0 }
+    }
+    if ($which -eq 'Boot' -and $script:SmokePlatform -eq 'x64') {
+        foreach ($m in 'hot1g_con', 'tat2g_eli', 'nab2g_c') {
+            $cases += New-Object PSObject -Property @{ Name = "boot-$m"; Args = "$m $tail -hogaddrspace -soakturns 1501"; Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 MISSION RUNNING', 'OPENSWBF2 SIM DIGEST turns=1500 ', 'OPENSWBF2 SOAK turns=', $script:SmokeAddrSpaceRxX64, '(?s)\A(?!.*refused size)', $noWarpRx); HeapCapsX64 = $true }; Twice = 0 }
+        }
+    }
     if ($which -eq 'All') {
         foreach ($line in $missions) {
             $tok = @($line.Trim() -split '\s+')
@@ -399,6 +426,18 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
                 Twice = 0
             }
         }
+        if ($script:SmokePlatform -eq 'x64') {
+            $nd = @($cases | Where-Object { $_.Name -eq 'crash-nullderef' })[0]
+            $nd.Args += ' -hogaddrspace'
+            $nd.Expect.LogRx = @('FATAL: exception 0xC0000005 at 0x[0-9A-F]{9,16} \(BattlefrontII\.exe\+0x[0-9A-F]+\) build [0-9A-F]+ dump .*\.dmp', $script:SmokeAddrSpaceRxX64)
+            $nd.Expect.DumpMatchesFatal = $true
+        }
+        $luaOomSize = 0x4000000 + 4 * $(if ($script:SmokePlatform -eq 'x64') { 8 } else { 4 })
+        $luaOomRx = @(
+            "^\[t=\d+\.\d{3}\] \[f=\d+\] LogMemory Error Battlefront2\\Source\\MemFailLog\.cpp:\d+: alloc failure heap Lua \(\d+\) size $luaOomSize ",
+            "^\[t=\d+\.\d{3}\] \[f=\d+\] LogLua Error Battlefront2\\Source\\LuaMemory\.cpp:\d+: Lua out of memory \(\d+ used in \d+ blocks, trying to alloc $luaOomSize\)$"
+        )
+        $luaOomLogRx = @(('(?m)' + $luaOomRx[0]), ('(?m)' + $luaOomRx[1].TrimEnd('$') + '\r?$'))
         $ff = @{ Class = 'GsFailure'; Code = 3221226505 }
         $werKey = $script:SmokeWerKey
         if ($null -eq $werKey) { $werKey = Test-WerKey }
@@ -410,6 +449,23 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
                 Args = "$standard $tail -crashtest delayload"
                 Omit = @('steam_api.dll')
                 Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('FATAL:.*\.dmp', 'FATAL: exception 0xC06D007E at 0x[0-9A-F]+ \([^)]+\) dll=steam_api\.dll build ', 'OPENSWBF2 VENDOR steam off: steam_api\.dll missing', '(?s)\A(?!.*VENDOR steam off.*VENDOR steam off)') }
+                Twice = 0
+            }
+        }
+        else {
+            $cases += New-Object PSObject -Property @{
+                Name = 'crash-delayload-x64'
+                Args = "$standard $tail -crashtest delayload"
+                Omit = @('steam_api64.dll')
+                Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('FATAL:.*\.dmp', 'FATAL: exception 0xC06D007E at 0x[0-9A-F]+ \([^)]+\) dll=steam_api64\.dll build ', 'OPENSWBF2 VENDOR steam off: steam_api64\.dll missing', '(?s)\A(?!.*VENDOR steam off.*VENDOR steam off)') }
+                Twice = 0
+            }
+        }
+        foreach ($kind in 'early', 'heapinit') {
+            $cases += New-Object PSObject -Property @{
+                Name = "crash-$kind"
+                Args = "$standard $tail -crashtest $kind"
+                Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('FATAL: exception 0xC0000005 at 0x[0-9A-F]+ \(BattlefrontII\.exe\+0x[0-9A-F]+\) build [0-9A-F]+ dump .*\.dmp', '(?s)\A(?!.*(?:Opened logfile|log start).*FATAL:)') }
                 Twice = 0
             }
         }
@@ -431,7 +487,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             $cases += New-Object PSObject -Property @{
                 Name = 'crash-buildheapfail'
                 Args = "$standard $tail -crashtest buildheapfail"
-                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = 'FATAL: out of memory allocating Lua heap \(16777216 bytes\) load \d+% phys \d+ MB virt \d+ MB' }
+                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = ('FATAL: out of memory allocating Lua heap \(' + $(if ($script:SmokePlatform -eq 'x64') { 29229056 } else { 16777216 }) + ' bytes\) load \d+% phys \d+ MB virt \d+ MB') }
                 Twice = 0
             }
         }
@@ -478,9 +534,15 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             Twice = 0
         }
         $cases += New-Object PSObject -Property @{
+            Name = 'crash-particlesound'
+            Args = "$standard $tail -crashtest particlesound"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 PARTICLESOUND class=0x[0-9A-F]{8} deleted=1 reset=1 voice_after_reset=0', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
             Name = 'crash-luaoom'
             Args = "$standard $tail -crashtest luaoom"
-            Expect = @{ Class = 'Pass'; LogRx = 'Lua out of memory' }
+            Expect = @{ Class = 'Pass'; LogRx = $luaOomLogRx; ErrorRx = $luaOomRx }
             Twice = 0
         }
         $cases += New-Object PSObject -Property @{
@@ -698,7 +760,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
                 $rx = @('(?s)\A(?!.*OPENSWBF2 PERTURB )')
                 if ($r.Seed -gt 0) { $rx = @("(?m)OPENSWBF2 PERTURB seed=$($r.Seed) modes=$($r.Mode)\r?$") }
                 $soakArg = ''
-                if ($r.Mode -eq 'hog') { $rx += $script:SmokeAddrSpaceRx }
+                if ($r.Mode -eq 'hog') { $rx += Get-SmokeAddrSpaceRx }
                 if ($r.Mode -eq 'repeat') {
                     $rx += @("(?m)OPENSWBF2 REPEAT to_shell mission=$m\r?$", "(?m)OPENSWBF2 REPEAT to_mission mission=$m\r?$")
                 }

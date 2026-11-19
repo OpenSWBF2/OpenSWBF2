@@ -117,7 +117,8 @@ TEST_CASE("glyph cache element routes every shader walk through the allocated co
                       "    }\n"
                       "\n"
                       "    Quad& q = s_aQuads[s_uiNumQuads++];\n") != std::string::npos);
-    CHECK(sCache.find("    m_ppInterfaceShader = (pcInterfaceShader**)RedAllocFromHeap(__RedCurrHeap, uiBytes + 4, 0);\n"
+    CHECK(sCache.find("    m_ppInterfaceShader = (pcInterfaceShader**)RedAllocFromHeap(\n"
+                      "        __RedCurrHeap, (uiNumTextures + 1) * sizeof(pcInterfaceShader*), 0);\n"
                       "    m_ppInterfaceShader[uiNumTextures] = 0;\n") != std::string::npos);
 }
 

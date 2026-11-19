@@ -15,6 +15,7 @@ namespace pcCrash
     void FatalInit(char const* pcWhat, unsigned int uiSize);
     void FatalExit(char const* pcReason);
     bool SimulateAllocFailure(char const* pcKind);
+    void EarlyCrashTest(char const* pcKind);
     bool FindCommandArg(char const* pcName, char const** ppcVal, int* piLen);
     void ReserveLowAddressSpace();
     bool IsLargeAddressAware();

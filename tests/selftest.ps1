@@ -462,10 +462,11 @@ public static class StallStub
     $script:SmokeDigestConfiguration = $exclCfg
     $script:SmokePlatform = 'x64'
     $allNames += @(Get-SmokeCases 'Vendor' @() $false $null | ForEach-Object { $_.Name })
+    $allNames += @(Get-SmokeCases 'Crash' @() $false $null | ForEach-Object { $_.Name })
     $script:SmokePlatform = $exclPlat
     $excl = @($script:SmokeAsanExcluded)
     $missing = @($excl | Where-Object { $allNames -notcontains $_ })
-    if ($excl.Count -ne 23 -or $missing.Count -gt 0) { $failed++; Write-Host "FAILED ${n}: asan exclusions: count $($excl.Count), unknown '$($missing -join ', ')'" }
+    if ($excl.Count -ne 26 -or $missing.Count -gt 0) { $failed++; Write-Host "FAILED ${n}: asan exclusions: count $($excl.Count), unknown '$($missing -join ', ')'" }
     else { Write-Host "OK $n asan exclusions name real smoke cases" }
 }
 finally {
@@ -700,12 +701,32 @@ try {
         'Foo::SetupMemoryPool(16, 0x40, Foo::sMemoryPool.GetGrow());',
         'mValue.Setup(1.0f, 2.0f, 3.0f);',
         '// gPool.Setup(uCount, 0xFD0, 0);',
-        'MemoryPool kAllowed("allowed", 16);'
+        'MemoryPool kAllowed("allowed", 16);',
+        'Weapon::UpdateMemoryPoolSize(0x150);',
+        'Weapon::UpdateMemoryPoolSize(sizeof(Weapon));',
+        'p = RedAllocFromHeap(h, n * 4, 0);',
+        'p = RedAllocFromHeap(h, n * sizeof(T*), 0);',
+        'p = (T**)RedAllocFromHeap(',
+        '    h, (unsigned int)n + 4, 0);',
+        'p = RedAllocFromHeap(h, n * 4 * sizeof(T), 0);',
+        'pPool->Create(c, uBin * 4, 0);',
+        'p = RedAllocFromHeap(h, n * 40, 0);',
+        'pLua->Create(c, uLua * 4, 0);',
+        'p = RedAllocFromHeap(h, 4 * n, 0);',
+        'p = RedAllocFromHeap(h, 40 * n, 0);',
+        'const unsigned int uiBytes = n * 4;',
+        'q = RedAllocFromHeap(h, uiBytes, 0);',
+        'const unsigned int uiLead = 4 * n;',
+        'Foo::SetupMemoryPool(16, uiLead, Foo::sMemoryPool.GetGrow());',
+        'const unsigned int uiOk = n * sizeof(T*);',
+        'r = RedAllocFromHeap(h, uiOk, 0);',
+        'bool bSame = uiOk == n * 4;',
+        'r = RedAllocFromHeap(h, bSame, 0);'
     )
     Set-Content -Encoding ASCII -Path (Join-Path $sizeDir 'src\LuaFL\l.cpp') -Value 'MemoryPool Vendor::sMemoryPool("Vendor", 8);'
-    $allow = @('src\a\x.cpp|MemoryPool kAllowed("allowed", 16)|x64:safe:raw blocks', 'src\a\x.cpp|MemoryPool kMissing("missing", 16)|x64:safe:raw blocks', 'src\a\x.cpp|.Create(9, 9, 9)')
+    $allow = @('src\a\x.cpp|MemoryPool kAllowed("allowed", 16)|x64:safe:raw blocks', 'src\a\x.cpp|->Create(c, uLua * 4, 0)|x64:safe:4-byte bins', 'src\a\x.cpp|MemoryPool kMissing("missing", 16)|x64:safe:raw blocks', 'src\a\x.cpp|.Create(9, 9, 9)')
     $c = Get-X64SizeLiteralCheck $sizeDir $allow
-    $want = (@('allow without an x64:safe reason src\a\x.cpp|.Create(9, 9, 9)') + (@(1, 4, 6, 7, 9, 11) | ForEach-Object { "src\a\x.cpp:$_" }) + 'unused allow src\a\x.cpp|MemoryPool kMissing("missing", 16)') -join ', '
+    $want = (@('allow without an x64:safe reason src\a\x.cpp|.Create(9, 9, 9)') + (@(1, 4, 6, 7, 9, 22, 11, 15, 17, 19, 25, 30, 28) | ForEach-Object { "src\a\x.cpp:$_" }) + 'unused allow src\a\x.cpp|MemoryPool kMissing("missing", 16)') -join ', '
     $why = $null
     if ($c.Name -ne 'x64-size-literal' -or $c.Ok -or $c.Detail -ne $want) { $why = "ok=$($c.Ok): $($c.Detail)" }
     Set-Content -Encoding ASCII -Path (Join-Path $sizeDir 'src\a\x.cpp') -Value @('MemoryPool Bar::sMemoryPool("Bar", sizeof(Bar));', 'gPool.Setup(uCount, sizeof(Foo), 0);')
@@ -1441,6 +1462,53 @@ foreach ($vp in 'Win32', 'x64') {
     $n++
 }
 $script:SmokePlatform = $vdPlat
+$btPlat = $script:SmokePlatform
+$why = $null
+$script:SmokePlatform = 'Win32'
+$btWin32 = @(Get-SmokeCases 'Boot' @() $false $null)
+$script:SmokePlatform = 'x64'
+$btCases = @(Get-SmokeCases 'Boot' @() $false $null)
+$script:SmokePlatform = $btPlat
+$btNames = @('boot-shell', 'boot-hot1g_con', 'boot-tat2g_eli', 'boot-nab2g_c')
+$btGood = @(
+    'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x1C5080F0000 arena_end=0x1C50C0F0000 laa=1 steam=1 steam_api=0x1C5074D0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x100000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=0 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000'
+)
+$btBad = @(
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x7FFF0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x80000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0xFFFFFFFF Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=0 steam_api=0x80000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x86E3CD80 arena_end=0x86E40D80 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x609B0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x16E3C350000 GalaxyPeer=0x00000000 binkw32=0x00000000'
+)
+$btShellRx = @('(?m)OPENSWBF2 SOAK shell=300\r?$', 'OPENSWBF2 RUN COMPLETE', '(?s)\A(?!.*OPENSWBF2 MISSION RUNNING)')
+if ((@($btWin32 | ForEach-Object { $_.Name }) -join ',') -cne 'boot-shell') { $why = "Win32 Boot holds $(@($btWin32 | ForEach-Object { $_.Name }) -join ', ')" }
+elseif ($btWin32[0].Args -match '(^| )-hogaddrspace( |$)') { $why = "Win32 boot-shell runs with -hogaddrspace: $($btWin32[0].Args)" }
+elseif ((@($btWin32[0].Expect.LogRx) -join '|') -cne ($btShellRx -join '|')) { $why = "Win32 boot-shell LogRx is $(@($btWin32[0].Expect.LogRx) -join ' | ')" }
+elseif ((@($btCases | ForEach-Object { $_.Name }) -join ',') -cne ($btNames -join ',')) { $why = "x64 Boot holds $(@($btCases | ForEach-Object { $_.Name }) -join ', ')" }
+else {
+    foreach ($bt in $btCases) {
+        $btRx = @($bt.Expect.LogRx)
+        if ($bt.Args -notmatch '(^| )-hogaddrspace( |$)') { $why = "$($bt.Name) runs without -hogaddrspace: $($bt.Args)" }
+        elseif ($btRx -cnotcontains $script:SmokeAddrSpaceRxX64) { $why = "$($bt.Name) does not require the x64 ADDRSPACE line" }
+        elseif ($bt.Name -eq 'boot-shell') {
+            if ((@($btRx | Where-Object { $_ -cne $script:SmokeAddrSpaceRxX64 }) -join '|') -cne ($btShellRx -join '|')) { $why = "x64 boot-shell LogRx is $($btRx -join ' | ')" }
+        }
+        elseif ($btRx -cnotcontains 'OPENSWBF2 SIM DIGEST turns=1500 ') { $why = "$($bt.Name) does not require the turn-1500 digest line" }
+        elseif ($btRx -cnotcontains '(?s)\A(?!.*refused size)') { $why = "$($bt.Name) does not forbid a pool refusal" }
+        elseif ($btRx -cnotcontains '(?s)\A(?!.*OPENSWBF2 CURSOR warp)') { $why = "$($bt.Name) does not forbid a cursor warp" }
+        if ($why) { break }
+    }
+}
+if (-not $why) { foreach ($btg in $btGood) { if ($btg -cnotmatch $script:SmokeAddrSpaceRxX64) { $why = "the x64 ADDRSPACE pattern rejects $btg"; break } } }
+if (-not $why) { foreach ($btb in $btBad) { if ($btb -cmatch $script:SmokeAddrSpaceRxX64) { $why = "the x64 ADDRSPACE pattern accepts $btb"; break } } }
+if ($why) { $failed++; Write-Host "FAILED ${n}: x64 Boot case: $why" }
+else { Write-Host "OK $n Boot runs the shell to 300 updates without a mission on both platforms (x64 under -hogaddrspace, Win32 without), x64 runs hot1g_con, tat2g_eli and nab2g_c under -hogaddrspace without a pool refusal or cursor warp, and x64 requires an ADDRSPACE line above 4 GB without Galaxy or Bink and Steam off or above the hog limit" }
+$n++
 $c = Get-D3dxStagedCheck $dpRoot 'Win32' (Join-Path $dsDir 'c1') $dsPins
 if ($c.Status -ne 'FAIL') { $failed++; Write-Host "FAILED ${n}: vendor:d3dx9-staged on Win32 judged an x64-pinned copy $($c.Status)" }
 else { Write-Host "OK $n vendor:d3dx9-staged judges each platform against its own pin" }
@@ -1534,7 +1602,9 @@ foreach ($badLine in 'baz1c_con Bogus', 'qux1c_con GsFailure', 'foo3c_ctf Pass a
     try { Get-SmokeCases 'All' @($badLine) $false $null | Out-Null } catch { $rejected++ }
 }
 $why = $null
-$dlWin32 = [int]($script:SmokePlatform -eq 'Win32')
+$dlName = $(if ($script:SmokePlatform -eq 'Win32') { 'crash-delayload' } else { 'crash-delayload-x64' })
+$dlOther = $(if ($script:SmokePlatform -eq 'Win32') { 'crash-delayload-x64' } else { 'crash-delayload' })
+$dlDll = $(if ($script:SmokePlatform -eq 'Win32') { 'steam_api.dll' } else { 'steam_api64.dll' })
 $nvRx = '(?m)OPENSWBF2 NOVICTORY\r?$'
 $nvLog = "[t=0.000] [f=0] LogCore Inform pcMain.cpp:1: OPENSWBF2 NOVICTORY`r`n"
 $soakRx = 'OPENSWBF2 MISSION RUNNING|OPENSWBF2 SIM DIGEST turns=1500 |OPENSWBF2 SOAK turns=|'
@@ -1551,13 +1621,14 @@ elseif (-not $byName['tat3c_con'].Expect.LogRx -or $byName['tat3c_con'].Expect.C
 elseif ('FATAL: exception 0xC0000005 at 0x658FA553 (d3dx9_43.dll+0x1BA553) build 6ADE5B7C1C4C000' -notmatch @($byName['tat3c_con'].Expect.LogRx)[0]) { $why = 'Fatal LogRx does not match the recorded tat3 crash' }
 elseif ($byName['bar1c_con'].Expect.Class -ne 'Pass' -or $byName['quux1c_con'].Expect.Class -ne 'Pass') { $why = 'missing or Pass class must be Pass' }
 elseif ($rejected -ne 7) { $why = 'unknown classes, GsFailure, any third token and Pass flag or assault lines without a digest row must be rejected' }
-elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne (44 + $dlWin32) -or $byName.ContainsKey('crash-buildheapfail') -or -not $byName.ContainsKey('fatal-init')) { $why = 'dedicated or crash cases changed' }
-elseif (@($testAllCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne (45 + $dlWin32) -or @($testAllCases | Where-Object { $_.Name -eq 'crash-buildheapfail' }).Count -ne 1) { $why = 'Test crash cases changed' }
-elseif ($dlWin32 -and ((@($byName['crash-delayload'].Omit) -join ',') -cne 'steam_api.dll' -or @($byName['crash-delayload'].Expect.LogRx) -notcontains 'FATAL: exception 0xC06D007E at 0x[0-9A-F]+ \([^)]+\) dll=steam_api\.dll build ')) { $why = 'crash-delayload must omit steam_api.dll and pin the dll= FATAL line' }
+elseif (@($allCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 48 -or $byName.ContainsKey('crash-buildheapfail') -or -not $byName.ContainsKey('fatal-init')) { $why = 'dedicated or crash cases changed' }
+elseif (@($testAllCases | Where-Object { $_.Name -like 'crash-*' }).Count -ne 49 -or @($testAllCases | Where-Object { $_.Name -eq 'crash-buildheapfail' }).Count -ne 1) { $why = 'Test crash cases changed' }
+elseif (-not $byName.ContainsKey($dlName) -or $byName.ContainsKey($dlOther) -or (@($byName[$dlName].Omit) -join ',') -cne $dlDll -or @($byName[$dlName].Expect.LogRx) -notcontains ('FATAL: exception 0xC06D007E at 0x[0-9A-F]+ \([^)]+\) dll=' + [regex]::Escape($dlDll) + ' build ')) { $why = "$dlName must be the only delayload case, omit $dlDll and pin the dll= FATAL line" }
 if ($why) { $failed++; Write-Host "FAILED ${n}: all-missions parsing: $why" }
 else { Write-Host "OK $n all-missions parsing" }
 $n++
 $hrx = $script:SmokeAddrSpaceRx
+$hrxPlat = Get-SmokeAddrSpaceRx
 $okLine = 'OPENSWBF2 ADDRSPACE arena=0x82000000 arena_end=0x86000000 laa=1 steam=1 steam_api=0x65740000 Galaxy=0x652E0000 GalaxyPeer=0x00000000 binkw32=0x18000000'
 $badLines = @($okLine.Replace('arena=0x82000000', 'arena=0x02000000'), $okLine.Replace('laa=1', 'laa=0'), $okLine.Replace('steam=1', 'steam=0'), $okLine.Replace('Galaxy=0x652E0000', 'Galaxy=0x00000000'), $okLine.Replace('binkw32=0x18000000', 'binkw32=0x00000000'), $okLine.Replace('steam_api=0x65740000', 'steam_api=0x00000000'))
 $hogCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con') $false $null $true)
@@ -1570,19 +1641,34 @@ if (-not $why) {
     foreach ($name in 'foo1c_ctf', 'tat3c_con', 'bar1c_con', 'dedicated') {
         $c = $hogByName[$name]
         if (-not $c.Args.Contains('-hogaddrspace')) { $why = "$name lacks hog" }
-        elseif (@($c.Expect.LogRx) -notcontains $hrx) { $why = "$name lacks ADDRSPACE rx" }
+        elseif (@($c.Expect.LogRx) -notcontains $hrxPlat) { $why = "$name lacks ADDRSPACE rx" }
     }
 }
+$plain = @(Get-SmokeCases 'All' @('bar1c_con') $false $null)
+$plainByName = @{}
+foreach ($c in $plain) { $plainByName[$c.Name] = $c }
+$ownHog = @($(if ($script:SmokePlatform -eq 'x64') { 'crash-nullderef' }))
 if (-not $why) {
     foreach ($c in $hogCases) {
         if ($c.Name -like 'crash-*' -or $c.Name -eq 'fatal-init') {
-            if ($c.Args.Contains('-hogaddrspace') -or @($c.Expect.LogRx) -contains $hrx) { $why = "$($c.Name) must not be hogged" }
+            if ($c.Args -cne $plainByName[$c.Name].Args -or (@($c.Expect.LogRx) -contains $hrxPlat -and $ownHog -cnotcontains $c.Name)) { $why = "$($c.Name) must not be hogged by the run switch" }
         }
     }
 }
 if (-not $why) {
-    $plain = @(Get-SmokeCases 'All' @('bar1c_con') $false $null)
-    foreach ($c in $plain) { if ($c.Args.Contains('-hogaddrspace') -or @($c.Expect.LogRx) -contains $hrx) { $why = "$($c.Name) hogged by default" } }
+    foreach ($c in $plain) {
+        $hogged = $c.Args.Contains('-hogaddrspace')
+        if ($hogged -ne ($ownHog -ccontains $c.Name) -or (@($c.Expect.LogRx) -contains $hrxPlat -and $ownHog -cnotcontains $c.Name)) { $why = "$($c.Name) hogged=$hogged by default" }
+    }
+}
+if (-not $why) {
+    $hpSaved = $script:SmokePlatform
+    foreach ($hp in @(@('Win32', $script:SmokeAddrSpaceRx, $script:SmokeAddrSpaceRxX64), @('x64', $script:SmokeAddrSpaceRxX64, $script:SmokeAddrSpaceRx))) {
+        $script:SmokePlatform = $hp[0]
+        $hpRx = @(@(Get-SmokeCases 'All' @('bar1c_con') $false $null $true | Where-Object { $_.Name -eq 'bar1c_con' })[0].Expect.LogRx)
+        if (-not $why -and ($hpRx -cnotcontains $hp[1] -or $hpRx -ccontains $hp[2])) { $why = "$($hp[0]) hog mission LogRx is $($hpRx -join ' | ')" }
+    }
+    $script:SmokePlatform = $hpSaved
 }
 if ($why) { $failed++; Write-Host "FAILED ${n}: hog smoke cases: $why" }
 else { Write-Host "OK $n hog smoke cases" }
@@ -1792,6 +1878,60 @@ foreach ($lc in $laaCases) {
     if ($got -ne $lc[2]) { $failed++; Write-Host "FAILED ${n}: $($lc[0])" }
     else { Write-Host "OK $n $($lc[0])" }
 }
+$dmTmp = Join-Path $env:TEMP ("openswbf2-minidump-" + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $dmTmp | Out-Null
+try {
+    $dmName = [Text.Encoding]::Unicode.GetBytes('C:\Games\BattlefrontII\GameData\BattlefrontII.exe')
+    $dmBytes = New-Object byte[] (340 + $dmName.Length)
+    $dmPut = { param([int]$o, $v) $vb = [BitConverter]::GetBytes($v); [Array]::Copy($vb, 0, $dmBytes, $o, $vb.Length) }
+    [Array]::Copy([Text.Encoding]::ASCII.GetBytes('MDMP'), 0, $dmBytes, 0, 4)
+    & $dmPut 8 ([uint32]2)
+    & $dmPut 12 ([uint32]32)
+    & $dmPut 32 ([uint32]6)
+    & $dmPut 36 ([uint32]168)
+    & $dmPut 40 ([uint32]56)
+    & $dmPut 44 ([uint32]4)
+    & $dmPut 48 ([uint32]112)
+    & $dmPut 52 ([uint32]224)
+    & $dmPut 64 ([uint32]3221225477)
+    & $dmPut 80 ([uint64]0x7FF7AAFF21D9)
+    & $dmPut 224 ([uint32]1)
+    & $dmPut 228 ([uint64]0x7FF7AACA0000)
+    & $dmPut 236 ([uint32]0x2000000)
+    & $dmPut 248 ([uint32]336)
+    & $dmPut 336 ([uint32]$dmName.Length)
+    [Array]::Copy($dmName, 0, $dmBytes, 340, $dmName.Length)
+    $dmFile = Join-Path $dmTmp 'BattlefrontII-20261119-000000-1.dmp'
+    [IO.File]::WriteAllBytes($dmFile, $dmBytes)
+    $dmBad = Join-Path $dmTmp 'nosig.dmp'
+    $dmBadBytes = [byte[]]$dmBytes.Clone()
+    $dmBadBytes[0] = [byte][char]'X'
+    [IO.File]::WriteAllBytes($dmBad, $dmBadBytes)
+    $dmGood = 'FATAL: exception 0xC0000005 at 0x7FF7AAFF21D9 (BattlefrontII.exe+0x3521D9) build 6AFE8C771EEB000 dump ' + $dmFile
+    $dmNarrow = $dmGood.Replace('at 0x7FF7AAFF21D9', 'at 0xAAFF21D9')
+    $dmCase = New-Object PSObject -Property @{ Name = 'selftest-dump'; Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; DumpMatchesFatal = $true } }
+    $dmRes = { param($log) New-Object PSObject -Property @{ Class = 'Fatal'; Code = 3; CaseDir = $dmTmp; LogText = $log; Dumps = @(Get-Item -LiteralPath $dmFile); Stall = 0; Turns = '-' } }
+    $dmRedRx = & {
+        . (Join-Path $PSScriptRoot 'guardrevert\rows.ps1')
+        @($GuardRevertRows | Where-Object { $_.Id -ceq 'CRASH-WIDTH' })[0].RedRx
+    }
+    $n++
+    $dmWhy = $null
+    $dmX = Get-MinidumpException $dmFile ([ref]$dmWhy)
+    $dmOkRes = & $dmRes $dmGood
+    $dmNarrowRes = & $dmRes $dmNarrow
+    $why = $null
+    if (-not $dmX -or $dmX.Code -ne 3221225477 -or $dmX.Address -ne 0x7FF7AAFF21D9 -or $dmX.Module -cne 'BattlefrontII.exe' -or $dmX.Base -ne 0x7FF7AACA0000) { $why = "reader got '$($dmX | Out-String)' why '$dmWhy'" }
+    elseif (-not (Test-SmokeExpect $dmCase $dmOkRes)) { $why = 'the matching FATAL line failed' }
+    elseif (Test-SmokeExpect $dmCase $dmNarrowRes) { $why = 'the FATAL line narrowed to 8 digits passed' }
+    elseif (-not $dmRedRx -or $dmNarrowRes.LogText -cnotmatch $dmRedRx) { $why = "the narrowed mismatch does not match the CRASH-WIDTH RedRx '$dmRedRx'" }
+    elseif ($null -ne (Get-MinidumpException $dmBad ([ref]$dmWhy)) -or $dmWhy -cne 'no MDMP signature') { $why = "a file without the MDMP signature was not refused: '$dmWhy'" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: minidump dump-vs-FATAL check: $why" }
+    else { Write-Host "OK $n minidump dump-vs-FATAL check passes a match and fails a narrowed address" }
+}
+finally {
+    Remove-Item -Recurse -Force $dmTmp -ErrorAction SilentlyContinue
+}
 $digTmp = Join-Path $env:TEMP ("openswbf2-digest-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $digTmp | Out-Null
 $savedExpected = $env:OPENSWBF2_DIGEST_EXPECTED
@@ -1883,13 +2023,13 @@ try {
     $capReq = 0
     foreach ($cfg in 'Release', 'Test', 'Asan') {
         $script:SmokeDigestConfiguration = $cfg
-        foreach ($g in 'Standard', 'Twice', 'Dedicated', 'Crash', 'All', 'Perturb', 'Soak', 'Vendor') {
+        foreach ($g in 'Standard', 'Twice', 'Dedicated', 'Crash', 'All', 'Perturb', 'Soak', 'Vendor', 'Boot') {
             foreach ($sk in 'Short', 'Long') {
                 foreach ($hg in $false, $true) {
                     foreach ($c in @(Get-SmokeCases $g $capMissions $false $null $hg $sk)) {
                         $capSeen++
                         if ($capWhy) { continue }
-                        $req = @(@($c.Expect.LogRx) | Where-Object { $_ -ceq 'OPENSWBF2 SOAK turns=' -or $_ -ceq '(?m)OPENSWBF2 SOAK turns=1\r?$' }).Count -gt 0
+                        $req = @(@($c.Expect.LogRx) | Where-Object { $_ -ceq 'OPENSWBF2 SOAK turns=' -or $_ -ceq '(?m)OPENSWBF2 SOAK turns=1\r?$' -or $_ -ceq '(?m)OPENSWBF2 SOAK shell=300\r?$' }).Count -gt 0
                         $forbid = @($c.Expect.LogRx) -contains $script:SmokeCapRx
                         if ($req) { $capReq++ }
                         if ($c.Expect.Class -eq 'TimeOut') { $capWhy = "$cfg $g $sk $($c.Name) expects TimeOut" }
@@ -2115,6 +2255,58 @@ try {
     if ($rwCase.Count -ne 2 -or $rwRel.Count -ne 0 -or @($rwCase | Where-Object { $_.Expect.Class -ne 'Pass' -or $_.Expect.SameDigests -ne 2 -or -not $_.Args.EndsWith(' -soakturns 1501') -or @($_.Expect.LogRx) -notcontains 'OPENSWBF2 SOAK turns=' }).Count -ne 0) { $failed++; Write-Host "FAILED ${n}: repeat-water must run in Test and Asan only, end on -soakturns 1501 with two equal digests and the SOAK line" }
     else { Write-Host "OK $n repeat-water runs in Test and Asan and ends on its second digest" }
     $n++
+    $ddCfg = $script:SmokeDigestConfiguration
+    $ddPlat = $script:SmokePlatform
+    $ddWhy = $null
+    $ddCase = $null
+    $ddEnv = $env:OPENSWBF2_DIGEST_EXPECTED
+    $env:OPENSWBF2_DIGEST_EXPECTED = $null
+    foreach ($ddP in 'Win32', 'x64') {
+        foreach ($ddC in 'Release', 'Test', 'Asan') {
+            $script:SmokePlatform = $ddP
+            $script:SmokeDigestConfiguration = $ddC
+            $dd = @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.Name -eq 'digest-detail' })
+            $ddWant = $(if ($ddP -eq 'Win32' -and $ddC -eq 'Test') { 1 } else { 0 })
+            if ($dd.Count -ne $ddWant) { $ddWhy = "$ddP $ddC has $($dd.Count) digest-detail cases, expected $ddWant" }
+            if ($ddWant -eq 1 -and $dd.Count -eq 1) { $ddCase = $dd[0] }
+        }
+    }
+    $script:SmokeDigestConfiguration = $ddCfg
+    $script:SmokePlatform = $ddPlat
+    $env:OPENSWBF2_DIGEST_EXPECTED = $ddEnv
+    $ddRows = @{}
+    foreach ($ddL in [IO.File]::ReadAllLines((Join-Path $PSScriptRoot 'smoke\digest-expected.txt'))) {
+        $ddI = $ddL.IndexOf("`t")
+        if ($ddI -gt 0) { $ddRows[$ddL.Substring(0, $ddI)] = $ddL.Substring($ddI + 1) }
+    }
+    if (-not $ddWhy -and ($ddRows.ContainsKey('digest-detail') -or -not $ddRows['geo1c_con'])) { $ddWhy = 'digest-detail must have no digest-expected row of its own and geo1c_con must have one' }
+    if (-not $ddWhy -and (-not $ddCase.Args.StartsWith('geo1c_con ') -or -not $ddCase.Args.EndsWith(' -digestdetail 4 -soakturns 1501') -or $ddCase.Expect.Class -ne 'Pass')) { $ddWhy = 'digest-detail must run geo1c_con as Pass and end on -digestdetail 4 -soakturns 1501' }
+    if (-not $ddWhy) {
+        $ddLine = { param($t, $s) "[t=1.000] [f=1] LogSim Inform SimDigest.cpp:1: OPENSWBF2 DETAIL turn=$t $s`r`n" }
+        $ddTurn = { param($t) (& $ddLine $t 'time=3F000000') + (& $ddLine $t 'char=0 team=1 class=2 pos=41000000 3F800000 C0000000 vel=00000000 00000000 00000000 hp=43480000 objteam=1') + (& $ddLine $t 'team=1 points=0 reinforcements=150') + (& $ddLine $t 'obj=0x1234ABCD pos=41000000 3F800000 C0000000 vel=00000000 00000000 00000000 hp=44AF0000 objteam=0') }
+        $ddHead = "[t=0.500] [f=1] LogCore Inform GameLoop.cpp:1: OPENSWBF2 MISSION RUNNING geo1c_con`r`n"
+        $ddSoak = "[t=60.100] [f=2] LogCore Inform GameLoop.cpp:1: OPENSWBF2 SOAK turns=1501`r`n"
+        $ddTailLog = "[t=60.000] [f=2] LogSim Inform GameLoop.cpp:1: $($ddRows['geo1c_con'])`r`n" + $ddSoak
+        $ddOther = "[t=60.000] [f=2] LogSim Inform GameLoop.cpp:1: $($ddRows['geo1c_con'] -replace 'state=0x[0-9A-F]{8}', 'state=0x00000000')`r`n" + $ddSoak
+        $ddGood = $ddHead + (& $ddTurn 4) + (& $ddTurn 5) + (& $ddTurn 6) + $ddTailLog
+        $ddBad = @(
+            @('turn 7', ($ddHead + (& $ddTurn 4) + (& $ddTurn 5) + (& $ddTurn 6) + (& $ddTurn 7) + $ddTailLog)),
+            @('turn 3', ($ddHead + (& $ddTurn 3) + (& $ddTurn 4) + (& $ddTurn 5) + (& $ddTurn 6) + $ddTailLog)),
+            @('no turn 6', ($ddHead + (& $ddTurn 4) + (& $ddTurn 5) + $ddTailLog)),
+            @('turn 14', ($ddHead + (& $ddTurn 4) + (& $ddTurn 5) + (& $ddTurn 6) + (& $ddTurn 14) + $ddTailLog)),
+            @('no DETAIL', ($ddHead + $ddTailLog)),
+            @('another digest', ($ddHead + (& $ddTurn 4) + (& $ddTurn 5) + (& $ddTurn 6) + $ddOther))
+        )
+        $ddMiss = @(@($ddCase.Expect.LogRx) | Where-Object { $ddGood -cnotmatch $_ })
+        if ($ddMiss.Count) { $ddWhy = "a good log misses '$($ddMiss -join "', '")'" }
+        foreach ($ddB in $ddBad) {
+            if ($ddWhy) { break }
+            if (@(@($ddCase.Expect.LogRx) | Where-Object { $ddB[1] -cnotmatch $_ }).Count -eq 0) { $ddWhy = "a log with $($ddB[0]) passes" }
+        }
+    }
+    if ($ddWhy) { $failed++; Write-Host "FAILED ${n}: digest-detail: $ddWhy" }
+    else { Write-Host "OK $n digest-detail runs on Win32 Test only, must log the pinned geo1c_con digest and needs DETAIL lines for turns 4 to 6 only" }
+    $n++
     $bareCr = @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1' -Recurse -File | Where-Object { [IO.File]::ReadAllText($_.FullName) -match "`r(?!`n)" } | ForEach-Object { $_.Name })
     if ($bareCr.Count -gt 0) { $failed++; Write-Host "FAILED ${n}: bare carriage return in $($bareCr -join ', ')" }
     else { Write-Host "OK $n no test script holds a bare carriage return" }
@@ -2269,6 +2461,7 @@ try {
     foreach ($c in (Get-SmokeCases 'Perturb' @() $false $null)) { $pCases[$c.Name] = $c }
     $env:OPENSWBF2_PERTURB_MISSIONS = $savedPm
     $addr = 'OPENSWBF2 ADDRSPACE arena=0x82000000 arena_end=0x86000000 laa=1 steam=1 steam_api=0x65740000 Galaxy=0x652E0000 GalaxyPeer=0x00000000 binkw32=0x18000000'
+    if ($script:SmokePlatform -eq 'x64') { $addr = 'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x1C5074D0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000' }
     $pLine = "[t=0.100] [f=0] LogCore Inform pcMain.cpp:1: OPENSWBF2 PERTURB seed=1 modes=pad`r`n"
     $prBad = @()
     if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-pad-1'] "x`r`n$pLine").Count -ne 0) { $prBad += 'pad line rejected' }
@@ -2783,6 +2976,11 @@ foreach ($k in $runs) {
             'function Find-GameDataRoot { }',
             'function Find-MSBuild { ''msbuild'' }',
             'function Build-Tests { $true }',
+            'function Read-ClReadTlog([string]$Path, [string]$Root) {',
+            '    $sets = New-Object ''System.Collections.Generic.Dictionary[string,System.Collections.Generic.HashSet[string]]'' ([StringComparer]::OrdinalIgnoreCase)',
+            '    foreach ($tu in @(Get-TestsProjectGameTUs) + ''tests\unit\lua_serial.cpp'') { $s = New-GuardPathSet; [void]$s.Add($tu); $sets[$tu] = $s }',
+            '    [pscustomobject]@{ Path = $Path; Root = $Root; Time = [DateTime]::MaxValue; Sets = $sets; Stale = (New-GuardPathSet) }',
+            '}',
             'function Set-Anchor([string]$path, [string]$anchor, [string]$replacement) { $script:SelftestRow = $anchor; $null }',
             'function Run-Case {',
             '    $state = ''GREEN''',
@@ -2877,9 +3075,27 @@ foreach ($k in $runs) {
     elseif (($resumed -join ' ') -cne 'SELFTEST-R1 SELFTEST-R2') { $why = "RESUMED lines: $($resumed -join ' ')" }
     elseif (($sumIds -join ' ') -cne 'SELFTEST-R1 SELFTEST-R2 SELFTEST-R3 SELFTEST-R4') { $why = "summary.txt rows: $($sumIds -join ' ')" }
     elseif ($rsClean -and (-not (Test-Path -LiteralPath $rsResumeProven) -or (@((& $rsLedger $rsResumeProven) | ForEach-Object { $_.Id }) -join ' ') -cne 'SELFTEST-R1 SELFTEST-R2 SELFTEST-R3 SELFTEST-R4')) { $why = 'proven file lacks the resumed rows' }
+    elseif (-not $rsClean -and (Test-Path -LiteralPath $rsResumeProven)) { $why = 'a run from a dirty tree wrote the proven file' }
     elseif (@(& $grOutside).Count -ne $wtBefore.Count) { $why = 'worktree count changed' }
     if ($why) { $failed++; Write-Host "FAILED ${n}: guard-revert -Resume runs only rows 3 and 4: $why" }
     else { Write-Host "OK $n guard-revert -Resume runs only rows 3 and 4 and counts all four" }
+    $n++
+    $spOut = Join-Path $grTmp "out$n"
+    $spProven = Join-Path $grTmp "proven$n.tsv"
+    $spRows = Join-Path $grTmp "rows$n.ps1"
+    & $rsWrite $spRows (Join-Path $grTmp "count$n.txt") 1 'x'
+    New-Item -ItemType Directory -Force -Path $spOut | Out-Null
+    [IO.File]::WriteAllText((Join-Path $spOut 'proven.partial.tsv'), (@('SELFTEST-STALE', 'rh', 'dd', 'td', 'ts', 'tree', 'commit', 'RED', 'GREEN', 'Debug/Release', $Platform, '2026-01-01T00:00:00Z') -join "`t") + "`r`n")
+    $sp = & $rsRun $spRows $spOut $spProven '' $false
+    $spIds = @()
+    if (Test-Path -LiteralPath $spProven) { $spIds = @((& $rsLedger $spProven) | ForEach-Object { $_.Id }) }
+    $why = $null
+    if ($sp.Code -ne 0) { $why = "exit $($sp.Code): $((@($sp.Out | Where-Object { $_ -match '^ERROR' }) + @($sp.Out | Select-Object -Last 3)) -join ' / ')" }
+    elseif ($spIds -contains 'SELFTEST-STALE') { $why = 'a proof left in the out folder by an earlier run was recorded' }
+    elseif ($rsClean -and ($spIds -join ' ') -cne 'SELFTEST-R1') { $why = "clean tree recorded: $($spIds -join ' ')" }
+    elseif (-not $rsClean -and (Test-Path -LiteralPath $spProven)) { $why = "dirty tree wrote the proven file: $($spIds -join ' ')" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: guard-revert records only proofs of its own run: $why" }
+    else { Write-Host "OK $n guard-revert records only proofs of its own run and nothing from a dirty tree" }
     $n++
     $rsOut = Join-Path $grTmp "out$n"
     $rsCount = Join-Path $grTmp "count$n.txt"
@@ -3725,6 +3941,71 @@ try {
     if ($lbWhy) { $failed++; Write-Host "FAILED ${n}: compare-tables lua-bins: $lbWhy" }
     else { Write-Host "OK $n compare-tables -LuaBins passes an equal lua-bins table and fails a 1-count spill change" }
     $n++
+    $hcCaps = [ordered]@{ Application = 22413312; Gamespy = 2097136; Debug = 3145728; Lua = 29229056; Artist = 8192; Runtime = 41943040; HUDEditHeap = 1048560 }
+    $hcLog = {
+        param([string]$dir, [hashtable]$over)
+        $t = @('[t=1.000] [f=1500] LogMemory Inform RedEngineFL\Memory\RedMemoryReport.cpp:224: OPENSWBF2 MEMREPORT source=turn1500')
+        foreach ($src in 'turn1500', 'exit') {
+            foreach ($h in $hcCaps.Keys) {
+                if ($src -ceq 'exit' -and $h -ceq 'HUDEditHeap') { continue }
+                $c = $hcCaps[$h]
+                if ($over -and $over.ContainsKey($h)) { $c = $over[$h] }
+                $t += "[t=1.000] [f=1500] LogMemory Inform RedEngineFL\Memory\RedMemoryReport.cpp:230: OPENSWBF2 MEMREPORT heap=$h cap=$c peak=1 used=1 allocs=1 failed=0"
+            }
+        }
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+        [IO.File]::WriteAllLines((Join-Path $dir 'run.log'), [string[]]$t)
+        return ($t -join "`r`n")
+    }
+    $hcRun = {
+        param([string]$tables, [string]$log)
+        $o = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $tables -Baseline $tables -MemPeaksX64 -RunLog $log 2>&1 | Out-String }
+        return @{ Code = $LASTEXITCODE; Out = $o }
+    }
+    $hcGoodDir = Join-Path $cbTmp 'heapcaps-good'
+    $hcBadDir = Join-Path $cbTmp 'heapcaps-badlog'
+    $hcPeakDir = Join-Path $cbTmp 'heapcaps-badpeak'
+    $hcGoodText = & $hcLog $hcGoodDir $null
+    $hcBadText = & $hcLog $hcBadDir @{ Lua = 16777216 }
+    New-Item -ItemType Directory -Force -Path $hcPeakDir | Out-Null
+    Copy-Item -LiteralPath (Join-Path $cbBase 'mem-peaks.txt') -Destination $hcPeakDir
+    $hcX64 = [IO.File]::ReadAllLines((Join-Path $cbBase 'mem-peaks-x64.txt'))
+    $hcRow = -1
+    $hcMax = 0L
+    for ($i = 0; $i -lt $hcX64.Count; $i++) {
+        if ($hcX64[$i] -cmatch "^[^`t]+`t[^`t]+`theap`tLua`t") {
+            if ($hcRow -lt 0) { $hcRow = $i }
+            $hcMax = [Math]::Max($hcMax, [long](@($hcX64[$i] -split "`t")[6]))
+        }
+    }
+    $hcWhy = $null
+    if ($hcRow -lt 0) { $hcWhy = 'no Lua heap row in mem-peaks-x64.txt' }
+    else {
+        $f = $hcX64[$hcRow] -split "`t"
+        $f[6] = [string]($hcMax + 1048576)
+        $hcX64[$hcRow] = $f -join "`t"
+        [IO.File]::WriteAllLines((Join-Path $hcPeakDir 'mem-peaks-x64.txt'), $hcX64)
+        $hcGood = & $hcRun $cbBase (Join-Path $hcGoodDir 'run.log')
+        $hcBad = & $hcRun $cbBase (Join-Path $hcBadDir 'run.log')
+        $hcPeak = & $hcRun $hcPeakDir (Join-Path $hcGoodDir 'run.log')
+        $hcOne = { param($o) @([regex]::Matches($o, '(?m)^    \S')).Count }
+        $hcCase = New-Object PSObject -Property @{ Name = 'selftest-heapcaps'; Expect = @{ Class = 'Pass'; HeapCapsX64 = $true } }
+        $hcGoodRes = New-Object PSObject -Property @{ Class = 'Pass'; CaseDir = $hcGoodDir; LogText = $hcGoodText; Dumps = @(); Stall = 0; Turns = '-' }
+        $hcBadRes = New-Object PSObject -Property @{ Class = 'Pass'; CaseDir = $hcBadDir; LogText = $hcBadText; Dumps = @(); Stall = 0; Turns = '-' }
+        $hcRedRx = & {
+            . (Join-Path $PSScriptRoot 'guardrevert\rows.ps1')
+            @($GuardRevertRows | Where-Object { $_.Id -ceq 'HEAPCAP-X64' })[0].RedRx
+        }
+        if ($hcGood.Code -ne 0 -or $hcGood.Out -cnotmatch '\[PASS\] tables:heap-caps-x64 ') { $hcWhy = "the committed peaks and the expected caps gave exit $($hcGood.Code): $($hcGood.Out)" }
+        elseif ($hcBad.Code -ne 1 -or $hcBad.Out -cnotmatch '\[FAIL\] tables:heap-caps-x64' -or $hcBad.Out -cnotmatch 'Lua logged cap 16777216 derived 29229056' -or (& $hcOne $hcBad.Out) -ne 1) { $hcWhy = "a logged Lua cap of 16777216 gave exit $($hcBad.Code): $($hcBad.Out)" }
+        elseif ($hcPeak.Code -ne 1 -or $hcPeak.Out -cnotmatch '\[FAIL\] tables:heap-caps-x64' -or $hcPeak.Out -cnotmatch 'Lua logged cap 29229056 derived (?!29229056\b)\d+' -or (& $hcOne $hcPeak.Out) -ne 1) { $hcWhy = "a raised x64 Lua peak gave exit $($hcPeak.Code): $($hcPeak.Out)" }
+        elseif (-not (Test-SmokeExpect $hcCase $hcGoodRes)) { $hcWhy = 'HeapCapsX64 failed the expected caps' }
+        elseif (Test-SmokeExpect $hcCase $hcBadRes) { $hcWhy = 'HeapCapsX64 passed a logged Lua cap of 16777216' }
+        elseif (-not $hcRedRx -or $hcBadRes.LogText -cnotmatch $hcRedRx) { $hcWhy = "the HeapCapsX64 mismatch does not match the HEAPCAP-X64 RedRx '$hcRedRx'" }
+    }
+    if ($hcWhy) { $failed++; Write-Host "FAILED ${n}: compare-tables heap-caps-x64: $hcWhy" }
+    else { Write-Host "OK $n compare-tables -MemPeaksX64 -RunLog passes the committed peaks with the expected x64 caps and fails, naming Lua, a raised x64 Lua peak and a logged Lua cap of 16777216; HeapCapsX64 fails the case" }
+    $n++
     $hdLines = [IO.File]::ReadAllLines((Join-Path $cbBase 'hardening.txt'))
     $hdCases = @(
         @{ Name = 'same'; Edit = { param($l) }; Code = 0; Want = '\[PASS\] tables:hardening' },
@@ -4133,10 +4414,10 @@ try {
         $dl = @([IO.File]::ReadAllLines((Join-Path $t 'smoke\digest-expected.txt')) | Where-Object { $_.StartsWith("geo1c_con`t") })
         if ($dl.Count -ne 1) { throw "digest-expected.txt has $($dl.Count) geo1c_con lines" }
         & $rcEdit (Join-Path $t 'smoke\digest-expected.txt') $dl[0] ($dl[0] + 'x')
-        & $rcCheck 'one digest-expected line edited changes only the rows naming that case' (& $rcCase $t) (& $rcIds { $_.Kind -eq 'Smoke' -and $_.Case -eq 'geo1c_con' }) $true
+        & $rcCheck 'one digest-expected line edited changes only the rows naming that case or reading its line' (& $rcCase $t) (& $rcIds { $_.Kind -eq 'Smoke' -and $_.Case -in 'geo1c_con', 'digest-detail' }) $true
         $t = & $rcNew 'errors'
-        & $rcEdit (Join-Path $t 'smoke\expected-errors.txt') '[crash-luaoom]' "[crash-luaoom]`r`n^selftest only`$"
-        & $rcCheck 'one expected-errors section edited changes only the rows naming that case' (& $rcCase $t) (& $rcIds { $_.Kind -eq 'Smoke' -and $_.Case -eq 'crash-luaoom' }) $true
+        & $rcEdit (Join-Path $t 'smoke\expected-errors.txt') '[crash-luapanic]' "[crash-luapanic]`r`n^selftest only`$"
+        & $rcCheck 'one expected-errors section edited changes only the rows naming that case' (& $rcCase $t) (& $rcIds { $_.Kind -eq 'Smoke' -and $_.Case -eq 'crash-luapanic' }) $true
         $t = & $rcNew 'global'
         & $rcEdit (Join-Path $t 'smoke\expected-errors.txt') '[global]' "[global]`r`n^selftest only`$"
         & $rcCheck 'the expected-errors global section changes every resolved smoke and perturb row' (& $rcCase $t) @($rcSmoke | Where-Object { $rcMissing -notcontains $_ }) $true

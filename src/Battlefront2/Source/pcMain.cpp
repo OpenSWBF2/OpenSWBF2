@@ -158,7 +158,7 @@ void Startup_InitApplicationMemory()
 #endif
     char* pArena = (char*)0x20;
     RedMiFailHeapCreate(pcCrash::SimulateAllocFailure("arenaoom"));
-    GameMemory::InitApplicationMemory(pArena, pArena + 0x4000000);
+    GameMemory::InitApplicationMemory(pArena, pArena + GameMemory::kArenaSize);
     const int iHeap = GameMemory::ApplicationHeap;
     if (iHeap < 0)
     {
@@ -213,6 +213,8 @@ static void ReadHeapCapArgs(bool bReport)
 
 extern "C" void Startup_RedInitHeap(int, int)
 {
+    pcCrash::Install();
+    pcCrash::EarlyCrashTest("heapinit");
     char const* pcVal = 0;
     int iLen = 0;
     pcCrash::FindCommandArg("-mipurge", &pcVal, &iLen);
@@ -454,6 +456,7 @@ static __int64 DrainNow(void*)
 // FUNCTION: SWBF2 0x006175d0
 int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 {
+    pcCrash::EarlyCrashTest("early");
 
     char szKey[64];
     strncpy(szKey, "952F41D039DB4507A84B40488E76932F 0123456789ABCDECAT0123456IPA", 0x3D);

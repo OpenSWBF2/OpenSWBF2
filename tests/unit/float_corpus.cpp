@@ -611,30 +611,36 @@ struct OdfStats
     unsigned int uSkipped;
 };
 
-static bool WalkClass(const unsigned char* pBase, size_t uStart, size_t uEnd, std::set<std::string>& tokens,
-                      OdfStats& stats)
+static bool ReadAt(FILE* pFile, u64 uPos, void* pOut, size_t uSize)
 {
-    size_t uPos = uStart;
+    return _fseeki64(pFile, (__int64)uPos, SEEK_SET) == 0 && fread(pOut, 1, uSize, pFile) == uSize;
+}
+
+static bool WalkClass(FILE* pFile, u64 uStart, u64 uEnd, std::set<std::string>& tokens, OdfStats& stats)
+{
+    u64 uPos = uStart;
     while (uPos + 8 <= uEnd)
     {
-        unsigned int uSize = ReadU32(pBase + uPos + 4);
-        size_t uData = uPos + 8;
+        unsigned char acHead[8];
+        if (!ReadAt(pFile, uPos, acHead, sizeof(acHead)))
+        {
+            return false;
+        }
+        unsigned int uSize = ReadU32(acHead + 4);
+        u64 uData = uPos + 8;
         if (uSize > uEnd - uData)
         {
             return false;
         }
-        if (memcmp(pBase + uPos, "PROP", 4) == 0 && uSize >= 4)
+        if (memcmp(acHead, "PROP", 4) == 0 && uSize >= 4)
         {
             char acValue[256];
-            size_t uLen = 0;
-            const unsigned char* pStr = pBase + uData + 4;
-            size_t uMax = uSize - 4;
-            while (uLen < uMax && uLen < 255 && pStr[uLen] != 0)
+            size_t uMax = uSize - 4 < 255 ? uSize - 4 : 255;
+            if (!ReadAt(pFile, uData + 4, acValue, uMax))
             {
-                acValue[uLen] = (char)pStr[uLen];
-                ++uLen;
+                return false;
             }
-            acValue[uLen] = 0;
+            acValue[uMax] = 0;
             ++stats.uProps;
             AddPropTokens(acValue, tokens);
         }
@@ -644,36 +650,44 @@ static bool WalkClass(const unsigned char* pBase, size_t uStart, size_t uEnd, st
     return true;
 }
 
-static bool WalkLevel(const unsigned char* pBase, size_t uStart, size_t uEnd, std::set<std::string>& tokens,
-                      OdfStats& stats, int iDepth)
+static bool WalkLevel(FILE* pFile, u64 uStart, u64 uEnd, std::set<std::string>& tokens, OdfStats& stats, int iDepth)
 {
     if (iDepth > 16)
     {
         return false;
     }
-    size_t uPos = uStart;
+    u64 uPos = uStart;
     while (uPos + 8 <= uEnd)
     {
-        unsigned int uSize = ReadU32(pBase + uPos + 4);
-        size_t uData = uPos + 8;
+        unsigned char acHead[8];
+        if (!ReadAt(pFile, uPos, acHead, sizeof(acHead)))
+        {
+            return false;
+        }
+        unsigned int uSize = ReadU32(acHead + 4);
+        u64 uData = uPos + 8;
         if (uSize > uEnd - uData)
         {
             return false;
         }
-        const unsigned char* pId = pBase + uPos;
-        if (memcmp(pId, "lvl_", 4) == 0)
+        if (memcmp(acHead, "lvl_", 4) == 0)
         {
-            size_t uChild = uData;
-            size_t uChildEnd = uData + uSize;
+            u64 uChild = uData;
+            u64 uChildEnd = uData + uSize;
             while (uChild + 8 <= uChildEnd)
             {
-                unsigned int uChildSize = ReadU32(pBase + uChild + 4);
-                size_t uChildData = uChild + 8;
+                unsigned char acChild[8];
+                if (!ReadAt(pFile, uChild, acChild, sizeof(acChild)))
+                {
+                    return false;
+                }
+                unsigned int uChildSize = ReadU32(acChild + 4);
+                u64 uChildData = uChild + 8;
                 if (uChildSize > uChildEnd - uChildData)
                 {
                     return false;
                 }
-                if (!WalkLevel(pBase, uChildData, uChildData + uChildSize, tokens, stats, iDepth + 1))
+                if (!WalkLevel(pFile, uChildData, uChildData + uChildSize, tokens, stats, iDepth + 1))
                 {
                     return false;
                 }
@@ -681,10 +695,10 @@ static bool WalkLevel(const unsigned char* pBase, size_t uStart, size_t uEnd, st
                 uChild += (4 - (uChild & 3)) & 3;
             }
         }
-        else if (memcmp(pId, "entc", 4) == 0 || memcmp(pId, "ordc", 4) == 0 || memcmp(pId, "wpnc", 4) == 0
-                 || memcmp(pId, "expc", 4) == 0)
+        else if (memcmp(acHead, "entc", 4) == 0 || memcmp(acHead, "ordc", 4) == 0 || memcmp(acHead, "wpnc", 4) == 0
+                 || memcmp(acHead, "expc", 4) == 0)
         {
-            if (!WalkClass(pBase, uData, uData + uSize, tokens, stats))
+            if (!WalkClass(pFile, uData, uData + uSize, tokens, stats))
             {
                 return false;
             }
@@ -728,24 +742,24 @@ static void ListLvlFiles(const std::string& sDir, std::vector<std::string>& file
     FindClose(hFind);
 }
 
-static bool ReadWholeFile(const std::string& sPath, std::vector<unsigned char>& bytes)
+static bool OpenUcfb(const std::string& sPath, FILE*& pFile, u64& uEnd)
 {
-    bytes.clear();
-    FILE* pFile = fopen(sPath.c_str(), "rb");
+    pFile = fopen(sPath.c_str(), "rb");
     if (!pFile)
     {
         return false;
     }
-    bool bOk = fseek(pFile, 0, SEEK_END) == 0;
-    long lSize = bOk ? ftell(pFile) : -1;
-    bOk = lSize >= 0 && fseek(pFile, 0, SEEK_SET) == 0;
-    if (bOk && lSize > 0)
+    unsigned char acHead[8];
+    __int64 iSize = _fseeki64(pFile, 0, SEEK_END) == 0 ? _ftelli64(pFile) : -1;
+    if (iSize < 8 || !ReadAt(pFile, 0, acHead, sizeof(acHead)) || memcmp(acHead, "ucfb", 4) != 0)
     {
-        bytes.resize((size_t)lSize);
-        bOk = fread(&bytes[0], 1, (size_t)lSize, pFile) == (size_t)lSize;
+        fclose(pFile);
+        pFile = 0;
+        return false;
     }
-    fclose(pFile);
-    return bOk;
+    u64 uSize = ReadU32(acHead + 4);
+    uEnd = uSize > (u64)iSize - 8 ? (u64)iSize : 8 + uSize;
+    return true;
 }
 
 static bool BuildOdfLines(const char* pcRoot, std::vector<std::string>& lines)
@@ -757,18 +771,19 @@ static bool BuildOdfLines(const char* pcRoot, std::vector<std::string>& lines)
     OdfStats stats = {0, 0, 0};
     for (size_t i = 0; i < files.size(); ++i)
     {
-        std::vector<unsigned char> bytes;
-        if (!ReadWholeFile(files[i], bytes) || bytes.size() < 8 || memcmp(&bytes[0], "ucfb", 4) != 0)
+        FILE* pFile = 0;
+        u64 uEnd = 0;
+        if (!OpenUcfb(files[i], pFile, uEnd))
         {
             printf("gen-corpus: skipped %s (not a ucfb file)\n", files[i].c_str());
             ++stats.uSkipped;
             continue;
         }
-        unsigned int uSize = ReadU32(&bytes[4]);
-        size_t uEnd = uSize > bytes.size() - 8 ? bytes.size() : 8 + (size_t)uSize;
         std::set<std::string> fileTokens;
         OdfStats fileStats = {0, 0, 0};
-        if (!WalkLevel(&bytes[0], 8, uEnd, fileTokens, fileStats, 0))
+        bool bWalked = WalkLevel(pFile, 8, uEnd, fileTokens, fileStats, 0);
+        fclose(pFile);
+        if (!bWalked)
         {
             printf("gen-corpus: skipped %s (malformed chunk)\n", files[i].c_str());
             ++stats.uSkipped;
@@ -945,6 +960,128 @@ TEST_CASE("float parse corpus edge" * doctest::test_suite("corpus"))
 TEST_CASE("math corpus" * doctest::test_suite("corpus"))
 {
     CHECK(CheckMathCorpus(false) == 0);
+}
+
+struct GenCorpusRun
+{
+    std::string sOut;
+    DWORD uCode;
+};
+
+static GenCorpusRun RunGenCorpusChild(const std::string& sDir)
+{
+    GenCorpusRun kRun;
+    kRun.uCode = 0xFFFFFFFF;
+
+    char acExe[MAX_PATH];
+    DWORD uLen = GetModuleFileNameA(0, acExe, sizeof(acExe));
+    REQUIRE(uLen > 0);
+    REQUIRE(uLen < sizeof(acExe));
+    std::string sCmd = std::string("\"") + acExe + "\" \"--gen-corpus=" + sDir + "\"";
+    std::vector<char> cmd(sCmd.begin(), sCmd.end());
+    cmd.push_back(0);
+
+    SECURITY_ATTRIBUTES sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.nLength = sizeof(sa);
+    sa.bInheritHandle = TRUE;
+    HANDLE hRead = 0;
+    HANDLE hWrite = 0;
+    REQUIRE(CreatePipe(&hRead, &hWrite, &sa, 65536));
+    SetHandleInformation(hRead, HANDLE_FLAG_INHERIT, 0);
+
+    STARTUPINFOA si;
+    memset(&si, 0, sizeof(si));
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    si.hStdOutput = hWrite;
+    si.hStdError = hWrite;
+    PROCESS_INFORMATION pi;
+    memset(&pi, 0, sizeof(pi));
+    const BOOL bStarted = CreateProcessA(0, &cmd[0], 0, 0, TRUE, CREATE_NO_WINDOW, 0, 0, &si, &pi);
+    CloseHandle(hWrite);
+    REQUIRE(bStarted);
+
+    char acBuf[4096];
+    DWORD uRead = 0;
+    while (ReadFile(hRead, acBuf, sizeof(acBuf), &uRead, 0) && uRead > 0)
+    {
+        kRun.sOut.append(acBuf, uRead);
+    }
+    CloseHandle(hRead);
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    GetExitCodeProcess(pi.hProcess, &kRun.uCode);
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    return kRun;
+}
+
+static bool ReadFileBytes(const std::string& sPath, std::string& sOut)
+{
+    sOut.clear();
+    FILE* pFile = fopen(sPath.c_str(), "rb");
+    if (!pFile)
+    {
+        return false;
+    }
+    char acBuf[4096];
+    size_t uRead;
+    while ((uRead = fread(acBuf, 1, sizeof(acBuf), pFile)) > 0)
+    {
+        sOut.append(acBuf, uRead);
+    }
+    bool bOk = ferror(pFile) == 0;
+    fclose(pFile);
+    return bOk;
+}
+
+TEST_CASE("float corpus generator writes every file" * doctest::test_suite("corpus"))
+{
+    REQUIRE_GAMEDATA();
+    WatchdogArm("gen-corpus child");
+    std::string sRepo = RepoRoot();
+    REQUIRE(!sRepo.empty());
+
+    char acTemp[MAX_PATH];
+    DWORD uTemp = GetTempPathA(MAX_PATH, acTemp);
+    REQUIRE(uTemp > 0);
+    REQUIRE(uTemp < MAX_PATH);
+    char acName[64];
+    _snprintf(acName, sizeof(acName), "owb2_gencorpus_%lu", GetCurrentProcessId());
+    acName[sizeof(acName) - 1] = 0;
+    std::string sDir = std::string(acTemp) + acName;
+    REQUIRE(CreateDirectoryA(sDir.c_str(), 0));
+
+    const GenCorpusRun kRun = RunGenCorpusChild(sDir);
+    INFO(kRun.sOut);
+
+    static const char* const sFiles[] = {"mathfn\\math.txt", "floatparse\\edge.txt", "floatparse\\odf.txt"};
+    std::string asText[3];
+    bool abRead[3];
+    for (int i = 0; i < 3; ++i)
+    {
+        abRead[i] = ReadFileBytes(sDir + "\\" + sFiles[i], asText[i]);
+        DeleteFileA((sDir + "\\" + sFiles[i]).c_str());
+    }
+    RemoveDirectoryA((sDir + "\\mathfn").c_str());
+    RemoveDirectoryA((sDir + "\\floatparse").c_str());
+    RemoveDirectoryA(sDir.c_str());
+
+    CHECK(kRun.uCode == 0);
+    for (int i = 0; i < 3; ++i)
+    {
+        INFO(sFiles[i]);
+        CHECK(abRead[i]);
+        CHECK(!asText[i].empty());
+    }
+    for (int i = 1; i < 3; ++i)
+    {
+        INFO(sFiles[i]);
+        std::string sPinned;
+        REQUIRE(ReadFileBytes(sRepo + "\\tests\\corpus\\" + sFiles[i], sPinned));
+        CHECK(asText[i] == sPinned);
+    }
 }
 
 struct PrecisionGuard

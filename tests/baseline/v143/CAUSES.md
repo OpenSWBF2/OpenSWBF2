@@ -1869,6 +1869,160 @@ the P42 runs already print it.
   - row: offthread crash-delayload
 - Status: added under phase 46 decision D-06, 2026-11-18.
 
+## Phase 47: x64 headless boot and digest spike
+
+### C-COMBO-BLOCKS
+
+- No digest row moved. On x86 every Combo type that `ComboArrayAdd` grows (`State`, `Transition`,
+  `Condition`, `Attack`, `DamageSample`) is a multiple of 4 bytes, so its pool block equals its
+  size and the template makes the same `AllocateAt`, `AllocateRun` and `Free` calls on the same
+  addresses as before. This is pinned by x86 static_asserts in `tests/unit/layout_pins.cpp` and by
+  the T1 case `combo pools give each combo type a block equal to its size on x86`.
+- What broke on x64: `MemoryPool` rounds every block to `sizeof(void*)`, so on x64
+  `Combo::Condition` (20 bytes) gets a 24-byte block and `Combo::DamageSample` (28) a 32-byte
+  block. `ComboArrayAdd` took block `i` for element `i` (`AllocateAt(raArray + uiCount, sizeof(T))`),
+  so the array stride (`sizeof(T)`) and the block stride differed and the next element landed
+  inside a block the pool still listed as free, which corrupted the free list. The x64 Asan exe
+  reported it as `unknown-crash WRITE of size 20` in `Combo::Condition::_Init` from
+  `WeaponMeleeClass::ReadCombo`.
+- Why the pool block cannot shrink to `sizeof(T)`: each free block holds the `void*` link of the
+  free list at its start (`MemoryPool::Create`, `Allocate` growth, `Free`, `PerturbShuffleChunk`),
+  so a block must be at least pointer-sized and pointer-aligned. The rounding is a real invariant
+  of the pool.
+- Why the element stride cannot grow to the block size: every reader indexes the arrays at
+  `sizeof(T)` (`m_aCondition[i]`, `m_aState + n` and the rest in `Combo.cpp` and
+  `WeaponMelee.cpp`); a block-sized stride would mean changing every reader.
+- Why not `alignas(alignof(void*))` on the Combo types: none of them needs pointer alignment
+  (they hold `unsigned int`, `float` and `unsigned short` fields). Raising their alignment only to
+  make the type size match the allocator is padding a type to fit an allocator, a workaround
+  under the Root Cause rule, and it would also change `sizeof` of every Combo type on x64.
+- Fix where the invariant broke: `ComboArrayAdd` keeps a contiguous `T` array and counts the
+  whole blocks it holds, `(n * sizeof(T) + block - 1) / block`. A new element that fits in the
+  held blocks needs no pool call; otherwise it takes the next block right after the held ones
+  (`AllocateAt`, whole block) or moves the array to a run of whole blocks (`AllocateRun`), copies
+  `n * sizeof(T)` bytes and frees each old block at block stride. No Combo type changed.
+- Proven by the T1 cases `combo array packs elements across pool blocks` and `combo array keeps
+  packed elements across a run move` (a 6-byte type with an 8-byte block on both platforms), RED
+  on the old template on Win32, and by guard rows `COMBO-STRIDE` and `COMBO-STRIDE-X64`.
+- Status: fixed under phase 47 decision D-28, 2026-11-18.
+
+### C-CASE-CRASHEARLY
+
+- No digest row moved. `smoke-all-digests.txt` and `offthread.txt` each gain two rows for the new
+  Crash cases `crash-early` and `crash-heapinit`; no other row moves.
+- Cause: two new smoke cases from 47-01. `crash-early` writes through a null pointer at the top of
+  `GameWinMain`, before the vendor probe, and `crash-heapinit` does the same in
+  `Startup_RedInitHeap` right after the crash handler is installed. Each writes its FATAL line to
+  the case's `run.log` and one dump, then exits 3. Both faults come before the first turn, so they
+  log no SIM DIGEST line (`none none`, the same as the other `-crashtest` faults) and no off-thread
+  allocation (`0 0 0`).
+- Captured from `run.ps1 -Platform Win32 -Configuration Release -NoBuild -Smoke All` (the tables
+  `run.ps1` writes beside the run) and `run.ps1 -Platform Win32 -Configuration Test -Smoke Crash`
+  (`capture-vs2013.ps1 -Configuration Test -NoBuild -Tables -Baseline v143 -OffThreadDir`, scratch
+  `-OutDir`). Every other row in both captures equals the pinned row, byte for byte, except the
+  wall-clock `dedicated` row, which is not compared.
+  - row: smoke-all-digests crash-early
+  - row: smoke-all-digests crash-heapinit
+  - row: offthread crash-early
+  - row: offthread crash-heapinit
+- Status: added in 47-04, 2026-11-18.
+
+### C-CASE-PARTICLESOUND
+
+- No digest row moved. `smoke-all-digests.txt` and `offthread.txt` each gain one row for the new
+  Crash case `crash-particlesound`; no other row moves.
+- Cause: a new smoke case for the particle emitter ambient-sound fix in 47-04. On the standard
+  mission, `-crashtest particlesound` finds the first loaded emitter class whose ambient sound
+  plays, builds an emitter with one info block, updates it twice (the second update points the
+  sound at the block), deletes it, then builds another and resets it. It logs
+  `OPENSWBF2 PARTICLESOUND ... voice_after_reset=0`. Building the emitters draws from the global
+  random stream, so the case's digest differs from `geo1c_con` and is pinned as its own row. The
+  test runs on the main thread, so the off-thread row is `0 0 0`.
+- Captured from `run.ps1 -Platform Win32 -Configuration Release -NoBuild -Smoke Crash`
+  (`capture-vs2013.ps1 -NoBuild -Tables -Baseline v143 -SmokeAllDir`) and
+  `run.ps1 -Platform Win32 -Configuration Test -NoBuild -Smoke Crash`
+  (`capture-vs2013.ps1 -Configuration Test -NoBuild -Tables -Baseline v143 -OffThreadDir`), each
+  into a scratch `-OutDir`. Release and Test log the same SIM DIGEST line for the case. Every
+  other Crash row in both captures equals the pinned row, byte for byte.
+  - row: smoke-all-digests crash-particlesound
+  - row: offthread crash-particlesound
+- Status: added in 47-04, 2026-11-19.
+
+### C-HEAPCAP-X64-RULE
+
+- No digest row moved. No x86 heap size, x86 cap or x86 table changed; every x86 size in
+  `GameMemory.h` and the x86 arena keep their old value through `sizeof(void*) == 8 ? x64 : x86`.
+- Rule for every x64 default heap cap (phase 47 decisions D-17, D-18, D-23, D-24): for a heap
+  whose largest peak is above 0 in both `mem-peaks.txt` (x86) and `mem-peaks-x64.txt` (x64),
+  `cap_x64 = ceil(peak_x64 * cap_x86 / peak_x86)`, rounded up to the next multiple of 65536.
+  Each peak is that heap's largest `peak` over every mission and both sources (`turn1500`,
+  `exit`) of its file; `cap_x86` is the x86 cap MEMREPORT logs. The x64 cap keeps the x86
+  headroom ratio over the measured peak; nothing is doubled. A heap whose computed cap is not above
+  its x86 cap keeps the x86 size.
+- The cap MEMREPORT logs is the heap range `RedMiCreate` returns: start rounded up and end
+  rounded down to the heap alignment. On both platforms Application and Gamespy lose 16 bytes to
+  that rounding (`0xF40000` logs 15990768) and Lua loses none. The x64 sizes add the same 16
+  bytes, so the logged x64 cap equals the derived cap exactly.
+- Runtime is the rest of the arena, so its cap is set through `kArenaSize`. The x64 arena is the
+  x86 layout with Application, Lua and Runtime at their x64 sizes and the x86 fixed overhead kept
+  (the heap table, the 0x40 start alignment of Lua, Artist and Runtime); the 16 bytes added to
+  Application fall inside the Lua start alignment. Result: `kArenaSize` 0x5B42160 (95691104).
+- `-heapcap` and Lua `SetHeapCap` are unchanged. The x64 defaults are far below `kHeapCapMax`
+  (0x20000000) each and `kHeapCapTotalMax` (0xC0000000) together.
+- Captured: `run.ps1 -Platform x64 -Configuration Release -NoBuild -Smoke All -Soak Short
+  -HogAddrSpace` on commit 322e6c84 after the 47-03 Weapon and Ordnance pool fix, run folder
+  `artifacts\tests\20261119-034808`; its `tables\mem-peaks.txt` is pinned unchanged as
+  `mem-peaks-x64.txt`. The x64 heaps in that run still had the x86 sizes, so every logged x64 cap
+  equals the x86 cap. The run had no crash and no stall; its only failures are the six missions
+  with an x86 digest row (dag1c_ctf, geo1c_con, hot1g_con, kas2c_uber, nab2g_c, spa3c_ass),
+  because x64 simulation differs from x86 until Phase 48.
+- `mem-peaks-x64.txt` and `mem-peaks.txt` have the same missions and the same heap rows. Three
+  pool rows differ (x86 `dea1g_con exit pool Aimer` and `MountedTurret`, `kas2c_uber exit pool
+  RayRequest`; x64 `dea1g_con turn1500 pool Aimer` and `kas2c_uber turn1500 pool RayRequest`): a
+  pool gets a row once it has grown, and on x64 the simulation of those two missions grows them at
+  another time (x64 dea1g_con builds its Aimers before turn 1500 and never a MountedTurret).
+  `compare-tables.ps1 -MemPeaksX64` checks the missions and heap rows and counts the pool rows.
+- Status: added in 47-09, 2026-11-19.
+
+### C-HEAPCAP-X64-Application
+
+- No digest row moved. x64 `kApplicationHeapSize` 0x1560010 (logged cap 22413312); x86 stays
+  0xF40000 (logged cap 15990768).
+- Peaks: x86 125040 (cor1c_c, turn1500), x64 175104 (cor1c_c, turn1500); x64/x86 1.400. x86
+  cap/peak 127.885. ceil(175104 * 15990768 / 125040) = 22393214, rounded to 22413312.
+- Cause: the measured x64 peak is above the x86 peak; the cap follows C-HEAPCAP-X64-RULE.
+- Status: added in 47-09, 2026-11-19.
+
+### C-HEAPCAP-X64-Lua
+
+- No digest row moved. x64 `kLuaHeapSize` 0x1BE0000 (logged cap 29229056); x86 stays 0x1000000
+  (16777216).
+- Peaks: x86 2617536 (kam1c_c, turn1500), x64 4553172 (geo1c_c, turn1500); x64/x86 1.739. x86
+  cap/peak 6.410. ceil(4553172 * 16777216 / 2617536) = 29183763, rounded to 29229056.
+- Cause: the measured x64 peak is above the x86 peak; the cap follows C-HEAPCAP-X64-RULE.
+- Status: added in 47-09, 2026-11-19.
+
+### C-HEAPCAP-X64-Runtime
+
+- No digest row moved. x64 Runtime logged cap 41943040, set through `kArenaSize` 0x5B42160; x86
+  stays at 32235168 from the 0x4000000 arena.
+- Peaks: x86 19346544 (hot1g_uber, turn1500), x64 25157728 (kas2c_uber, exit); x64/x86 1.300.
+  x86 cap/peak 1.666. ceil(25157728 * 32235168 / 19346544) = 41917750, rounded to 41943040.
+- Cause: the measured x64 peak is above the x86 peak; the cap follows C-HEAPCAP-X64-RULE. The
+  peak includes the x64 pool blocks after the 47-03 fix (Weapon 592, Ordnance 560 bytes).
+- Status: added in 47-09, 2026-11-19.
+
+### C-HEAPCAP-X64-KEPT
+
+- No digest row moved. These heaps keep their x86 size on x64.
+- Gamespy (logged cap 2097136), Artist (8192) and HUDEditHeap (1048560): peak 0 on every mission
+  on both platforms, so no ratio exists (D-24).
+- Debug (3145728): peak 1048592 on both platforms (one 1 MB block), ratio 1.000; the rule gives
+  3145728, not above the x86 cap.
+- The Temp load heap (0x1FFF00 inside a 0x200000 Runtime block) has no MEMREPORT row and is not
+  covered by the rule; its block is part of the Runtime peak.
+- Status: added in 47-09, 2026-11-19.
+
 ## Policy
 
 The v143 files in `tests/corpus/` and this directory are the reference from now on. The digest

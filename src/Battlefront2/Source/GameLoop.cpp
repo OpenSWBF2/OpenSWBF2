@@ -35,6 +35,36 @@
 #include "GameSound.h"
 #include "Weapon.h"
 #include "WeaponMelee.h"
+#include "Ordnance.h"
+#include "OrdnanceBeacon.h"
+#include "OrdnanceBeam.h"
+#include "OrdnanceBullet.h"
+#include "OrdnanceFatRay.h"
+#include "OrdnanceGrenade.h"
+#include "OrdnanceHaywire.h"
+#include "OrdnanceLaser.h"
+#include "OrdnanceMeleeThrow.h"
+#include "OrdnanceMissile.h"
+#include "OrdnanceShell.h"
+#include "OrdnanceSticky.h"
+#include "WeaponAreaEffect.h"
+#include "WeaponBinoculars.h"
+#include "WeaponCannon.h"
+#include "WeaponCatapult.h"
+#include "WeaponDestruct.h"
+#include "WeaponDetonator.h"
+#include "WeaponDisguise.h"
+#include "WeaponDispenser.h"
+#include "WeaponGrapplingHook.h"
+#include "WeaponGrenade.h"
+#include "WeaponInvisibility.h"
+#include "WeaponLaser.h"
+#include "WeaponLauncher.h"
+#include "WeaponMeleeThrow.h"
+#include "WeaponRemote.h"
+#include "WeaponRepair.h"
+#include "WeaponShield.h"
+#include "WeaponTowCable.h"
 #include "GameState.h"
 #include "HeroMessageDisplay.h"
 #include "HUDEventQueue.h"
@@ -674,7 +704,7 @@ static unsigned int suDigestTurns;
 static bool sbDigestLogged;
 static bool sbExitPosted;
 
-static void PostRunComplete()
+void GameLoop::PostRunComplete()
 {
     sbExitPosted = true;
     LOG(LogSim, Inform, "OPENSWBF2 RUN COMPLETE %s", GameLoop::mMissionScript);
@@ -778,39 +808,42 @@ int GameLoop::Init()
     AmmoCounter::SetupMemoryPool(2400, AmmoCounter::sMemoryPool.GetSize(), AmmoCounter::sMemoryPool.GetGrow());
     EnergyBar::SetupMemoryPool(2400, EnergyBar::sMemoryPool.GetSize(), EnergyBar::sMemoryPool.GetGrow());
 
-    Weapon::UpdateMemoryPoolSize(0x150);
-    Weapon::UpdateMemoryPoolSize(0x110);
-    Weapon::UpdateMemoryPoolSize(0x160);
-    Weapon::UpdateMemoryPoolSize(0x120);
-    Weapon::UpdateMemoryPoolSize(0x120);
-    Weapon::UpdateMemoryPoolSize(0x120);
-    Weapon::UpdateMemoryPoolSize(0x120);
-    Weapon::UpdateMemoryPoolSize(0x170);
-    Weapon::UpdateMemoryPoolSize(0x120);
-    Weapon::UpdateMemoryPoolSize(0x130);
-    Weapon::UpdateMemoryPoolSize(0x120);
-    Weapon::UpdateMemoryPoolSize(0x180);
-    Weapon::UpdateMemoryPoolSize(0x1c0);
-    Weapon::UpdateMemoryPoolSize(0x160);
-    Weapon::UpdateMemoryPoolSize(0x130);
-    Weapon::UpdateMemoryPoolSize(0x120);
-    Weapon::UpdateMemoryPoolSize(0x1a0);
-    Weapon::UpdateMemoryPoolSize(0x170);
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponAreaEffect));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponBinoculars));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponCannon));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponDestruct));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponDetonator));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponDisguise));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponDispenser));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponGrapplingHook));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponGrenade));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponInvisibility));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponLaser));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponLauncher));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponMelee));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponMeleeThrow));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponRemote));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponRepair));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponShield));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponTowCable));
+    Weapon::UpdateMemoryPoolSize(sizeof(Weapon));
+    Weapon::UpdateMemoryPoolSize(sizeof(WeaponCatapult));
 
     StickInfo::SetupMemoryPool(60, StickInfo::sMemoryPool.GetSize(), StickInfo::sMemoryPool.GetGrow());
     Ordnance::SetupMemoryPool(120, Ordnance::sMemoryPool.GetSize(), Ordnance::sMemoryPool.GetGrow());
 
-    Ordnance::UpdateMemoryPoolSize(324);
-    Ordnance::UpdateMemoryPoolSize(300);
-    Ordnance::UpdateMemoryPoolSize(308);
-    Ordnance::UpdateMemoryPoolSize(356);
-    Ordnance::UpdateMemoryPoolSize(316);
-    Ordnance::UpdateMemoryPoolSize(320);
-    Ordnance::UpdateMemoryPoolSize(328);
-    Ordnance::UpdateMemoryPoolSize(384);
-    Ordnance::UpdateMemoryPoolSize(360);
-    Ordnance::UpdateMemoryPoolSize(304);
-    Ordnance::UpdateMemoryPoolSize(320);
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceBeacon));
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceBullet));
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceFatRay));
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceGrapplingHook));
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceGrenade));
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceHaywire));
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceLaser));
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceMeleeThrow));
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceMissile));
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceShell));
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceSticky));
+    Ordnance::UpdateMemoryPoolSize(sizeof(OrdnanceBeam));
 
     LightFlash::SetupMemoryPool(16, LightFlash::sMemoryPool.GetSize(), LightFlash::sMemoryPool.GetGrow());
     EntityLight::SetupMemoryPool(100, EntityLight::sMemoryPool.GetSize(), EntityLight::sMemoryPool.GetGrow());
