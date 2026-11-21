@@ -8,6 +8,7 @@ param(
     [switch]$Map,
     [switch]$DebugDigests,
     [switch]$MemPeaksX64,
+    [switch]$X87Inventory,
     [string]$RunLog
 )
 
@@ -37,6 +38,7 @@ $script:BaselineReaders = @(
     @{ File = 'initializers-di.txt'; Reader = 'Map'; Label = 'map:initializers-di' }
     @{ File = 'initializers-discarded.txt'; Reader = 'Map'; Label = 'map:initializers-discarded' }
     @{ File = 'digests-debug.txt'; Reader = 'DebugDigests'; Label = 'debug:digests-debug' }
+    @{ File = 'x87-inventory.tsv'; Reader = 'X87Inventory'; Label = 'tables:x87-inventory'; Script = 'x87-inventory.ps1' }
     @{ File = 'CAUSES.md'; Reader = 't1:tests\unit\memory_baseline.cpp' }
     @{ File = 'MANIFEST.md'; Reader = 'verify-v143' }
 )
@@ -109,26 +111,19 @@ function Compare-MemPeaksKeys([string]$label, [string]$name, [string]$pair) {
     $bm = @($base.Keys | ForEach-Object { @($_ -split "`t")[0] } | Sort-Object -Unique)
     $nm = @($new.Keys | ForEach-Object { @($_ -split "`t")[0] } | Sort-Object -Unique)
     if (($bm -join ' ') -cne ($nm -join ' ')) { $bad += "$name covers $($nm.Count) missions and $pair $($bm.Count)" }
-    $poolOnlyNew = 0
-    $poolOnlyBase = 0
     foreach ($k in ($base.Keys | Sort-Object)) {
-        $pool = @($k -split "`t")[2] -ceq 'pool'
-        if (-not $new.ContainsKey($k)) {
-            if ($pool) { $poolOnlyBase++ } else { $bad += "$k missing from $name" }
-        }
-        elseif (-not $pool -and @($base[$k]).Count -ne @($new[$k]).Count) { $bad += "$k has $(@($new[$k]).Count) rows in $name and $(@($base[$k]).Count) in $pair" }
+        if (-not $new.ContainsKey($k)) { $bad += "$k missing from $name" }
+        elseif (@($base[$k]).Count -ne @($new[$k]).Count) { $bad += "$k has $(@($new[$k]).Count) rows in $name and $(@($base[$k]).Count) in $pair" }
     }
     foreach ($k in ($new.Keys | Sort-Object)) {
-        if (-not $base.ContainsKey($k)) {
-            if (@($k -split "`t")[2] -ceq 'pool') { $poolOnlyNew++ } else { $bad += "$k not in $pair" }
-        }
+        if (-not $base.ContainsKey($k)) { $bad += "$k not in $pair" }
     }
     if ($bad.Count) {
         Write-Host "[FAIL] $label keys=$($new.Count)"
         foreach ($l in $bad) { Write-Host "    $l" }
         return 1
     }
-    Write-Host "[PASS] $label keys=$($new.Count) missions=$($nm.Count) pool-keys-only-here=$poolOnlyNew pool-keys-only-in-pair=$poolOnlyBase"
+    Write-Host "[PASS] $label keys=$($new.Count) missions=$($nm.Count)"
     return 0
 }
 
@@ -200,6 +195,17 @@ function Compare-HeapCapsX64([string]$label, [string]$name, [string]$pair, [stri
     return 0
 }
 
+function Compare-X87Inventory([string]$label, [string]$name, [string]$script) {
+    $global:LASTEXITCODE = -1
+    & (Join-Path $PSScriptRoot $script) -Check (Join-Path $Baseline $name) -Inventory (Join-Path $Tables $name)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[FAIL] $label exit $LASTEXITCODE"
+        return 1
+    }
+    Write-Host "[PASS] $label"
+    return 0
+}
+
 function Compare-Bytes([string]$label, [string]$name) {
     $bp = Join-Path $Baseline $name
     $tp = Join-Path $Tables $name
@@ -250,6 +256,7 @@ foreach ($e in $entries) {
         $fail += Compare-MemPeaksKeys $e.Label $e.File $e.Pair
         $fail += Compare-HeapCapsX64 'tables:heap-caps-x64' $e.File $e.Pair $RunLog
     }
+    elseif ($e.Script) { $fail += Compare-X87Inventory $e.Label $e.File $e.Script }
     elseif ($e.KeyCols) {
         $skip = @()
         if ($e.Skip) { $skip = @($e.Skip) }

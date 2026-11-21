@@ -56,13 +56,14 @@ function Get-GuardTestInfo([string]$Root)
 {
     $root = $Root.TrimEnd('\')
     $sources = @{}
+    $suites = @{}
     $dups = @{}
     $literals = @{}
     foreach ($f in (Get-ChildItem -LiteralPath (Join-Path $root 'tests') -Recurse -File -Filter '*.cpp' | Where-Object { $_.FullName -notmatch '\\tests\\third_party\\' }))
     {
         $rel = $f.FullName.Substring($root.Length + 1)
         $text = [IO.File]::ReadAllText($f.FullName)
-        foreach ($m in [regex]::Matches($text, 'TEST_CASE\s*\(\s*"((?:[^"\\]|\\.)*)"'))
+        foreach ($m in [regex]::Matches($text, 'TEST_CASE\s*\(\s*"((?:[^"\\]|\\.)*)"(?:\s*\*\s*doctest::test_suite\s*\(\s*"([^"]*)"\s*\))?'))
         {
             $name = $m.Groups[1].Value -replace '\\(.)', '$1'
             if ($sources.ContainsKey($name) -and $sources[$name] -ne $rel)
@@ -70,6 +71,7 @@ function Get-GuardTestInfo([string]$Root)
                 $dups[$name] = $true
             }
             $sources[$name] = $rel
+            $suites[$name] = $m.Groups[2].Value
         }
         $lits = New-Object System.Collections.Generic.List[string]
         foreach ($m in [regex]::Matches($text, '"((?:[^"\\\r\n]|\\.)*)"'))
@@ -92,8 +94,100 @@ function Get-GuardTestInfo([string]$Root)
     foreach ($name in $dups.Keys)
     {
         $sources.Remove($name)
+        $suites.Remove($name)
     }
-    @{ Sources = $sources; Literals = $literals }
+    @{ Sources = $sources; Suites = $suites; Literals = $literals }
+}
+
+function Test-GuardPlatformCondition([string]$Cond, [string]$Platform)
+{
+    if (-not $Cond.Trim())
+    {
+        return $true
+    }
+    $ok = $true
+    foreach ($part in ($Cond.Trim() -split '\s+and\s+'))
+    {
+        $m = [regex]::Match($part, "^'\`$\((Platform|Configuration)\)'\s*==\s*'([^'`$()]*)'$")
+        if (-not $m.Success)
+        {
+            throw "unsupported MSBuild condition: $Cond"
+        }
+        if ($m.Groups[1].Value -eq 'Platform' -and $m.Groups[2].Value -ne $Platform)
+        {
+            $ok = $false
+        }
+    }
+    $ok
+}
+
+function Get-GuardProjectGameTUs([string]$Vcxproj, [string]$Platform)
+{
+    $xml = New-Object xml
+    $xml.Load($Vcxproj)
+    $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
+    $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
+    $list = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($item in @($xml.SelectNodes('//m:ItemGroup/m:ClCompile[@Include]', $ns)))
+    {
+        $m = [regex]::Match($item.GetAttribute('Include'), '^\.\.\\(src\\.+)$')
+        if (-not $m.Success)
+        {
+            continue
+        }
+        if ((Test-GuardPlatformCondition $item.GetAttribute('Condition') $Platform) -and (Test-GuardPlatformCondition $item.ParentNode.GetAttribute('Condition') $Platform))
+        {
+            $list.Add($m.Groups[1].Value)
+        }
+    }
+    $list.ToArray()
+}
+
+function Get-GuardMasmSources([string]$Root, [string]$Platform)
+{
+    $root = $Root.TrimEnd('\')
+    $set = New-GuardPathSet
+    foreach ($proj in @($script:GuardGlobalTriggers | Where-Object { $_.EndsWith('.vcxproj', [StringComparison]::OrdinalIgnoreCase) }))
+    {
+        $path = Join-Path $root $proj
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf))
+        {
+            continue
+        }
+        $xml = New-Object xml
+        $xml.Load($path)
+        $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
+        $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
+        foreach ($item in @($xml.SelectNodes('//m:ItemGroup/m:MASM[@Include]', $ns)))
+        {
+            $included = $true
+            for ($n = $item; $n -is [Xml.XmlElement]; $n = $n.ParentNode)
+            {
+                if (-not (Test-GuardPlatformCondition $n.GetAttribute('Condition') $Platform))
+                {
+                    $included = $false
+                    break
+                }
+                if ($n.LocalName -eq 'ItemGroup')
+                {
+                    break
+                }
+            }
+            if (-not $included)
+            {
+                continue
+            }
+            $full = [IO.Path]::GetFullPath((Join-Path (Split-Path $path -Parent) $item.GetAttribute('Include')))
+            if (-not $full.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase))
+            {
+                throw "MASM item $full in $proj is outside $root"
+            }
+            [void]$set.Add($full.Substring($root.Length + 1))
+        }
+    }
+    $list = [string[]]@($set)
+    [Array]::Sort($list, [StringComparer]::OrdinalIgnoreCase)
+    , $list
 }
 
 function ConvertTo-GuardSorted($Value, [string]$Prefix)
@@ -142,6 +236,11 @@ function ConvertTo-GuardSorted($Value, [string]$Prefix)
         return , $list.ToArray()
     }
     $Value
+}
+
+function Get-GuardSmokeGroupCases([string]$Which)
+{
+    return @(Get-SmokeCases $Which @() $false $null ($script:SmokePlatform -eq 'x64'))
 }
 
 function Get-GuardCaseData([string]$Path)
@@ -208,7 +307,7 @@ function Get-GuardCaseTexts($Rows, [string]$DefaultConfig, [string]$Root)
                     $set = @{}
                     foreach ($w in 'Crash', 'Standard', 'Vendor', 'Boot')
                     {
-                        foreach ($c in (Get-SmokeCases $w @() $false $null))
+                        foreach ($c in (Get-GuardSmokeGroupCases $w))
                         {
                             $set[$c.Name] = $c
                         }
@@ -555,6 +654,12 @@ function Select-GuardRows($In)
     {
         $testSources = @{}
     }
+    $testSuites = $In.TestSuites
+    if ($null -eq $testSuites)
+    {
+        $testSuites = @{}
+    }
+    $masmSources = @($In.MasmSources | Where-Object { $_ })
     $testLiterals = $In.TestLiterals
     if ($null -eq $testLiterals)
     {
@@ -611,6 +716,7 @@ function Select-GuardRows($In)
         $noTlog = $null
         $unknownCase = $null
         $extra = New-Object 'System.Collections.Generic.List[string]'
+        $masmDirect = New-Object 'System.Collections.Generic.List[string]'
         [void]$files.Add($file)
 
         $reads = $null
@@ -653,6 +759,13 @@ function Select-GuardRows($In)
                     {
                         $noTlog = $g
                     }
+                }
+            }
+            foreach ($t in @($row.Tests))
+            {
+                if ($t -and [string]$testSuites[$t] -ceq 'corpus' -and $masmDirect.Count -eq 0)
+                {
+                    $masmDirect.AddRange([string[]]$masmSources)
                 }
             }
             foreach ($t in @($row.Tests))
@@ -767,6 +880,10 @@ function Select-GuardRows($In)
             }
             if ($kind -eq 'Smoke' -or $kind -eq 'Perturb')
             {
+                foreach ($a in $masmSources)
+                {
+                    [void]$files.Add($a)
+                }
                 foreach ($pre in @('data\scripts\'))
                 {
                     $under = Get-GuardKeysUnder $ctx $pre
@@ -778,6 +895,10 @@ function Select-GuardRows($In)
             }
         }
 
+        foreach ($a in $masmDirect)
+        {
+            [void]$files.Add($a)
+        }
         $lines = New-Object 'System.Collections.Generic.List[string]'
         $lines.AddRange($extra)
         foreach ($p in $files)
@@ -886,6 +1007,7 @@ function Select-GuardRows($In)
         {
             $direct = New-Object 'System.Collections.Generic.List[string]'
             $direct.Add($file)
+            $direct.AddRange($masmDirect)
             foreach ($t in @($row.Tests))
             {
                 if ($t -and $testSources[$t])

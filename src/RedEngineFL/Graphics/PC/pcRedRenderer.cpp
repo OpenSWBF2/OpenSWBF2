@@ -1,5 +1,5 @@
 #include "pcRedRenderer.h"
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "RedEngineFL/Memory/engineAlloc.h"
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 #include "PebbleFL/Common/PblMatrix.h"
@@ -6859,10 +6859,10 @@ void RedRenderer::SetMultiplicativeFog(int numpasses)
 {
     RedColorValue color(m_colorFog * static_cast<RedColor>(RedColorValue(m_lightingScale)));
     float fnumpasses = 1.0f / numpasses;
-    RedColorValue bcolor(pow(color.r, fnumpasses),
-                         pow(color.g, fnumpasses),
-                         pow(color.b, fnumpasses),
-                         pow(color.a, fnumpasses));
+    RedColorValue bcolor(PblCrtPowF(color.r, fnumpasses),
+                         PblCrtPowF(color.g, fnumpasses),
+                         PblCrtPowF(color.b, fnumpasses),
+                         PblCrtPowF(color.a, fnumpasses));
     pcSetRenderState(D3DRS_FOGCOLOR, static_cast<RedColor>(bcolor));
 }
 

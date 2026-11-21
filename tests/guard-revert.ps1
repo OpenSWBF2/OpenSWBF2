@@ -67,6 +67,10 @@ function Build-Tests([string]$wt, [string]$logPath, [string]$config = $script:Te
     $out = & $script:msbuild (Join-Path $wt 'tests\OpenSWBF2Tests.vcxproj') "/p:Configuration=$config" "/p:Platform=$Platform" '/p:SWBF2_NOSTAGE=true' "/m:$BuildJobs" /v:minimal /nologo 2>&1
     $code = $LASTEXITCODE
     $out | Set-Content -Path $logPath -Encoding ASCII
+    if ($code -ne 0 -or $Platform -ne 'x64') { return ($code -eq 0) }
+    $out = & $script:msbuild (Join-Path $wt 'tests\OpenSWBF2Tests.vcxproj') "/p:Configuration=$config" '/p:Platform=Win32' '/p:SWBF2_NOSTAGE=true' "/m:$BuildJobs" /v:minimal /nologo 2>&1
+    $code = $LASTEXITCODE
+    $out | Set-Content -Path ([IO.Path]::ChangeExtension($logPath, 'win32.log')) -Encoding ASCII
     return ($code -eq 0)
 }
 
@@ -100,22 +104,22 @@ function Build-GuardGroup([string]$group, [string]$logPath) {
     return $true
 }
 
-function Run-Smoke([string]$wt, [string]$tag, $case) {
+function Run-Smoke([string]$wt, [string]$tag, $case, [Parameter(Mandatory = $true)][string]$config) {
     $caseDir = Join-Path $OutDir "run-$tag\case"
     Remove-HarnessTree $caseDir
     New-Item -ItemType Directory -Force -Path $caseDir | Out-Null
-    $runDir = Get-WorkerPath $root $Platform $script:GameConfiguration 'guard' ($WorkerBase + $WorkerIndex)
-    $srcBin = Join-Path $root "bin\$Platform\$script:GameConfiguration"
+    $runDir = Get-WorkerPath $root $Platform $config 'guard' ($WorkerBase + $WorkerIndex)
+    $srcBin = Join-Path $root "bin\$Platform\$config"
     $skip = Get-SmokeCaseSkip $case
     if ($skip) { $res = Write-SmokeSkip $case.Name $caseDir $skip }
     else {
         New-SmokeWorkerDir $srcBin $runDir
         try {
-            Copy-Item (Join-Path $wt "bin\$Platform\$script:GameConfiguration\BattlefrontII.exe") $runDir -Force
+            Copy-Item (Join-Path $wt "bin\$Platform\$config\BattlefrontII.exe") $runDir -Force
             Sync-SmokeWorkerFiles $srcBin $runDir $case
             $argLine = $case.Args.Replace('{CASEDIR}', $caseDir)
             $asanOptions = $null
-            if ($script:GameConfiguration -eq 'Asan') { $asanOptions = Get-AsanOptions $caseDir }
+            if ($config -eq 'Asan') { $asanOptions = Get-AsanOptions $caseDir }
             $res = Invoke-SmokeCase $case.Name (Join-Path $runDir 'BattlefrontII.exe') $runDir $argLine $caseDir $asanOptions
         }
         finally { Remove-HarnessTree $runDir }
@@ -127,16 +131,16 @@ function Run-Smoke([string]$wt, [string]$tag, $case) {
     return New-Object PSObject -Property @{ Ok = $ok; Class = $res.Class; Code = $res.Code; Dumps = @($res.Dumps).Count; LogText = $res.LogText; SkipReason = $skip }
 }
 
-function Run-Perturb([string]$wt, [string]$tag, [string[]]$missions) {
+function Run-Perturb([string]$wt, [string]$tag, [string[]]$missions, [Parameter(Mandatory = $true)][string]$config) {
     $saved = $env:OPENSWBF2_PERTURB_MISSIONS
     $env:OPENSWBF2_PERTURB_MISSIONS = $missions -join ','
     try { $cases = @(Add-MiOptionsExpect @(Add-SerialTieExpect @(Get-SmokeCases 'Perturb' @() $false $null)) -1) }
     finally { $env:OPENSWBF2_PERTURB_MISSIONS = $saved }
-    $runDir = Get-WorkerPath $root $Platform $script:GameConfiguration 'perturb' ($WorkerBase + $WorkerIndex)
-    New-SmokeWorkerDir (Join-Path $root "bin\$Platform\$script:GameConfiguration") $runDir
+    $runDir = Get-WorkerPath $root $Platform $config 'perturb' ($WorkerBase + $WorkerIndex)
+    New-SmokeWorkerDir (Join-Path $root "bin\$Platform\$config") $runDir
     $runs = @()
     try {
-        Copy-Item (Join-Path $wt "bin\$Platform\$script:GameConfiguration\BattlefrontII.exe") $runDir -Force
+        Copy-Item (Join-Path $wt "bin\$Platform\$config\BattlefrontII.exe") $runDir -Force
         foreach ($c in $cases) {
             $caseDir = Join-Path $OutDir "run-$tag\$($c.Name)"
             Remove-HarnessTree $caseDir
@@ -204,8 +208,7 @@ function Set-Anchor([string]$path, [string]$anchor, [string]$replacement) {
 }
 
 function Get-TestsProjectGameTUs {
-    $xml = [IO.File]::ReadAllText((Join-Path $testsDir 'OpenSWBF2Tests.vcxproj'))
-    return @([regex]::Matches($xml, '<ClCompile\s+Include="\.\.\\(src\\[^"]+)"') | ForEach-Object { $_.Groups[1].Value })
+    return @(Get-GuardProjectGameTUs (Join-Path $testsDir 'OpenSWBF2Tests.vcxproj') $Platform)
 }
 
 function Read-GuardProofs([string]$path) {
@@ -241,9 +244,10 @@ function Test-GuardResumed($l, $d) {
     return ($l.RowHash -ceq $d.RowHash -and $l.DepDigest -ceq $d.DepDigest -and $l.TriggerDigest -ceq $d.TriggerDigest -and $l.Toolset -ceq $script:Toolset -and $l.Tree -ceq $script:Tree -and $l.Config -ceq $script:ProofConfig -and $l.Platform -ceq $Platform)
 }
 
-function Merge-GuardProofs {
+function Merge-GuardProofs([Parameter(Mandatory = $true)][string[]]$rowIds) {
     if (-not $script:PartialFile -or -not (Test-Path -LiteralPath $script:PartialFile)) { return }
-    Merge-KeyedRecords $ProvenFile $script:ProofColumns @('Id', 'Platform') ([IO.File]::ReadAllLines($script:PartialFile))
+    $drop = @((Read-GuardProofs $ProvenFile).Values | Where-Object { (-not $_.Platform) -or ($_.Platform -ceq $Platform -and $rowIds -cnotcontains $_.Id) } | ForEach-Object { "$($_.Id)`t$($_.Platform)" })
+    Merge-KeyedRecords $ProvenFile $script:ProofColumns @('Id', 'Platform') ([IO.File]::ReadAllLines($script:PartialFile)) $drop
 }
 
 function Get-GuardWorktree([int]$index) {
@@ -298,7 +302,7 @@ function Get-GuardControl([string]$key) {
     return $c.Value
 }
 
-function Get-GuardHardChecks([string[]]$names, [string]$exe) {
+function Get-GuardHardChecks([string[]]$names, [string]$exe, [Parameter(Mandatory = $true)][string]$config) {
     $binNames = @((@(Get-HardeningChecks '' '' 0 0 0) + @(Get-ImportChecks '' $Platform)) | ForEach-Object { $_.Name })
     $res = @()
     if (@($names | Where-Object { $binNames -contains $_ }).Count) {
@@ -307,12 +311,17 @@ function Get-GuardHardChecks([string[]]$names, [string]$exe) {
         $imp = (& $db /imports $exe) -join "`n"
         $res += @(Get-HardeningChecks $hdr '' 0 0 0) + @(Get-ImportChecks $imp $Platform)
     }
-    if ($names -contains 'x64-objects') { $res += Get-X64ObjectsCheck $script:Wt $script:GameConfiguration }
+    if ($names -contains 'x64-objects') { $res += Get-X64ObjectsCheck $script:Wt $config }
+    if ($names -contains 'crt-trig-route') { $res += Get-CrtTrigRouteResult $script:Wt $config $Platform }
     if ($names -contains 'x64-size-literal') { $res += Get-X64SizeLiteralCheck $script:Wt (Get-GuardAllowLists (Join-Path $script:Wt 'tests\smoke\cases.ps1')).SizeLiteralAllow }
     if ($names -contains 'unicows-staged') { $res += Get-UnicowsCheck $script:Wt $Platform (Split-Path $exe -Parent) ((& (Find-Dumpbin $Platform) /imports $exe) -join "`n") }
     if ($names -contains 'd3dx9-pins') { $res += Get-D3dxPinsCheck $script:Wt }
     if ($names -contains 'steam-api64-pins') { $res += Get-SteamApi64PinsCheck $script:Wt }
-    $srcNames = @($names | Where-Object { $binNames -notcontains $_ -and $_ -ne 'x64-objects' -and $_ -ne 'x64-size-literal' -and $_ -ne 'unicows-staged' -and $_ -ne 'd3dx9-pins' -and $_ -ne 'steam-api64-pins' })
+    if ($names -contains 'fma3-off') {
+        try { $res += Get-Fma3OffCheck (Get-Fma3OffDisasm $exe ([IO.File]::ReadAllText((Join-Path $script:Wt "obj\$Platform\$config\BattlefrontII.map"))) $Platform) }
+        catch { $res += New-Object PSObject -Property @{ Name = 'fma3-off'; Ok = $false; Detail = $_.Exception.Message } }
+    }
+    $srcNames = @($names | Where-Object { $binNames -notcontains $_ -and $_ -ne 'x64-objects' -and $_ -ne 'crt-trig-route' -and $_ -ne 'x64-size-literal' -and $_ -ne 'unicows-staged' -and $_ -ne 'd3dx9-pins' -and $_ -ne 'steam-api64-pins' -and $_ -ne 'fma3-off' })
     if ($srcNames.Count) {
         $al = Get-GuardAllowLists (Join-Path $script:Wt 'tests\smoke\cases.ps1')
         $res += @(Get-SourceChecks $script:Wt -spacerAllow $al.SpacerAllow -offsetAllow $al.OffsetAllow -Only $srcNames)
@@ -337,7 +346,7 @@ function Get-GuardSmokeCase([string]$config, [string]$name) {
     if (-not $script:SmokeCaseSets.ContainsKey($config)) {
         $set = @{}
         foreach ($w in 'Crash', 'Standard', 'Vendor', 'Boot') {
-            foreach ($c in (Get-SmokeCases $w @() $false $null)) { $set[$c.Name] = $c }
+            foreach ($c in (Get-GuardSmokeGroupCases $w)) { $set[$c.Name] = $c }
         }
         $script:SmokeCaseSets[$config] = $set
     }
@@ -354,7 +363,7 @@ function Get-GuardRowGroup($r) {
     switch ($r.Kind) {
         'Smoke' { if ($r.Config) { return "game|$($r.Config)" } return "game|$script:DefaultGameConfiguration" }
         'Perturb' { return 'game|Test' }
-        'Hardening' { return "game|$script:DefaultGameConfiguration" }
+        'Hardening' { if ($r.Config) { return "game|$($r.Config)" } return "game|$script:DefaultGameConfiguration" }
         'AsanCanary' { return 'tests|Asan' }
     }
     if ($r.Asan) { return 'tests|Asan' }
@@ -409,16 +418,16 @@ function Invoke-GuardControl([string]$key) {
             return $c
         }
         'hard' {
-            $chk = @(Get-GuardHardChecks @($parts[2]) (Join-Path $wt "bin\$Platform\$($parts[1])\BattlefrontII.exe")) | Select-Object -First 1
+            $chk = @(Get-GuardHardChecks @($parts[2]) (Join-Path $wt "bin\$Platform\$($parts[1])\BattlefrontII.exe") $parts[1]) | Select-Object -First 1
             return [bool]$chk.Ok
         }
         'smoke' {
             $name = $key.Split('|', 3)[2]
-            return (Run-Smoke $wt "control-$($parts[1])-$name" (Get-GuardSmokeCase $parts[1] $name))
+            return (Run-Smoke $wt "control-$($parts[1])-$name" (Get-GuardSmokeCase $parts[1] $name) $parts[1])
         }
         'perturb' {
             $missions = @($key.Split('|', 2)[1].Split(','))
-            return (Run-Perturb $wt ('control-' + ($missions -join '_')) $missions)
+            return (Run-Perturb $wt ('control-' + ($missions -join '_')) $missions 'Test')
         }
     }
     throw "unknown control key $key"
@@ -470,6 +479,7 @@ function Invoke-GuardT1Row($r) {
         $out.Code = ($codes -join ',')
         $out.Detail = ($details -join ',')
         if ($states -contains 'NO-MATCH') { $out.Result = 'NO-MATCH' }
+        elseif ($states -contains 'CHILD-FAIL') { $out.Result = 'CHILD-FAIL' }
         elseif ($states -contains 'RED') { $out.Result = 'RED' }
         elseif ($states -contains 'SKIP') { $out.Result = 'SKIP' }
         else { $out.Result = 'STILL-GREEN' }
@@ -513,6 +523,7 @@ function Invoke-GuardAsanRow($r) {
             else { $out.Result = 'RED' }
         }
         elseif ($states -contains 'NO-MATCH') { $out.Result = 'NO-MATCH' }
+        elseif ($states -contains 'CHILD-FAIL') { $out.Result = 'CHILD-FAIL' }
         elseif ($states -contains 'RED') { $out.Result = 'RED' }
         elseif ($states -contains 'SKIP') { $out.Result = 'SKIP' }
         else { $out.Result = 'STILL-GREEN' }
@@ -530,7 +541,7 @@ function Invoke-GuardHardeningRow($r) {
     if (-not (Get-GuardControl "hard|$cfg|$($r.Check)")) { $ctl = 'FAIL' }
     $o = Invoke-GuardRevertedRow $r {
         param($out)
-        $chk = @(Get-GuardHardChecks @($r.Check) (Join-Path $script:Wt "bin\$Platform\$cfg\BattlefrontII.exe")) | Select-Object -First 1
+        $chk = @(Get-GuardHardChecks @($r.Check) (Join-Path $script:Wt "bin\$Platform\$cfg\BattlefrontII.exe") $cfg) | Select-Object -First 1
         $out.Detail = "check=$($r.Check) ok=$($chk.Ok)"
         if ($chk.Ok) { $out.Result = 'STILL-GREEN' } else { $out.Result = 'RED' }
     }
@@ -546,7 +557,6 @@ function Add-GuardSkip($r, [string]$reason) {
 
 function Invoke-GuardSmokeRow($r) {
     $cfg = (Get-GuardRowGroup $r).Split('|')[1]
-    Set-GuardGameConfig $cfg
     $ctlRes = Get-GuardControl "smoke|$cfg|$($r.Case)"
     if ($ctlRes.SkipReason) { Add-GuardSkip $r $ctlRes.SkipReason; return }
     $ctl = 'GREEN'
@@ -554,7 +564,7 @@ function Invoke-GuardSmokeRow($r) {
     $case = Get-GuardSmokeCase $cfg $r.Case
     $o = Invoke-GuardRevertedRow $r {
         param($out)
-        $s = Run-Smoke $script:Wt $r.Id $case
+        $s = Run-Smoke $script:Wt $r.Id $case $cfg
         $out.Code = ('0x{0:X8}' -f $s.Code)
         $out.Detail = "class=$($s.Class) dumps=$($s.Dumps)"
         if ($s.SkipReason) { $out.Result = 'SKIP'; $out.Detail = $s.SkipReason }
@@ -569,13 +579,13 @@ function Invoke-GuardSmokeRow($r) {
 }
 
 function Invoke-GuardPerturbRow($r) {
-    Set-GuardGameConfig 'Test'
+    $cfg = (Get-GuardRowGroup $r).Split('|')[1]
     $key = @($r.Missions) -join ','
     $ctlRes = Get-GuardControl "perturb|$key"
     $ctl = $ctlRes.State
     $o = Invoke-GuardRevertedRow $r {
         param($out)
-        $s = Run-Perturb $script:Wt $r.Id @($r.Missions)
+        $s = Run-Perturb $script:Wt $r.Id @($r.Missions) $cfg
         foreach ($m in $s.Messages) { [void]$script:JobLines.Add($m) }
         $out.Detail = $s.Detail
         if ($s.State -eq 'GREEN') { $out.Result = 'STILL-GREEN' }
@@ -670,8 +680,15 @@ function Invoke-GuardTlogJob($tlogRows) {
 
 function Invoke-GuardRowJob($job, $byId) {
     $rows = @($job.Ids | ForEach-Object { $byId[$_] })
-    if ($job.Kind -eq 'Tlog') { Invoke-GuardTlogJob $rows; return }
+    if ($job.Kind -eq 'Tlog') {
+        Set-GuardGameConfig $script:DefaultGameConfiguration
+        Invoke-GuardTlogJob $rows
+        return
+    }
     $r = $rows[0]
+    $kind, $cfg = (Get-GuardRowGroup $r).Split('|')
+    if ($kind -ne 'game') { $cfg = $script:DefaultGameConfiguration }
+    Set-GuardGameConfig $cfg
     switch ($r.Kind) {
         'Smoke' { Invoke-GuardSmokeRow $r; return }
         'Perturb' { Invoke-GuardPerturbRow $r; return }
@@ -829,6 +846,7 @@ try {
     if ($dupIds.Count) { throw "duplicate row Id: $($dupIds -join ', ')" }
     if ($rows.Count -eq 0) { Write-Host 'No rows selected.'; exit 2 }
     $rows = @(Select-GuardPlatformRows $rows $Platform)
+    $script:PlatformRowIds = @($rows | ForEach-Object { [string]$_.Id })
     if ($Row) {
         $rows = @($rows | Where-Object { $Row -contains $_.Id })
         if ($rows.Count -eq 0) { Write-Host "No rows selected on $Platform."; exit 2 }
@@ -876,6 +894,8 @@ try {
         GameReads = $(if ($script:GuardSmokeLoaded) { Read-ClReadTlogs @(Get-GameProjects $root $script:GameConfiguration | ForEach-Object { Join-Path $_.TlogDir 'CL.read.1.tlog' }) $tlogRoot } else { $null })
         TestsProjectGameTUs = (Get-TestsProjectGameTUs)
         TestSources = $testInfo.Sources
+        TestSuites = $testInfo.Suites
+        MasmSources = (Get-GuardMasmSources $root $Platform)
         TestLiterals = $testInfo.Literals
         CaseTexts = $caseTexts
         CaseData = $caseData
@@ -966,7 +986,7 @@ try {
     $smokeGroups = @{}
     if ($script:GuardSmokeLoaded) {
         foreach ($w in 'Crash', 'Standard', 'Vendor', 'Boot') {
-            foreach ($c in (Get-SmokeCases $w @() $false $null)) {
+            foreach ($c in (Get-GuardSmokeGroupCases $w)) {
                 if ($smokeCases.ContainsKey($c.Name)) { throw "smoke case '$($c.Name)' is defined more than once" }
                 $smokeCases[$c.Name] = $c
                 $smokeGroups[$c.Name] = $w
@@ -1057,7 +1077,7 @@ try {
         catch { Write-Host "STATUS CHECK FAILED: $($_.Exception.Message)" }
         if ($script:TreeChanged) { Write-Host 'PROOFS NOT RECORDED: main tree changed during the run' }
         elseif ($script:TreeClean) {
-            try { Merge-GuardProofs }
+            try { Merge-GuardProofs $script:PlatformRowIds }
             catch { Write-Host "PROOF MERGE FAILED: $($_.Exception.Message)"; $cleanupFailed = $true }
         }
     }

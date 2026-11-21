@@ -40,6 +40,7 @@ crash-menurevertsave	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/
 crash-menusavefail	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=2778091431/684210932 snd=49.923 state=0x0E30C5FD	geo1c_con	 309s	L=Rep	28u@15P	 40r	 0p	W=CIS	28u@10 	 97r	 0p
 crash-midoublefree	none	none
 crash-nullderef	none	none
+crash-particleburst	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=2615429715/1046533422 snd=49.923 state=0x895B3938	geo1c_con	 309s	L=Rep	28u@15P	 38r	 0p	W=CIS	28u@10 	105r	 0p
 crash-particlesound	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=1595367791/688475952 snd=49.923 state=0xC99BDD75	geo1c_con	 309s	W=Rep	28u@11P	 73r	 0p	L=CIS	28u@14 	 67r	 0p
 crash-poolcount	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/2651921600 snd=49.923 state=0x65CD7716	geo1c_con	 309s	L=Rep	28u@12P	 55r	 0p	W=CIS	28u@13 	 88r	 0p
 crash-resetfatal	none	none

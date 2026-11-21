@@ -30,6 +30,7 @@
 #include "StickInfo.h"
 #include "FLEffect.h"
 #include "ParticleEmitter.h"
+#include "SoundFL/source/sndvoicevirtual.h"
 #include "Steam/gfVendor.h"
 #include "Steam/steamworks.h"
 
@@ -1267,6 +1268,70 @@ static void ParticleSoundTest()
         pClass->m_uiClassName, iVoiceAfterReset);
 }
 
+static ParticleEmitter* StartParticleBurst(const ParticleEmitterClass* pClass, bool& bPlaying, bool& bReleased,
+                                           bool& bVoiceOnNext)
+{
+    ParticleEmitter* pEmitter = StartParticleSound(pClass);
+    if (!pEmitter)
+    {
+        return 0;
+    }
+    ParticleEmitterInfoData* pOld = pEmitter->mFirstInfo;
+    const float fBurstMin = pEmitter->mSpawnDelay + pClass->mBurstDelay.GetMin();
+    ParticleEmitterInfoData* pNew = fBurstMin > 0.0f ? ParticleEmitterInfoData::Create() : 0;
+    if (!pNew)
+    {
+        delete pEmitter;
+        return 0;
+    }
+    const float fTime = pOld->mStartTime + pEmitter->mSpawnDelay + pClass->mTransformer.mLifeTime + 0.1f;
+    pNew->mStartTime = fTime;
+    pNew->mVelocity = PblVector3(0.0f, 0.0f, 0.0f);
+    pNew->mInitialVelocity = PblVector3(0.0f, 0.0f, 0.0f);
+    pNew->mMatrix = gMatrixIdentity;
+    pNew->mLifeTime = 0.0f;
+    pOld->LinkNext(pNew);
+    pOld->mLifeTime = fBurstMin * 0.5f;
+    pEmitter->Register(pNew);
+    pNew->Release();
+    pEmitter->Update(fTime);
+    Snd::VoiceVirtual* pVoice = pEmitter->mAmbientSound.GetVoiceVirtual();
+    bPlaying = pVoice != 0 && pEmitter->mAmbientSound.GetPlaying();
+    bReleased = pEmitter->mFirstInfo == pNew;
+    bVoiceOnNext = pVoice != 0 && pVoice->mPos3D == &pNew->mMatrix.GetTranslation();
+    return pEmitter;
+}
+
+static void ParticleBurstTest()
+{
+    for (PblHashTable<FLEffectClass, 256>::Itor it(FLEffect::s_EffectClasses); it; ++it)
+    {
+        if (it->mType != 1)
+        {
+            continue;
+        }
+        const ParticleEmitterClass* pClass = static_cast<const ParticleEmitterClass*>((FLEffectClass*)it);
+        bool bPlaying = false;
+        bool bReleased = false;
+        bool bVoiceOnNext = false;
+        ParticleEmitter* pEmitter = StartParticleBurst(pClass, bPlaying, bReleased, bVoiceOnNext);
+        if (!pEmitter)
+        {
+            continue;
+        }
+        if (!bPlaying || !bReleased)
+        {
+            delete pEmitter;
+            continue;
+        }
+        LOG(LogCore, Inform, "OPENSWBF2 PARTICLEBURST class=0x%08X playing=%d released=%d voice_on_next=%d",
+            pClass->m_uiClassName, bPlaying, bReleased, bVoiceOnNext);
+        delete pEmitter;
+        return;
+    }
+    LOG(LogCore, Warning, "OPENSWBF2 PARTICLEBURST no emitter class bursts with a playing ambient sound");
+}
+
 void pcCrash::RunMissionCrashTest()
 {
     static bool sbRan;
@@ -1382,6 +1447,11 @@ void pcCrash::RunMissionCrashTest()
         sbRan = true;
         ParticleSoundTest();
     }
+    else if (strcmp(gCrashKind, "particleburst") == 0)
+    {
+        sbRan = true;
+        ParticleBurstTest();
+    }
     else
     {
         sbRan = true;
@@ -1398,7 +1468,7 @@ void pcCrash::SetCrashTest(char const* pcKind)
         "gammalost", "menuconfirm", "menukeep", "menusavefail", "adaptercancel",
         "adapteraccept", "shellstretch", "menuorder", "menuorderrev",
         "menurevertsave", "menuapplyfail", "poolcount", "poolfull", "stickdelete",
-        "particlesound" };
+        "particlesound", "particleburst" };
     if (pcKind == 0)
     {
         return;

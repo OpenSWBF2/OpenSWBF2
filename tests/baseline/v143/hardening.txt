@@ -19,6 +19,8 @@
 [PASS] hardening:serial-value
 [PASS] hardening:t1-suite
 [PASS] hardening:baseline-readers
+[PASS] hardening:host-fault-capture
+[PASS] hardening:all-checkpoints
 [PASS] hardening:dynamicbase
 [PASS] hardening:nxcompat
 [PASS] hardening:laa

@@ -1,6 +1,7 @@
 #include "PblQuaternion.h"
 
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include <d3dx9math.h>
 
 #include "PblMath.h"
@@ -90,7 +91,7 @@ PblQuaternion Interpolate(const PblQuaternion& q0, const PblQuaternion& q1, floa
         }
         else
         {
-            fAngle = acosf(fCos);
+            fAngle = PblCrtAcosF(fCos);
             fInvSin = 1.0f / PblMath::Sin(fAngle);
             fScale0 = PblMath::Sin((1.0f - fT) * fAngle) * fInvSin;
             fScale1 = PblMath::Sin(fAngle * fT) * fInvSin;
@@ -106,7 +107,7 @@ PblQuaternion Interpolate(const PblQuaternion& q0, const PblQuaternion& q1, floa
         }
         else
         {
-            fAngle = acosf(fNegCos);
+            fAngle = PblCrtAcosF(fNegCos);
             fInvSin = 1.0f / PblMath::Sin(fAngle);
             fScale0 = PblMath::Sin((1.0f - fT) * fAngle) * fInvSin;
             fScale1 = -(PblMath::Sin(fAngle * fT) * fInvSin);

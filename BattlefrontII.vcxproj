@@ -66,6 +66,12 @@
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcLightBeam.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcLightsaberTrailEffect.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcLoadDisplay.cpp" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcMathStartup.cpp" Condition="'$(Platform)'=='Win32'" />
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcMathStartupX64.cpp" Condition="'$(Platform)'=='x64'" />
+    <ClCompile Include="src\PebbleFL\pc\pcD3dxPort.cpp" Condition="'$(Platform)'=='x64'" />
+    <ClCompile Include="src\PebbleFL\pc\pcD3dxLinkX64.cpp" Condition="'$(Platform)'=='x64'" />
+    <MASM Include="src\PebbleFL\pc\pcD3dxX87X64.asm" Condition="'$(Platform)'=='x64'" />
+    <MASM Include="src\PebbleFL\pc\pcCrtTrigX64.asm" Condition="'$(Platform)'=='x64'" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcMotionBlurEffect.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcOrdnanceGrapplingHook.cpp" />
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcOrdnanceTowCable.cpp" />
@@ -590,6 +596,7 @@
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcDynamicSprite.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcFLJoystick.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcLightBeam.h" />
+    <ClInclude Include="src\Battlefront2\Platform\Pc\pcMathStartup.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcProgress.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSaveDevice.h" />
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcSaveFile.h" />
@@ -1019,6 +1026,7 @@
     <ClInclude Include="src\Battlefront2\Source\VehicleSpawn.h" />
     <ClInclude Include="src\Battlefront2\Source\VideoEffect.h" />
     <ClInclude Include="src\Battlefront2\Source\VisionManager.h" />
+    <ClInclude Include="src\Battlefront2\Source\VisionManagerDist.h" />
     <ClInclude Include="src\Battlefront2\Source\VoiceChatNode.h" />
     <ClInclude Include="src\Battlefront2\Source\VoiceChatTransport.h" />
     <ClInclude Include="src\Battlefront2\Source\VoiceChatUtil.h" />
@@ -1097,6 +1105,8 @@
     <ClInclude Include="src\PebbleFL\Common\PblListDoubleSorted.h" />
     <ClInclude Include="src\PebbleFL\Common\PblListSingle.h" />
     <ClInclude Include="src\PebbleFL\Common\PblListSingleSorted.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblCrtTrig.h" />
+    <ClInclude Include="src\PebbleFL\Common\PblX87Math.h" />
     <ClInclude Include="src\PebbleFL\Common\PblMath.h" />
     <ClInclude Include="src\PebbleFL\Common\PblMatrix.h" />
     <ClInclude Include="src\PebbleFL\Common\PblPerformance.h" />
@@ -1113,6 +1123,7 @@
     <ClInclude Include="src\PebbleFL\Common\PblUnicode.h" />
     <ClInclude Include="src\PebbleFL\Common\PblValues.h" />
     <ClInclude Include="src\PebbleFL\Common\PblVector.h" />
+    <ClInclude Include="src\PebbleFL\pc\pcD3dxPort.h" />
     <ClInclude Include="src\PebbleFL\pc\pcPblMath.h" />
     <ClInclude Include="src\PebbleFL\pc\pcPblMatrix.inl" />
     <ClInclude Include="src\PebbleFL\pc\pcPblVector.inl" />
@@ -1260,6 +1271,9 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
   <ItemGroup Condition="'$(Platform)'=='x64'">
     <X64ImportDef Include="lib\x64\steam_api64.def;lib\x64\Galaxy64.def" />
   </ItemGroup>

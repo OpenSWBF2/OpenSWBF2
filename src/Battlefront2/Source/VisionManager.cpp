@@ -19,6 +19,8 @@
 #include "WeaponCannon.h"
 #include "WeaponTowCable.h"
 #include "EntityFlyer.h"
+#include "VisionManagerDist.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 #include <math.h>
 
@@ -122,28 +124,38 @@ void Initialize()
 // FUNCTION: SWBF2 0x00670400
 float MaxVisibleDist(const GameObject* pSeer, const GameObject* pTarget)
 {
-    float fDist = pTarget->GetCollisionObject()->GetCollisionRadius() * 20.0f;
-    float fModifier = mGlobalVisibilityModifier;
-    if (pTarget->GetControllable() && pTarget->GetControllable()->mCtrl)
+    if constexpr (sizeof(void*) == 8)
     {
-        fModifier *= pTarget->GetControllable()->mCtrl->mTotalVisFactor;
+        float fDist;
+        float fModifier;
+        MaxVisibleDistTerms(pSeer, pTarget, fDist, fModifier);
+        return PblX87AddMulF(fDist, 30.0f, fModifier);
     }
-    if (pTarget->GetControllable() && pTarget->GetControllable()->GetPlayerId() >= 0)
+    else
     {
-        fModifier *= 2.0f;
-    }
-    if (pSeer)
-    {
-        if (pSeer->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
+        float fDist = pTarget->GetCollisionObject()->GetCollisionRadius() * 20.0f;
+        float fModifier = mGlobalVisibilityModifier;
+        if (pTarget->GetControllable() && pTarget->GetControllable()->mCtrl)
+        {
+            fModifier *= pTarget->GetControllable()->mCtrl->mTotalVisFactor;
+        }
+        if (pTarget->GetControllable() && pTarget->GetControllable()->GetPlayerId() >= 0)
         {
             fModifier *= 2.0f;
         }
-        else if (pSeer->GetEntity()->IsRtti(EntityBuildingArmed::rttiHashEntityBuildingArmed))
+        if (pSeer)
         {
-            fModifier *= 10.0f;
+            if (pSeer->GetEntity()->IsRtti(EntityFlyer::rttiHashEntityFlyer))
+            {
+                fModifier *= 2.0f;
+            }
+            else if (pSeer->GetEntity()->IsRtti(EntityBuildingArmed::rttiHashEntityBuildingArmed))
+            {
+                fModifier *= 10.0f;
+            }
         }
+        return (fDist + 30.0f) * fModifier;
     }
-    return (fDist + 30.0f) * fModifier;
 }
 
 // FUNCTION: SWBF2 0x00670520
@@ -208,7 +220,18 @@ void UpdatePotentiallyVisible(UnitController* pController)
         {
             continue;
         }
-        float fMaxDist = MaxVisibleDist(pMeObj, pObj);
+        float fMaxDist;
+        if constexpr (sizeof(void*) == 8)
+        {
+            float fDist;
+            float fModifier;
+            MaxVisibleDistTerms(pMeObj, pObj, fDist, fModifier);
+            fMaxDist = (fDist + 30.0f) * fModifier;
+        }
+        else
+        {
+            fMaxDist = MaxVisibleDist(pMeObj, pObj);
+        }
         if (!(fMaxDist * fMaxDist > fDistSq))
         {
             continue;

@@ -75,6 +75,8 @@ A case fails on any Error, Bug or Fatal line in its `run.log` unless a regex in 
 
 Import `tools\wer-localdumps.reg` once as administrator, so that a `/GS` fast-fail still leaves a dump.
 
+`run-params.txt` records the host's hardware-fault event counts (`whea_before`, `whea_after`, `whea_delta`); a failing run with new events is marked `Suspected hardware:` but still fails. All mission runs carry `-digesttrace 1500`.
+
 ### Sim digest
 
 At turn 1500 the game logs `OPENSWBF2 SIM DIGEST ...`, a hash of the simulation state. `tests\smoke\digest-expected.txt` holds the expected line for each digest case, and Release and Test must match it exactly. Change a row only with a written cause in `tests\baseline\v143\CAUSES.md`.
@@ -98,6 +100,8 @@ When a state has ended and the next one builds its heaps, the game logs `OPENSWB
 `-digestdetail <turn>` (Test and Asan builds only) logs `OPENSWBF2 DETAIL turn=<t> ...` lines for that turn and the next two: the mission time, then each character's, team's, command post's and world object's fields that the sim digest hashes, floats as raw bits. It does not change the digest. The Win32 Test Standard group runs it as `digest-detail` on geo1c_con, which must keep the geo1c_con digest.
 
 Other builds skip `-perturbheap`, its value, `-repeatmission`, `-shellfirst`, `-exitonmovieclose` and `-digestdetail` with its value, and log `-<switch> needs a Test or Asan build, ignored`.
+
+x86 and x64 builds compute the same headless simulation and log the same digests. The join handshake has no field that identifies the build or its bitness, so a host accepts a peer of the other platform without a check. Mixed x86 and x64 network play is not supported until the protocol carries a build field and a two-peer x86/x64 test exists.
 
 ### Game switches
 
@@ -150,7 +154,7 @@ The hardening step checks the exe's security flags (ASLR, DEP, LAA, SafeSEH, `/G
 | `win32-callbacks` | casts to Win32 callback types, or window procs with the wrong signature |
 | `galaxy-vtable` | hand-written vtable math under `src\Steam` |
 | `fastcall-edx` | dummy EDX parameters on `__fastcall` functions, not in `$script:FastcallAllow` (`smoke\cases.ps1`) |
-| `d3dx-decl` | hand-written D3DX declarations |
+| `d3dx-decl` | hand-written D3DX declarations, outside the x64 port's `pcD3dxLinkX64.cpp` |
 | `char-spacer` | byte-array spacers not in `$script:SpacerAllow` (`smoke\cases.ps1`) |
 | `offset-hack` | raw byte-offset object access not in `$script:OffsetAllow` (`smoke\cases.ps1`) |
 | `serial-value` | a read of a thread or collision serial counter or field outside the helper definitions in `$script:SerialAllow` (`smoke\cases.ps1`) |
@@ -174,10 +178,10 @@ A `-Smoke Vendor` run also prints `vendor:d3dx9-staged`: it passes when the stag
 |------|------|---------|-------|
 | Per plan | every change | `tests\gate.ps1 -Tier plan -Platform Win32,x64` | Debug, Release and Test builds on both platforms; `run.ps1` (Debug T1, hardening, Release Standard smoke); Release `-Smoke Vendor`; the Release Boot group; x64 Test T1; `selftest.ps1 -Configuration Test`; narrow `guard-revert.ps1 -Narrow` (rows added or edited, or whose revert target or test file changed since their proof) |
 | Pull request | CI `test` and `asan` jobs | `tests\gate.ps1 -Tier pr [-Job test\|asan]` | test: Debug and Test builds, `run.ps1 -Configuration Test`, `selftest.ps1 -Configuration Test`; asan: Debug and Asan builds, `run.ps1 -Asan`, `-Asan -Smoke Dedicated`, `selftest.ps1 -Configuration Asan` |
-| Branch close | before merging a branch | `tests\gate.ps1 -Tier branch -Platform Win32,x64` | all four builds; `run.ps1`; Release `-Smoke Twice`, `-Smoke All` and `-Smoke Vendor`; Release `-Smoke Boot` and Asan `-Smoke Boot` (x64); the Crash group on x64; `selftest.ps1 -Configuration Test`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
-| Milestone close | before a release | `tests\gate.ps1 -Tier milestone -Platform Win32,x64` | all four builds; `run.ps1`; Release Twice, All and Vendor; Release Boot and Asan Boot (x64); Test default, Perturb and All at the short count; Asan default, Dedicated and Soak; both self-tests; `capture-vs2013.ps1 -Collect`, `-Map`, `-Layouts`, Debug `-DebugDigests` and `-Verify -Baseline v143` with their compares; `x64-census.ps1`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1` |
+| Branch close | before merging a branch | `tests\gate.ps1 -Tier branch -Platform Win32,x64` | all four builds; `run.ps1`; Release `-Smoke Twice`, `-Smoke All` (x64 under `-HogAddrSpace` too) and `-Smoke Vendor`; Release `-Smoke Boot` and Asan `-Smoke Boot` (x64); the Crash group on x64; `selftest.ps1 -Configuration Test`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1`; the x87 inventory check |
+| Milestone close | before a release | `tests\gate.ps1 -Tier milestone -Platform Win32,x64` | all four builds; `run.ps1`; Release Twice, All (x64 under `-HogAddrSpace` too) and Vendor; Release Boot and Asan Boot (x64); Test default, Perturb and All at the short count; Asan default, Dedicated and Soak; both self-tests; `capture-vs2013.ps1 -Collect`, `-Map`, `-Layouts`, Debug `-DebugDigests` and `-Verify -Baseline v143` with their compares; `x64-census.ps1`; selective `guard-revert.ps1`; x64 Test and Asan T1 with the tlog hardening; `luac-compare.ps1`; the x87 inventory check |
 
-Plan, PR and branch runs, and every Test All run, end `TimeOut` missions at turn 9300 (`-Soak Short`), so the soak past turn 9300 is proven only in milestone and weekly runs, by Release All at the long count (`-Soak Long`, turn 617300) and the ASan `Soak` group. `guard-revert.ps1 -Full` is a manual run. x64 steps build, run T1 and the tlog checks, and start the game exe for the Vendor group, which exits right after the vendor DLL probe, and for the Boot and Crash groups; `-Platform` defaults to `Win32`. Wall times per step, before and after, are in `tests\baseline\gate-times.tsv`; a full milestone run writes `after_s`.
+Plan, PR and branch runs, and every Test All run, end `TimeOut` missions at turn 9300 (`-Soak Short`), so the soak past turn 9300 is proven only in milestone and weekly runs, by Release All at the long count (`-Soak Long`, turn 617300) and the ASan `Soak` group. `guard-revert.ps1 -Full` is a manual run. x64 steps build, run T1 and the tlog checks, and start the game exe for the Vendor group, which exits right after the vendor DLL probe, and for the Boot and Crash groups, plus Release All at branch and milestone; `-Platform` defaults to `Win32`. Wall times per step, before and after, are in `tests\baseline\gate-times.tsv`; a full milestone run writes `after_s`.
 
     tests\gate.ps1 -Tier plan|pr|branch|milestone [-Platform Win32,x64] [-Step <names>] [-Resume] [-ListOrder]
 
@@ -202,6 +206,7 @@ Rows run in parallel on `-Workers` workers (default: logical processors divided 
 - `tests\x64-census.ps1 -Name census-N` rebuilds the solution for x64 in Release, Debug, Test and Asan and lists every pointer-truncation and format warning site. The output goes to `tests\baseline\census`.
 - `tests\luac-compare.ps1 [-Configuration Release] [-Platform Win32]` builds LuaCompiler for Win32 and x64 and fails unless both write the same bytes for every indexed script, and for the four lvls when GameData is found.
 - `tests\laa-compare.ps1` compares runs with and without `/LARGEADDRESSAWARE`.
+- `tests\baseline\x87-inventory.ps1 -Exe <x86 Release exe> -Map <map> -Out <tsv>` lists every function of the x86 Release exe that runs x87 code, with its flags, an address-free pattern and a verdict. `-Check tests\baseline\v143\x87-inventory.tsv -Exe <exe> -Map <map>` fails on a new, changed or removed function or on a row with no verdict.
 - `tests\baseline\capture-vs2013.ps1` captured the VS2013 reference before the move to v143.
 - `tests\baseline\compare-tables.ps1 -Tables <dir>` compares captured digests, mem-peaks, pool-sizes and CLOTH exactly against `tests\baseline\v143`; `-LuaBins` and `-OffThread` compare those tables instead. `-Collect`, `-Map` and `-DebugDigests` compare the output of `capture-vs2013.ps1 -Collect`, `-Map` and `-DebugDigests` byte for byte. Its reader map names the reader of every file in `tests\baseline\v143`, and the `baseline-readers` hardening check fails on a file with no reader.
 - `tests\baseline\capture-vs2013.ps1 -Verify -Baseline v143` checks `tests\baseline\v143\MANIFEST.md`.

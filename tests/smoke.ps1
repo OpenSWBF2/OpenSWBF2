@@ -4,9 +4,9 @@ $script:WerKeyPath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDu
 $script:WerBasePath = 'SOFTWARE\Microsoft\Windows\Windows Error Reporting'
 $script:SourceExtensions = @('.h', '.hpp', '.inl', '.c', '.cpp')
 $script:T1Suites = @('unit', 'characterisation', 'regression', 'known_bug', 'corpus', 'fuzz', 'stress')
-$script:T1PlatformSkips = @(
-    @{ Platform = 'x64'; Name = 'math corpus'; Until = 'Phase 48' },
-    @{ Platform = 'x64'; Name = 'math corpus x87 pc24'; Until = 'Phase 48' }
+$script:T1NotForPlatform = @(
+    @{ Platform = 'x64'; Name = 'math corpus'; Reason = 'Win32 toolchain corpus: compares VS2013 and v143 x86 CRT results; x64 sim math is checked by sim math corpus' },
+    @{ Platform = 'x64'; Name = 'math corpus x87 pc24'; Reason = 'x87 precision control does not exist on x64' }
 )
 $script:SmokeAsanCoverage = 'ASan covers stack, globals, CRT heap and the game heaps and pools'
 $script:SmokeWerKey = $null
@@ -32,11 +32,11 @@ function Get-SmokeToken($class) {
     }
 }
 
-function Split-T1PlatformSkips($cases, [string]$platform, [bool]$checkStale) {
+function Split-T1NotForPlatform($cases, [string]$platform, [bool]$checkStale) {
     $names = @($cases | ForEach-Object { $_.Name })
     $skipped = @()
     $stale = @()
-    foreach ($r in @($script:T1PlatformSkips | Where-Object { $_.Platform -ceq $platform })) {
+    foreach ($r in @($script:T1NotForPlatform | Where-Object { $_.Platform -ceq $platform })) {
         if ($names -ccontains $r.Name) { $skipped += $r }
         elseif ($checkStale) { $stale += $r }
     }
@@ -181,6 +181,46 @@ function Read-KeyValueFile([string]$path) {
         $map[$line.Substring(0, $i)] = $line.Substring($i + 1)
     }
     return $map
+}
+
+function Get-HostFaultCount([datetime]$Since) {
+    $filters = @(
+        @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-WHEA-Logger' },
+        @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-Kernel-Power'; Id = 41 },
+        @{ LogName = 'System'; ProviderName = 'EventLog'; Id = 6008 }
+    )
+    if ($PSBoundParameters.ContainsKey('Since')) { foreach ($f in $filters) { $f.StartTime = $Since } }
+    try { return @(Get-WinEvent -FilterHashtable $filters -ErrorAction Stop).Count }
+    catch {
+        if ([string]$_.FullyQualifiedErrorId -like 'NoMatchingEventsFound,*') { return 0 }
+        throw
+    }
+}
+
+function Add-HostFaultParams([string]$ParamFile, [string]$Stage, [datetime]$Start) {
+    $count = {
+        param($since)
+        try {
+            if ($null -eq $since) { return [string](Get-HostFaultCount) }
+            return [string](Get-HostFaultCount -Since $since)
+        }
+        catch { return 'unavailable' }
+    }
+    $lines = @()
+    if ($Stage -ceq 'start') { $lines += "whea_before=$(& $count $null)" }
+    elseif ($Stage -ceq 'end') {
+        $lines += "whea_after=$(& $count $null)"
+        $lines += "whea_delta=$(& $count $Start)"
+    }
+    else { throw "unknown host fault stage '$Stage'" }
+    $lines | Add-Content -Path $ParamFile -Encoding ASCII
+}
+
+function Get-HostFaultNote($RunParams, [int]$Bad) {
+    if ($Bad -le 0 -or $null -eq $RunParams) { return $null }
+    $d = [string]$RunParams['whea_delta']
+    if ($d -cnotmatch '^\d+$' -or [long]$d -le 0) { return $null }
+    return "Suspected hardware: $d host fault event(s) (WHEA-Logger, Kernel-Power 41, EventLog 6008) in this run window, whea_before=$($RunParams['whea_before']) whea_after=$($RunParams['whea_after']); the failures above stay FAIL"
 }
 
 function Read-SmokeCaseArchive([string]$caseDir, [bool]$asan) {
@@ -1087,7 +1127,41 @@ function Get-ImportChecks($imp, [ValidateSet('Win32', 'x64')][string]$platform) 
     $delayDlls = @([regex]::Matches($delay, $dllRx) | ForEach-Object { $_.Groups[1].Value.ToLowerInvariant() } | Sort-Object -Unique)
     $delayExtra = @($delayDlls | Where-Object { @($script:ImportDelayAllow[$platform]) -notcontains $_ })
     $rows += New-Object PSObject -Property @{ Name = 'import-delay-modules'; Ok = ($delayExtra.Count -eq 0); Detail = 'delay imports outside the allow list: ' + ($delayExtra -join ' ') }
+    if ($platform -eq 'x64') {
+        $rows += Get-D3dxImportsCheck $static
+        $rows += Get-CrtFloatImportsCheck $static
+    }
     return $rows
+}
+
+$script:CrtFloatImports = @('sinf', 'cosf', 'tanf', 'asinf', 'acosf', 'atanf', 'atan2f', 'expf', 'logf', 'log10f', 'powf', 'fmodf')
+
+function Get-CrtFloatImportsCheck([string]$static) {
+    $names = @([regex]::Matches($static, '(?m)^[ \t]+[0-9A-Fa-f]+[ \t]+(\S+)[ \t]*\r?$') | ForEach-Object { $_.Groups[1].Value })
+    $found = @($names | Where-Object { $script:CrtFloatImports -ccontains $_ } | Sort-Object -Unique)
+    $detail = @()
+    if ($static -notmatch '(?mi)^[ \t]+api-ms-win-crt-math-l1-1-0\.dll[ \t]*\r?$') { $detail += 'api-ms-win-crt-math-l1-1-0.dll not in the import table' }
+    if ($found.Count) { $detail += 'float CRT imports: ' + ($found -join ' ') }
+    return New-Object PSObject -Property @{ Name = 'crt-float-imports'; Ok = ($detail.Count -eq 0); Detail = ($detail -join '; ') }
+}
+
+$script:D3dxImportsAllow = @('D3DXCheckTextureRequirements', 'D3DXLoadSurfaceFromSurface')
+
+function Get-D3dxImportsCheck([string]$static) {
+    $names = @()
+    $m = [regex]::Match($static, '(?msi)^[ \t]+d3dx9_43\.dll[ \t]*\r?$(.*?)(?=^[ \t]+\S+\.dll[ \t]*\r?$|^[ \t]+Summary[ \t]*\r?$|\z)')
+    if ($m.Success) {
+        foreach ($e in [regex]::Matches($m.Groups[1].Value, '(?m)^[ \t]+(?:[0-9A-Fa-f]+[ \t]+(\S+)|(Ordinal[ \t]+\d+))[ \t]*\r?$')) {
+            if ($e.Groups[1].Success) { $names += $e.Groups[1].Value } else { $names += ($e.Groups[2].Value -replace '\s+', ' ') }
+        }
+    }
+    $extra = @($names | Where-Object { $script:D3dxImportsAllow -cnotcontains $_ } | Sort-Object -Unique)
+    $missing = @($script:D3dxImportsAllow | Where-Object { $names -cnotcontains $_ })
+    $detail = @()
+    if (-not $m.Success) { $detail += 'd3dx9_43.dll not in the import table' }
+    if ($extra.Count) { $detail += 'extra: ' + ($extra -join ' ') }
+    if ($missing.Count) { $detail += 'missing: ' + ($missing -join ' ') }
+    return New-Object PSObject -Property @{ Name = 'd3dx-imports'; Ok = ($detail.Count -eq 0); Detail = ($detail -join '; ') }
 }
 
 function Get-UnicowsCheck([string]$root, [ValidateSet('Win32', 'x64')][string]$platform, [string]$exeDir, $imp, [string]$vcxText = $null, [string[]]$workerFiles = $null, [string]$srcDir = $null) {
@@ -1258,6 +1332,23 @@ function Test-MsBuildItemIncluded($item, [string]$platform, [string]$config) {
     return $true
 }
 
+function Expand-MsBuildItemSpec([string]$dir, [string]$spec) {
+    $out = New-Object System.Collections.Generic.List[string]
+    foreach ($s in @($spec.Split(';') | Where-Object { $_.Trim() })) {
+        $s = $s.Trim()
+        if (-not $s.Contains('*')) { $out.Add($s); continue }
+        $sDir = Split-Path $s -Parent
+        foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $dir $sDir) -Filter (Split-Path $s -Leaf) -File | Sort-Object Name)) { $out.Add((Join-Path $sDir $f.Name)) }
+    }
+    return $out.ToArray()
+}
+
+function Expand-MsBuildItemInclude([string]$dir, $item) {
+    $ex = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($e in @(Expand-MsBuildItemSpec $dir $item.GetAttribute('Exclude'))) { [void]$ex.Add([IO.Path]::GetFullPath((Join-Path $dir $e))) }
+    return @(Expand-MsBuildItemSpec $dir $item.GetAttribute('Include') | Where-Object { -not $ex.Contains([IO.Path]::GetFullPath((Join-Path $dir $_))) })
+}
+
 function Get-GameProjects([string]$root, [string]$config) {
     $root = $root.TrimEnd('\')
     $exe = Join-Path $root 'BattlefrontII.vcxproj'
@@ -1292,15 +1383,16 @@ function Get-X64ObjectsCheck([string]$root, [string]$config) {
         }
     }
     $units = 0
+    $masm = 0
     $missing = New-Object System.Collections.Generic.List[string]
     foreach ($p in $projects) {
         $xml = New-Object xml
         $xml.Load($p.Vcxproj)
         $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
         $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
-        foreach ($item in @($xml.SelectNodes('//m:ItemGroup/m:ClCompile[@Include]', $ns))) {
+        foreach ($item in @($xml.SelectNodes('//m:ItemGroup/m:ClCompile[@Include] | //m:ItemGroup/m:MASM[@Include]', $ns))) {
             if (-not (Test-MsBuildItemIncluded $item $script:SmokePlatform $config)) { continue }
-            $units++
+            if ($item.LocalName -eq 'MASM') { $masm++ } else { $units++ }
             $inc = $item.GetAttribute('Include')
             $obj = [IO.Path]::GetFullPath((Join-Path $p.IntDir ((Split-Path $inc -Parent) + '\' + [IO.Path]::GetFileNameWithoutExtension($inc) + '.obj')))
             if (-not (Test-Path -LiteralPath $obj -PathType Leaf)) { $missing.Add("$obj not built") }
@@ -1308,10 +1400,57 @@ function Get-X64ObjectsCheck([string]$root, [string]$config) {
         }
     }
     if ($units -eq 0) { $bad.Add('no ClCompile items') }
-    $detail = ('units={0} missing={1}' -f $units, $missing.Count)
+    $detail = ('units={0} missing={1} masm={2}' -f $units, $missing.Count, $masm)
     if ($missing.Count) { $detail += ' ' + (@($missing | Select-Object -First 3) -join ', ') }
     if ($bad.Count) { $detail += '; ' + ($bad -join '; ') }
     return New-Object PSObject -Property @{ Name = 'x64-objects'; Ok = ($missing.Count -eq 0 -and $bad.Count -eq 0); Detail = $detail }
+}
+
+$script:CrtTrigRouteHelper = 'pcCrtTrigX64.obj'
+
+function Get-CrtTrigRouteSymbols([string]$root, [string]$config, [string]$platform) {
+    $projects = @(Get-GameProjects $root $config)
+    $linkTlog = Join-Path $projects[0].TlogDir 'link.command.1.tlog'
+    if (-not (Test-Path -LiteralPath $linkTlog -PathType Leaf)) { throw "no link tlog $linkTlog" }
+    $objs = New-Object System.Collections.Generic.List[string]
+    foreach ($l in [IO.File]::ReadAllLines($linkTlog, [Text.Encoding]::Unicode)) {
+        $l = $l.TrimStart([char]0xFEFF)
+        if ($l.StartsWith('^')) { foreach ($p in $l.Substring(1).Split('|')) { if ($p -like '*.obj' -and -not $objs.Contains($p)) { $objs.Add($p) } } }
+    }
+    if ($objs.Count -eq 0) { throw "no objects in $linkTlog" }
+    $db = Find-Dumpbin $platform
+    $text = New-Object System.Text.StringBuilder
+    for ($k = 0; $k -lt $objs.Count; $k += 100) {
+        $batch = $objs.GetRange($k, [Math]::Min(100, $objs.Count - $k)).ToArray()
+        $out = & $db /symbols $batch
+        if ($LASTEXITCODE -ne 0) { throw "dumpbin /symbols exit $LASTEXITCODE" }
+        [void]$text.Append(($out -join "`n")).Append("`n")
+    }
+    return New-Object PSObject -Property @{ Objects = $objs.ToArray(); Text = $text.ToString() }
+}
+
+function Get-CrtTrigRouteCheck([string[]]$objects, [string]$symbols) {
+    $dumped = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    $bad = New-Object System.Collections.Generic.List[string]
+    foreach ($c in ($symbols -split '(?m)^Dump of file ' | Select-Object -Skip 1)) {
+        $file = ($c -split "`r?`n")[0].Trim()
+        [void]$dumped.Add([IO.Path]::GetFullPath($file))
+        if ([IO.Path]::GetFileName($file) -ieq $script:CrtTrigRouteHelper) { continue }
+        $refs = @([regex]::Matches($c, '(?m)^[0-9A-Fa-f]+\s+[0-9A-Fa-f]+\s+UNDEF\s.*\bExternal\s+\|\s+(?:__imp_)?(sin|cos|tan)\s*$') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+        if ($refs.Count) { $bad.Add("$([IO.Path]::GetFileName($file)) references $($refs -join ',')") }
+    }
+    $missing = @($objects | Where-Object { -not $dumped.Contains([IO.Path]::GetFullPath($_)) })
+    if ($missing.Count) { $bad.Add("no symbols for $($missing.Count) objects: $(@($missing | Select-Object -First 3) -join ', ')") }
+    if (@($objects | Where-Object { [IO.Path]::GetFileName($_) -ieq $script:CrtTrigRouteHelper }).Count -ne 1) { $bad.Add("$script:CrtTrigRouteHelper not linked") }
+    return New-Object PSObject -Property @{ Name = 'crt-trig-route'; Ok = ($bad.Count -eq 0); Detail = ("objects=$($objects.Count)" + $(if ($bad.Count) { '; ' + ($bad -join '; ') } else { '' })) }
+}
+
+function Get-CrtTrigRouteResult([string]$root, [string]$config, [string]$platform) {
+    try {
+        $s = Get-CrtTrigRouteSymbols $root $config $platform
+        return Get-CrtTrigRouteCheck $s.Objects $s.Text
+    }
+    catch { return New-Object PSObject -Property @{ Name = 'crt-trig-route'; Ok = $false; Detail = $_.Exception.Message } }
 }
 
 $script:SizeLiteral = '(?:0[xX][0-9A-Fa-f]+|[1-9]\d*)[uUlL]*'
@@ -1456,6 +1595,54 @@ function Get-ClTlogCounts($objDirs) {
         Gl = $gl; FpFast = $fpFast; FpContract = $fpContract; MiLines = $miLines.ToArray(); Missing = $missing.ToArray()
         We4311 = $we['4311']; We4312 = $we['4312']; We4302 = $we['4302']; We4477 = $we['4477']; WeAll = $weAll; WeMissing = $weMissing.ToArray()
     }
+}
+
+$script:Fma3OffFunctions = @('Startup_RedInitHeap', '?PcMathStartup@@YAXXZ')
+
+function Get-Fma3OffDisasm([string]$exe, [string]$mapText, [string]$platform) {
+    $syms = @([regex]::Matches($mapText, '(?m)^ [0-9a-f]{4}:[0-9a-f]{8}\s+(\S+)\s+([0-9a-f]{16}) ') | ForEach-Object { New-Object PSObject -Property @{ Name = $_.Groups[1].Value; Va = [Convert]::ToUInt64($_.Groups[2].Value, 16) } })
+    $vas = @($syms | ForEach-Object { $_.Va } | Sort-Object -Unique)
+    $db = Find-Dumpbin $platform
+    $text = @()
+    foreach ($name in $script:Fma3OffFunctions) {
+        $s = @($syms | Where-Object { $_.Name -ceq $name })
+        if ($s.Count -ne 1) { throw "map has $($s.Count) symbols named $name" }
+        $end = @($vas | Where-Object { $_ -gt $s[0].Va } | Select-Object -First 1)
+        if (-not $end.Count) { throw "map has no symbol after $name" }
+        $text += @(& $db /nologo /disasm:nobytes ('/range:0x{0:X},0x{1:X}' -f $s[0].Va, ($end[0] - 1)) $exe)
+        if ($LASTEXITCODE -ne 0) { throw "dumpbin /disasm exit $LASTEXITCODE" }
+    }
+    return ($text -join "`n")
+}
+
+function Get-Fma3OffCheck([string]$disasm) {
+    $bad = @()
+    $blocks = @{}
+    $cur = $null
+    foreach ($l in ($disasm -split "`r?`n")) {
+        if ($l -cmatch '^(\S.*):\s*$') {
+            $cur = $Matches[1]
+            if (-not $blocks.ContainsKey($cur)) { $blocks[$cur] = New-Object System.Collections.Generic.List[string] }
+        }
+        elseif ($cur -and $l -cmatch '^\s+[0-9A-F]{8,16}:\s+(\S.*?)\s*$') { $blocks[$cur].Add($Matches[1]) }
+    }
+    $heap = $blocks['Startup_RedInitHeap']
+    if (-not $heap) { $bad += 'Startup_RedInitHeap not found' }
+    elseif (-not @($heap | Where-Object { $_ -cmatch '^(call|jmp)\s+\?PcMathStartup@@YAXXZ$' }).Count) { $bad += 'Startup_RedInitHeap does not call PcMathStartup' }
+    $ms = $blocks['?PcMathStartup@@YAXXZ']
+    if (-not $ms) { $bad += 'PcMathStartup not found' }
+    else {
+        $zero = $false
+        $hit = $null
+        foreach ($i in $ms) {
+            if ($i -cmatch '^(call|jmp)\s+(qword\s+ptr\s+\[__imp__set_FMA3_enable\]|_set_FMA3_enable)$') { $hit = $zero; break }
+            if ($i -cmatch '^(xor\s+ecx,ecx|mov\s+ecx,0)$') { $zero = $true }
+            elseif ($i -cmatch '^(call\b|\w+\s+(ecx|rcx|cx|cl|ch)\b)') { $zero = $false }
+        }
+        if ($null -eq $hit) { $bad += 'PcMathStartup does not call _set_FMA3_enable' }
+        elseif (-not $hit) { $bad += 'PcMathStartup does not pass 0 to _set_FMA3_enable' }
+    }
+    return New-Object PSObject -Property @{ Name = 'fma3-off'; Ok = ($bad.Count -eq 0); Detail = ($bad -join '; ') }
 }
 
 function Get-MiCrtHookCheck([string]$mapText) {
@@ -1635,7 +1822,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
             '__fastcall\s*\*?\s*(?:\w+::)*\w*\s*\)?\s*\(\s*int\s+iLocalIndex\s*,',
             '__fastcall\s*\*?\s*(?:\w+::)*\w*\s*\)?\s*\(\s*(?:const\s+)?\w+\s*\*\s*\w*\s*,\s*int\s*,\s*unsigned\b',
             '__fastcall\s+(?:\w+::)*\w+\s*\((?=[^(){};]*\)\s*\{)\s*(?:(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+\s*,\s*int|int\s*,\s*(?:const\s+)?[\w:]+(?:\s+(?:int|char|short|long))?(?:\s*[*&]+\s*|\s+)(?!(?:int|char|short|long|const)\b)\w+)\s*[,)]') },
-        @{ Name = 'd3dx-decl'; Path = $null; Rx = @(
+        @{ Name = 'd3dx-decl'; Path = '\\src\\(?!PebbleFL\\pc\\pcD3dxLinkX64\.cpp$)'; Rx = @(
             'extern\s*"C"[^;{}]*?\bD3DX\w*\s*\(',
             '(?:\b_{1,2}stdcall|\bWINAPI|\bAPIENTRY|\bCALLBACK|\bSTDMETHODCALLTYPE|\bSTDAPICALLTYPE|\bNTAPI|\bPASCAL)\b(?:\s|/\*.*?\*/)*(?:(?:const\s+)?[\w:]+(?:\s*\*+\s*|\s+)(?:/\*.*?\*/\s*)*)?D3DX\w*\s*\(') },
         @{ Name = 'gamma-get'; Path = $null; Rx = @('GetDeviceGammaRamp') },
@@ -1827,7 +2014,57 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     $rows += New-Object PSObject -Property @{ Name = 'serial-value'; Ok = ($serialHits.Count -eq 0); Detail = ($serialHits -join ', ') }
     $rows += New-Object PSObject -Property @{ Name = 't1-suite'; Ok = ($suiteHits.Count -eq 0); Detail = ($suiteHits -join ', ') }
     if (& $want 'baseline-readers') { $rows += Get-BaselineReadersCheck $root }
+    if (& $want 'host-fault-capture') { $rows += Get-HostFaultCaptureCheck $root }
+    if (& $want 'all-checkpoints') { $rows += Get-AllCheckpointsCheck $root }
     return @($rows | Where-Object { & $want $_.Name })
+}
+
+function Invoke-HarnessChild([string]$command) {
+    $out = @(& { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -Command $command 2>&1 | ForEach-Object { "$_" } })
+    return New-Object PSObject -Property @{ Code = $LASTEXITCODE; Lines = $out }
+}
+
+function Get-HostFaultCaptureCheck([string]$root) {
+    $hits = New-Object System.Collections.Generic.List[string]
+    $smoke = Join-Path $root 'tests\smoke.ps1'
+    $run = Join-Path $root 'tests\run.ps1'
+    $tmp = Join-Path $env:TEMP ('openswbf2-hostfault-' + [guid]::NewGuid().ToString('N') + '.txt')
+    try {
+        $q = { param($s) "'" + $s.Replace("'", "''") + "'" }
+        $cmd = ". $(& $q $smoke); function Get-HostFaultCount { param(`$Since) if (`$PSBoundParameters.ContainsKey('Since')) { 2 } else { 5 } }; `$s = Get-Date; Add-HostFaultParams $(& $q $tmp) 'start' `$s; Add-HostFaultParams $(& $q $tmp) 'end' `$s; exit 0"
+        $c = Invoke-HarnessChild $cmd
+        $got = $(if (Test-Path -LiteralPath $tmp) { @([IO.File]::ReadAllLines($tmp)) -join '|' } else { '' })
+        if ($c.Code -ne 0) { $hits.Add("stubbed capture exited $($c.Code): $($c.Lines -join ' ')") }
+        elseif ($got -cne 'whea_before=5|whea_after=5|whea_delta=2') { $hits.Add("stubbed capture wrote '$got', expected 'whea_before=5|whea_after=5|whea_delta=2'") }
+    }
+    finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+    if (-not (Test-Path -LiteralPath $run)) { $hits.Add('tests\run.ps1 not found') }
+    else {
+        $errs = $null
+        $ast = [Management.Automation.Language.Parser]::ParseFile($run, [ref]$null, [ref]$errs)
+        if (@($errs).Count) { $hits.Add("run.ps1 does not parse: $(@($errs)[0].Message)") }
+        $calls = @($ast.FindAll({ param($a) $a -is [Management.Automation.Language.CommandAst] }, $true))
+        foreach ($stage in 'start', 'end') {
+            $hit = @($calls | Where-Object { $_.GetCommandName() -ceq 'Add-HostFaultParams' -and @($_.CommandElements | Where-Object { $_ -is [Management.Automation.Language.StringConstantExpressionAst] -and $_.Value -ceq $stage }).Count })
+            if (-not $hit.Count) { $hits.Add("run.ps1 has no Add-HostFaultParams $stage call") }
+        }
+        if (-not @($calls | Where-Object { $_.GetCommandName() -ceq 'Get-HostFaultNote' }).Count) { $hits.Add('run.ps1 has no Get-HostFaultNote call') }
+    }
+    return New-Object PSObject -Property @{ Name = 'host-fault-capture'; Ok = ($hits.Count -eq 0); Detail = ($hits -join ', ') }
+}
+
+function Get-AllCheckpointsCheck([string]$root) {
+    $hits = New-Object System.Collections.Generic.List[string]
+    $smoke = Join-Path $root 'tests\smoke.ps1'
+    $missions = Join-Path $root 'tests\smoke\missions-all.txt'
+    $q = { param($s) "'" + $s.Replace("'", "''") + "'" }
+    $cmd = ". $(& $q $smoke); `$script:SmokeWerKey = `$true; `$script:SmokeDigestConfiguration = 'Release'; `$ml = @([IO.File]::ReadAllLines($(& $q $missions)) | Where-Object { `$_.Trim() }); `$names = @(`$ml | ForEach-Object { @(`$_.Trim() -split '\s+')[0] }); foreach (`$p in 'Win32', 'x64') { `$script:SmokePlatform = `$p; foreach (`$hog in `$false, `$true) { foreach (`$c in @(Get-SmokeCases 'All' `$ml `$false `$null `$hog 'Short' | Where-Object { `$names -ccontains `$_.Name })) { `$rx = @(`$c.Expect.LogRx) -join '|'; `$miss = @(); if (-not `$c.Args.Contains(' -digesttrace 1500')) { `$miss += 'switch' }; if (`$c.Expect.Class -ne 'Fatal' -and -not `$rx.Contains('OPENSWBF2 DIGEST TRACE turn=100 ')) { `$miss += 'turn100' }; if (`$c.Expect.Class -ne 'Fatal' -and ((Get-DigestExpected `$c.Name) -or `$rx.Contains('OPENSWBF2 SIM DIGEST turns=1500 ')) -and -not `$rx.Contains('OPENSWBF2 DIGEST TRACE turn=1500 ')) { `$miss += 'turn1500' };`$t = `$(if (`$miss.Count) { 'MISS' } else { 'OK' }); Write-Output ('CASE {0} {1}/{2} {3}' -f `$t, `$p, `$(if (`$hog) { 'hog' } else { 'plain' }), ((@(`$c.Name) + `$miss) -join ' ')) } } }; exit 0"
+    $c = Invoke-HarnessChild $cmd
+    $rows = @($c.Lines | Where-Object { $_ -cmatch '^CASE ' })
+    if ($c.Code -ne 0) { $hits.Add("case build exited $($c.Code): $(@($c.Lines | Select-Object -Last 3) -join ' ')") }
+    elseif ($rows.Count -eq 0) { $hits.Add('no All mission case was built') }
+    foreach ($r in $rows) { if ($r -cmatch '^CASE MISS (.+)$') { $hits.Add($Matches[1]) } }
+    return New-Object PSObject -Property @{ Name = 'all-checkpoints'; Ok = ($hits.Count -eq 0); Detail = ($hits -join ', ') }
 }
 
 function Get-BaselineReadersCheck([string]$root) {

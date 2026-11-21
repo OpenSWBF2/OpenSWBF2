@@ -1,5 +1,6 @@
 #include <d3dx9math.h>
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include <stdio.h>
 
 #include "Trackable.h"
@@ -432,7 +433,7 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, PblMatrix
     PblQuaternion qTilt(PblVector3(1.0f, 0.0f, 0.0f), -GetCameraTiltValue());
     qTarget = qTarget * qTilt;
 
-    PblQuaternion q = bSnap ? qTarget : Interpolate(qTarget, qCurrent, expf(-(mCameraAimTension * fAimTensionScale * fDeltaTime)));
+    PblQuaternion q = bSnap ? qTarget : Interpolate(qTarget, qCurrent, PblCrtExpF(-(mCameraAimTension * fAimTensionScale * fDeltaTime)));
 
     D3DXQUATERNION qUnit;
     PblMatrix mCamera;
@@ -513,11 +514,11 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, PblMatrix
         D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&vMove), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
 
         float fTension = vLocal.x > 0.0f ? mCameraMoveTensionL : mCameraMoveTensionR;
-        vLocal.x = (1.0f - expf(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.x;
+        vLocal.x = (1.0f - PblCrtExpF(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.x;
         fTension = vLocal.y > 0.0f ? mCameraMoveTensionU : mCameraMoveTensionD;
-        vLocal.y = (1.0f - expf(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.y;
+        vLocal.y = (1.0f - PblCrtExpF(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.y;
         fTension = vLocal.z > 0.0f ? mCameraMoveTensionF : mCameraMoveTensionB;
-        vLocal.z = (1.0f - expf(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.z;
+        vLocal.z = (1.0f - PblCrtExpF(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.z;
 
         PblVector3 vWorld;
         D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vWorld), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&mCamera));
@@ -560,7 +561,7 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, const Cam
     PblQuaternion qTilt(fCos, fSin, fSin * 0.0f, fSin * 0.0f);
     qTarget = qTarget * qTilt;
 
-    PblQuaternion q = bSnap ? qTarget : Interpolate(qTarget, qCurrent, expf(-(mCameraAimTension * fAimTensionScale * fDeltaTime)));
+    PblQuaternion q = bSnap ? qTarget : Interpolate(qTarget, qCurrent, PblCrtExpF(-(mCameraAimTension * fAimTensionScale * fDeltaTime)));
 
     D3DXQUATERNION qUnit;
     PblMatrix mCamera;
@@ -632,11 +633,11 @@ void CameraTrackSetting::SetupCameraTrackMatrix(Trackable* pTrackable, const Cam
         D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXVECTOR3*>(&vMove), reinterpret_cast<const D3DXMATRIX*>(&mInverse));
 
         float fTension = vLocal.x > 0.0f ? mCameraMoveTensionL : mCameraMoveTensionR;
-        vLocal.x = (1.0f - expf(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.x;
+        vLocal.x = (1.0f - PblCrtExpF(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.x;
         fTension = vLocal.y > 0.0f ? mCameraMoveTensionU : mCameraMoveTensionD;
-        vLocal.y = (1.0f - expf(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.y;
+        vLocal.y = (1.0f - PblCrtExpF(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.y;
         fTension = vLocal.z > 0.0f ? mCameraMoveTensionF : mCameraMoveTensionB;
-        vLocal.z = (1.0f - expf(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.z;
+        vLocal.z = (1.0f - PblCrtExpF(-(fTension * fMoveTensionScale * fDeltaTime))) * vLocal.z;
 
         PblVector3 vWorld;
         D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vWorld), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&mCamera));

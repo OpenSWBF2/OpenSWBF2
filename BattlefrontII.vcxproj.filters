@@ -129,6 +129,12 @@
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcLoadDisplay.cpp">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcMathStartup.cpp">
+      <Filter>src\Battlefront2\Platform\Pc</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Platform\Pc\pcMathStartupX64.cpp">
+      <Filter>src\Battlefront2\Platform\Pc</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Platform\Pc\pcMotionBlurEffect.cpp">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClCompile>
@@ -1608,6 +1614,18 @@
     <ClCompile Include="src\PebbleFL\pc\pcPblMatrix.cpp">
       <Filter>src\PebbleFL\pc</Filter>
     </ClCompile>
+    <ClCompile Include="src\PebbleFL\pc\pcD3dxPort.cpp">
+      <Filter>src\PebbleFL\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PebbleFL\pc\pcD3dxLinkX64.cpp">
+      <Filter>src\PebbleFL\pc</Filter>
+    </ClCompile>
+    <MASM Include="src\PebbleFL\pc\pcD3dxX87X64.asm">
+      <Filter>src\PebbleFL\pc</Filter>
+    </MASM>
+    <MASM Include="src\PebbleFL\pc\pcCrtTrigX64.asm">
+      <Filter>src\PebbleFL\pc</Filter>
+    </MASM>
     <ClCompile Include="src\Steam\gfGalaxy.cpp">
       <Filter>src\Steam</Filter>
     </ClCompile>
@@ -1635,6 +1653,9 @@
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcLightBeam.h">
+      <Filter>src\Battlefront2\Platform\Pc</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Platform\Pc\pcMathStartup.h">
       <Filter>src\Battlefront2\Platform\Pc</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Platform\Pc\pcProgress.h">
@@ -2924,6 +2945,9 @@
     <ClInclude Include="src\Battlefront2\Source\VisionManager.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\VisionManagerDist.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\VoiceChatNode.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
@@ -3158,6 +3182,12 @@
     <ClInclude Include="src\PebbleFL\Common\PblListSingleSorted.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
+    <ClInclude Include="src\PebbleFL\Common\PblCrtTrig.h">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PebbleFL\Common\PblX87Math.h">
+      <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblMath.h">
       <Filter>src\PebbleFL\Common</Filter>
     </ClInclude>
@@ -3205,6 +3235,9 @@
     </ClInclude>
     <ClInclude Include="src\PebbleFL\Common\PblVector.h">
       <Filter>src\PebbleFL\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PebbleFL\pc\pcD3dxPort.h">
+      <Filter>src\PebbleFL\pc</Filter>
     </ClInclude>
     <ClInclude Include="src\PebbleFL\pc\pcPblMath.h">
       <Filter>src\PebbleFL\pc</Filter>

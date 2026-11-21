@@ -17,7 +17,11 @@
     <CopyAsanBinariesToOutDir Condition="'$(Configuration)'=='Asan'">true</CopyAsanBinariesToOutDir>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
   <Import Project="..\OpenSWBF2.Platform.props" />
+  <Import Project="..\lib\vendor-pins.props" />
   <PropertyGroup>
     <TargetName>OpenSWBF2Tests</TargetName>
     <LinkIncremental>false</LinkIncremental>
@@ -87,6 +91,7 @@
     <ClCompile Include="..\src\PebbleFL\Common\PblValues.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblVector.cpp" />
     <ClCompile Include="..\src\PebbleFL\pc\pcPblMatrix.cpp" />
+    <ClCompile Include="..\src\PebbleFL\pc\pcD3dxPort.cpp" />
     <ClCompile Include="..\src\RedEngineFL\geometry\IntersectionOps.cpp" />
     <ClCompile Include="..\src\RedEngineFL\geometry\PolyPolyTest2D.cpp" />
     <ClCompile Include="..\src\RedEngineFL\geometry\Primitives.cpp" />
@@ -94,6 +99,8 @@
     <ClCompile Include="..\src\RedEngineFL\Graphics\PC\pcDisplayLogic.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\pcAddrSpace.cpp" />
     <ClCompile Include="..\src\Battlefront2\Platform\Pc\pcColorRamp.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Platform\Pc\pcMathStartup.cpp" Condition="'$(Platform)'=='Win32'" />
+    <ClCompile Include="..\src\Battlefront2\Platform\Pc\pcMathStartupX64.cpp" Condition="'$(Platform)'=='x64'" />
     <ClCompile Include="..\src\Battlefront2\Platform\Pc\pcProgress.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Application\pc\pcFrameLimiter.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Application\pc\pcMessageDrain.cpp" />
@@ -178,7 +185,27 @@
     <ClCompile Include="testutil.cpp" />
     <ClCompile Include="nettest.cpp" />
     <ClCompile Include="stubs\*.cpp" />
-    <ClCompile Include="unit\*.cpp" />
+    <ClCompile Include="unit\*.cpp" Exclude="unit\fma3_x64.cpp;unit\d3dx_ref_win32.cpp;unit\d3dx_ref_x64.cpp;unit\d3dx_x87_win32.cpp;unit\d3dx_x87_x64.cpp;unit\crt_trig_ref_win32.cpp;unit\crt_trig_ref_strict_win32.cpp;unit\crt_trig_ref_x64.cpp" />
+    <ClCompile Include="unit\fma3_x64.cpp" Condition="'$(Platform)'=='x64'" />
+    <ClCompile Include="unit\d3dx_ref_win32.cpp" Condition="'$(Platform)'=='Win32'" />
+    <ClCompile Include="unit\d3dx_ref_x64.cpp" Condition="'$(Platform)'=='x64'" />
+    <ClCompile Include="unit\d3dx_x87_win32.cpp" Condition="'$(Platform)'=='Win32'" />
+    <ClCompile Include="unit\d3dx_x87_x64.cpp" Condition="'$(Platform)'=='x64'" />
+    <ClCompile Include="unit\crt_trig_ref_win32.cpp" Condition="'$(Platform)'=='Win32'">
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
+      <FloatingPointModel>Precise</FloatingPointModel>
+      <RemoveUnreferencedCodeData>true</RemoveUnreferencedCodeData>
+    </ClCompile>
+    <ClCompile Include="unit\crt_trig_ref_strict_win32.cpp" Condition="'$(Platform)'=='Win32'">
+      <Optimization>MaxSpeed</Optimization>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
+      <FloatingPointModel>Strict</FloatingPointModel>
+      <RemoveUnreferencedCodeData>true</RemoveUnreferencedCodeData>
+    </ClCompile>
+    <ClCompile Include="unit\crt_trig_ref_x64.cpp" Condition="'$(Platform)'=='x64'" />
+    <MASM Include="..\src\PebbleFL\pc\pcD3dxX87X64.asm" Condition="'$(Platform)'=='x64'" />
+    <MASM Include="..\src\PebbleFL\pc\pcCrtTrigX64.asm" Condition="'$(Platform)'=='x64'" />
     <ClCompile Include="net\*.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -186,4 +213,32 @@
     <ClInclude Include="nettest.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+  <PropertyGroup>
+    <D3dxCache>$(LOCALAPPDATA)\OpenSWBF2\vendor\</D3dxCache>
+    <D3dxNupkgName>microsoft.dxsdk.d3dx.$(D3dxVersion).nupkg</D3dxNupkgName>
+    <D3dxNupkg>$(D3dxCache)$(D3dxNupkgName)</D3dxNupkg>
+    <D3dxDir>$(D3dxCache)$(D3dxVersion)\</D3dxDir>
+    <D3dxArch Condition="'$(Platform)'=='Win32'">x86</D3dxArch>
+    <D3dxArch Condition="'$(Platform)'=='x64'">x64</D3dxArch>
+    <D3dxDll>$(D3dxDir)build\native\release\bin\$(D3dxArch)\D3DX9_43.dll</D3dxDll>
+    <D3dxDllSha256 Condition="'$(Platform)'=='Win32'">$(D3dxWin32Sha256)</D3dxDllSha256>
+    <D3dxDllSha256 Condition="'$(Platform)'=='x64'">$(D3dxX64Sha256)</D3dxDllSha256>
+    <D3dxDownloadName>$(D3dxNupkgName).$([System.Guid]::NewGuid().ToString('N')).download</D3dxDownloadName>
+  </PropertyGroup>
+  <Target Name="StageTestsD3dx" AfterTargets="Build">
+    <DownloadFile Condition="!Exists('$(D3dxNupkg)')" SourceUrl="$(D3dxNupkgUrl)" DestinationFolder="$(D3dxCache)" DestinationFileName="$(D3dxDownloadName)" />
+    <VerifyFileHash Condition="!Exists('$(D3dxNupkg)')" File="$(D3dxCache)$(D3dxDownloadName)" Algorithm="SHA256" Hash="$(D3dxNupkgSha256)" />
+    <Move Condition="!Exists('$(D3dxNupkg)')" SourceFiles="$(D3dxCache)$(D3dxDownloadName)" DestinationFiles="$(D3dxNupkg)" />
+    <Delete Files="$(D3dxCache)$(D3dxDownloadName)" />
+    <VerifyFileHash File="$(D3dxNupkg)" Algorithm="SHA256" Hash="$(D3dxNupkgSha256)" />
+    <GetFileHash Condition="Exists('$(D3dxDll)')" Files="$(D3dxDll)" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="D3dxDllHash" />
+    </GetFileHash>
+    <Unzip Condition="'$(D3dxDllHash)' != '$(D3dxDllSha256)'" SourceFiles="$(D3dxNupkg)" DestinationFolder="$(D3dxDir)" Include="build\native\release\bin\**\D3DX9_43.dll" SkipUnchangedFiles="false" OverwriteReadOnlyFiles="true" />
+    <VerifyFileHash File="$(D3dxDll)" Algorithm="SHA256" Hash="$(D3dxDllSha256)" />
+    <Copy SourceFiles="$(D3dxDll)" DestinationFiles="$(OutDir)d3dx9_43.dll" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

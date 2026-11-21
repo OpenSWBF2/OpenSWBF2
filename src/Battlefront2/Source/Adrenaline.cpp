@@ -1,4 +1,5 @@
 #include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/Common/PblX87Math.h"
 #include "Adrenaline.h"
 
 #include <math.h>
@@ -22,8 +23,17 @@ void Adrenaline::Update(float fDeltaTime, const GameObject* pObject)
     if (pObject->GetMaxSpeed() != 0.0f)
     {
         const PblVector3& vVel = pObject->GetVelocity();
-        float fRawFactor = 1.0f - PblMath::Sqrt(vVel.x * vVel.x + vVel.y * vVel.y + vVel.z * vVel.z) /
-                                  pObject->GetMaxSpeed();
+        float fRawFactor;
+        if constexpr (sizeof(void*) == 8)
+        {
+            const float fSpeed = PblMath::Sqrt(vVel.x * vVel.x + vVel.y * vVel.y + vVel.z * vVel.z);
+            fRawFactor = PblX87SubDivF(1.0f, fSpeed, pObject->GetMaxSpeed());
+        }
+        else
+        {
+            fRawFactor = 1.0f - PblMath::Sqrt(vVel.x * vVel.x + vVel.y * vVel.y + vVel.z * vVel.z) /
+                                pObject->GetMaxSpeed();
+        }
         fSpeedFactor = fRawFactor < 0.7f ? 0.7f : (fRawFactor > 1.0f ? 1.0f : fRawFactor);
     }
     else

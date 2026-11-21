@@ -14140,11 +14140,22 @@ void WriteSwitchObjRequest(NetPktGroup& group)
     saveObjState = player.nextObjState->turn == (unsigned int)hostTurnNumber;
 }
 
+#include "PebbleFL/Common/PblX87Math.h"
+
 // FUNCTION: SWBF2 0x005c2e70
 float FrontDist(const PblVector3& position, const PblMatrix& center)
 {
     PblVector3 difference = position - center.GetTranslation();
-    float distance = DotProduct(difference, center.GetZAxis());
+    float distance;
+    if constexpr (sizeof(void*) == 8)
+    {
+        const PblVector3& front = center.GetZAxis();
+        distance = PblX87Dot3F(difference.x, difference.y, difference.z, front.x, front.y, front.z);
+    }
+    else
+    {
+        distance = DotProduct(difference, center.GetZAxis());
+    }
     return distance;
 }
 
@@ -14539,8 +14550,18 @@ bool FarToNear(GameObject* pFirst, GameObject* pSecond)
 {
     PblVector3 diff1 = pFirst->GetMatrix().GetTranslation() - farToNearCenter;
     PblVector3 diff2 = pSecond->GetMatrix().GetTranslation() - farToNearCenter;
-    float dSq1 = DotProduct(diff1, diff1);
-    float dSq2 = DotProduct(diff2, diff2);
+    float dSq1;
+    float dSq2;
+    if constexpr (sizeof(void*) == 8)
+    {
+        dSq1 = PblX87Dot3F(diff1.x, diff1.y, diff1.z, diff1.x, diff1.y, diff1.z);
+        dSq2 = PblX87Dot3F(diff2.x, diff2.y, diff2.z, diff2.x, diff2.y, diff2.z);
+    }
+    else
+    {
+        dSq1 = DotProduct(diff1, diff1);
+        dSq2 = DotProduct(diff2, diff2);
+    }
     if (dSq1 > dSq2)
     {
         return true;
@@ -14558,8 +14579,18 @@ static PblVector3 GetClosestOrdnancePos(NetEvent::U::OrdnanceEvent& event)
     const PblVector3 direction = event.mDirection.Get();
     OrdnanceClass* pClass = Factory<Ordnance, OrdnanceClass, OrdnanceDesc>::FindNetIndex(event.mOrdClassIndex);
     const float range = pClass->GetRange();
-    const float travel = (float)Clamp(DotProduct(sendCenter - start, direction), 0.0f, range);
-    return start + direction * travel;
+    if constexpr (sizeof(void*) == 8)
+    {
+        const PblVector3 offset = sendCenter - start;
+        const float distance = PblX87Dot3F(offset.x, offset.y, offset.z, direction.x, direction.y, direction.z);
+        const float travel = (float)Clamp(distance, 0.0f, range);
+        return start + direction * travel;
+    }
+    else
+    {
+        const float travel = (float)Clamp(DotProduct(sendCenter - start, direction), 0.0f, range);
+        return start + direction * travel;
+    }
 }
 
 // FUNCTION: SWBF2 0x005d3100
@@ -14739,7 +14770,15 @@ int GetObjectsInScope(const PblVector3& center, GameObject** ppObjects, int maxC
                 {
                     const float radSq = radius * radius;
                     const PblVector3 delta = center - pEntity.pos;
-                    float distSq = DotProduct(delta, delta);
+                    float distSq;
+                    if constexpr (sizeof(void*) == 8)
+                    {
+                        distSq = PblX87Dot3F(delta.x, delta.y, delta.z, delta.x, delta.y, delta.z);
+                    }
+                    else
+                    {
+                        distSq = DotProduct(delta, delta);
+                    }
                     const float range = scopeInfo[i].maxDist;
                     if (range * range < distSq && radSq < distSq)
                     {
@@ -15885,6 +15924,52 @@ void WriteNetEvent(NetEvent& event, NetPktGroup& group)
     }
 }
 
+inline float AddSendPriorityX87(const PblVector3& center, float radius, float scale, bool canTurn, bool deadSystem)
+{
+    PblVector3 offset = center - sendCenter;
+    float distance = Length(offset);
+    if (distance > 0.0f)
+    {
+        offset = offset / distance;
+    }
+    if (distance > radius)
+    {
+        distance = distance - radius;
+    }
+    else
+    {
+        distance = 0.0f;
+    }
+    offset = offset * distance;
+
+    float priority = 0.0f;
+    if (distance > 1.0f && scale > 0.0f && !deadSystem)
+    {
+        priority = distance;
+        float facing = PblX87Dot3F(offset.x, offset.y, offset.z, sendFront.x, sendFront.y, sendFront.z);
+        if (facing < 0.0f)
+        {
+            priority *= canTurn ? 3.0f : 1.0f;
+        }
+        facing = (float)AbsFloat(facing);
+        if (canTurn && facing > 0.0001f)
+        {
+            if (distance > 0.0f)
+            {
+                offset = offset / distance;
+            }
+            PblVector3 side(sendFront.GetZ(), 0.0f, -sendFront.GetX());
+            float sideways = (float)AbsFloat(PblX87Dot3F(offset.x, offset.y, offset.z, side.x, side.y, side.z));
+            static float sSideLimit = sqrtf(0.5f);
+            if (sideways / facing > sSideLimit)
+            {
+                priority = sideways * 2.0f + priority;
+            }
+        }
+    }
+    return priority;
+}
+
 // FUNCTION: SWBF2 0x005bdd50
 void AddSend(GameObject* pObject)
 {
@@ -16031,6 +16116,10 @@ void AddSend(GameObject* pObject)
                 priority = sideways * 2.0f + priority;
             }
         }
+    }
+    if constexpr (sizeof(void*) == 8)
+    {
+        priority = AddSendPriorityX87(center, radius, scale, canTurn, deadSystem);
     }
     priority = priority * scale;
 

@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #include <math.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "HUDElementTarget.h"
 #include "CameraManager.h"
 #include "Character.h"
@@ -248,7 +248,7 @@ void HUD::ElementTarget::Target::Update(float fDeltaTime, HUD::ElementBitmap& bi
     if (bLocked && pLockOn && info.mOnScreen)
     {
         const RedColor& pulse = info.mVisible ? RedColor::WHITE : RedColor::DKGREY;
-        const float fTime = fmod(GameLoop::GetMissionTime(), 1.0f);
+        const float fTime = PblCrtFmodF(GameLoop::GetMissionTime(), 1.0f);
         color.a = 0xff;
         const unsigned short uBlend =
             (unsigned short)(int)((float)fabs((double)(fTime - 0.5f)) * 2.0f * 255.0f);
@@ -277,7 +277,7 @@ void HUD::ElementTarget::Target::Update(float fDeltaTime, HUD::ElementBitmap& bi
                     float fTime;
                     if (bPulseSize || bFlashAlpha)
                     {
-                        fTime = fmod(GameLoop::GetMissionTime(), 1.0f);
+                        fTime = PblCrtFmodF(GameLoop::GetMissionTime(), 1.0f);
                     }
                     else
                     {

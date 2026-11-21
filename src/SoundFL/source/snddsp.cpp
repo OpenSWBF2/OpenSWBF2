@@ -1,6 +1,6 @@
 #include <math.h>
 #include <cmath>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 static_assert(sizeof(sin(1.0f)) == 4, "float math overloads");
 
 #include "snddsp.h"
@@ -79,7 +79,7 @@ void HighLowPassFilter::CalculateCoefficents()
         switch (mMode)
         {
         case mode_LowPass:
-            mState[i].c = 1.0f / tanf(mCutOffFreq * kPi / mSampleRate);
+            mState[i].c = 1.0f / PblCrtTanF(mCutOffFreq * kPi / mSampleRate);
             mState[i].a1 = 1.0f / (mState[i].r * mState[i].c + 1.0f
                                   + mState[i].c * mState[i].c);
             mState[i].a2 = mState[i].a1 * 2.0f;
@@ -89,7 +89,7 @@ void HighLowPassFilter::CalculateCoefficents()
                            + mState[i].c * mState[i].c) * mState[i].a1;
             break;
         case mode_HighPass:
-            mState[i].c = tanf(mCutOffFreq * kPi / mSampleRate);
+            mState[i].c = PblCrtTanF(mCutOffFreq * kPi / mSampleRate);
             mState[i].a1 = 1.0f / (mState[i].r * mState[i].c + 1.0f
                                   + mState[i].c * mState[i].c);
             mState[i].a2 = mState[i].a1 * -2.0f;

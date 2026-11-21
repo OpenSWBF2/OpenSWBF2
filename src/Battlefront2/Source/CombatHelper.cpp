@@ -29,6 +29,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblRandom.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 #include "UnitThreatManager.h"
 
@@ -508,7 +509,17 @@ void CombatHelper::UpdateState(float dt)
         const PblVector3& vLastSeen = GetAttackHelper().GetLastSeenTargetPos();
         const float fDX = vLastSeen.x - pMe[0];
         const float fDZ = vLastSeen.z - pMe[2];
-        const float fRange = CombatUtil::GetCombatRange(GetMe()) + 10.0f;
+        float fRange;
+        if constexpr (sizeof(void*) == 8)
+        {
+            const WeaponClass* pClass = GetMe()->GetCurWpn()->GetClass();
+            const float fMoveRange = GetMe()->GetGameObject()->GetMaxSpeed() * 5.0f;
+            fRange = PblX87AddAddF(CombatUtil::sGetWpnMaxRange(GetMe(), pClass), fMoveRange, 10.0f);
+        }
+        else
+        {
+            fRange = CombatUtil::GetCombatRange(GetMe()) + 10.0f;
+        }
         if (fDZ * fDZ + fDX * fDX > fRange * fRange)
         {
             SetNextState(100);

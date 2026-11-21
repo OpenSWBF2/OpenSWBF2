@@ -2,6 +2,7 @@
 #include "ComboArray.h"
 
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include <string.h>
 
 #include "PebbleFL/Common/PblConfig.h"
@@ -118,7 +119,7 @@ bool Combo::Deflect::TestDeflect(const PblMatrix& mSoldier, const PblVector3& vF
     {
         const float fSide = -DotProduct(mSoldier.GetXAxis(), vDir);
         const float fFront = -DotProduct(mSoldier.GetZAxis(), vDir);
-        const float fAngle = atan2f(fSide, fFront);
+        const float fAngle = PblCrtAtan2F(fSide, fFront);
         const float fMin = iMin * 0.017453292f;
         const float fMax = iMax * 0.017453292f;
         if (iMin < iMax)
@@ -811,7 +812,7 @@ bool Combo::Condition::TestInputThrust(float fThrust, float fStrafe) const
     int iDirMax = m_iInputDirMax;
     if (iDirMin != iDirMax)
     {
-        float fDir = atan2f(fStrafe, fThrust);
+        float fDir = PblCrtAtan2F(fStrafe, fThrust);
         if (iDirMin < iDirMax)
         {
             if (fDir < GetInputDirMinRad())
@@ -891,7 +892,7 @@ bool Combo::Condition::TestVelocity(float fX, float fY, float fZ) const
     int iDirMax = m_iVelocityXZDirMax;
     if (iDirMin != iDirMax)
     {
-        float fDir = atan2f(fX, fZ);
+        float fDir = PblCrtAtan2F(fX, fZ);
         if (iDirMin < iDirMax)
         {
             if (fDir < GetVelocityXZDirMinRad())

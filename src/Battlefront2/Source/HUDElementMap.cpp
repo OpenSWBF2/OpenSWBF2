@@ -4,7 +4,7 @@
 #include <d3dx9math.h>
 
 #include <math.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "HUDElementMap.h"
 #include "FriendBuddyList.h"
 #include "RedEngineFL/Interface/RedHotSpot.h"
@@ -1338,7 +1338,7 @@ void HUD::ElementMap::UpdatePostIcons(float fElapsed, float fRotation)
                 const int iHoldTeam = post.actor->GetHoldTeam();
                 if (iHoldTeam != 0 && iHoldTeam != iTeam)
                 {
-                    const float fTime = fmodf(GameLoop::GetMissionTime(), 1.0f);
+                    const float fTime = PblCrtFmodF(GameLoop::GetMissionTime(), 1.0f);
                     if (fTime < 0.25f)
                     {
                         const RedColor holdColor = pTeam->GetColor(iHoldTeam < 0 ? 0 : iHoldTeam);
@@ -1455,7 +1455,7 @@ void HUD::ElementMap::UpdateMarkerIcons()
         float fTime;
         if (marker.pulseSize || marker.flashAlpha)
         {
-            fTime = fmodf(GameLoop::GetMissionTime(), 1.0f);
+            fTime = PblCrtFmodF(GameLoop::GetMissionTime(), 1.0f);
         }
         else
         {

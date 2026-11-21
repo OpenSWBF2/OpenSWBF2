@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "PebbleFL/Common/PblVector.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 #include "Asteroid.h"
 #include "CollisionBody.h"
@@ -594,6 +595,19 @@ void Asteroid::SetMatrix(const PblMatrix& matrix)
                            (const D3DXMATRIX*)&mMatrix);
     SetCollisionCenter(vCenter);
     RecalculateAABB();
+}
+
+// FUNCTION: SWBF2 0x004446b0
+float Asteroid::GetMaxSpeed() const
+{
+    if constexpr (sizeof(void*) == 8)
+    {
+        return PblX87Dot3F(mVelocity.x, mVelocity.y, mVelocity.z, mMatrix.m[2][0], mMatrix.m[2][1], mMatrix.m[2][2]);
+    }
+    else
+    {
+        return mVelocity.y * mMatrix.m[2][1] + mVelocity.x * mMatrix.m[2][0] + mVelocity.z * mMatrix.m[2][2];
+    }
 }
 
 // FUNCTION: SWBF2 0x004446e0

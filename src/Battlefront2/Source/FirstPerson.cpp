@@ -2,7 +2,7 @@
 #include <math.h>
 #include "PebbleFL/Common/PblVector.h"
 #include <string.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "FirstPerson.h"
 #include "CameraManager.h"
 #include "ChaseCamera.h"
@@ -345,7 +345,7 @@ void FirstPersonRenderable::UpdateSoldierAimer(const PblMatrix& mMatrix)
 
     if (mOwner->GetControllableClass()->mCockpitTension > 0.0f)
     {
-        float fT = (float)exp(-(mOwner->GetControllableClass()->mCockpitTension * GameLoop::sClientDeltaTime));
+        float fT = PblCrtExpF(-(mOwner->GetControllableClass()->mCockpitTension * GameLoop::sClientDeltaTime));
         mCockpitRotation = Interpolate(PblQuaternion(mMatrix), mCockpitRotation, fT);
     }
     else
@@ -401,7 +401,7 @@ void FirstPersonRenderable::UpdateDroidekaAimer(const PblMatrix& mMatrix)
 
     if (mOwner->GetControllableClass()->mCockpitTension > 0.0f)
     {
-        float fT = (float)exp(-(mOwner->GetControllableClass()->mCockpitTension * GameLoop::sDeltaTime));
+        float fT = PblCrtExpF(-(mOwner->GetControllableClass()->mCockpitTension * GameLoop::sDeltaTime));
         mCockpitRotation = Interpolate(PblQuaternion(mMatrix), mCockpitRotation, fT);
     }
     else
@@ -467,7 +467,7 @@ void FirstPersonRenderable::UpdateCockpitAimer(const PblMatrix& mMatrix)
         float fDeltaTime = GameLoop::sClientDeltaTime;
         if (fDeltaTime > 0.0f)
         {
-            float fT = (float)exp(-(mOwner->GetControllableClass()->mCockpitTension * fDeltaTime));
+            float fT = PblCrtExpF(-(mOwner->GetControllableClass()->mCockpitTension * fDeltaTime));
             mCockpitRotation = Interpolate(PblQuaternion(mCamera), mCockpitRotation, fT);
         }
     }

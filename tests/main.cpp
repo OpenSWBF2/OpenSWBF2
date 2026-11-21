@@ -12,6 +12,7 @@
 #include "testutil.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "RedEngineFL/Util/RedLog.h"
+#include "Battlefront2/Platform/Pc/pcMathStartup.h"
 #include "Battlefront2/Platform/Pc/pcProgress.h"
 #include "Battlefront2/Source/pcAddrSpace.h"
 
@@ -193,9 +194,12 @@ static void RunHogChild()
 
 extern void __cdecl PblTraceP(const char* Format, ...);
 int FloatCorpusGenerate(const char* pcOutDir);
+int D3dxRefWriteFile(const char* pcPath);
+int CrtTrigRefWriteFile(const char* pcPath);
 
 int main(int argc, char** argv)
 {
+    PcMathStartup();
     for (int i = 1; i < argc; ++i)
     {
         if (strcmp(argv[i], "--hog-child") == 0)
@@ -232,6 +236,16 @@ int main(int argc, char** argv)
         {
             strncpy(gCurrentCase, "crash child", sizeof(gCurrentCase) - 1);
             return RunCrashChild(argv[i] + 14);
+        }
+        if (strncmp(argv[i], "--d3dx-ref=", 11) == 0)
+        {
+            strncpy(gCurrentCase, "d3dx-ref child", sizeof(gCurrentCase) - 1);
+            return D3dxRefWriteFile(argv[i] + 11);
+        }
+        if (strncmp(argv[i], "--crt-trig-ref=", 15) == 0)
+        {
+            strncpy(gCurrentCase, "crt-trig-ref child", sizeof(gCurrentCase) - 1);
+            return CrtTrigRefWriteFile(argv[i] + 15);
         }
     }
     InitializeCriticalSection(&sWatchdogLock);

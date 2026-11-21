@@ -3,7 +3,7 @@
 #include <math.h>
 #include <string.h>
 #include <d3dx9math.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "Renderable.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
@@ -745,8 +745,8 @@ float RedWater::OceanPhillipsSpectrum(float kx, float kz)
     float fK = sqrtf(fK2);
     float fKDotW = fabsf(kx / fK * m_windDirectionX + kz / fK * m_windDirectionZ);
     float fl = fL / 75.0f;
-    float fP = (float)exp(-1.0f / (fL * fL * fK2)) * m_phillipsConstant * fKDotW * fKDotW / (fK2 * fK2);
-    return fP * expf(-(fl * fK2 * fl));
+    float fP = PblCrtExpF(-1.0f / (fL * fL * fK2)) * m_phillipsConstant * fKDotW * fKDotW / (fK2 * fK2);
+    return fP * PblCrtExpF(-(fl * fK2 * fl));
 }
 
 // FUNCTION: SWBF2 0x006cf8f0

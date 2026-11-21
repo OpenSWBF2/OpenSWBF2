@@ -1,5 +1,6 @@
 #include "PebbleFL/Common/PblMath.h"
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include <d3dx9math.h>
 
 #include "TentacleSimulator.h"
@@ -271,7 +272,7 @@ void TentacleSimulator::UpdatePose(RedPose* pPose, const PblMatrix& mParent,
     {
         for (int b = 0; b < mBonesPerTentacle; b++)
         {
-            const float fCosAngle = cos(gTentacleAngle);
+            const float fCosAngle = PblCrtCosF(gTentacleAngle);
 
             PblMatrix& m = pOutMatrices[t * mBonesPerTentacle + b];
             m = PblMatrix(*pBones[t][b]);
@@ -295,7 +296,7 @@ void TentacleSimulator::UpdatePose(RedPose* pPose, const PblMatrix& mParent,
             {
                 D3DXVECTOR3 vAxis;
                 D3DXVec3Cross(&vAxis, pZ, &vNormal);
-                float fAngle = acos(fDot);
+                float fAngle = PblCrtAcosF(fDot);
                 if (PblMath::Sqrt(D3DXVec3Dot(&vAxis, &vAxis)) * fAngle < 0.0f)
                 {
                     fAngle = -fAngle;

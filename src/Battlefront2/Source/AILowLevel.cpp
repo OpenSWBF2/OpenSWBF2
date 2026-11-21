@@ -40,6 +40,7 @@
 #include "WeaponRepair.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 
 
@@ -398,8 +399,17 @@ void AILowLevel::ProcessBarrageWpn(const Weapon* pWpn, bool* pFire)
             int iMin = pWpn->mClass->GetBarrageMin();
             int iMax = pWpn->mClass->GetBarrageMax();
             UnitController* pOwner = mOwner;
-            int iTotal = (int)(AIUtil::GetRandomFloat(0.0f, (float)(iMax - iMin))
+            int iTotal;
+            if constexpr (sizeof(void*) == 8)
+            {
+                const float fCount = AIUtil::GetRandomFloat(0.0f, (float)(iMax - iMin));
+                iTotal = (int)PblX87MulAddF(AIDifficulty::GetBarrageCountMultiplier(pOwner), fCount, (float)iMin);
+            }
+            else
+            {
+                iTotal = (int)(AIUtil::GetRandomFloat(0.0f, (float)(iMax - iMin))
                                * AIDifficulty::GetBarrageCountMultiplier(pOwner) + (float)iMin);
+            }
             if (iTotal < 2)
             {
                 iTotal = 2;

@@ -371,6 +371,7 @@ function Get-GuardT1State($res, [bool]$isProbe) {
     elseif ($res.Code -eq 77) { $state = 'SKIP' }
     elseif ($res.Code -eq 2) { $state = 'NO-MATCH' }
     elseif ($res.Code -ne 1) { $detail = ('crash 0x{0:X8}' -f $res.Code) }
+    elseif ([string]$res.Text -match 'reference child: ') { $state = 'CHILD-FAIL'; $detail = 'reference child' }
     return New-Object PSObject -Property @{ State = $state; Detail = $detail; Code = $res.Code }
 }
 

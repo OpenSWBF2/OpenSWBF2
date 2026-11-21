@@ -95,12 +95,7 @@ public:
     virtual void SetPosition(const PblVector3& vPos);
     virtual void SetMatrix(const PblMatrix& matrix);
 
-    // FUNCTION: SWBF2 0x004446b0
-    virtual float GetMaxSpeed() const
-    {
-        return mVelocity.y * mMatrix.m[2][1] + mVelocity.x * mMatrix.m[2][0] +
-               mVelocity.z * mMatrix.m[2][2];
-    }
+    virtual float GetMaxSpeed() const;
     virtual float GetMaxStrafe() const;
     virtual bool AddToTeamManager() const;
 

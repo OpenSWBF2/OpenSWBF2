@@ -5,6 +5,8 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "PebbleFL/Common/PblValues.h"
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
+#include "PebbleFL/Common/PblX87Math.h"
 #include <new>
 #include <stdio.h>
 #include <stdlib.h>
@@ -2797,7 +2799,7 @@ void EntitySoldier::MoveOffGround(float fDeltaTime, float fTurn, float fForward,
         }
     }
 
-    mVelocity *= expf(Length(mVelocity) * -IN_AIR_DRAG_FORCE * fDeltaTime);
+    mVelocity *= PblCrtExpF(Length(mVelocity) * -IN_AIR_DRAG_FORCE * fDeltaTime);
     mVelocity += mMatrix.GetZAxis() * (fDeltaTime * fForward);
     mVelocity += mMatrix.GetXAxis() * (fDeltaTime * fStrafe);
 
@@ -6346,33 +6348,70 @@ bool EntitySoldier::Update(float fDeltaTime)
             mFlags &= ~flags_fallTimer;
         }
 
-        if (mPlayerId >= 0 && (!(mFlags & flags_fallTimer) || mStateTimer < 0.3f))
+        if constexpr (sizeof(void*) == 8)
         {
-            if (mControlSpecialMove.IsDown() && CheckMoveControlForRoll(fThrust, fStrafe))
+            if (mPlayerId >= 0 && (!(mFlags & flags_fallTimer) || mStateTimer < 0.3f))
             {
-                RollUsingEnergy();
-            }
-            else if (mControlCrouch.IsPressed() || mControlCrouch.Held())
-            {
-                Crouch();
-            }
-            else if (mControlJump.IsPressed())
-            {
-                JumpUsingEnergy();
-            }
-            else if (mControlThrustFwd.TappedAndPressed())
-            {
-                if (SprintUsingEnergy())
+                if (mControlSpecialMove.IsDown() && CheckMoveControlForRoll(fThrust, fStrafe))
                 {
-                    ToolTipsDisplay::sInstance->CancelTimeoutTip(TTT_SoldierSprint, mPlayerId);
+                    RollUsingEnergy();
+                }
+                else if (mControlCrouch.IsPressed() || mControlCrouch.Held())
+                {
+                    Crouch();
+                }
+                else if (mControlJump.IsPressed())
+                {
+                    JumpUsingEnergy();
+                }
+                else if (mControlThrustFwd.TappedAndPressed())
+                {
+                    if (SprintUsingEnergy())
+                    {
+                        ToolTipsDisplay::sInstance->CancelTimeoutTip(TTT_SoldierSprint, mPlayerId);
+                    }
+                }
+                else if ((mControlSprint.Tapped() || mControlSprint.Held()) && CheckMoveControlForSprint(fThrust, fStrafe) &&
+                         PblX87Dot3F(mVelocity.x, mVelocity.y, mVelocity.z, mMatrix.GetZAxis().x, mMatrix.GetZAxis().y,
+                                     mMatrix.GetZAxis().z) > mClass->mMaxSpeed * 0.9f)
+                {
+                    if (SprintUsingEnergy())
+                    {
+                        ToolTipsDisplay::sInstance->CancelTimeoutTip(TTT_SoldierSprint, mPlayerId);
+                    }
                 }
             }
-            else if ((mControlSprint.Tapped() || mControlSprint.Held()) && CheckMoveControlForSprint(fThrust, fStrafe) &&
-                     DotProduct(mVelocity, mMatrix.GetZAxis()) > mClass->mMaxSpeed * 0.9f)
+        }
+        else
+        {
+            if (mPlayerId >= 0 && (!(mFlags & flags_fallTimer) || mStateTimer < 0.3f))
             {
-                if (SprintUsingEnergy())
+                if (mControlSpecialMove.IsDown() && CheckMoveControlForRoll(fThrust, fStrafe))
                 {
-                    ToolTipsDisplay::sInstance->CancelTimeoutTip(TTT_SoldierSprint, mPlayerId);
+                    RollUsingEnergy();
+                }
+                else if (mControlCrouch.IsPressed() || mControlCrouch.Held())
+                {
+                    Crouch();
+                }
+                else if (mControlJump.IsPressed())
+                {
+                    JumpUsingEnergy();
+                }
+                else if (mControlThrustFwd.TappedAndPressed())
+                {
+                    if (SprintUsingEnergy())
+                    {
+                        ToolTipsDisplay::sInstance->CancelTimeoutTip(TTT_SoldierSprint, mPlayerId);
+                    }
+                }
+                else if ((mControlSprint.Tapped() || mControlSprint.Held()) && CheckMoveControlForSprint(fThrust, fStrafe) &&
+                         DotProduct(mVelocity, mMatrix.GetZAxis()) > mClass->mMaxSpeed * 0.9f)
+                {
+                    if (SprintUsingEnergy())
+                    {
+                        ToolTipsDisplay::sInstance->CancelTimeoutTip(TTT_SoldierSprint, mPlayerId);
+                    }
                 }
             }
         }
@@ -6427,21 +6466,45 @@ bool EntitySoldier::Update(float fDeltaTime)
             mFlags &= ~flags_fallTimer;
         }
 
-        if (mPlayerId >= 0 && (!(mFlags & flags_fallTimer) || mStateTimer < 0.3f))
+        if constexpr (sizeof(void*) == 8)
         {
-            if (mControlSpecialMove.IsDown() && CheckMoveControlForRoll(fThrust, fStrafe))
+            if (mPlayerId >= 0 && (!(mFlags & flags_fallTimer) || mStateTimer < 0.3f))
             {
-                RollUsingEnergy();
+                if (mControlSpecialMove.IsDown() && CheckMoveControlForRoll(fThrust, fStrafe))
+                {
+                    RollUsingEnergy();
+                }
+                else if (mControlJump.IsPressed())
+                {
+                    JumpUsingEnergy();
+                }
+                else if (mControlSprint.Tapped() || mControlSprint.HeldAndReleased() || !CheckMoveControlForSprint(fThrust, fStrafe) ||
+                         !(PblX87Dot3F(mVelocity.x, mVelocity.y, mVelocity.z, mMatrix.GetZAxis().x, mMatrix.GetZAxis().y,
+                                       mMatrix.GetZAxis().z) > 0.2f) ||
+                         !SprintUsingEnergy())
+                {
+                    EndSprint();
+                }
             }
-            else if (mControlJump.IsPressed())
+        }
+        else
+        {
+            if (mPlayerId >= 0 && (!(mFlags & flags_fallTimer) || mStateTimer < 0.3f))
             {
-                JumpUsingEnergy();
-            }
-            else if (mControlSprint.Tapped() || mControlSprint.HeldAndReleased() || !CheckMoveControlForSprint(fThrust, fStrafe) ||
-                     !(DotProduct(mVelocity, mMatrix.GetZAxis()) > 0.2f) ||
-                     !SprintUsingEnergy())
-            {
-                EndSprint();
+                if (mControlSpecialMove.IsDown() && CheckMoveControlForRoll(fThrust, fStrafe))
+                {
+                    RollUsingEnergy();
+                }
+                else if (mControlJump.IsPressed())
+                {
+                    JumpUsingEnergy();
+                }
+                else if (mControlSprint.Tapped() || mControlSprint.HeldAndReleased() || !CheckMoveControlForSprint(fThrust, fStrafe) ||
+                         !(DotProduct(mVelocity, mMatrix.GetZAxis()) > 0.2f) ||
+                         !SprintUsingEnergy())
+                {
+                    EndSprint();
+                }
             }
         }
         break;
@@ -6843,7 +6906,7 @@ bool EntitySoldier::Update(float fDeltaTime)
         {
             // GLOBAL: SWBF2 0x01faa94c
             static const float sMaxSoldierTurnRate = PblMath::fPi * 6.0f;
-            fOmega = atan2f(fSideSpeed, fForwardSpeed);
+            fOmega = PblCrtAtan2F(fSideSpeed, fForwardSpeed);
             if (fOmega > sMaxSoldierTurnRate * fDeltaTime)
             {
                 fOmega = sMaxSoldierTurnRate;
@@ -8133,7 +8196,7 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
         iMove = 1;
         const PblVector3& vRight = mMatrix.GetXAxis();
         const PblVector3& vFront = mMatrix.GetZAxis();
-        float fAngle = atan2f(DotProduct(vMovement, vRight), DotProduct(vMovement, vFront));
+        float fAngle = PblCrtAtan2F(DotProduct(vMovement, vRight), DotProduct(vMovement, vFront));
         if (!(mAlertTimer > 0.0f))
         {
             static const float sLegMax = PblMath::fHalfPi * 0.8f;
@@ -8247,7 +8310,7 @@ void EntitySoldier::UpdateOrdnanceCollision(float fDeltaTime)
             int i = iMove + 4 + iCrouch;
             const PblVector3& vAim = mAimer.GetDirection();
             const PblVector3& vFront = mMatrix.GetZAxis();
-            float fPitch = atan2f(vAim.y, DotProduct(vAim, vFront));
+            float fPitch = PblCrtAtan2F(vAim.y, DotProduct(vAim, vFront));
             float fSin;
             float fCos;
             PblMath::SinCos(&fSin, &fCos, fPitch);
@@ -9161,7 +9224,7 @@ void EntitySoldier::MoveJetHover(float fDeltaTime, float fForward, float fStrafe
         }
     }
 
-    float fDrag = expf(fDeltaTime * -2.0f);
+    float fDrag = PblCrtExpF(fDeltaTime * -2.0f);
     mVelocity *= fDrag;
 
     PblVector3 vDir(mEyeDir);

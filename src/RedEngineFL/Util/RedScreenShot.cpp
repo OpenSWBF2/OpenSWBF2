@@ -4,7 +4,7 @@
 #include <new>
 #include <stdio.h>
 #include <math.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "PebbleFL/Common/PblRandom.h"
@@ -362,7 +362,7 @@ bool TakeScreenShot()
     const float fInverseGamma = 1.0f / gamma_correction;
     for (int i = 0; i < 256; ++i)
     {
-        float fValue = powf((float)i / 255.0f, fInverseGamma);
+        float fValue = PblCrtPowF((float)i / 255.0f, fInverseGamma);
         fValue = Clamp(fValue, 0.0f, 1.0f);
         const unsigned char ucValue = (unsigned char)((int)(fValue * 255.0f));
         gamma.red[i] = ucValue;

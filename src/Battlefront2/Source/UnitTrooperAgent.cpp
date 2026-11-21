@@ -16,6 +16,7 @@
 #include "SquadCommands.h"
 #include "UnitController.h"
 #include "VehicleManager.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 // FUNCTION: SWBF2 0x0066b1a0
 const char* UnitTrooperAgent::NFINAL_GetStateString(int) const
@@ -389,9 +390,18 @@ void UnitTrooperAgent::UpdateStatePostVision(float dt)
             SetNextState(STATE_Goto);
             break;
         }
-        float fDist = (AIUtil::GetCollisionRadius(mCtrl->mOwner->GetGameObject())
-                       + AIUtil::GetCollisionRadius((GameObject*)mConvoyParent))
-                      * 2.5f;
+        float fDist;
+        if constexpr (sizeof(void*) == 8)
+        {
+            fDist = PblX87AddMulF(AIUtil::GetCollisionRadius(mCtrl->mOwner->GetGameObject()),
+                                  AIUtil::GetCollisionRadius((GameObject*)mConvoyParent), 2.5f);
+        }
+        else
+        {
+            fDist = (AIUtil::GetCollisionRadius(mCtrl->mOwner->GetGameObject())
+                     + AIUtil::GetCollisionRadius((GameObject*)mConvoyParent))
+                    * 2.5f;
+        }
         PblVector3 vFollow = ReserveManager::ReserveOffset(
             (GameObject*)mConvoyParent, mCtrl->mOwner->GetGameObject(),
             FT_CONVOY) * fDist;

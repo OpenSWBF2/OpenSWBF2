@@ -1,5 +1,6 @@
 #include <d3dx9math.h>
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -360,7 +361,7 @@ int WeaponAreaEffect::SetTargets()
         }
         else
         {
-            const float fCos = (float)cos(fHalfAngle);
+            const float fCos = PblCrtCosF(fHalfAngle);
             float fDist;
             if (fHalfAngle >= 0.78539819f)
             {

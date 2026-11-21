@@ -1,5 +1,7 @@
 #include "AmmoCounter.h"
 #include "CombatUtil.h"
+#include "PebbleFL/Common/PblCrtTrig.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 #include "CommandFlyer.h"
 #include "EntityBuilding.h"
@@ -580,7 +582,14 @@ float CombatUtil::CalcDamagePerSecond(Controllable* pMe, const WeaponClass* pCla
     }
     if (pTop != pBot)
     {
-        fDamagePerSecond = (sCalcDamagePerSecond(pMe, pTop, pTarget) + fDamagePerSecond) * 0.5f;
+        if constexpr (sizeof(void*) == 8)
+        {
+            fDamagePerSecond = PblX87AddMulF(sCalcDamagePerSecond(pMe, pTop, pTarget), fDamagePerSecond, 0.5f);
+        }
+        else
+        {
+            fDamagePerSecond = (sCalcDamagePerSecond(pMe, pTop, pTarget) + fDamagePerSecond) * 0.5f;
+        }
     }
     return fDamagePerSecond;
 }
@@ -1778,10 +1787,10 @@ bool CombatUtil::CanTurretFaceDisturbance(const Controllable* pMe, const Mounted
     vDelta.y = vPos.y - vTurret.y;
     vDelta.z = vPos.z - vTurret.z;
     PblVector3 vLocal = AIUtil::UnrotateVector(((const EntityGeometry&)(*pObj)).GetMatrix(), vDelta);
-    float fYaw = atan2f(vLocal.x, vLocal.z);
+    float fYaw = PblCrtAtan2F(vLocal.x, vLocal.z);
     if (fYaw >= pClass->mMinYaw && pClass->mMaxYaw >= fYaw)
     {
-        float fPitch = asinf(vLocal.y / PblMath::Sqrt(LengthSq(vLocal)));
+        float fPitch = PblCrtAsinF(vLocal.y / PblMath::Sqrt(LengthSq(vLocal)));
         if (fPitch >= pClass->mMinPitch && pClass->mMaxPitch >= fPitch)
         {
             return true;

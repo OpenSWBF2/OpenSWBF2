@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <cmath>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 static_assert(sizeof(sin(1.0f)) == 4, "float math overloads");
 
 #define lmathlib_c
@@ -33,49 +33,49 @@ static int math_abs (lua_State *L) {
 // LIBRARY: SWBF2 0x0069d230
 // math_sin
 static int math_sin (lua_State *L) {
-  lua_pushnumber(L, sin(TORAD(luaL_checknumber(L, 1))));
+  lua_pushnumber(L, PblCrtSinF(TORAD(luaL_checknumber(L, 1))));
   return 1;
 }
 
 // LIBRARY: SWBF2 0x0069d270
 // math_cos
 static int math_cos (lua_State *L) {
-  lua_pushnumber(L, cos(TORAD(luaL_checknumber(L, 1))));
+  lua_pushnumber(L, PblCrtCosF(TORAD(luaL_checknumber(L, 1))));
   return 1;
 }
 
 // LIBRARY: SWBF2 0x0069d2b0
 // math_tan
 static int math_tan (lua_State *L) {
-  lua_pushnumber(L, tan(TORAD(luaL_checknumber(L, 1))));
+  lua_pushnumber(L, PblCrtTanF(TORAD(luaL_checknumber(L, 1))));
   return 1;
 }
 
 // LIBRARY: SWBF2 0x0069d2f0
 // math_asin
 static int math_asin (lua_State *L) {
-  lua_pushnumber(L, FROMRAD(asin(luaL_checknumber(L, 1))));
+  lua_pushnumber(L, FROMRAD(PblCrtAsinF(luaL_checknumber(L, 1))));
   return 1;
 }
 
 // LIBRARY: SWBF2 0x0069d330
 // math_acos
 static int math_acos (lua_State *L) {
-  lua_pushnumber(L, FROMRAD(acos(luaL_checknumber(L, 1))));
+  lua_pushnumber(L, FROMRAD(PblCrtAcosF(luaL_checknumber(L, 1))));
   return 1;
 }
 
 // LIBRARY: SWBF2 0x0069d370
 // math_atan
 static int math_atan (lua_State *L) {
-  lua_pushnumber(L, FROMRAD(atan(luaL_checknumber(L, 1))));
+  lua_pushnumber(L, FROMRAD(PblCrtAtanF(luaL_checknumber(L, 1))));
   return 1;
 }
 
 // LIBRARY: SWBF2 0x0069d3b0
 // math_atan2
 static int math_atan2 (lua_State *L) {
-  lua_pushnumber(L, FROMRAD(atan2(luaL_checknumber(L, 1), luaL_checknumber(L, 2))));
+  lua_pushnumber(L, FROMRAD(PblCrtAtan2F(luaL_checknumber(L, 1), luaL_checknumber(L, 2))));
   return 1;
 }
 
@@ -96,7 +96,7 @@ static int math_floor (lua_State *L) {
 // LIBRARY: SWBF2 0x0069d4c0
 // math_mod
 static int math_mod (lua_State *L) {
-  lua_pushnumber(L, fmod(luaL_checknumber(L, 1), luaL_checknumber(L, 2)));
+  lua_pushnumber(L, PblCrtFmodF(luaL_checknumber(L, 1), luaL_checknumber(L, 2)));
   return 1;
 }
 
@@ -110,28 +110,28 @@ static int math_sqrt (lua_State *L) {
 // LIBRARY: SWBF2 0x0069d580
 // math_pow
 static int math_pow (lua_State *L) {
-  lua_pushnumber(L, pow(luaL_checknumber(L, 1), luaL_checknumber(L, 2)));
+  lua_pushnumber(L, PblCrtPowF(luaL_checknumber(L, 1), luaL_checknumber(L, 2)));
   return 1;
 }
 
 // LIBRARY: SWBF2 0x0069d5e0
 // math_log
 static int math_log (lua_State *L) {
-  lua_pushnumber(L, log(luaL_checknumber(L, 1)));
+  lua_pushnumber(L, PblCrtLogF(luaL_checknumber(L, 1)));
   return 1;
 }
 
 // LIBRARY: SWBF2 0x0069d620
 // math_log10
 static int math_log10 (lua_State *L) {
-  lua_pushnumber(L, log10(luaL_checknumber(L, 1)));
+  lua_pushnumber(L, PblCrtLog10F(luaL_checknumber(L, 1)));
   return 1;
 }
 
 // LIBRARY: SWBF2 0x0069d660
 // math_exp
 static int math_exp (lua_State *L) {
-  lua_pushnumber(L, exp(luaL_checknumber(L, 1)));
+  lua_pushnumber(L, PblCrtExpF(luaL_checknumber(L, 1)));
   return 1;
 }
 

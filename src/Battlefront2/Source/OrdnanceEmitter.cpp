@@ -1,5 +1,6 @@
 #include <d3dx9math.h>
 #include "OrdnanceEmitter.h"
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "Explosion.h"
 #include "FLEffect.h"
 #include "AIUtil.h"
@@ -213,7 +214,7 @@ void OrdnanceEmitterClass::SetProperty(unsigned int uProperty, const char* pszVa
     case 0xA3F03B49: /* "ConeAngle" */
     {
         sscanf(pszValue, "%f", &mConeWidth);
-        mConeWidth = (float)cos(mConeWidth * 0.5f * 0.017453292f);
+        mConeWidth = PblCrtCosF(mConeWidth * 0.5f * 0.017453292f);
             break;
     }
     case 0x9CC82B1F: /* "FirstRadius" */

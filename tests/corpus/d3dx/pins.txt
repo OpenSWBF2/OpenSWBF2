@@ -1,0 +1,5 @@
+MatrixMultiply	262144	FC892D40
+Vec3TransformNormal	262144	2505E33E
+MatrixRotationQuaternion	262144	5EDC2841
+MatrixScaling	262144	997D2C34
+Vec4Transform	262144	D1FE4308

@@ -2,6 +2,8 @@
 #include "AIUtil.h"
 
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 #include "AILowLevel.h"
 #include "Aimer.h"
@@ -909,8 +911,8 @@ bool AIUtil::GetTangentPointToCircle(const PblVector3& vCenter, const PblVector3
         return false;
     }
 
-    const float fHalfAngle = acosf(fRadius / fDist);
-    const float fAngle = atan2f(dz, dx);
+    const float fHalfAngle = PblCrtAcosF(fRadius / fDist);
+    const float fAngle = PblCrtAtan2F(dz, dx);
     float fSin;
     float fCos;
     PblMath::SinCos(&fSin, &fCos, bClockwise ? fAngle - fHalfAngle : fAngle + fHalfAngle);
@@ -1849,7 +1851,7 @@ PblVector3 AIUtil::DumbDown(const GameObject* pObject, float fDeltaTime, Aimer* 
     }
 
     PblVector3 vAim = pAimer->mDirection;
-    if (DotProduct(vDir, vAim) < (float)cos(0.523598790f))
+    if (DotProduct(vDir, vAim) < PblCrtCosF(0.523598790f))
     {
         const PblVector3 vUp = CrossProduct(vDir, vAim);
         PblMatrix mAim(CrossProduct(vDir, vUp), vUp, vDir, gVectorZero);
@@ -1880,7 +1882,15 @@ bool AIUtil::IsSnipeHintNearby(const GameObject* pObj, const SnipeHelper& helper
 {
     if (GameLoop::GetMissionTime() > *pfNextCheckTime)
     {
-        *pfNextCheckTime = GetRandomFloat(0.0f, 4.0f) + (GameLoop::GetMissionTime() + 8.0f);
+        if constexpr (sizeof(void*) == 8)
+        {
+            const float fJitter = GetRandomFloat(0.0f, 4.0f);
+            *pfNextCheckTime = PblX87AddAddF(GameLoop::GetMissionTime(), 8.0f, fJitter);
+        }
+        else
+        {
+            *pfNextCheckTime = GetRandomFloat(0.0f, 4.0f) + (GameLoop::GetMissionTime() + 8.0f);
+        }
         *ppHint = 0;
         const SnipeHint* pHint = helper.HELPERFindSnipeHint();
         if (pHint)

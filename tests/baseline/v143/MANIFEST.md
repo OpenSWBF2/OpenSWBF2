@@ -19,14 +19,14 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 
 | File | SHA-256 | Produced by |
 |------|---------|-------------|
-| `CAUSES.md` | 40894BE10F76B13FBFA5196E1A9F49529DEE234B72AB82AA4E05AAE972AA79E9 | written by hand from the comparison against `tests/baseline/vs2013/` |
-| `smoke-all-digests.txt` | 8D0250F595A13012B400A0C104844C675791F0D1413E5D42E2F4DE7BECAA3E35 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
+| `CAUSES.md` | 23AC6B0E129789B1AA095F555125529A1F29E60020DECE31489BB0EF3C952FFF | written by hand from the comparison against `tests/baseline/vs2013/` |
+| `smoke-all-digests.txt` | 60FE9252FB11AAD362EEF5FBA927BD2CCD2BBC041258E0A585FACE34C676F833 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `pool-sizes.txt` | A2FA679AC1174C9082D1E3DE216F82FC16B5E20B35A41C09AC4F081CF9643D72 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `mem-peaks.txt` | D24B076240DC0D686B07C7F1D33EF273F88E928C863E9C11878061FF3A7D41B0 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
-| `mem-peaks-x64.txt` | 76D87EF85DA1685C3D5DD2C975CA1444BC2B9912A46F2DEBC790157D61EA8DA0 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Platform x64 -Configuration Release -Smoke All -HogAddrSpace` |
+| `mem-peaks-x64.txt` | 106F4666A61B9134C51D2794CFA5A2691F0B27D06D02BB9E3E0965E338AD4CE1 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Platform x64 -Configuration Release -Smoke All -HogAddrSpace` |
 | `cloth-headroom.txt` | 7C388EDBA9ADC4CF1D82A8C66FD7409CAF534B023E630AB59F9844312104F720 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
-| `hardening.txt` | 1A67C5F6F2F98B8BEB1867B3831446998C4D34F8DA5F2859605E241B8A6664D5 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
-| `offthread.txt` | 8DB5C6AC2EFA4531BE0618584D35A3A21CB6FBD0E12809421BD5ED69AAD40BC4 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
+| `hardening.txt` | EE9BFB670D013FE8F08DBA3111FBBAE3C1FBEF982045687911EDACA814EA525A | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
+| `offthread.txt` | 2D70A010C5B9E2DA6F6A2E79D230A3D505C72D065FE5066F17207379561E4DD5 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
 | `lua-bins.txt` | A6E3FF46D1E8A6D69232061361199590BC6FB0C1AEEF6EFF0A0E19F69DA5936A | `capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All` |
 | `digests-debug.txt` | B0856D73AF662CC495ECC019194E0DE150C71A8BA648B9211A33C29AEB18A122 | `capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug` |
 | `digests.txt` | 9AE18CAC28450E27A9AD9992321734DFAE2BBBFF90C50FAA6EBD99518B89D6B7 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
@@ -42,6 +42,7 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 | `initializers.txt` | DFAB8F8E42253C47AA0D88E56845E8E39DBAA531EA828E06A1FD7C74721B5320 | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
 | `initializers-di.txt` | 2C89B86B8D5836A6069AA6F99237253E30635B9C99FF7A17BCF4AE4D3BAA7D80 | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
 | `initializers-discarded.txt` | F9656D1101DEA5FE04D1DC5F96876DBAC83954CA710272BBE4D8DCFEED4BCCA0 | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
+| `x87-inventory.tsv` | 008588BA8F7251BE602D304B0A2B44B151D9DA892D4AC0B92C4E03C5DDC960B3 | `x87-inventory.ps1 -Exe bin\Win32\Release\BattlefrontII.exe -Map obj\Win32\Release\BattlefrontII.map -Out tests\baseline\v143\x87-inventory.tsv` |
 
 ## Notes
 
@@ -65,5 +66,26 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 - Phase 47 (plan 47-03) added C-COMBO-BLOCKS to `CAUSES.md`; no table changed.
 - Phase 47 (plan 47-04) added C-CASE-CRASHEARLY: `smoke-all-digests.txt` and `offthread.txt` gained the `crash-early` and `crash-heapinit` rows, and C-CASE-PARTICLESOUND: both gained the `crash-particlesound` row; no other row moved.
 - Phase 47 (plan 47-09) added `mem-peaks-x64.txt`, the x64 Release `-Smoke All -HogAddrSpace` peaks the x64 heap sizes are derived from, and C-HEAPCAP-X64-RULE, -Application, -Lua, -Runtime and -KEPT to `CAUSES.md`; no x86 table changed.
+- Phase 48 (plan 48-01) added C-X64-FMA3 to `CAUSES.md`; no table changed.
+- Phase 48 (plan 48-03) added C-X64-D3DX to `CAUSES.md`; no table changed.
+- Phase 48 (plan 48-04) updated C-X64-D3DX in `CAUSES.md` (MatrixInverse and Vec4Transform ported); no table changed.
+- Phase 48 (plan 48-06) updated C-X64-D3DX in `CAUSES.md` (RotationX/Y/Z transcribed in ml64); no table changed.
+- Phase 48 (plan 48-07) updated C-X64-D3DX in `CAUSES.md` (RotationAxis transcribed in ml64, the `d3dx-imports` row); no table changed.
+- Phase 48 (plan 48-08) added C-X64-X87TRIG to `CAUSES.md` (the x86 CRT trig fallback transcribed in ml64 for x64); no table changed.
+- Phase 48 (plan 48-10) added C-X64-CRTF to `CAUSES.md` (the CRT float route and the `crt-float-imports` and `crt-trig-route` rows); no table changed.
+- Phase 48 (plan 48-11) added C-X64-FMOD and C-X64-NANOP to `CAUSES.md` and the sim math corpus to C-X64-CRTF; no table changed.
+- Phase 48 (plan 48-12) named the x64 Smoke guard rows D3DX-LINK-X64S and CRTF-X64S in C-X64-D3DX and C-X64-CRTF; no table changed.
+- Phase 48 (plan 48-13) added C-X64-PATHROLL to `CAUSES.md` (the path follower roll target, x87 multiply add on x64); no table changed.
+- Phase 48 (plan 48-14) added C-X64-CONVOYDIST and C-X64-CYLRAY to `CAUSES.md` (the convoy follow distance, x87 add multiply on x64, and the cylinder ray cap re-entry, x87 multiply add on x64); no table changed.
+- Phase 48 (plan 48-16) added `x87-inventory.tsv`, the x87 inventory of the x86 Release exe (D-12), generated by `x87-inventory.ps1` from the 74bbc43d game build; no other file changed.
+- Phase 48 (plan 48-17) filled the verdict and evidence of 175 open rows of `x87-inventory.tsv` by hand (`match:callret`, `match:crt-convert`, `fixed:C-X64-*` and `offpath:` reasons outside the rule names); 39 rows stay open as x86/x64 gaps for gap-closure plans; no other file changed.
+- Phase 48 (plan 48-21) added C-X64-SACHEAT, C-X64-BARRAGE, C-X64-JETJUMP, C-X64-SOLDACTION, C-X64-FLYERRAY, C-X64-TARGETPRIO, C-X64-IDLEBOB, C-X64-FLYERTRICK, C-X64-DPS and C-X64-RESERVE to `CAUSES.md` (x87 multiply add, multiply subtract and add multiply on x64) and set 12 open rows of `x87-inventory.tsv` to `fixed:C-X64-*` or `match:exhaustive`; no other table changed.
+- Phase 48 (plan 48-22) added C-X64-SNIPEHINT, C-X64-COMBATRANGE, C-X64-SPAWNTIME, C-X64-ADRENALINE, C-X64-CATAPULT and C-X64-VISIONDIST to `CAUSES.md` (x87 add add, sub sub, sub div, mul div and add mul add chains and two unrounded returns on x64) and set 11 open rows of `x87-inventory.tsv` to `fixed:C-X64-*`, `match:callret` or `match:exhaustive`; no other table changed.
+- Phase 48 (plan 48-23) added C-X64-BOARDRANGE, C-X64-DOT3 and C-X64-LIGHTFMOD to `CAUSES.md` (an x87 add add, the three-term dot and the fmod route on x64) and set 12 open rows of `x87-inventory.tsv` to `fixed:C-X64-*`, `match:callret` or `match:exhaustive`; no other table changed.
+- Phase 48 (plan 48-24) added C-X64-CANNONSPREAD and C-X64-TERRAINRAY to `CAUSES.md` (the cannon spread chain and the terrain ray recursion at x87 precision on x64) and set the last 4 open rows of `x87-inventory.tsv` to `fixed:C-X64-*`; no other table changed.
+- Phase 48 (plan 48-18) re-captured `mem-peaks-x64.txt` after digest parity, with pool keys equal to `mem-peaks.txt`, and added C-MEMPEAKS-X64-PARITY to `CAUSES.md`; no x86 table changed.
+- Phase 48 (plan 48-25) added the `host-fault-capture` and `all-checkpoints` lines to `hardening.txt` (C-HOSTFAULT-CHECKPOINT); no other table changed.
+- Phase 48 (plan 48-26) added the `crash-particleburst` row to `smoke-all-digests.txt` and `offthread.txt` (C-CASE-PARTICLEBURST); no other row moved.
+- Phase 48 (plan 48-19) updated C-X64-X87TRIG (`errno` for +-inf on x64), C-X64-CRTF and C-X64-FMOD (the fmod two-NaN tie compared on the same machine) in `CAUSES.md`; no table changed.
 - `capture-vs2013.ps1 -Verify -Baseline v143` checks this manifest. `-Archive` assumes the VS2013 build identity and is not used for this directory.
 - `compare-tables.ps1` holds the reader of every file here, and the `baseline-readers` hardening check fails on a file with no reader.

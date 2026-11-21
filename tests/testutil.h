@@ -78,6 +78,8 @@ int TestStrictnessReport(const char* pcCase);
 
 std::string RepoRoot();
 bool ReadRepoText(const char* pcRelPath, std::string& sOut);
+bool RunWin32Child(const char* pcMode, const char* pcPrefix, std::string& sExe, std::string& sOutPath,
+                   std::string& sWhy);
 
 template <class TABLE, class VALUE>
 bool HashStoreNew(TABLE& kTable, unsigned int uiHash, VALUE* pValue)

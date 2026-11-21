@@ -1,5 +1,6 @@
 #include <d3dx9math.h>
 #include <float.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "PebbleFL/Common/PblVector.h"
 
 #include "EntityDroideka.h"
@@ -1110,7 +1111,7 @@ void EntityDroidekaClass::SetProperty(unsigned int uProperty, const char* pszVal
         break;
     case 0x47A95951: /* "MaxTerrainAngle" */
         sscanf(pszValue, "%f", &mMaxTerrainAngle);
-        mMaxTerrainAngle = (float)cos(mMaxTerrainAngle * 0.017453292f);
+        mMaxTerrainAngle = PblCrtCosF(mMaxTerrainAngle * 0.017453292f);
         break;
 
     case 0x02BB1FE0: /* "Explosion" */
@@ -1238,7 +1239,7 @@ void EntityDroidekaClass::SetProperty(unsigned int uProperty, const char* pszVal
         break;
     case 0xE6F7BEFB: /* "MaxBallAngle" */
         sscanf(pszValue, "%f", &mMaxBallAngle);
-        mMaxBallAngle = (float)cos(mMaxBallAngle * 0.017453292f);
+        mMaxBallAngle = PblCrtCosF(mMaxBallAngle * 0.017453292f);
         break;
     case 0x81D52461: /* "SprintTimeForBowling" */
         sscanf(pszValue, "%f", &mSprintTimeForBowling);
@@ -2435,7 +2436,7 @@ void EntityDroideka::UpdateState(float fDeltaTime, float fMove, float fStrafe, f
         float fTarget = 0.0f;
         if (bMoving)
         {
-            fTarget = fMove >= 0.0f ? atan2f(-fStrafe, fMove) : atan2f(fStrafe, -fMove);
+            fTarget = fMove >= 0.0f ? PblCrtAtan2F(-fStrafe, fMove) : PblCrtAtan2F(fStrafe, -fMove);
         }
         float fDiff = fTarget - mTurnOffset.GetAngle() * 6.0f;
         if (fDiff > mClass->mTurnThreshold)
@@ -2471,11 +2472,11 @@ void EntityDroideka::UpdateState(float fDeltaTime, float fMove, float fStrafe, f
                 if (fMove >= fLimit)
                 {
                     bForward = true;
-                    fTarget = atan2f(-fStrafe, fMove);
+                    fTarget = PblCrtAtan2F(-fStrafe, fMove);
                 }
                 else
                 {
-                    fTarget = atan2f(fStrafe, -fMove);
+                    fTarget = PblCrtAtan2F(fStrafe, -fMove);
                 }
             }
             float fCurrent = mTurnOffset.GetAngle() * 6.0f;
@@ -2963,9 +2964,9 @@ void EntityDroideka::BuildWorldMatrices()
         kSpine = kTilt * rSpine;
         rSpine = kSpine;
 
-        float fYaw = atan2f(fSin6, fCos6);
-        float fPitch = asinf(vFront.y);
-        float fRoll = asinf(kTilt.m[0][1]);
+        float fYaw = PblCrtAtan2F(fSin6, fCos6);
+        float fPitch = PblCrtAsinF(vFront.y);
+        float fRoll = PblCrtAsinF(kTilt.m[0][1]);
         float fHalfYaw = fYaw * 0.5f;
 
         PblMatrix kLegs;
@@ -3113,8 +3114,8 @@ bool EntityDroideka::PostCollisionUpdate(float fDeltaTime)
     PblVector3 vEyeDir;
     PblVector3 vLocal;
     vLocal.x = 0.0f;
-    vLocal.y = sinf(mPitchValue);
-    vLocal.z = cosf(mPitchValue);
+    vLocal.y = PblCrtSinF(mPitchValue);
+    vLocal.z = PblCrtCosF(mPitchValue);
     D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&vEyeDir), reinterpret_cast<const D3DXVECTOR3*>(&vLocal), reinterpret_cast<const D3DXMATRIX*>(&mMatrix));
     mEyeDir = vEyeDir;
     }
@@ -3242,7 +3243,7 @@ bool EntityDroideka::PostCollisionUpdate(float fDeltaTime)
         gameObjectInterpolator.SetNext(mNetUniqueId, &GetSmoothedMatrix());
         gameObjectInterpolator.SetNextFloat(mNetUniqueId, 0, GetTurnState());
         gameObjectInterpolator.SetNextFloat(mNetUniqueId, 1, (float)mState);
-        gameObjectInterpolator.SetNextFloat(mNetUniqueId, 2, atan2f(mBallOrientation.mSin, mBallOrientation.mCos));
+        gameObjectInterpolator.SetNextFloat(mNetUniqueId, 2, PblCrtAtan2F(mBallOrientation.mSin, mBallOrientation.mCos));
     }
     return true;
 }

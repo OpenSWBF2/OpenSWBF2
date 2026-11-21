@@ -1948,6 +1948,32 @@ the P42 runs already print it.
   - row: offthread crash-particlesound
 - Status: added in 47-04, 2026-11-19.
 
+### C-CASE-PARTICLEBURST
+
+- No digest row moved. `smoke-all-digests.txt` and `offthread.txt` each gain one row for the new
+  Crash case `crash-particleburst`; no other row moves.
+- Cause: a new smoke case for the guarded burst-loop line in 47-04's particle emitter fix
+  (`MoveAmbientSound(mAmbientSound, pNext);` in `ParticleEmitter::Update`). That line's only
+  carrier was a natural read in x64 `tat2g_eli`, which went away when Phase 48 gave x64 the x86
+  sim (48-25 branch gate). On the standard mission, `-crashtest particleburst` finds the first
+  loaded emitter class whose ambient sound plays, builds an emitter with one info block and
+  updates it twice so the sound points at that block, links a second block the way
+  `ParticleEmitterObject::RegisterStep` does, then calls `Update` once past the first burst so
+  the burst loop releases the first block. It logs
+  `OPENSWBF2 PARTICLEBURST ... playing=1 released=1 voice_on_next=1`, where `voice_on_next`
+  compares the voice position pointer with the second block. Building the emitter draws from the
+  global random stream, so the case's digest differs from `geo1c_con` and is pinned as its own
+  row. The test runs on the main thread, so the off-thread row is `0 0 0`.
+- Captured from `run.ps1 -Platform Win32 -Configuration Release -NoBuild -Smoke Crash`
+  (`capture-vs2013.ps1 -NoBuild -Tables -Baseline v143 -SmokeAllDir`) and
+  `run.ps1 -Platform Win32 -Configuration Test -Smoke Crash`
+  (`capture-vs2013.ps1 -Configuration Test -NoBuild -Tables -Baseline v143 -OffThreadDir`), each
+  into a scratch `-OutDir`. Release and Test log the same SIM DIGEST line for the case. Every
+  other Crash row in both captures equals the pinned row, byte for byte.
+  - row: smoke-all-digests crash-particleburst
+  - row: offthread crash-particleburst
+- Status: added in 48-26, 2026-11-20.
+
 ### C-HEAPCAP-X64-RULE
 
 - No digest row moved. No x86 heap size, x86 cap or x86 table changed; every x86 size in
@@ -2022,6 +2048,1209 @@ the P42 runs already print it.
 - The Temp load heap (0x1FFF00 inside a 0x200000 Runtime block) has no MEMREPORT row and is not
   covered by the rule; its block is part of the Runtime peak.
 - Status: added in 47-09, 2026-11-19.
+
+### C-X64-FMA3
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed.
+- Change (phase 48 D-11, PAR-03): the x64 exe calls `_set_FMA3_enable(0)` in `PcMathStartup`,
+  which `Startup_RedInitHeap` calls right after `pcCrash::Install`, before any game code runs. The
+  call is in `pcMathStartupX64.cpp`, compiled only for x64; Win32 compiles `pcMathStartup.cpp`, an
+  empty `PcMathStartup`. Both are chosen by a platform `Condition` on the `ClCompile` item, with no
+  platform macro (D-02). The tests exe calls `PcMathStartup` first in `main`, so its CRT runs as the
+  game's does.
+- Cause: x64 UCRT math picks an FMA3 code path at run time when the CPU has FMA3, so the same x64
+  exe could compute other bits on another x64 CPU. x86 has no FMA3 CRT path (SysWOW64 ucrtbase
+  exports only `_set_SSE2_enable`) and does not change. Phase 48 research measured FMA3 off as
+  neutral for the sim's float-in, double-routine, float-out forms; it is reproducibility across x64
+  CPUs, not a parity fix.
+- `_TheSinCosTable` (`init_seg(lib)`) is built before `Startup_RedInitHeap`. Research measured its
+  bits equal on x86 and on x64 with FMA3 on and off; the T1 `sin cos table bits equal x86` pins its
+  4096 floats (FNV-1a 32 over their bytes in table order) on both platforms.
+- The x64 T1 `x64 start-up turns FMA3 off` checks `_get_FMA3_enable() == 0` and prints the CPU's
+  FMA3 bit as information. On a CPU without FMA3 the state is 0 whatever the call does, so this T1
+  is not a guard. The guards are the x64 hardening line `fma3-off`, judged on the x64 Release exe
+  only (it needs `Startup_RedInitHeap` to call or jump to `PcMathStartup` and `PcMathStartup` to call
+  or jump to `_set_FMA3_enable` with `ecx` last set to 0, read from `dumpbin /disasm` over the two
+  functions' map ranges with PDB names), and the x64 guard rows FMA3-SET-X64 (argument 1) and
+  FMA3-CALL-X64 (call removed). Their verdict reads the exe, never the CPU. No Win32 guard row: the
+  Win32 `PcMathStartup` is empty, so there is no x86 behaviour to revert.
+- Status: Fixed in 48-01, 2026-11-19.
+
+### C-X64-D3DX
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. The Win32 game
+  compiles the same TUs and imports the same 15 d3dx9 math functions as before.
+- Cause: the x86 `d3dx9_43.dll` picks its math code path at run time from `cpuid` (a dispatch table
+  at `0x101CA000`); on this CPU it runs SSE paths with `rsqrtss`/`rcpps` and its own summation
+  orders, and generic x87 paths for RotationQuaternion and Scaling. The x64 DLL computes plain
+  float math. Phase 48 research measured different output words on 11 of the 13 math functions
+  the sim imports (131,072 random inputs each), the main source of x64 digest drift.
+- Change (phase 48 D-15, approved by the user on 2026-11-19): the x64 game links an in-tree port of
+  the x86 DLL's code paths, `PcD3dx::*` in `src/PebbleFL/pc/pcD3dxPort.cpp`, and
+  `pcD3dxLinkX64.cpp` defines the `D3DX*` exports with their `WINAPI` signatures, forwarding to
+  the port. Both TUs are x64-only `ClCompile` items chosen by a platform `Condition` in
+  `BattlefrontII.vcxproj` (D-02); the linker resolves the calls to them before it searches
+  `d3dx9.lib`, so the x64 exe no longer imports them. x86 keeps calling the real DLL. The
+  definitions sit in an `extern "C"` block after `<d3dx9math.h>`, so a signature that drifts from
+  the SDK declaration is error C2733 instead of a silent C++ overload (checked once by changing a
+  parameter type). That is why the `d3dx-decl` hardening check, which bans hand-written D3DX
+  declarations so the SDK header stays the only one, skips this one file; every other file under
+  `src` is still scanned and the `hardening.txt` row does not change.
+- Fixed here: MatrixMultiply (rows 0 and 3 `(t0+t1)+(t2+t3)`, rows 1 and 2 `((t0+t1)+t2)+t3`,
+  row 3 products with the B row first), Vec3TransformCoord (`rcpps` plus one Newton step on w),
+  Vec3TransformNormal, Vec3Normalize (`rsqrtss` plus Newton, zero below `0x28800000`),
+  QuaternionNormalize (`rsqrtss` plus Newton), MatrixRotationQuaternion (x87: float products,
+  `(1-a)-b` at 53 bits written as `double`) and MatrixScaling (x87 load and store) in 48-03;
+  Vec4Transform (`(w*m3+z*m2)+(y*m1+x*m0)` with the vector first in every product, on both the
+  aligned and the unaligned path) and MatrixInverse (the DLL's SSE cofactor sequence transcribed
+  register by register, the determinant from the `addss` of the last shuffle, `NULL` returned and
+  nothing written when the determinant compares equal to zero or is unordered, the determinant
+  stored before the matrix, and `rcpss` plus one Newton step `2r-d*r*r` for the scale) in 48-04.
+  The port keeps
+  every input load before the first store, the DLL's aligned and unaligned operand orders in the
+  two transforms (chosen by the matrix address, as the DLL does), the SSE rule that a NaN pair
+  returns the first operand (written explicitly, so the compiler's operand order cannot change it),
+  the x87 rule that a NaN pair returns the larger significand (and the positive one on a tie), and
+  the x87 quieting of a signalling NaN on load.
+- Proof: on Win32 the T1 `d3dx port equals the x86 d3dx9 dll` first checks that the loaded
+  `d3dx9_43.dll` sits next to the tests exe and has the `D3dxWin32Sha256` pin from
+  `lib/vendor-pins.props` (the tests project stages the pinned DLL the way `StageVendor` does),
+  then compares the port with the DLL word for word over 262,144 inputs per function from
+  `tests/unit/d3dx_corpus.cpp` (raw bit patterns over the whole float range, ±0, denormals,
+  ±FLT_MAX, ±inf, quiet and signalling NaNs, identity and near-singular matrices, exactly
+  singular matrices (a zero row, a repeated row, a column twice another) for MatrixInverse with and
+  without a determinant pointer, zero and
+  near-threshold vectors, aliased outputs, aligned and unaligned matrices). The results of
+  `rsqrtss`, `rcpps` and the x87 transcendentals are CPU-specific, so this T1 compares with the DLL
+  on the same machine instead of with a file. The five functions with no approximation
+  instruction (MatrixMultiply, Vec3TransformNormal, MatrixRotationQuaternion, MatrixScaling,
+  Vec4Transform) have
+  the FNV-1a 32 of the DLL's outputs pinned in `tests/corpus/d3dx/pins.txt` (written by
+  `--gen-corpus` from the DLL on Win32), and the T1 `d3dx port matches pinned x86 bits` checks the
+  port against them on both platforms. Guard rows D3DX-MUL (Win32) and D3DX-MUL-X64 revert the
+  row 1 and 2 summation order; D3DX-NORM (Win32) replaces the Newton step with a plain square root
+  divide; D3DX-INV (Win32) replaces the MatrixInverse `rcpss` and Newton step with a plain divide.
+- RotationX/Y/Z (48-06): the x86 DLL runs them as short x87 routines on every argument (`fld`,
+  `fsincos`, the cosine and sine stored as float, then `fld1`/`fldz`/`fchs` and float stores in a
+  fixed order). x87 `fsincos` reduces with a 66-bit pi below 2^63; at and above 2^63, and for NaN
+  and Inf, it leaves the operand on the stack with C2 set, so the DLL stores the angle as the cosine
+  and the x87 indefinite `0xFFC00000` from the empty-stack pop as the sine. No SSE or CRT code gives
+  those bits. By the user's decision D-19 (2026-11-19) under the approval D-15, the x64 game runs
+  ml64 transcriptions of the three routines, `PcD3dxMatrixRotationX/Y/Z` in
+  `src/PebbleFL/pc/pcD3dxX87X64.asm`: every x87 instruction, operand width and order as in the
+  DLL, the stack arguments replaced by `rcx` and `xmm1` spilled to the caller's shadow space, the
+  matrix pointer returned in `rax`. Each runs its x87 part under control word 0x27F, the CW of
+  headless x86, and restores the caller's CW when it differed; rendered x86 runs the DLL under PC24
+  after `CreateDevice`, which this does not reproduce (D-18). The asm is a `MASM` item chosen for
+  x64 by a platform `Condition` in `BattlefrontII.vcxproj` and the tests project (D-02), built by
+  the VS `masm` build customization (`masm.props` in `OpenSWBF2.Game.props`, `masm.targets` in
+  the projects); `pcD3dxLinkX64.cpp` defines `D3DXMatrixRotationX/Y/Z` and forwards to the procs,
+  so the x64 exe no longer imports them. The Win32 build has no `MASM` item and runs no assembler.
+  Proof: the three are x64-port-only entries of `tests/unit/d3dx_corpus.cpp`, 262,144 angles each
+  (raw bit patterns over the whole float range, the special values above, both sides of ±2^63,
+  multiples of pi/2 up to 2^24 with nearby floats, 94.25, and exponents from 2^16 to FLT_MAX),
+  huge and ordinary angles interleaved so a leaked x87 stack or CW shows in the next result; the
+  output includes the returned pointer. The x87 results are CPU-specific, so on x64 they are
+  compared word for word with the DLL on the same machine through the Win32 child and never
+  pinned; the Win32 run prints them as `[N/A]`. Guard rows D3DX-ROTX-X64 (sine and cosine stores
+  exchanged) and D3DX-X87-HUGE-X64 (the angle reduced with `fprem1` by 2pi when `fsincos` sets C2,
+  which changes only the |x| >= 2^63 results) go RED by bit mismatch; MASM-COND (Win32) replaces
+  the item `Condition` with `ExcludedFromBuild` and fails `game MASM items are x64 only by item
+  condition`.
+- RotationAxis (48-07): the x86 DLL runs it as a generic x87 routine on every argument. It takes
+  `fsincos` of the angle, stores the cosine and sine as float, keeps `1 - cos` as float, copies the
+  axis and normalizes it in place through `D3DXVec3Normalize` (the SSE `rsqrtss` path on this CPU),
+  then forms the matrix from 53-bit x87 chains of float operands that keep products and sums
+  unrounded between stores. No C++ expression on x64 holds those intermediates in the same
+  registers and order, and `fsincos` gives the huge-argument bits described above. By D-19 under
+  D-15, the x64 game runs `PcD3dxMatrixRotationAxis` in `src/PebbleFL/pc/pcD3dxX87X64.asm`: every
+  x87 instruction, operand width and order as in the DLL, the DLL's frame slots mapped to an 80-byte
+  frame with unwind data (`PROC FRAME`, `rbx` saved), `xmm2` spilled to the caller's shadow space,
+  the matrix pointer kept in `rbx` and returned in `rax`, and the normalize call made to
+  `PcD3dxVec3Normalize`, the `extern "C"` entry of the 48-03 port of the same DLL path. The CW
+  handling is the one of RotationX/Y/Z; the call runs under that CW, and the port's SSE code does
+  not read it. The only encoding difference is `fmul st(0), st`, which ml64 encodes as `D8 C8`
+  where the DLL has `DC C8`; both multiply ST(0) by itself into ST(0). `pcD3dxLinkX64.cpp` defines
+  `D3DXMatrixRotationAxis` and forwards to the proc. Proof: the x64-port-only corpus entry
+  `MatrixRotationAxis` (layout `xa`, two variants, the second with the axis inside the output
+  matrix) compares 262,144 cases with the DLL through the Win32 child: raw bit patterns and the
+  special values for all four words, and structured axes (unit, non-unit, signed zero, denormal,
+  huge, one NaN or Inf component) crossed with the structured angles above. Guard row
+  D3DX-X87-X64 turns one `fsub` of the chain into `fsubr` and goes RED by bit mismatch.
+- Import check: the x64-only hardening row `d3dx-imports` (`Get-D3dxImportsCheck` in
+  `tests/smoke.ps1`, run from `Get-ImportChecks`) reads `dumpbin /imports` of the x64 game exe and
+  passes only if the `d3dx9_43.dll` import set is exactly `D3DXCheckTextureRequirements` and
+  `D3DXLoadSurfaceFromSurface`, the two render functions, naming any extra or missing import. Guard
+  row D3DX-LINK-X64 sets the `pcD3dxLinkX64.cpp` item `Condition` to false, so the math imports
+  come back, and the row goes RED. The x64 Smoke row D3DX-LINK-X64S (48-12) makes the same edit
+  and goes RED because the x64 `geo1c_con` digest at turn 1500 no longer equals its row. The Win32
+  import rows and `hardening.txt` do not change.
+- Status: all 13 functions Fixed, seven in 48-03, MatrixInverse and Vec4Transform in 48-04 (D-15),
+  RotationX/Y/Z in 48-06 and RotationAxis in 48-07 (D-15, D-19), all 2026-11-19. The x64
+  comparison with the x86 DLL for the approximation and x87 functions runs through the Win32 child
+  from 48-05.
+
+### C-X64-X87TRIG
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. No game TU includes
+  the new header yet, so no x86 or x64 game object changed except the new x64 `MASM` object.
+- Cause: x86 `ucrtbase.dll` 10.0.26100.9711 (SysWOW64, image base 0x10000000) runs
+  `_libm_sse2_sin_precise` (0x10093A60), `_libm_sse2_cos_precise` (0x100905D0),
+  `_libm_sse2_tan_precise` (0x100941E0) and plain `sin` (0x10093740) and `cos` (0x100902C0) through
+  a state gate (MXCSR `& 7F80h == 1F80h` and x87 CW `& 7Fh == 7Fh`, else x87) and a top-16-bit
+  test: sin and cos with |x| >= 90112.0 (`sub ax,3030h / cmp ax,10C5h / ja / jg`), tan with
+  |x| >= 12800.0 (`sub ax,3820h / cmp ax,8A8h`), NaN and Inf go to x87. The x87 path loads CW 0x27F
+  unless it is already 0x27F, runs `fsin`, `fcos` or `fptan` (popping the 1.0), and when C2 is set
+  reduces with `fprem1` against the 80-bit constant at 0x10008DCA (pi x 2^62, exponent 0x403E, not
+  2pi as 48-02 wrote) and runs the instruction again. Inf gives the x87 indefinite through the CRT
+  error handler; a NaN is loaded as an 80-bit value with its payload and returned without x87
+  arithmetic. Below 0x3030 (0x3820 for tan) in the top 16 bits a short SSE tiny-argument path runs.
+  The error handler sets `errno` to EDOM (33) for +-inf at every caller CW; a NaN, and a finite
+  argument on the x87 path at CW 0x27F, 0x7F or 0x37F, leave `errno` unchanged (measured in 48-19
+  with the x86 CRT, `artifacts\gate48\p19\errno.cpp`).
+  The x64 UCRT reduces huge arguments in SSE and gives other bits from 90112 up (the first float
+  above the threshold already differs), and 48-02 showed that mod data (ODF, `.lvl` animation keys,
+  Lua) reaches these arguments.
+- Change (by the user's decision D-19, 2026-11-19): the x64 build runs an ml64 transcription of the
+  three `_precise` routines, `PcCrtSinX64`, `PcCrtCosX64` and `PcCrtTanX64` in
+  `src/PebbleFL/pc/pcCrtTrigX64.asm`: the same gate, thresholds and branches, the tiny paths with
+  the constants copied from ucrtbase, and the x87 paths instruction for instruction with the
+  reduction constant and the indefinite copied byte for byte. Where x86 continues in its in-range
+  SSE2 polynomial the procs tail-jump to the x64 UCRT `sin`, `cos` or `tan` through their `__imp_`
+  pointers; they define no CRT name. They are leaf procs that use only the caller's shadow space,
+  leave the x87 stack empty and restore the caller's CW. When the caller's CW is not 0x27F and
+  its precision exception is masked and raised, x86 stores the result as a double and reloads it,
+  and the transcription does the same; x86 sets no `errno` there. For +-inf the procs tail-jump to
+  `PcCrtTrigDomain`, a framed proc (unwind data, 16-byte aligned call) that sets `errno` to EDOM
+  through the x64 UCRT `_errno` and returns the indefinite unchanged, as the x86 handler does
+  (48-19). The asm is a `MASM` item chosen for x64 by a platform
+  `Condition` in `BattlefrontII.vcxproj` and the tests project (D-02). `src/PebbleFL/Common/
+  PblCrtTrig.h` gives `PblCrtSin`, `PblCrtCos` and `PblCrtTan`: `if constexpr (sizeof(void*) == 8)`
+  calls the proc, else `sin`, `cos` or `tan`, so x86 compiles the same CRT call (D-02). x86 code
+  does not change.
+- Proof: the T1 `crt trig fallback equals the x86 crt` (`tests/unit/crt_trig.cpp`) compares
+  `PblCrtSin`, `PblCrtCos` and `PblCrtTan` with the x86 CRT over about 183,000 inputs per function:
+  every float and double within 64 ulps of ±90112 (±12800 for tan), of the tiny boundary and of
+  ±2^63; 512 random floats per binade and sign from the threshold binade to FLT_MAX; 16 random
+  doubles per binade and sign from 2^63 to DBL_MAX (several `fprem1` steps); ±0, denormals, ±inf,
+  ±FLT_MAX, ±DBL_MAX, quiet and signalling NaNs of both signs with payloads in either word; the
+  2048 SinCosTable arguments and `15.0`; 32,768 random floats below the threshold; 1,024 tiny
+  doubles. Inputs x86 sends to x87 or to the tiny path are compared as double bits; in-range inputs
+  as the float the sim keeps, `(float)f(x)`. The reference is two routes: the `_precise` routines
+  (`tests/unit/crt_trig_ref_win32.cpp`, compiled `/O2 /Oi- /fp:precise` as the game, calls
+  `__libm_sse2_{sin,cos,tan}_precise`) and plain `sin`/`cos` (`crt_trig_ref_strict_win32.cpp`,
+  `/fp:strict` as `WeaponCannon.cpp`, calls `_sin`/`_cos`). x87 results are CPU-specific, so the
+  T1 compares with the x86 CRT on the same machine, never with a file: on x64 through the Win32
+  child `--crt-trig-ref=<file>` built from the same tree, on Win32 in process, where it also checks
+  that the child's file equals the in-process results and that the two routes agree on every x87
+  input. It prints the ucrtbase file version. A Windows update that changes SysWOW64 ucrtbase
+  changes x86 itself; the T1 then fails until the transcription is redone. Guard rows
+  X87TRIG-X64 (the sin top-16 test sends every argument to the x64 UCRT, the x64 behaviour before
+  D-19) and X87TRIG-RED-X64 (the sin `fprem1` reduction dropped, which changes only |x| >= 2^63)
+  go RED by bit mismatch. The T1 `crt trig sets errno like the x86 crt` (`tests/unit/crt_trig.cpp`)
+  pins `errno` after `PblCrtSin`, `PblCrtCos`, `PblCrtTan` and their float forms on both platforms:
+  EDOM for +-inf, unchanged for NaNs, huge, in-range, tiny and zero arguments; on Win32 it runs the
+  x86 CRT itself. Row X87TRIG-ERRNO-X64 (the `PcCrtTrigDomain` jump replaced by a plain return, the
+  48-08 behaviour) turns it RED on x64.
+- Status: helper Fixed in 48-08, 2026-11-19; `errno` for +-inf Fixed in 48-19, 2026-11-20; the sim call sites are routed through `PblCrtTrig.h`
+  in 48-09 and 48-10 (C-X64-CRTF).
+
+### C-X64-CRTF
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Cause: on x86 `<corecrt_math.h>` defines every float CRT routine inline as the double routine
+  rounded to float (`sinf(x)` is `(float)sin(x)`), and the C++ float overloads in `<cmath>` call
+  those inlines, so x86 runs `__libm_sse2_{sin,cos,tan,asin,acos,atan,exp,log,log10,pow}_precise`,
+  `_CIatan2` or `_CIfmod` and rounds the result. On x64 the same source calls the UCRT float
+  routines `sinf`, `cosf`, `tanf`, `asinf`, `acosf`, `atanf`, `atan2f`, `expf`, `logf`, `log10f`,
+  `powf` and `fmodf`, which use other algorithms: over 1,048,576 inputs per function the x86 and
+  x64 float results differ in sin 908, cos 915, tan 174, asin 33,439, acos 10,240, atan 2, exp 72,
+  log 124, log10 828 and pow 78 words (48-RESEARCH). x64 `(float)f((double)x)` gave 0 differences
+  for all of them, with FMA3 on or off. One case is not covered by the route: fmod with an
+  invalid operation (x = +-inf or y = +-0) gives the x87 indefinite 0xFFC00000 on x86 and
+  0x7FC00000 on x64, and two NaN operands follow the x87 NaN rule on x86; Lua `math.mod`
+  reaches these, and 48-11 adds those rules to `PblCrtFmodF` (C-X64-FMOD).
+- Change: the game writes the x86 form. `src/PebbleFL/Common/PblCrtTrig.h` gives float-parameter
+  helpers `PblCrtSinF`, `CosF`, `TanF`, `AsinF`, `AcosF`, `AtanF`, `Atan2F`, `ExpF`, `LogF`,
+  `Log10F`, `PowF` and `FmodF`, each shaped like the x86 inline (`float f(float x) { return
+  (float)g((double)x); }`), and every float-overload call in game code uses them: in 48-09 the sim
+  TUs and `PblAngle.h`, in 48-10 the render, camera, HUD and sound TUs, `pcColorRamp.cpp`,
+  `RedScreenShot.cpp` and Lua `lmathlib.cpp` (`lua_Number` is float, so `math.sin` and `^` called
+  the float overloads). The trig helpers choose the x64 route in themselves with
+  `if constexpr (sizeof(void*) == 8)` (D-02). The argument domain is the whole float range: sin,
+  cos and tan, float or double argument, go through `PblCrtTrig.h`, which on x64 runs the ml64
+  copy of the x86 fallback at and above its threshold (C-X64-X87TRIG, D-19), and mod data reaches
+  that range (48-02 Reach). So the direct double-argument calls are routed too: `RepairHelper`
+  `cos(15.0)`, the SinCosTable initializer in `PblMath.cpp`, `ParticleGeometry.cpp` and
+  `pcHeatShimmerEffect.cpp` use `PblCrtSin`, `PblCrtCos` and `PblCrtTan`.
+- Proof that x86 does not change: the `dumpbin /disasm` of every x86 Release object equals the
+  one before the change, except `NetGame.obj` and `NetSetup.obj` (the two `/Od` TUs, where a new
+  declaration in an included header renumbers the compiler's string-literal labels `$SG`; no
+  instruction changes) and `ParticleGeometry.obj` (its three jump-table labels `$LN` are numbered
+  4 higher because one more inline function is expanded; no instruction changes, and the linked
+  x86 exe built with and without that edit has the same `.text` and `.data` bytes).
+- Guards: because x86 code does not change there is no Win32 row and no call-site T1. The x64
+  hardening row `crt-float-imports` fails if the x64 game imports any of the twelve float routines;
+  `crt-trig-route` fails if any x64 game object other than `pcCrtTrigX64.obj` references `sin`,
+  `cos` or `tan` (from the objects in the link tlog, `dumpbin /symbols`). Guard rows CRTF-X64 (one
+  EntityDroideka site back to `cosf`) and CRTT-X64 (one EntityDroideka site to
+  `(float)sin((double)x)`) turn them RED. The x64 Smoke row CRTF-X64S (48-12; the EntitySoldier
+  in-air drag `PblCrtExpF` back to `expf`, which moves the x64 `geo1c_con` digest at turn 1500)
+  and the `sim math corpus` T1 (48-11) complete the proof.
+- Corpus (48-11): the T1 `sim math corpus` checks every sim CRT form in the form the sim calls
+  it (float in, double routine, float out; sin, cos and tan through `PblCrtTrig.h`, also on the
+  plain `/fp:strict` route of `WeaponCannon`) over the whole float range: per function 262,144
+  fixed-seed raw float patterns (pairs for atan2, pow and fmod), 64 values in every binade of
+  both signs (every exponent pair for the pair functions), the specials (+-0, denormals,
+  +-FLT_MAX, +-inf, quiet and signalling NaNs with payloads) and +-64 ulps around each
+  function's domain boundaries, the trig thresholds 90112.0 and 12800.0 included. Inputs that
+  x86 computes without an x87 transcendental are pinned in `tests/corpus/simmath/crt.txt` (one
+  line per function and block of 65,536 inputs: name, block, count, FNV-1a 32 of the result
+  bits), generated from the raw x86 CRT by the Win32 tests exe. The sin, cos and tan inputs on
+  the x87 fallback path, every atan2 input (`_CIatan2` always runs x87 `fpatan`) and the fmod
+  inputs of two NaNs with equal significands (C-X64-FMOD) are CPU-specific, so they are compared
+  with the x86 CRT on the same machine (Win32 in-process,
+  x64 through the `--crt-trig-ref` child) and never pinned (D-19). It passes on Win32 and x64.
+  `tests/corpus/mathfn/math.txt` stays a Win32-only toolchain corpus by the user's decision
+  D-16: `T1NotForPlatform` in `tests/smoke.ps1` lists it and `math corpus x87 pc24` as not for
+  x64, each with its reason.
+- Status: Fixed, 48-10, 2026-11-19.
+
+### C-X64-FMOD
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Cause: x86 `_CIfmod` (SysWOW64 `ucrtbase.dll` 10.0.26100.9711, 0x1008DC00) is
+  `mov edx,100014B0h / jmp 1008D650`, the x87 intrinsic dispatcher. It sets the x87 control word
+  0x133F, classifies both operands with `fxam` (class table at 0x1000867E: valid, zero, NaN,
+  infinity) and jumps through the fmod table at 0x100014C0, index `class(y) + 4 * class(x)`:
+  - valid or zero x with valid y: 0x1008DC10, the `fprem` loop (exact) or the signed zero;
+  - x valid or zero with y infinite: 0x1008DAB0, which returns x;
+  - y zero or x infinite, no NaN operand (the invalid operation): 0x1008DBA0, which loads the
+    real indefinite (tbyte at 0x10008650, sign set, significand 0xC000000000000000) and reports
+    `_DOMAIN` through 0x1006050B; with invalid masked (the game's control word 0x27F), the
+    exception handler at 0x10060658 leaves the result, so the caller's `fstp dword` stores
+    0xFFC00000;
+  - one NaN operand: 0x1008DB30 (y) or 0x1008DB20 (x, after `fxch`), `faddp` of the NaN and the
+    other operand, which returns that NaN quieted with its sign and payload;
+  - two NaN operands: 0x1008DB60, `faddp` of both, which follows the x87 rule: the NaN with the
+    larger significand; with equal significands the positive one unless both are negative
+    (measured on this machine: `7FC00001,FFC00001` and `FFC00001,7FC00001` both give
+    0x7FC00001).
+
+  x64 `fmod` returns 0x7FC00000 for the invalid operation and the second operand for two NaNs.
+  The sim widens floats with `cvtss2sd`/`cvtps2pd`, so a signalling float NaN arrives quiet.
+- Change: on x64 `PblCrtFmodF` (`src/PebbleFL/Common/PblCrtTrig.h`) returns
+  `PblCrtX87NanPair(x, y)` when an operand is a NaN, otherwise `fmod` rounded to float, and
+  0xFFC00000 when that result is a NaN. On x86 it stays `(float)fmod((double)x, (double)y)`,
+  chosen by `if constexpr (sizeof(void*) == 8)` (D-02).
+- Reach: Lua `math.mod` (a mod script can pass y = 0, inf or NaN; 48-02). `SpaceAssault::
+  GetRandomCritSys` passes y = 1 and never reaches it. The other users (GameLoop,
+  pcWeatherEffect, HUDElementMap, HUDElementTarget) are render or HUD only and now match x86 too.
+- Proof that x86 does not change: the x86 Release objects of lmathlib, SpaceAssault, GameLoop,
+  pcWeatherEffect, HUDElementMap and HUDElementTarget have the same `dumpbin /disasm` as before;
+  over all 1068 objects only `NetGame.obj` and `NetSetup.obj` (the `/Od` TUs) differ, in their
+  `$SG` string-literal numbers and, in NetSetup, one byte of `.rdata` padding from the new
+  string order (same strings).
+- Tie inputs: the Intel SDM rule for two NaN operands on x87 is the larger significand and does
+  not define equal significands, so the tie above is this CPU's behaviour, not an architectural
+  rule. The 120 fmod inputs of two NaNs with equal significands (after quieting) are therefore
+  compared with the x86 CRT on the same machine (Win32 in-process, x64 through the
+  `--crt-trig-ref` child) and are not in `crt.txt` (48-19). On x64 that comparison also checks
+  `PblCrtX87NanPair`'s tie against this CPU's `faddp`, the rule the `PblX87*` helpers share.
+- Guards: T1 `sim math corpus` (its fmod pins and its same-machine fmod results come from the raw
+  x86 CRT, never through the helper). Rows FMOD-NAN-X64 (the invalid-operation rule back to the plain rounded result) and
+  FMOD-NANOP-X64 (the two-NaN rule back to the first operand) turn it RED on x64. No Win32 row:
+  x86 code does not change.
+- Status: Fixed, 48-11, 2026-11-20.
+
+### C-X64-NANOP
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change (same proof as C-X64-FMOD).
+- Cause, atan2: x86 `_CIatan2` (0x1008D950) is `mov edx,10001560h / jmp 1008D650`, the same
+  dispatcher as `_CIfmod`; its table at 0x10001570 sends NaN operands to the same entries
+  0x1008DB20, 0x1008DB30 and 0x1008DB60, so x86 atan2 follows the one-NaN and two-NaN rules of
+  C-X64-FMOD. x64 `atan2` returns the second operand for two NaNs. The 48-11 corpus found 265
+  inputs.
+- Cause, pow: x86 `__libm_sse2_pow_precise` returns a NaN x quieted with its sign for every
+  y other than +-0, and 1 for y = +-0. x64 `pow` clears the sign of a negative NaN x when y is
+  an odd integer. Measured with the raw x86 and x64 CRTs over 4,781,280 NaN-x pairs and
+  4,781,280 NaN-y pairs: NaN y with a non-NaN x and two NaNs already agree; NaN x with an odd
+  integer y is the only difference. This rule is measured, not read from the disassembly; the
+  corpus pins the x86 results, so another difference shows as a failing Win32-pinned block.
+- Change: on x64 `PblCrtAtan2F` returns `PblCrtX87NanPair(y, x)` when an operand is a NaN, and
+  `PblCrtPowF` returns x quieted when x is a NaN and y is not +-0. x86 is unchanged
+  (`if constexpr (sizeof(void*) == 8)`, D-02).
+- Reach: atan2 is called at 45 x86 sites, including Lua `math.atan2`; pow is Lua `math.pow` and
+  `^`. Any mod script or mod data that makes a NaN reaches them.
+- Guards: T1 `sim math corpus`. Rows ATAN2-NAN-X64 and POW-NAN-X64 (each helper back to the
+  plain CRT call) turn it RED on x64; FMOD-NANOP-X64 covers the shared two-NaN rule. No Win32
+  row: x86 code does not change.
+- Status: Fixed, 48-11, 2026-11-20 (found by the corpus).
+
+### C-X64-PATHROLL
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `EntityPathFollower::Roll` in `src/Battlefront2/Source/EntityPathFollower.cpp`,
+  `// FUNCTION: SWBF2 0x004d6a10`, the weave target
+  `fTarget = Sin(t * 0.43f) * (Cos(t * 2.33f) * (Sin(t * 1.17f) * fWeave)) + fBank`.
+- Cause: float codegen at an ST0 return, the C3 shape. `PblMath::Sin` and `Cos` are `__cdecl`
+  and return in ST0 on x86. The x86 v143 Release code keeps the last `Sin` return on the x87
+  stack: `call Sin; fmul dword [tmp]; fadd dword [fBank]; fstp dword [fTarget]`. At the game's
+  control word 0x27F the product of two floats is exact and the sum is rounded to 53 bits,
+  then once to float. The two inner products are stored to float (`fstp`) before they are used.
+  x64 computes `mulss` then `addss`, which rounds the product to float before the add.
+- Proof chain (spa3c_ass, x64 Test against x86 Test, 48-13): the first state split is turn
+  2927, character 47 (team 2, class 1) `vel.y`, `vel.z` 1 ulp, which is the crashing
+  EntityFlyer 0x65F75027 (`CRASHING`, `mVelocity = Interpolate(mVelocity, vDrive, fDrift)`).
+  `vDrive` differs because its axes differ; orientation is not hashed. Traced back per turn,
+  the flyer's matrix first differs at turn 1494 after `EntityPathFollower::Update`, in
+  `Rotate`, in the `Roll` result (`BC79C75C` against `BC79C75D`), and inside `Roll` in
+  `fTarget` only: `Sin(t * 0.43f) = BF68E9F1`, `Cos(t * 2.33f) = 3F73D1F4`,
+  `Sin(t * 1.17f) = 3DE94569`, `fWeave = 2`, `fBank = BAEC9DC0` are equal, and `fTarget` is
+  `BE4BFC51` on x86 against `BE4BFC52` on x64. `(float)(s1 * t2 + b)` in double gives
+  `BE4BFC51`, `(float)((float)(s1 * t2) + b)` gives `BE4BFC52`.
+- Neutralising experiment: the x64 Test build with only this expression computed in explicit
+  double equals x86 to game over on spa3c_ass (21247 turns) and hot1g_con (9014 turns), `state=`
+  and `rand=`. With only that expression put back, spa3c_ass splits at 2927 and hot1g_con at
+  8238 again. hot1g_con 8238 (static object hp 4 ulp) is therefore the same site.
+- Change: `PblX87MulAddF(a, b, c)` (`src/PebbleFL/Common/PblX87Math.h`) is
+  `(float)((double)a * (double)b + (double)c)`, which is the x87 53-bit result for float
+  operands: the product is exact in both, the sum is rounded to 53 bits in both, and neither
+  overflows nor underflows the double range. NaNs follow the x87 rules: an invalid product is
+  0xFFC00000, two NaN operands give `PblCrtX87NanPair` in the multiply and in the add. `Roll`
+  calls it on x64 and keeps the original expression on x86, chosen by
+  `if constexpr (sizeof(void*) == 8)` (D-02).
+- Proof that x86 does not change: the x86 Release `EntityPathFollower.obj` has the same
+  `dumpbin /disasm` as before the edit (objcmp). Win32 Release `-Smoke All -Soak Short` passes
+  with every digest row.
+- Rendered x86 (D-18): after `CreateDevice` the x87 control word is 24-bit. The x86 sequence
+  then rounds the product to 24 bits and the sum to 24 bits, which is the single-precision
+  result x64 computed before this fix. Rendered x86 is unchanged by this fix and still differs
+  from headless x86 at this step; x64 now equals headless x86.
+- Guards: T1 `x87 multiply add keeps the x86 rounding` pins 40 results of the x86 x87
+  sequence (`fld; fmul; fadd; fstp` at 0x27F, measured on this machine), the turn-1494 inputs
+  among them, on both platforms. T1 `path follower roll target keeps the x86 rounding on x64`
+  pins the call in `Roll`. Rows X87MA-X64 (the helper back to single precision), X87MA-NANMUL-X64
+  and X87MA-NANADD-X64 (the two-NaN rules) and EPF-ROLL-X64 (`Roll` back to the single-precision
+  expression) turn them RED on x64. No Win32 row: x86 code does not change.
+- Status: Fixed, 48-13, 2026-11-20.
+
+### C-X64-CONVOYDIST
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `UnitTrooperAgent::UpdateStatePostVision` in
+  `src/Battlefront2/Source/UnitTrooperAgent.cpp`, state `STATE_Convoy`, the follow distance
+  `fDist = (GetCollisionRadius(self) + GetCollisionRadius(parent)) * 2.5f`.
+- Cause: float codegen at an ST0 return, the C3 shape. `AIUtil::GetCollisionRadius` is `__cdecl`
+  and returns in ST0 on x86; every one of its return paths leaves a float-exact value (a loaded
+  float, or a float times 0.5). The x86 v143 Release code stores the first return to float, then
+  keeps the second on the x87 stack: `call GetCollisionRadius; fadd dword [r1]; fmul dword [2.5];
+  fstp dword [fDist]`. At the game's control word 0x27F the sum and the product are rounded to
+  53 bits, then once to float. x64 computes `addss` then `mulss`, which rounds the sum to float
+  before the multiply.
+- Proof chain (geo1c_con, x64 Test against x86 Test, 48-14): the first state split is turn 4534,
+  character 34 (team 2, class 2, a soldier in `SPRINT`) `vel.y`, `vel.z` 2 ulp. Its matrix is
+  equal; `Move` gets a different `fForward`, `fStrafe` because `mControlMove` from
+  `AIUtil::UpdatePhysics` differs, because the steer destination `x` differs 1 ulp
+  (`4133166B` against `4133166A`). The destination is the goal of a new two-node path from
+  `NavigatorFollowTarget::UpdateFollowCrumbs`, a crumb built from
+  `mFollowTarget->GetMatrix().ApplyTransform(mFollowOffset)`, and `mFollowOffset.z` already
+  differs (`BF62AAB1` against `BF62AAB0`) from turn 4186, when the convoy follow starts.
+  `mFollowOffset` is `ReserveOffset(FT_CONVOY) * fDist` with `z` scaled by 0.3; the radii
+  `3EECD7F7` and `40884EF6` are equal, and `fDist` is `413CE393` on x86 against `413CE392` on
+  x64. `(float)(((double)r2 + r1) * 2.5)` gives `413CE393`, `(float)((float)(r1 + r2) * 2.5f)`
+  gives `413CE392`.
+- Neutralising experiment: the x64 Test build with only this expression computed in explicit
+  double moves geo1c_con's first split from 4534 to 5456 (C-X64-CYLRAY). shell-first, which
+  split at 798 in 4 of 4 runs at the 48-13 tree, equals x86 to game over (9014 turns) with only
+  this change and still splits at 798 with only the C-X64-CYLRAY change, so its 798 split is
+  this site.
+- Change: `PblX87AddMulF(a, b, c)` (`src/PebbleFL/Common/PblX87Math.h`) is
+  `(float)(((double)a + (double)b) * (double)c)`, which is the x87 53-bit result for float
+  operands: the sum and the product are rounded to 53 bits in both, and for float operands
+  neither overflows nor underflows the double range (the sum is below 2^129 and, when not zero,
+  at least 2^-149, so the product lies between 2^-298 and 2^257). NaNs follow the x87 rules: an
+  invalid sum is 0xFFC00000, two NaN operands give `PblCrtX87NanPair` in the add and in the
+  multiply. The convoy state calls it on x64 and keeps the original expression on x86, chosen
+  by `if constexpr (sizeof(void*) == 8)` (D-02).
+- Proof that x86 does not change: the x86 Release `UnitTrooperAgent.obj` has the same
+  `dumpbin /disasm` as before the edit (objcmp). Win32 Release `-Smoke All -Soak Short` passes
+  with every digest row.
+- Rendered x86 (D-18): after `CreateDevice` the x87 control word is 24-bit. The x86 sequence
+  then rounds the sum and the product to 24 bits, which is the single-precision result x64
+  computed before this fix. Rendered x86 is unchanged by this fix and still differs from
+  headless x86 at this step; x64 now equals headless x86.
+- Guards: T1 `x87 add multiply keeps the x86 rounding` pins 41 results of the x86 x87 sequence
+  (`fld; fadd; fmul; fstp` at 0x27F, measured on this machine), the turn-4186 radii among them,
+  on both platforms. T1 `convoy follow distance keeps the x86 rounding on x64` pins the call.
+  Rows X87AM-X64 (the helper back to single precision), X87AM-NANADD-X64 and X87AM-NANMUL-X64
+  (the two-NaN rules) and UTA-CONVOY-X64 (the convoy state back to the single-precision
+  expression) turn them RED on x64. No Win32 row: x86 code does not change.
+- Status: Fixed, 48-14, 2026-11-20.
+
+### C-X64-CYLRAY
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `CollisionUtil::RayHitAxisAlignedCylinder` in
+  `src/Battlefront2/Source/CollisionUtil.cpp`, `// FUNCTION: SWBF2 0x0046b710`, the two cap
+  re-entry returns `return fRest * fHit + t;`.
+- Cause: float codegen at an ST0 return, the C3 shape. `RayHitAACylinder` returns in ST0; the
+  x86 v143 Release code stores it to float, then returns `fld dword [fHit]; fmul dword [fRest];
+  fadd dword [t]` in ST0 without a store. At 0x27F that is the 53-bit `a * b + c`. Every x86
+  caller stores the return to float at once: `RayHitCylinder`, `CollisionPrimitive::RayTest`,
+  and `CollisionModel::RayHit` (through `CollisionPrimitive::RayHit` and
+  `CollisionBodyPrimitive::RayHit`, which pass ST0 on). So x86 rounds once to float. x64
+  computes `mulss` then `addss`.
+- Proof chain (geo1c_con with C-X64-CONVOYDIST neutralised, x64 Test against x86 Test, 48-14):
+  the first state split is turn 5456, character 57 (team 3, class 0, an EntityWalker,
+  object 0x5F4D4647) `pos.y` 1 ulp when it lands. Traced back per turn, the walker first
+  differs at turn 5452 in `EntityWalker::UpdateOrientation`, in leg pair 1's `mPushValue`
+  (`3EB24044` against `3EB24030`), from `WalkerLegPair::SetupGroundCollision` with equal
+  position, feet and pitch. The second foot's ray (`CollisionManager::RayHit`, filter 0x90)
+  hits an object, not the terrain (terrain hits equal); its `CollisionModel::RayHit` has equal
+  matrix, inverse and local ray, and body 0, a `CYLINDER` primitive (radius 0.75, height 12.58),
+  returns `3F372E64` on x86 against `3F372E65` on x64. The cap re-entry inputs
+  `fHit = 3F368699`, `fRest = 3F7DB75D`, `t = 3C1228AB` are equal on both platforms;
+  `(float)(fHit * fRest + t)` in double gives `3F372E64`, the single-precision form
+  `3F372E65`. `RayHitAACylinder`'s own `fHit / fLength` is an x87 `fdiv` of two floats, which
+  rounded once to float equals the single-precision quotient (53 >= 2 * 24 + 2), so it is not
+  a difference.
+- Neutralising experiment: with C-X64-CONVOYDIST neutralised, the x64 Test build with only
+  these two returns computed in explicit double equals x86 to game over on geo1c_con
+  (9014 turns, `state=` and `rand=`).
+- Change: both returns call `PblX87MulAddF(fHit, fRest, t)` (C-X64-PATHROLL) on x64 and keep
+  the original expression on x86, chosen by `if constexpr (sizeof(void*) == 8)` (D-02).
+- Proof that x86 does not change: the x86 Release `CollisionUtil.obj` has the same
+  `dumpbin /disasm` as before the edit (objcmp). Win32 Release `-Smoke All -Soak Short` passes
+  with every digest row.
+- Rendered x86 (D-18): at the 24-bit control word the x86 sequence rounds the product and the
+  sum to 24 bits, which is the single-precision result x64 computed before this fix. Rendered
+  x86 is unchanged by this fix and still differs from headless x86 at this step; x64 now equals
+  headless x86.
+- Guards: T1 `x87 multiply add keeps the x86 rounding` now also pins the turn-5452 inputs
+  (`3F368699 3F7DB75D 3C1228AB` to `3F372E64`, measured with the x87 sequence on this
+  machine), on both platforms. T1 `cylinder ray hit return keeps the x86 rounding on x64` pins
+  both returns. Rows CU-AACYL-TOP-X64 and CU-AACYL-BOT-X64 (each return back to the
+  single-precision expression) turn it RED on x64. No Win32 row: x86 code does not change.
+- Status: Fixed, 48-14, 2026-11-20.
+
+### C-X64-SACHEAT
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `SpaceAssault_CheatLikeABastard` in `src/Battlefront2/Source/AIDifficulty.cpp`,
+  `// FUNCTION: SWBF2 0x00439930`, the two timers `mNextFlyerKillTime` and
+  `mNextCritSysDamageTime` = `fTime + SpaceAssault_GetRandom*Time() * fIntervalScale`.
+- Cause: float codegen at an ST0 return, the C3 shape. Both `SpaceAssault_GetRandom*Time` are
+  `__cdecl` and return the ST0 of `AIUtil::GetRandomFloat`, which is `fld` of a stored float on
+  both paths, so the return is float-exact. x86 v143 Release: `call GetRandom*Time; fmul dword
+  [fIntervalScale]; fadd dword [fTime]; fstp dword [timer]` (obj 0x88..0x97 and 0x16F..0x17E):
+  one 53-bit `a * b + c` at 0x27F, rounded once to float. x64: `mulss`, `addss`.
+- Inputs that differ: any `fIntervalScale` that is not a power of two (the auto-balance scale
+  `-1 / (modifier - 1)`, 1/3, 1/5, ...): `429888AE * 3EAAAAAB + 43EC76D0` is `43F92CDF` on x86
+  and `43F92CDE` in single precision.
+- Change: each timer calls `PblX87MulAddF(GetRandom*Time(), fIntervalScale, fTime)` on x64 and
+  keeps the original expression on x86, chosen by `if constexpr (sizeof(void*) == 8)` (D-02).
+  The file keeps its `FloatingPointModel Strict` (C2).
+- Proof that x86 does not change: the x86 Release `AIDifficulty.obj` has the same
+  `dumpbin /disasm` as before the edit (objcmp). Win32 Release `-Smoke All -Soak Short` passes
+  with every digest row.
+- Rendered x86 (D-18): at the 24-bit control word the x86 sequence rounds the product and the
+  sum to 24 bits, which is the single-precision result x64 computed before this fix. Rendered
+  x86 is unchanged by this fix and still differs from headless x86 at this step; x64 now equals
+  headless x86.
+- Guards: T1 `x87 multiply add keeps the x86 rounding` pins the inputs above and
+  `42203205 * 3E4CCCCD + 426AFCC8 = 42858365`, measured with the x87 sequence on this machine.
+  T1s `space assault flyer kill timer keeps the x86 rounding on x64` and `space assault
+  critical system timer keeps the x86 rounding on x64` pin the two calls. Rows
+  AID-FLYERKILL-X64 and AID-CRITSYS-X64 turn them RED on x64. No Win32 row: x86 code does not
+  change.
+- Status: Fixed, 48-21, 2026-11-20.
+
+### C-X64-BARRAGE
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `AILowLevel::ProcessBarrageWpn` in `src/Battlefront2/Source/AILowLevel.cpp`, the
+  barrage count `(int)(GetRandomFloat(0, iMax - iMin) * GetBarrageCountMultiplier() + iMin)`.
+- Cause: float codegen at an ST0 return, the C3 shape. `GetRandomFloat` is stored to float;
+  `AIDifficulty::GetBarrageCountMultiplier` returns `fld` of a stored float (float-exact). x86
+  v143 Release: `call GetBarrageCountMultiplier; fmul dword [r]; fadd dword [(float)iMin];
+  fstp dword; cvttss2si` (obj 0xEC..0x109): the 53-bit `a * b + c` rounded once to float, then
+  truncated. x64: `mulss`, `addss`, `cvttss2si`.
+- Inputs that differ: `3F21AF28 * 4119F4DD + 40800000` is `41213C55` on x86 and `41213C56` in
+  single precision; the truncated count differs when the two results straddle an integer.
+- Change: x64 stores the random first (the x86 call order) and computes
+  `(int)PblX87MulAddF(GetBarrageCountMultiplier(), r, (float)iMin)`; x86 keeps the original
+  expression, chosen by `if constexpr (sizeof(void*) == 8)` (D-02).
+- Proof that x86 does not change: objcmp of the x86 Release `AILowLevel.obj` is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at the 24-bit control word the x86 sequence equals the single-precision
+  form x64 computed before this fix; rendered x86 is unchanged and still differs from headless
+  x86 here; x64 now equals headless x86.
+- Guards: T1 `x87 multiply add keeps the x86 rounding` pins the inputs above (measured with the
+  x87 sequence on this machine); T1 `barrage count keeps the x86 rounding on x64` pins the call.
+  Row AILL-BARRAGE-X64 turns it RED on x64. No Win32 row: x86 code does not change.
+- Status: Fixed, 48-21, 2026-11-20.
+
+### C-X64-JETJUMP
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `UnitDeathmatchAgent::DoJetJumpStuff` in
+  `src/Battlefront2/Source/UnitDeathmatchAgent.cpp`, `mNextJumpTime = fNow + 5.0f +
+  GetGlobalFloat() * 10.0f`. x86 inlines it into `UnitDeathmatchAgent::UpdateStatePostVision`
+  as well, so both inventory rows are this one source line.
+- Cause: float codegen at an ST0 return. `PblRandom::GetGlobalFloat` returns `fld (1.m);
+  fsub 1.0`, exact (k * 2^-23). `fNow + 5.0f` is an SSE `addss` stored to float on both
+  platforms. x86: `call GetGlobalFloat; fmul dword [10.0]; fadd dword [t]; fstp` (obj
+  0x17F..0x19F and 0x1EF..0x20F): the 53-bit `r * 10 + t` rounded once. x64: `mulss`, `addss`.
+- Inputs that differ: ordinary; `3F66834C * 10 + 415E842F` is `41B74B1F` on x86 and `41B74B20`
+  in single precision (26214 of the 2^23 random values differ at `t = 905`).
+- Change: x64 calls `PblX87MulAddF(GetGlobalFloat(), 10.0f, fNow + 5.0f)`; x86 keeps the
+  original expression (`if constexpr (sizeof(void*) == 8)`, D-02).
+- Proof that x86 does not change: objcmp of the x86 Release `UnitDeathmatchAgent.obj` is
+  `same`. Win32 Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at 24 bits the x86 sequence equals the single-precision form; rendered
+  x86 is unchanged and still differs from headless x86 here; x64 now equals headless x86.
+- Guards: T1 `x87 multiply add keeps the x86 rounding` pins the inputs above (measured with the
+  x87 sequence on this machine); T1 `deathmatch jet jump time keeps the x86 rounding on x64`
+  pins the call. Row UDA-JETJUMP-X64 turns it RED on x64. No Win32 row.
+- Status: Fixed, 48-21, 2026-11-20.
+
+### C-X64-SOLDACTION
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `SoldierAnimator::SetAction` in `src/Battlefront2/Source/SoldierAnimator.cpp`, state
+  `FLY`, `mRotSpeed = GetGlobalFloat() * 20.0f - 10.0f`.
+- Cause: float codegen at an ST0 return. x86: `call GetGlobalFloat; fmul dword [20.0]; fsub
+  dword [10.0]; fstp dword [mRotSpeed]` (obj 0x522..0x536): the 53-bit result rounded once.
+  x64: `mulss`, `subss`. The exact random times 20 needs up to 26 bits.
+- Inputs that differ: ordinary; 2516582 of the 2^23 random values differ, for example
+  `3EEE80B4` gives `BF2EF8F8` on x86 and `BF2EF900` in single precision.
+- Change: x64 calls `PblX87MulAddF(GetGlobalFloat(), 20.0f, -10.0f)`. The product is never a
+  NaN and the subtracted constant is not a NaN, so `+ (-10)` equals the x87 `- 10` for every
+  random value. x86 keeps the original expression (`if constexpr (sizeof(void*) == 8)`, D-02).
+- Proof that x86 does not change: objcmp of the x86 Release `SoldierAnimator.obj` is `same`.
+  Win32 Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at 24 bits the x86 sequence equals the single-precision form; rendered
+  x86 is unchanged and still differs from headless x86 here; x64 now equals headless x86.
+- Guards: T1 `x87 multiply add keeps the x86 rounding` pins the inputs above (measured with the
+  x87 sequence on this machine); T1 `soldier fly spin keeps the x86 rounding on x64` pins the
+  call. Row SA-FLYSPIN-X64 turns it RED on x64. No Win32 row.
+- Status: Fixed, 48-21, 2026-11-20.
+
+### C-X64-FLYERRAY
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `EntityFlyer::Update` in `src/Battlefront2/Source/EntityFlyer.cpp`, state `LANDING`,
+  `fDist = CollisionManager::RayHit(...) * 1024.0f - (fCenterY - fBodyY)`.
+- Cause: float codegen at an ST0 return. `CollisionManager::RayHit` returns `fld` of a stored
+  float or `fld1` (float-exact). x86: `call RayHit; fmul dword [1024.0]; fsub dword [d]; fstp`
+  (obj 0x24B7..0x24E4), `d` the SSE difference stored to float. x64: `mulss`, `subss`.
+- Inputs that differ: the product by 1024 is exact in single precision unless it overflows, so
+  only a hit fraction at or above 2^118 differs: `7A800000 * 1024 - 7F7FFFFF` is `73800000`
+  (2^104) on x86 and `7F800000` in single precision. A NaN `d` keeps its own sign in the x87
+  `fsub`, so `PblX87MulAddF(r, 1024, -d)` is not exact here.
+- Change: `PblX87MulSubF(a, b, c)` (`src/PebbleFL/Common/PblX87Math.h`) is
+  `(float)((double)a * (double)b - (double)c)` when the product is not a NaN, otherwise
+  `PblX87MulAddF(a, b, c)`, whose NaN path is the x87 rule for the product and for the second
+  operand (the NaN rules do not depend on add or subtract). x64 calls
+  `PblX87MulSubF(RayHit(...), 1024.0f, fCenterY - fBodyY)`; x86 keeps the original expression
+  (`if constexpr (sizeof(void*) == 8)`, D-02).
+- Proof that x86 does not change: objcmp of the x86 Release `EntityFlyer.obj` is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at 24 bits the x86 sequence equals the single-precision form; rendered
+  x86 is unchanged and still differs from headless x86 at this step; x64 now equals headless
+  x86.
+- Guards: T1 `x87 multiply subtract keeps the x86 rounding` pins 38 results of the x87 sequence
+  `fld; fmul; fsub; fstp` at 0x27F measured on this machine: 12 random inputs where the single
+  form differs, the overflow above, signed zeros, exact cancellation, denormals, NaN `c` of
+  both signs, inf times 0, inf minus inf and the two-NaN pairs. T1 `flyer landing ground
+  distance keeps the x86 rounding on x64` pins the call. Rows X87MS-X64 (the helper back to
+  single precision), X87MS-NAN-X64 (the NaN path back to the SSE subtract) and EF-LANDDIST-X64
+  (the call back to the single-precision expression) turn them RED on x64. No Win32 row.
+- Status: Fixed, 48-21, 2026-11-20.
+
+### C-X64-TARGETPRIO
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `TargetInfo::GetTargetPrio` in `src/Battlefront2/Source/TargetInfo.cpp`,
+  `// FUNCTION: SWBF2 0x006520a0`, `return fOff * 16.0f + fAlong;`.
+- Cause: an unrounded ST0 return. x86: `fld dword [fOff]; fmul dword [16.0]; fadd dword
+  [fAlong]; ret` (obj 0xB7..0xC4). Every caller stores the return to float at once:
+  `EntitySoldier::TryBoard` (`fstp dword [ebp-70h]`) and the three calls in
+  `PlayerController::Update` (`fstp dword [esp+34h]`, `fstp dword [esp+18h]`,
+  `fstp dword [esp+5Ch]`). So x86 rounds once. x64: `mulss`, `addss`.
+- Inputs that differ: the product by 16 is exact unless it overflows: `abs(fOff) >= 2^124` with
+  a `fAlong` that brings the sum back below the float range (`7D800000 * 16 + FF7FFFFF` is
+  `73800000` on x86, `7F800000` in single precision), and NaN pairs (`FFC00000 * 16 +
+  7FC00001` is `7FC00001` on x86, `FFC00000` with SSE).
+- Change: x64 returns `PblX87MulAddF(fOff, 16.0f, fAlong)`; x86 keeps the original expression
+  (`if constexpr (sizeof(void*) == 8)`, D-02).
+- Proof that x86 does not change: objcmp of the x86 Release `TargetInfo.obj` is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at 24 bits the x86 sequence equals the single-precision form; rendered
+  x86 is unchanged and still differs from headless x86 here; x64 now equals headless x86.
+- Guards: T1 `x87 multiply add keeps the x86 rounding` pins the inputs above (measured with the
+  x87 sequence on this machine); T1 `target priority keeps the x86 rounding on x64` pins the
+  return. Row TI-PRIO-X64 turns it RED on x64. No Win32 row.
+- Status: Fixed, 48-21, 2026-11-20.
+
+### C-X64-IDLEBOB
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `IdleHelper::UpdateState` in `src/Battlefront2/Source/IdleHelper.cpp`,
+  `fWander = (Cos(mIdleTime / 5 * 0.3) + Sin(mIdleTime / 5)) * 0.2f`.
+- Cause: float codegen at an ST0 return. `PblMath::Sin` and `Cos` return `fld` of a stored
+  float. x86: `call Sin; fstp [s]; call Cos; fadd dword [s]; fmul dword [0.2]; fstp` (obj
+  0xC9..0x101): the 53-bit `(c + s) * 0.2` rounded once. x64: `addss`, `mulss`.
+- Inputs that differ: ordinary; `(BE15E8CB + BE22F024) * 0.2` is `BD7A4726` on x86 and
+  `BD7A4727` in single precision.
+- Change: x64 calls `PblX87AddMulF(Cos(...), Sin(...), 0.2f)`; x86 keeps the original
+  expression (`if constexpr (sizeof(void*) == 8)`, D-02).
+- Proof that x86 does not change: objcmp of the x86 Release `IdleHelper.obj` is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at 24 bits the x86 sequence equals the single-precision form; rendered
+  x86 is unchanged and still differs from headless x86 here; x64 now equals headless x86.
+- Guards: T1 `x87 add multiply keeps the x86 rounding` pins the inputs above (measured with the
+  x87 sequence on this machine); T1 `idle wander keeps the x86 rounding on x64` pins the call.
+  Row IH-WANDER-X64 turns it RED on x64. No Win32 row.
+- Status: Fixed, 48-21, 2026-11-20.
+
+### C-X64-FLYERTRICK
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `EntityFlyer::DoTrick` in `src/Battlefront2/Source/EntityFlyer.cpp`, the four flip
+  cases `mGetSpeedSpeed >= (GetFlyerMinSpeed() + GetFlyerMidSpeed()) * 0.5f`.
+- Cause: float codegen at an ST0 return. Both getters return `fld` of a stored float. x86, four
+  times: `call GetFlyerMinSpeed; fstp [m]; call GetFlyerMidSpeed; fadd dword [m]; fmul dword
+  [0.5]; fstp` (obj 0x1B2, 0x248, 0x2DE, 0x360). x64: `addss`, `mulss`.
+- Inputs that differ: the half is exact unless the sum overflows (`7F7FFFFF + 7F7FFFFF` halves
+  to `7F7FFFFF` on x86 and gives `7F800000` in single precision) or a NaN pair meets. A
+  subnormal half equals the single form for 0.5 (the float sum is exact below 2^-125 and the
+  scale commutes with rounding above it); the T1 pins one such case.
+- Change: the switch holds one `float fTrickSpeed`; each flip case assigns it with
+  `PblX87AddMulF(GetFlyerMidSpeed(), GetFlyerMinSpeed(), 0.5f)` on x64 and with the original
+  expression on x86 (`if constexpr (sizeof(void*) == 8)`, D-02).
+- Proof that x86 does not change: objcmp of the x86 Release `EntityFlyer.obj` is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at 24 bits the x86 sequence equals the single-precision form; rendered
+  x86 is unchanged and still differs from headless x86 here; x64 now equals headless x86.
+- Guards: T1 `x87 add multiply keeps the x86 rounding` pins the inputs above (measured with the
+  x87 sequence on this machine); T1 `flyer trick roll speed keeps the x86 rounding on x64`
+  counts the block four times. Rows EF-TRICK-UR-X64, EF-TRICK-DR-X64, EF-TRICK-UL-X64 and
+  EF-TRICK-DL-X64 (each case back to the single-precision expression) turn it RED on x64. No
+  Win32 row.
+- Status: Fixed, 48-21, 2026-11-20.
+
+### C-X64-DPS
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `CombatUtil::CalcDamagePerSecond` in `src/Battlefront2/Source/CombatUtil.cpp`,
+  `fDamagePerSecond = (sCalcDamagePerSecond(top) + fDamagePerSecond) * 0.5f`.
+- Cause: float codegen at an ST0 return. `sCalcDamagePerSecond` returns `fld` of a stored float
+  or `fldz`. x86: `call sCalcDamagePerSecond; fadd dword [d]; fmul dword [0.5]; fstp` (obj
+  0x176..0x187). x64: `addss`, `mulss`.
+- Inputs that differ: the sum overflowing the float range (`7F7FFFFF + 7F000000` halves to
+  `7F400000` on x86, `7F800000` in single precision) and NaN pairs; the T1 also pins a
+  subnormal half, which equals the single form.
+- Change: x64 calls `PblX87AddMulF(sCalcDamagePerSecond(...), fDamagePerSecond, 0.5f)`; x86
+  keeps the original expression (`if constexpr (sizeof(void*) == 8)`, D-02).
+- Proof that x86 does not change: objcmp of the x86 Release `CombatUtil.obj` is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at 24 bits the x86 sequence equals the single-precision form; rendered
+  x86 is unchanged and still differs from headless x86 here; x64 now equals headless x86.
+- Guards: T1 `x87 add multiply keeps the x86 rounding` pins the inputs above (measured with the
+  x87 sequence on this machine); T1 `charged damage per second keeps the x86 rounding on x64`
+  pins the call. Row CU-DPS-X64 turns it RED on x64. No Win32 row.
+- Status: Fixed, 48-21, 2026-11-20.
+
+### C-X64-RESERVE
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `ReserveManager::ReserveOffset` in `src/Battlefront2/Source/ReserveManager.cpp`,
+  `FT_DOUBLEFILE_RAND`, the seed `(int)((GetMissionTime() + fBits) * -0.125f)`.
+- Cause: float codegen at an ST0 return. `GameLoop::GetMissionTime` returns `fld` of a stored
+  float or `fldz`. x86: `call GetMissionTime; fadd dword [fBits]; fmul dword [-0.125]; fstp
+  dword; cvttss2si` (obj 0x3FC..0x416). x64: `addss`, `mulss`, `cvttss2si`.
+- Inputs that differ: the sum overflowing the float range (`(7F7FFFFF + 7F7FFFFF) * -0.125` is
+  `FE7FFFFF` on x86, `FF800000` in single precision), a subnormal result whose sum the float
+  add rounds first (`(01800000 + 00000005) * -0.125` is `80400001` on x86, `80400000` in single
+  precision), and NaN pairs.
+- Change: the case body is in both branches of `if constexpr (sizeof(void*) == 8)` (D-02); the
+  x64 copy computes the seed with `(int)PblX87AddMulF(GetMissionTime(), fBits, -0.125f)`, the
+  x86 copy is the original text. A local for the product or the integer moved x86 register
+  allocation in the vector code after it (objcmp `DIFF`); the whole-body form keeps the x86
+  object identical.
+- Proof that x86 does not change: objcmp of the x86 Release `ReserveManager.obj` is `same`.
+  Win32 Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at 24 bits the x86 sequence equals the single-precision form; rendered
+  x86 is unchanged and still differs from headless x86 here; x64 now equals headless x86.
+- Guards: T1 `x87 add multiply keeps the x86 rounding` pins the inputs above (measured with the
+  x87 sequence on this machine); T1 `double file jitter phase keeps the x86 rounding on x64`
+  pins the case body. Row RM-JITTER-X64 turns it RED on x64. No Win32 row.
+- Status: Fixed, 48-21, 2026-11-20.
+
+### C-X64-SNIPEHINT
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `AIUtil::IsSnipeHintNearby` in `src/Battlefront2/Source/AIUtil.cpp`, the next check
+  time `GetRandomFloat(0.0f, 4.0f) + (GameLoop::GetMissionTime() + 8.0f)`.
+- Cause: float codegen at an ST0 return. The random is an SSE float stored first;
+  `GameLoop::GetMissionTime` returns `fld` of a stored float or `fldz`. x86: `call
+  GetMissionTime; fadd dword [8.0]; fadd dword [r]; fstp dword` (obj 0x7F..0x90), the two adds
+  rounded once to float from the 53-bit sum. x64: `addss 8.0`, `addss r`.
+- Inputs that differ: ordinary mission times, for example `(42750181 + 41000000) + 4043A16E` is
+  `42909DCC` on x86 and `42909DCB` in single precision, plus a sum overflowing the float range
+  and NaN pairs.
+- Change: x64 stores the random first and calls `PblX87AddAddF(GetMissionTime(), 8.0f, fJitter)`
+  under `if constexpr (sizeof(void*) == 8)` (D-02); x86 keeps the original expression.
+  `PblX87AddAddF` (new, `src/PebbleFL/Common/PblX87Math.h`) is `(a + b) + c` in double, which
+  is the x87 53-bit chain for every float input, with the x87 NaN rule per step through
+  `PblX87NanStep`.
+- Proof that x86 does not change: objcmp of all 1068 x86 Release objects is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at the 24-bit control word the x86 sequence rounds each sum to 24 bits,
+  which is the single-precision result x64 computed before this fix for ordinary inputs.
+  Rendered x86 is unchanged by this fix and still differs from headless x86 at this step; x64
+  now equals headless x86.
+- Guards: T1 `x87 add add keeps the x86 rounding` pins the inputs above and the helper's
+  overflow, subnormal, signed-zero, invalid and NaN cases, measured with the x87 sequence on
+  this machine; T1 `snipe hint check time keeps the x86 rounding on x64` pins the call. Rows
+  X87AA-X64, X87AA-NAN1-X64, X87AA-NAN2-X64, X87NS-X64 and AIU-SNIPE-X64 turn them RED on x64.
+  No Win32 row: x86 code does not change.
+- Status: Fixed, 48-22, 2026-11-20.
+
+### C-X64-COMBATRANGE
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Functions: `CombatUtil::GetCombatRange` in `src/Battlefront2/Source/CombatUtil.cpp` and its
+  chaining caller `CombatHelper::UpdateState` in `src/Battlefront2/Source/CombatHelper.cpp`,
+  `GetCombatRange(GetMe()) + 10.0f`.
+- Cause: an unrounded ST0 return chained by the caller. x86 `GetCombatRange` inlines
+  `sGetCombatRange`: `GetMaxSpeed() * 5.0f` is stored (`fstp`), then `call sGetWpnMaxRange;
+  fadd dword [fMove]; ret` (obj 0x2E..0x3C) returns the sum unrounded. `sGetWpnMaxRange`
+  returns `fld` of a stored float on both paths. `UpdateState` adds `fadd dword [10.0]` and
+  stores (obj 0x654..0x674), so x86 rounds `(W + M) + 10` once. x64: `addss` in
+  `GetCombatRange`, `addss 10.0` in `UpdateState`. The other caller,
+  `UnitAgent::Handle_Audible_CanHearEnemy`, stores the return at once (`fstp [ebp-2Ch]`), which
+  is the single add x64 already computes.
+- Inputs that differ: ordinary ranges, for example `(41B5C77B + 3F5D00F4) + 41200000` is
+  `420657C1` on x86 and `420657C2` in single precision.
+- Change: in `UpdateState`, x64 computes the two operands as `GetCombatRange` does
+  (`GetCurWpn()->GetClass()`, `GetMaxSpeed() * 5.0f`, `CombatUtil::sGetWpnMaxRange`) and calls
+  `PblX87AddAddF(W, M, 10.0f)` under `if constexpr (sizeof(void*) == 8)`; x86 keeps the
+  original call. `GetCombatRange` itself is not changed: its storing caller is exact. No
+  signature changes. The receiver of `GetMaxSpeed` is the controllable's own object, never an
+  `Asteroid`.
+- Proof that x86 does not change: objcmp of all 1068 x86 Release objects is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at the 24-bit control word both adds round to 24 bits, the
+  single-precision result; rendered x86 is unchanged and still differs from headless x86 here;
+  x64 now equals headless x86.
+- Guards: T1 `x87 add add keeps the x86 rounding` pins the inputs above; T1 `combat engage
+  range keeps the x86 rounding on x64` pins the branch. Row CH-RANGE-X64 turns it RED on x64.
+  No Win32 row.
+- Status: Fixed, 48-22, 2026-11-20.
+
+### C-X64-SPAWNTIME
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `PlayerController::Update` in `src/Battlefront2/Source/PlayerController.cpp`, the
+  invincibility cancel `SetSpawnTime(NetComm::GetTime() - (float)gSpawnInvicibility - 0.1f)`.
+- Cause: float codegen at an ST0 return. `NetComm::GetTime` is `fld dword [netTime]`;
+  `(float)gSpawnInvicibility` is an SSE float stored first. x86: `call GetTime; fsub dword [s];
+  fsub dword [0.1]; fstp dword [mSpawnTime]` (obj 0x91A..0x92A). x64: `subss`, `subss`.
+- Inputs that differ: ordinary times, for example `(3F04F6A7 - 40400000) - 3DCCCCCD` is
+  `C02528BD` on x86 and `C02528BC` in single precision, and NaN pairs. The x87 `fsub` keeps a
+  NaN subtrahend's own sign (`(1 - 1) - FFC00001` is `FFC00001`), so the helper subtracts and
+  never adds a negated operand.
+- Change: x64 calls `PblX87SubSubF(NetComm::GetTime(), (float)gSpawnInvicibility, 0.1f)` under
+  `if constexpr (sizeof(void*) == 8)`; x86 keeps the original expression. `PblX87SubSubF` (new)
+  is `(a - b) - c` in double with the x87 NaN rule per step.
+- Proof that x86 does not change: objcmp of all 1068 x86 Release objects is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at the 24-bit control word both subtractions round to 24 bits, the
+  single-precision result; rendered x86 is unchanged and still differs from headless x86 here;
+  x64 now equals headless x86.
+- Guards: T1 `x87 sub sub keeps the x86 rounding` pins the inputs above and the helper's edge
+  and NaN cases; T1 `spawn invincibility cancel time keeps the x86 rounding on x64` pins the
+  call. Rows X87SS-X64, X87SS-NAN1-X64, X87SS-NAN2-X64 and PC-SPAWN-X64 turn them RED on x64.
+  No Win32 row.
+- Status: Fixed, 48-22, 2026-11-20.
+
+### C-X64-ADRENALINE
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `Adrenaline::Update` in `src/Battlefront2/Source/Adrenaline.cpp`, the speed factor
+  `1.0f - Sqrt(v . v) / pObject->GetMaxSpeed()`.
+- Cause: float codegen at an ST0 return. The speed is an SSE float (`sqrtsd; cvtsd2ss`, stored).
+  x86: `call [vtable+60h] (GetMaxSpeed); fdivr dword [speed]; fld1; fsubrp st(1),st; fstp
+  dword` (obj 0x94..0xBD), the quotient kept at 53 bits. x64: `divss`, `subss`. The receiver
+  is `pOwner->GetGameObject()` or `mOwner->GetGameObject()` of a controllable
+  (`ControllerManager.cpp`, `UnitController.cpp`): the controllable's own entity or the parent
+  of a turret or passenger slot (buildings and vehicles). None is an `Asteroid`, so
+  `GetMaxSpeed` returns a loaded float or 0 (the overrides listed for
+  `AIUtil::CalculateBubbleOffset`).
+- Inputs that differ: ordinary speeds, for example `1 - 4083E185 / 4103D944` is `3EFFEFF9` on
+  x86 and `3EFFEFFA` in single precision.
+- Change: x64 stores the speed and calls `PblX87SubDivF(1.0f, fSpeed, GetMaxSpeed())` under
+  `if constexpr (sizeof(void*) == 8)`; x86 keeps the original expression. `PblX87SubDivF`
+  (new) is `c - a / b` in double with the x87 NaN rule per step; a quotient of two floats lies
+  in the double normal range, `x / 0` gives the signed infinity and `0 / 0`, `inf / inf` the
+  x87 indefinite `FFC00000`.
+- Proof that x86 does not change: objcmp of all 1068 x86 Release objects is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at the 24-bit control word the quotient and the difference round to 24
+  bits, the single-precision result; rendered x86 is unchanged and still differs from headless
+  x86 here; x64 now equals headless x86.
+- Guards: T1 `x87 sub div keeps the x86 rounding` pins the inputs above and the helper's edge
+  and NaN cases; T1 `adrenaline speed factor keeps the x86 rounding on x64` pins the branch.
+  Rows X87SD-X64, X87SD-NAN1-X64, X87SD-NAN2-X64 and ADR-SPEED-X64 turn them RED on x64. No
+  Win32 row.
+- Status: Fixed, 48-22, 2026-11-20.
+
+### C-X64-CATAPULT
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `WeaponCatapultClass::SetProperty` in `src/Battlefront2/Source/WeaponCatapult.cpp`,
+  `CockedAngle`: `mCockedAngle = (float)atof(v) * 3.1415927f / 180.0f`.
+- Cause: x87 chain on an ODF value. x86 rounds the `atof` double to float first (`call atof;
+  fstp dword; fld dword`), then `fmul dword [3.1415927]; fdiv dword [180.0]; fstp dword`
+  (obj 0x66..0x81), one rounding of the 53-bit quotient. x64: `cvtsd2ss`, `mulss`, `divss`.
+- Inputs that differ: ordinary angles, for example `C297F629 * 40490FDB / 43340000` is
+  `BFA9BE22` on x86 and `BFA9BE21` in single precision.
+- Change: x64 calls `PblX87MulDivF((float)atof(v), 3.1415927f, 180.0f)` under
+  `if constexpr (sizeof(void*) == 8)`; x86 keeps the original expression. The first operand is
+  the float, as x86 rounds it before the `fmul`. `PblX87MulDivF` (new) is `a * b / c` in double
+  with the x87 NaN rule per step.
+- Proof that x86 does not change: objcmp of all 1068 x86 Release objects is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at the 24-bit control word the product and the quotient round to 24
+  bits, the single-precision result; rendered x86 is unchanged by this fix and still differs
+  from headless x86 here when the class loads after `CreateDevice`; x64 now equals headless
+  x86.
+- Guards: T1 `x87 mul div keeps the x86 rounding` pins the inputs above and the helper's edge
+  and NaN cases; T1 `catapult cocked angle keeps the x86 rounding on x64` pins the call. Rows
+  X87MD-X64, X87MD-NAN1-X64, X87MD-NAN2-X64 and WC-COCKED-X64 turn them RED on x64. No Win32
+  row.
+- Status: Fixed, 48-22, 2026-11-20.
+
+### C-X64-VISIONDIST
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Functions: `VisionManager::MaxVisibleDist` and `VisionManager::UpdatePotentiallyVisible` in
+  `src/Battlefront2/Source/VisionManager.cpp`, and the chaining caller `AttackPatterns::GetFar`
+  in `src/Battlefront2/Source/UnitAttackPatterns.cpp`.
+- Cause: an unrounded ST0 return with three different x86 uses. The terms are SSE floats
+  (`fDist = radius * 20`, `fModifier`). Called `MaxVisibleDist` ends `fld dword [fDist]; fadd
+  dword [30.0]; fmul dword [fModifier]; ret` (obj 0x109..0x119), unrounded.
+  `UnitAgent::HandleDamagedEvent` stores the return at once (one rounding of
+  `(d + 30) * f`). `GetFar` subtracts `fsub dword [10.0]` and stores (obj 0x4F..0x71), one
+  rounding of `(d + 30) * f - 10`. `UpdatePotentiallyVisible` inlines the function as `addss
+  30.0; mulss` (two roundings). x64 before: `addss; mulss` in all three, then `subss 10.0` in
+  `GetFar`.
+- Inputs that differ: ordinary distances, for example `(427F2693 + 41F00000) * 41EB2532` is
+  `452C4B75` on x86 and `452C4B76` in single precision, and
+  `(422C9F81 + 41F00000) * 3FA1CDD0 - 41200000` is `42A4F392` on x86 and `42A4F391` in single
+  precision.
+- Change: the terms move into the inline companion `VisionManager::MaxVisibleDistTerms` in the
+  new header `src/Battlefront2/Source/VisionManagerDist.h` (x86 never calls it, so it emits no
+  x86 code). Under `if constexpr (sizeof(void*) == 8)`: `MaxVisibleDist` returns
+  `PblX87AddMulF(fDist, 30.0f, fModifier)` (one rounding, for the storing caller);
+  `UpdatePotentiallyVisible` computes `(fDist + 30.0f) * fModifier` in float (the inlined x86
+  form); `GetFar` computes `PblX87AddMulAddF(fDist, 30.0f, fModifier, -10.0f)`. The x86 branches
+  are the original text. Adding `-10` equals the x87 `fsub 10` for every value, including NaN
+  and zero results (checked with the x87 tool for the site inputs). `PblX87AddMulAddF` (new)
+  is `(a + b) * c + d` in double with the x87 NaN rule per step. No signature, vtable or struct
+  changes.
+- Proof that x86 does not change: objcmp of all 1068 x86 Release objects is `same`. Win32
+  Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at the 24-bit control word each step rounds to 24 bits, the
+  single-precision result; rendered x86 is unchanged and still differs from headless x86 at the
+  called function; x64 now equals headless x86 at all three uses.
+- Guards: T1s `x87 add multiply keeps the x86 rounding` and `x87 add mul add keeps the x86
+  rounding` pin the inputs above and the helper's edge and NaN cases; T1s `max visible distance
+  keeps the x86 rounding on x64`, `potentially visible distance keeps the x86 rounding on x64`,
+  `attack far range keeps the x86 rounding on x64` and `max visible distance terms keep the x86
+  operands on x64` pin the branches and the companion. Rows X87AMA-X64, X87AMA-NAN1-X64,
+  X87AMA-NAN2-X64, X87AMA-NAN3-X64, VM-DIST-X64, VM-PVDIST-X64, UAP-FAR-X64 and VMD-TERMS-X64
+  turn them RED on x64. No Win32 row.
+- Status: Fixed, 48-22, 2026-11-20.
+
+### C-X64-BOARDRANGE
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `UnitBoardAgent::UpdateStatePostVision` in
+  `src/Battlefront2/Source/UnitBoardAgent.cpp`, the boarding range
+  `pMe->GetCollisionRadius() + pVehicleCol->GetCollisionRadius() + 1.5f`.
+- Cause: float codegen at an ST0 return. `TreeGridObject::GetCollisionRadius` is `movss; fld`
+  of a stored float on both paths. x86: `call GetCollisionRadius (me); fstp [r]; call
+  GetCollisionRadius (vehicle); fadd dword [r]; fadd dword [1.5]; fstp` (obj 0x19F..0x1B9), the
+  two adds rounded once from the 53-bit sum. x64: `addss`, `addss 1.5`. The gap list named this
+  row with the `AIUtil::GetCollisionRadius` family, but it calls the `TreeGridObject` getter and
+  differs for ordinary radii.
+- Inputs that differ: ordinary radii, for example `(40C79056 + 3F4AF587) + 3FC00000` is
+  `41087783` on x86 and `41087784` in single precision, plus a sum overflowing the float range
+  and NaN pairs.
+- Change: x64 calls `PblX87AddAddF(pVehicleCol->GetCollisionRadius(), pMe->GetCollisionRadius(),
+  1.5f)` (operands in the x86 order) under `if constexpr (sizeof(void*) == 8)`; x86 keeps the
+  original expression.
+- Proof that x86 does not change: objcmp of all 1068 x86 Release objects; only `NetGame.obj`
+  (`$SG` numbers) and `EntityLight.obj` (one `$LN` label number, see C-X64-LIGHTFMOD) differ in
+  name only. Win32 Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at the 24-bit control word both adds round to 24 bits, the
+  single-precision result; rendered x86 is unchanged and still differs from headless x86 here;
+  x64 now equals headless x86.
+- Guards: T1 `x87 add add keeps the x86 rounding` pins the inputs above (measured with the x87
+  sequence on this machine); T1 `boarding range keeps the x86 rounding on x64` pins the branch.
+  Row UBA-RANGE-X64 turns it RED on x64. No Win32 row.
+- Status: Fixed, 48-23, 2026-11-20.
+
+### C-X64-DOT3
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Functions: the out-of-line `DotProduct(const PblVector3&, const PblVector3&)` COMDAT
+  (`src/PebbleFL/pc/pcPblVector.inl`) at its nine x86 call sites, and `Asteroid::GetMaxSpeed`
+  (`src/Battlefront2/Source/Asteroid.cpp`).
+- Cause: a three-term dot product kept at 53 bits. The x86 exe links the `EntitySoldier.obj`
+  copy of the COMDAT (map: `00503cd0 f i EntitySoldier.obj`): `fld [a.y]; fmul [b.y]; fld [a.x];
+  fmul [b.x]; faddp; fld [a.z]; fmul [b.z]; faddp; ret`, unrounded. The `/Od` `NetGame.obj` copy
+  (`call D3DXVec3Dot`) is not linked. Its callers are `EntitySoldier::Update` (2 calls,
+  `EntitySoldier.cpp` sprint start and sprint end) and seven in `NetGame.cpp` (`FrontDist`,
+  `FarToNear` twice, `GetClosestOrdnancePos`, `GetObjectsInScope`, `AddSend` twice); each
+  stores ST0 at once (`fstp`), so x86 is the 53-bit dot rounded once. Every other `DotProduct`
+  use is inlined on x86 as SSE single and is not changed. `Asteroid::GetMaxSpeed` (vtable +60h)
+  is the same sequence on `mVelocity` and the matrix z row, unrounded. x64: `mulss` and `addss`
+  per step.
+- GetMaxSpeed callers: every `[vtable+60h]` call in the x86 objects of the 14 source files that
+  call `GetMaxSpeed` stores the return at once (`fstp`) except `AIUtil::CalculateBubbleOffset`
+  (`fmul 0.95`), the first call in `AIUtil::IsNearPost` (`fmul 0.5`),
+  `CombatUtil::GetCombatRange`, `GetMaxCombatRange`, `sGetCombatRange` and
+  `sSelectBestWeaponType` (`fmul 5.0`) and `NavigatorSlide::NextVehicleSlidePos`
+  (`fmul 1.5`). Each of those chains on the controllable's own object (`GetMe()`,
+  `pControllable->GetGameObject()`, the navigator's object), which is never an `Asteroid`
+  (48-22), so a once-rounded `Asteroid::GetMaxSpeed` is exact for every caller that can
+  receive one.
+- Inputs that differ: ordinary vectors, for example the dot of `(40BDE018, 42023A53, BD986428)`
+  and `(432779BF, 4357DCE1, C3502233)` is `45FB2875` on x86 and `45FB2876` in single precision;
+  products that overflow float but cancel (`(2^127, 2^127, 1) . (-2^127, 2^127, 1)` is
+  `3F800000` on x86, the indefinite in single precision); subnormal products; NaN pairs.
+- Change: `PblX87Dot3F(ax, ay, az, bx, by, bz)` (new, `src/PebbleFL/Common/PblX87Math.h`)
+  computes `(ay * by + ax * bx) + az * bz` in double and rounds once, with the x87 NaN rule per
+  step through `PblX87NanStep`. Float products are exact in double and every partial sum is a
+  normal double, so this is the x87 53-bit sequence for every float input. Each call site has
+  an x64 branch under `if constexpr (sizeof(void*) == 8)`; the x86 text is the original. The
+  `DotProduct` inline body is not changed. Shape of each branch:
+  - `EntitySoldier::Update`: the whole `if (mPlayerId >= 0 ...)` sprint group is in both
+    branches (a conditional operator inside the condition moved x86 register allocation).
+  - `NetGame.cpp` is `/Od`, where a conditional operator compiles both arms. `FrontDist`,
+    `FarToNear`, `GetClosestOrdnancePos` and `GetObjectsInScope` use statement branches.
+    `AddSend` holds a static local (`sSideLimit`) whose decorated name carries a scope number,
+    and any block before it renumbers it; so x86 `AddSend` is unchanged and x64 replaces the
+    priority after the original block with `AddSendPriorityX87`, an inline function that
+    recomputes the offset and the priority with `PblX87Dot3F` (never emitted on x86).
+    `NetGame.cpp` includes `PblX87Math.h` after its last `ensure` use, because `ensure` pushes
+    `__LINE__`, and the earlier include position reordered the `/Od` `.data` globals.
+  - `Asteroid::GetMaxSpeed` moved from the class body in `Asteroid.h` to `Asteroid.cpp` with
+    its `// FUNCTION:` marker; the header now only declares it. Keeping the body in the header
+    would have put `PblX87Math.h` into `NetGame.cpp` through `Asteroid.h`, which reordered the
+    `/Od` `.data` globals. The x86 code of `Asteroid.obj` is the same.
+- Proof that x86 does not change: objcmp of all 1068 x86 Release objects; `NetGame.obj` differs
+  only in `$SG` numbers (section sizes equal, `sgcmp.py`), `EntityLight.obj` only in one `$LN`
+  label number. Win32 Release `-Smoke All -Soak Short` passes with every digest row.
+- Rendered x86 (D-18): at the 24-bit control word each step rounds to 24 bits and the products
+  are no longer exact, so rendered x86 differs from both; rendered x86 is unchanged by this
+  fix; x64 now equals headless x86.
+- Guards: T1 `x87 dot keeps the x86 rounding` pins 105 cases measured with the x87 sequence on
+  this machine (12 ordinary inputs where single precision differs, overflow and subnormal
+  products, signed zeros, `inf * 0` and `inf - inf` in every step, NaNs in each operand, NaN
+  pairs in every step, ties); site T1s `soldier sprint start`, `soldier sprint end`, `net front
+  distance`, `net far to near order`, `net closest ordnance position`, `net scope distance`,
+  `net send priority` (each `... keeps the x86 rounding on x64`), `net send priority is
+  replaced on x64` and `asteroid max speed keeps the x86 rounding on x64` pin the branches. Rows
+  X87DOT-X64, X87DOT-NAN1-X64 to X87DOT-NAN5-X64, ES-SPRINT-X64, ES-SPRINTEND-X64,
+  NG-FRONT-X64, NG-FARNEAR1-X64, NG-FARNEAR2-X64, NG-ORDPOS-X64, NG-SCOPE-X64,
+  NG-SENDFACE-X64, NG-SENDSIDE-X64, NG-SENDPRIO-X64 and AST-SPEED-X64 turn them RED on x64. No
+  Win32 row.
+- Status: Fixed, 48-23, 2026-11-20.
+
+### C-X64-LIGHTFMOD
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Functions: `EntityLight::Update` in `src/Battlefront2/Source/EntityLight.cpp` (the StrobeFade
+  and Pulse flicker timers) and the ground effect timer in
+  `src/Battlefront2/Source/WeatherEffect.cpp`.
+- Cause: a direct CRT `fmod((double)t, (double)p)` stored to float, not routed through
+  `PblCrtFmodF`. x86 goes through `_CIfmod` and gives the x87 indefinite `FFC00000` for
+  `fmod(t, 0)` or an infinite timer and the x87 NaN-pair rule for NaN operands (C-X64-FMOD);
+  x64 UCRT `fmod` gives `7FC00000` and the second NaN. Valid inputs are exact on both.
+- Change: the three sites call `PblCrtFmodF(t, p)`, whose x64 branch applies the C-X64-FMOD
+  rule and whose x86 branch is the same `(float)fmod((double)t, (double)p)`.
+  `PblCrtTrig.h` is included in both files.
+- Proof that x86 does not change: `EntityLight.obj` has the same bytes in every non-debug
+  section as the HEAD build (scratch compile of both, `dumpbin /rawdata`); the disassembly
+  differs only in the name of the switch jump table label (`$LN38` to `$LN42`), from the inline
+  function's labels. `WeatherEffect.obj` is `same`. Win32 Release `-Smoke All -Soak Short`
+  passes with every digest row.
+- Rendered x86 (D-18): `fmod` is exact or a NaN at every precision; no rendered change.
+- Guards: T1 `sim math corpus` pins `PblCrtFmodF` against the raw x86 CRT for the zero,
+  infinite and NaN operands (48-11); T1 `light and weather timers keep the x86 fmod rule on
+  x64` pins the three calls and that no direct `fmod(` remains. Rows EL-FMOD-FADE-X64,
+  EL-FMOD-PULSE-X64 and WE-FMOD-X64 (each back to the direct `fmod`) turn it RED on x64. No
+  Win32 row.
+- Status: Fixed, 48-23, 2026-11-20.
+
+### C-X64-CANNONSPREAD
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Functions: `WeaponCannon::Fire` (`// FUNCTION: SWBF2 0x0067f320`), `WeaponCannon::GetYawSpread`
+  (`0x0067e880`) and `WeaponCannon::GetPitchSpread` (`0x0067ea60`) in
+  `src/Battlefront2/Source/WeaponCannon.cpp`.
+- Relation to C3: C3 made v143 x86 emit the VS2013 sequence for this chain through the per-file
+  `<FloatingPointModel>Strict</FloatingPointModel>` item, which stays. It never covered x64,
+  where `/fp:strict` uses SSE and rounds every step. This cause carries the same chain to x64.
+- x86 sequence: `GetPitchSpread` is `maxss kick, 0`, then `fld [mStanceSpread]; fadd [kick];
+  fadd [class mPitchSpread]; ret`, and `GetYawSpread` ends the same way with the yaw term. Both
+  return the 53-bit sum in ST0. Fire draws two Sim randoms, `subss` rounds their difference to
+  float (exact for two values in [0, 1)), calls the spread through the vtable (`[vtable+44h]` for
+  pitch, `[vtable+40h]` for yaw), then `fmul [diff]; fadd [pitch or yaw]; fstp`, one rounding.
+  No class overrides the two spreads below `WeaponCannon` (WeaponLauncher, WeaponTowCable and
+  WeaponGrapplingHook do not), so the call always reaches these bodies.
+- x64 sequence before the fix: `maxss, addss, addss` in the spread, then `mulss, addss` in Fire,
+  four roundings.
+- Inputs that differ: ordinary spreads, for example `(3DADC107 + 3D3C5B81 + 3D8CDEE3) * 3F475682
+  + 3E968F72` is `3EE623F3` on x87 and `3EE623F4` on SSE (117 of 446 tool inputs), sums above
+  `FLT_MAX` that come back in range (`7F7FFFFF + 7F7FFFFF - 7F7FFFFF` times 0.5 is `7EFFFFFF`, SSE
+  `7F800000`) and NaN pairs after an `inf * 0` step.
+- Change: `PblX87AddAddMulAddF(a, b, c, d, e)` in `PblX87Math.h` computes `((a + b) + c) * d + e`
+  in double and rounds once; every partial result is a normal double or zero (float sums are
+  multiples of 2^-149 and `abs(d) >= 2^-23` when nonzero), so each step equals the x87 PC53 step.
+  NaN results replay the steps through `PblX87NanStep`. Fire's x64 branch draws the four randoms
+  in the x86 order and passes `mStanceSpread`, the kick, the class pitch spread or
+  `GetYawSpreadTerm()`, the difference and the pattern angle. `GetYawSpreadTerm` is a new
+  non-virtual inline member holding the yaw term that `GetYawSpread` used inline; no vtable,
+  layout or signature changes. The x64 branches of `GetYawSpread` and `GetPitchSpread` return
+  `PblX87AddAddF` of their operands.
+- Proof that x86 does not change: `WeaponCannon.obj` and the three subclass objects are `same`;
+  `objcmp.ps1 -All` reports only `NetGame.obj`, whose disassembly is equal after `$SG`
+  normalising (`sgcmp`), with equal section sizes and `.data` layout.
+- Rendered x86 (D-18): the spreads are sim code; headless and rendered x86 run the same x86
+  sequence, so nothing changes.
+- Guards: T1 `x87 add add mul add keeps the x86 rounding` (70 cases from the real x87 sequence,
+  `cw 027F`); T1s `cannon spread keeps the x86 rounding on x64` and `cannon spread returns keep the
+  x86 rounding on x64` pin the source blocks. Rows X87AAMA-X64, X87AAMA-NAN1-X64 to NAN4-X64,
+  WC-FIREPITCH-X64, WC-FIREYAW-X64, WC-YAWRET-X64, WC-PITCHRET-X64 and WC-YAWTERM-X64 turn them RED
+  on x64. No Win32 row: the x86 text is unchanged.
+- Status: Fixed, 48-24, 2026-11-20.
+
+### C-X64-TERRAINRAY
+
+- No digest row moved. No x86 table and no Win32 `hardening.txt` row changed. x86 object code
+  does not change.
+- Function: `RedTerrain::_RayHit(vStart, vEnd, fA, fB, bAbove)` in
+  `src/RedEngineFL/Application/RedTerrain.cpp` (`// FUNCTION: SWBF2 0x006c32f0`), reached through
+  `RedTerrain::RayHit`.
+- x86 sequence: the first-half call is stored (`fstp [ebp+8]`), compared, and returned as
+  `fld [fFirst]; fmul 0.5`. The second-half return is `call; fld 0.5; fmul st(1), st; faddp`, so
+  each nested second half adds `* 0.5 + 0.5` on the 53-bit inner value. Leaves return a stored
+  float (`fT`, the inlined three-argument `_RayHit`) or `fld1`. `RayHit` returns the ST0 value
+  unchanged, and its four callers (EntityTerrain::RayHit, EntityWalker::PostCollisionUpdate twice,
+  RedShadowProxy::BuildData) each `fstp` it at once.
+- x64 sequence before the fix: every level rounds to float, so a chain of nested second halves
+  rounds once per level.
+- Inputs that differ: leaves with many significant bits under three or more nested second halves,
+  for example leaf `3F555555` at depth 3 gives `3F7AAAAB` on x87 and `3F7AAAAA` on SSE (52 of 576
+  tool inputs over depths 1 to 24). The stored `fFirst * 0.5` path is exact on x87 and in double
+  and rounds once when stored, as `mulss` does (13 subnormal and edge inputs, no difference).
+- Change: the x64 branch of `_RayHit`, inside the subdivide block, returns
+  `(float)_RayHitX87(...)`. `_RayHitX87` is a private static inline member that follows the same
+  control flow in double: the first half is rounded to the float `fFirst` and compared as x86 does,
+  returns `(double)fFirst * 0.5` or `PblX87HalfStepD(inner)`, and at a leaf calls the original
+  `_RayHit`, which takes the same leaf path. Recursion depth and `bAbove` updates equal x86's.
+  All values are in [0, 1], so each double step equals the x87 PC53 step.
+- Proof that x86 does not change: `RedTerrain.obj` disassembly is `same`, and a scratch compile
+  shows only `.debug$S` differs. A first version whose twin called the three-argument `_RayHit`
+  stopped x86 from inlining it into the five-argument function, although the twin emits nothing
+  on x86; the twin now reaches the leaf through the five-argument function.
+- Rendered x86 (D-18): the ray chain stays in [0, 1] with no NaN, and rendered x87 at 24 bits
+  rounds every step; this change touches x64 only, so rendered x86 is unchanged.
+- Guards: T1 `x87 terrain ray recursion keeps the x86 rounding` (123 leaf and depth cases and 13
+  half cases from the real x87 loop); T1 `terrain ray recursion keeps the x86 rounding on x64` pins
+  the twin and the branch. Rows X87HALF-X64, RT-RAYSTEP-X64, RT-RAYFIRST-X64 and RT-RAYBRANCH-X64
+  turn them RED on x64. No Win32 row.
+- Status: Fixed, 48-24, 2026-11-20.
+
+### C-MEMPEAKS-X64-PARITY
+
+- No digest row moved. No x86 table, x86 heap size or x64 heap size changed.
+- Change (phase 48 D-13): `mem-peaks-x64.txt` is re-captured now that x64 runs the x86
+  simulation, and `compare-tables.ps1 -MemPeaksX64` requires every key, pool rows included, to
+  be in both `mem-peaks-x64.txt` and `mem-peaks.txt` with the same row count. This closes the
+  47-09 workaround of C-HEAPCAP-X64-RULE, whose last point (pool rows only counted) no longer
+  holds.
+- Captured: `run.ps1 -Platform x64 -Configuration Release -Smoke All -Soak Short
+  -HogAddrSpace` on commit 2e0803ec, run folder `artifacts\tests\20261120-073109`: 207 PASS,
+  0 FAIL, 0 STALL, 0 CRASH, no `refused size` line. Its `tables\mem-peaks.txt` is pinned
+  unchanged as `mem-peaks-x64.txt`.
+- Both files have 109 missions and the same 13718 keys; the 12955 pool keys are equal, so the
+  three 47-09 pool differences (`dea1g_con` Aimer and MountedTurret, `kas2c_uber` RayRequest)
+  are gone.
+- Pool block sizes still differ by pointer width for 100 pool types, for example Weapon 448 and
+  592, Ordnance 384 and 560, EntitySoldier 4048 and 6112, RayRequest 20 and 40 (x86 and x64);
+  blocks per page differ with them. These are layout sizes, not a simulation difference; the
+  reader compares keys, not sizes or counts.
+- Heap caps: the x64 peaks equal the 47-09 ones except Runtime, 25162848 (kas2c_uber, exit)
+  instead of 25157728. ceil(25162848 * 32235168 / 19346544) = 41926281 rounds to 41943040, the
+  current cap, so no derived x64 cap moved and `GameMemory.h` is unchanged.
+- Guard: the selftest fixture `compare-tables -MemPeaksX64 ... pool keys` passes the pinned pair
+  and fails a copy of `mem-peaks-x64.txt` without one pool row, naming its key; the strict reader
+  fails the 47-09 table with those three pool keys.
+- Status: Fixed, 48-18, 2026-11-20.
+
+### C-HOSTFAULT-CHECKPOINT
+
+- No digest row moved. `hardening.txt` gains two rows, `[PASS] hardening:host-fault-capture` and
+  `[PASS] hardening:all-checkpoints`, after `baseline-readers`; no other row moves.
+- Cause: two new harness source checks (phase 48, gap plan 48-25, after the one-off x64
+  `kas2c_uber` split in the 48-18 branch gate). `run.ps1` writes the count of System log events
+  from WHEA-Logger, Kernel-Power 41 and EventLog 6008 at the start and end of each run into
+  `run-params.txt` (`whea_before`, `whea_after`, `whea_delta`), and a run with a failure and new
+  events gets a `Suspected hardware:` summary line that changes no result, count or exit code.
+  `host-fault-capture` runs the capture with a stubbed count and finds the calls in `run.ps1`.
+  Every All mission case now runs with the existing `-digesttrace 1500` switch and non-Fatal
+  cases require the turn-100 DIGEST TRACE line (digest cases also turn 1500);
+  `all-checkpoints` builds the All cases on Win32 and x64 and fails a mission case without them.
+  Neither check reads the game or the host event log, so both print the same line on every run.
+- No game source, project file or object changed.
+- Captured: `run.ps1 -Platform Win32 -Configuration Release -NoBuild -Hardening`, run folder
+  `artifacts\tests\20261120-101518`, then `capture-vs2013.ps1 -Tables -HardeningDir`.
+- Guards: rows HOSTFAULT-END, HOSTFAULT-NOTE and CHECKPOINT-ALL turn the checks RED.
+- Status: re-pinned, 48-25, 2026-11-20.
 
 ## Policy
 

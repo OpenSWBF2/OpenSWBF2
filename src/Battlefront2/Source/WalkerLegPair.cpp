@@ -1,4 +1,5 @@
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "PebbleFL/Common/PblVector.h"
 
 #include "WalkerLegPair.h"
@@ -177,7 +178,7 @@ void WalkerLegPair::SetupGroundCollision(const PblMatrix& mMatrix, float fPitch,
 {
     float fLegLength = mParent->mClass->mLegRayHitLength;
     PblVector3 vOrigin = mMatrix.GetTranslation();
-    float fBaseHeight = -sinf(fPitch * 2.0f) * mLocalZOffset;
+    float fBaseHeight = -PblCrtSinF(fPitch * 2.0f) * mLocalZOffset;
     vOrigin.AddY(fBaseHeight);
 
     for (int i = 0; i < FootCount; ++i)

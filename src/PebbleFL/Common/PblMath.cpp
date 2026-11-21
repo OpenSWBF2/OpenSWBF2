@@ -2,7 +2,7 @@
 #include "PblMath.h"
 #include "PblQuaternion.h"
 #include "PblVector.h"
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #pragma init_seg(lib)
 
 // GLOBAL: SWBF2 0x00785af0
@@ -33,8 +33,8 @@ SinCosTable::SinCosTable()
     for (i = 0; i < TABLE_SIZE; ++i)
     {
         const double fAngle = (float)i * (3.141592654f * 2.0f / (float)TABLE_SIZE);
-        _Data[i].fSin = ::sin(fAngle);
-        _Data[i].fCos = ::cos(fAngle);
+        _Data[i].fSin = PblCrtSin(fAngle);
+        _Data[i].fCos = PblCrtCos(fAngle);
     }
 }
 
@@ -48,7 +48,7 @@ SinCosTable _TheSinCosTable;
 // FUNCTION: SWBF2 0x00727b70
 float PblMath::Atan2(float y, float x)
 {
-    return atan2f(y, x);
+    return PblCrtAtan2F(y, x);
 }
 
 // FUNCTION: SWBF2 0x00727c20

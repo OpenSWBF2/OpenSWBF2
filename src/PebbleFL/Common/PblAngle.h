@@ -1,6 +1,7 @@
 #pragma once
 
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 
 class PblAngle
 {
@@ -11,7 +12,7 @@ public:
     // FUNCTION: SWBF2 0x0048c8e0
     PblAngle(float fCos, float fSin) : mCos(fCos), mSin(fSin) {}
 
-    explicit PblAngle(float fAngle) : mCos(cosf(fAngle)), mSin(sinf(fAngle)) {}
+    explicit PblAngle(float fAngle) : mCos(PblCrtCosF(fAngle)), mSin(PblCrtSinF(fAngle)) {}
 
     PblAngle& operator-=(const PblAngle& a)
     {
@@ -57,7 +58,7 @@ public:
         return PblAngle((f4Cos2 - 3.0f) * mCos, (f4Cos2 - 1.0f) * mSin);
     }
 
-    float GetAngle() const { return atan2f(mSin, mCos); }
+    float GetAngle() const { return PblCrtAtan2F(mSin, mCos); }
 
     // FUNCTION: SWBF2 0x0047a550
     float GetCos() const { return mCos; }

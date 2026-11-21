@@ -5,6 +5,7 @@
 #include "RedEngineFL/Graphics/RedColor.h"
 #include "PebbleFL/Common/PblVector.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 // FUNCTION: SWBF2 0x0046c020
 void CollisionUtil::RenderBox(const PblMatrix&, float, float, float, RedColor)
@@ -1052,7 +1053,14 @@ float RayHitAxisAlignedCylinder(const PblVector3& vStart, const PblVector3& vDir
             float fHit = RayHitAACylinder(vS, vDir, fRest * fLength, vCenter, fRadius, fHalfHeight, pNormal);
             if (fHit < 1.0f)
             {
-                return fRest * fHit + t;
+                if constexpr (sizeof(void*) == 8)
+                {
+                    return PblX87MulAddF(fHit, fRest, t);
+                }
+                else
+                {
+                    return fRest * fHit + t;
+                }
             }
         }
         return 1.0f;
@@ -1081,7 +1089,14 @@ float RayHitAxisAlignedCylinder(const PblVector3& vStart, const PblVector3& vDir
             float fHit = RayHitAACylinder(vS, vDir, fRest * fLength, vCenter, fRadius, fHalfHeight, pNormal);
             if (fHit < 1.0f)
             {
-                return fRest * fHit + t;
+                if constexpr (sizeof(void*) == 8)
+                {
+                    return PblX87MulAddF(fHit, fRest, t);
+                }
+                else
+                {
+                    return fRest * fHit + t;
+                }
             }
         }
         return 1.0f;

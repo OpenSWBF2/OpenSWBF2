@@ -2,6 +2,7 @@
 
 #include "AIDifficulty.h"
 #include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 #include "AIDifficultyLevel.h"
 #include "AIUtil.h"
@@ -556,7 +557,15 @@ void SpaceAssault_CheatLikeABastard()
     const float fTime = GameLoop::GetMissionTime();
     if (fTime > AIDifficulty::mNextFlyerKillTime)
     {
-        AIDifficulty::mNextFlyerKillTime = fTime + AIDifficulty::SpaceAssault_GetRandomFlyerKillTime() * fIntervalScale;
+        if constexpr (sizeof(void*) == 8)
+        {
+            AIDifficulty::mNextFlyerKillTime =
+                PblX87MulAddF(AIDifficulty::SpaceAssault_GetRandomFlyerKillTime(), fIntervalScale, fTime);
+        }
+        else
+        {
+            AIDifficulty::mNextFlyerKillTime = fTime + AIDifficulty::SpaceAssault_GetRandomFlyerKillTime() * fIntervalScale;
+        }
         const int bRoll = AIUtil::GetRandomInt(0, 100) > AIDifficulty::SpaceAssault_GetFlyerKillForPlayerTeam() * 100.0f;
         const int bEnemy = AIUtil::IsPlayerTeam(1) ^ bRoll;
         AIDifficulty::SpaceAssault_RandomFlyerKill(bEnemy ? Team::GetPtr(2) : Team::GetPtr(1));
@@ -564,7 +573,15 @@ void SpaceAssault_CheatLikeABastard()
 
     if (fTime > AIDifficulty::mNextCritSysDamageTime)
     {
-        AIDifficulty::mNextCritSysDamageTime = fTime + AIDifficulty::SpaceAssault_GetRandomCritSysDamageTime() * fIntervalScale;
+        if constexpr (sizeof(void*) == 8)
+        {
+            AIDifficulty::mNextCritSysDamageTime =
+                PblX87MulAddF(AIDifficulty::SpaceAssault_GetRandomCritSysDamageTime(), fIntervalScale, fTime);
+        }
+        else
+        {
+            AIDifficulty::mNextCritSysDamageTime = fTime + AIDifficulty::SpaceAssault_GetRandomCritSysDamageTime() * fIntervalScale;
+        }
         const float fRoll = (float)AIUtil::GetRandomInt(0, 100);
         const int bRoll = fRoll > AIDifficulty::SpaceAssault_GetCritSysKillForPlayerTeam() * 100.0f;
         const int bEnemy = AIUtil::IsPlayerTeam(1) ^ bRoll;

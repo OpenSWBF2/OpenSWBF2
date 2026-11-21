@@ -1,7 +1,7 @@
 #include "AmmoCounter.h"
 #include "PopupText.h"
 #include "PerformanceTimer.h"
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1142,8 +1142,8 @@ void GameLoop::UpdateDedicatedMsg(float fDeltaTime)
         DedicatedMsgX += fDeltaTime * DedicatedMsgDX;
         DedicatedMsgY += fDeltaTime * DedicatedMsgDY;
 
-        float fX = fmodf(DedicatedMsgX, fRangeX * 2.0f);
-        float fY = fmodf(DedicatedMsgY, fRangeY * 2.0f);
+        float fX = PblCrtFmodF(DedicatedMsgX, fRangeX * 2.0f);
+        float fY = PblCrtFmodF(DedicatedMsgY, fRangeY * 2.0f);
         if (fX > fRangeX)
         {
             fX = fRangeX * 2.0f - fX;
