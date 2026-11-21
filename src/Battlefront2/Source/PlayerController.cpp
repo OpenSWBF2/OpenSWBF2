@@ -1,4 +1,5 @@
 #include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/Common/PblX87Math.h"
 #include "PopupText.h"
 #include <d3dx9math.h>
 #include "PlayerController.h"
@@ -384,7 +385,14 @@ void PlayerController::Update(float dt)
         {
             if (mJoystick->IsPrimaryFireButtonDown() || mJoystick->IsSecondaryFireButtonDown())
             {
-                pCharacter->SetSpawnTime(NetComm::GetTime() - (float)gSpawnInvicibility - 0.1f);
+                if constexpr (sizeof(void*) == 8)
+                {
+                    pCharacter->SetSpawnTime(PblX87SubSubF(NetComm::GetTime(), (float)gSpawnInvicibility, 0.1f));
+                }
+                else
+                {
+                    pCharacter->SetSpawnTime(NetComm::GetTime() - (float)gSpawnInvicibility - 0.1f);
+                }
                 NetGame::CreateEvent_UpdateInvincibility(pCharacter);
             }
             else if (!bIsDroideka)

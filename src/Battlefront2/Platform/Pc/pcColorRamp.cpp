@@ -1,6 +1,6 @@
 #include <math.h>
 #include <cmath>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 static_assert(sizeof(sin(1.0f)) == 4, "float math overloads");
 
 #include "Battlefront2/Platform/Pc/pcColorRamp.h"
@@ -13,8 +13,8 @@ void ColorRamp::Build(const float afLevel[3], unsigned short awOut[256])
 
     for (int i = 0; i < 256; i++)
     {
-        float fValue = pow(((float)i * (1.0f / 255.0f) - 0.5f + fOffset) * fScale + 0.5f,
-                           fExponent);
+        float fValue = PblCrtPowF(((float)i * (1.0f / 255.0f) - 0.5f + fOffset) * fScale + 0.5f,
+                                  fExponent);
         if (fValue < 0.0f)
         {
             fValue = 0.0f;

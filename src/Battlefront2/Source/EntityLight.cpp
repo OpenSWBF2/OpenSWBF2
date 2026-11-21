@@ -7,6 +7,7 @@
 #include "Battlefront2Lod.h"
 #include "GameLoop.h"
 #include "PebbleFL/Common/PblConfig.h"
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "RedEngineFL/Graphics/RedOmniLight.h"
 #include "RedEngineFL/Graphics/RedSpotLight.h"
@@ -661,7 +662,7 @@ bool EntityLight::Update(float fDeltaTime)
         const float fPeriod = pClass->_fLightFlickerPeriodOn + pClass->_fLightFlickerPeriodOff;
         if (_fLightFlickerTimer > fPeriod)
         {
-            _fLightFlickerTimer = fmod((double)_fLightFlickerTimer, (double)fPeriod);
+            _fLightFlickerTimer = PblCrtFmodF(_fLightFlickerTimer, fPeriod);
         }
         if (_fLightFlickerTimer > pClass->_fLightFlickerPeriodOn)
         {
@@ -688,7 +689,7 @@ bool EntityLight::Update(float fDeltaTime)
         _fLightFlickerTimer += fDeltaTime;
         if (_fLightFlickerTimer > pClass->_fLightFlickerPeriodOn)
         {
-            _fLightFlickerTimer = fmod((double)_fLightFlickerTimer, (double)pClass->_fLightFlickerPeriodOn);
+            _fLightFlickerTimer = PblCrtFmodF(_fLightFlickerTimer, pClass->_fLightFlickerPeriodOn);
         }
         const float fHalf = pClass->_fLightFlickerPeriodOn * 0.5f;
         if (_fLightFlickerTimer > fHalf)

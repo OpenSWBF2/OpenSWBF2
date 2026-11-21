@@ -8,6 +8,7 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblRandom.h"
 #include "PebbleFL/Common/PblVector.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 enum FormationType
 {
@@ -283,19 +284,38 @@ PblVector3 ReserveOffset(const GameObject* pTarget, const GameObject* pSelf, For
 
     case FT_DOUBLEFILE_RAND:
     {
-        const float fBits = (float)(pSelf->PblHandled::GetHandleId() & 7);
-        PblRandom random = { (pTarget->PblHandled::GetHandleId() - (int)((GameLoop::GetMissionTime() + fBits) * -0.125f)) ^ 0xC71C2830u };
-        for (int i = 0; i < iOrder; ++i)
+        if constexpr (sizeof(void*) == 8)
         {
-            random.GetVector3();
+            const float fBits = (float)(pSelf->PblHandled::GetHandleId() & 7);
+            PblRandom random = { (pTarget->PblHandled::GetHandleId() - (int)PblX87AddMulF(GameLoop::GetMissionTime(), fBits, -0.125f)) ^ 0xC71C2830u };
+            for (int i = 0; i < iOrder; ++i)
+            {
+                random.GetVector3();
+            }
+            const PblVector3 vJitter = random.GetVector3() * 0.2f;
+            const float fRow = (float)(iOrder / 2) + 0.25f;
+            const PblVector3 vBack = PblVector3(0.0f, 0.0f, -1.0f) * fRow;
+            const float fSide = (float)(((iOrder & 1) == 0) ? 1 : -1);
+            const PblVector3 vSideOffset(fSide * 0.75f, fSide * 0.0f, fSide * 0.0f);
+            const PblVector3 vSum = vSideOffset + vJitter;
+            return vBack + vSum;
         }
-        const PblVector3 vJitter = random.GetVector3() * 0.2f;
-        const float fRow = (float)(iOrder / 2) + 0.25f;
-        const PblVector3 vBack = PblVector3(0.0f, 0.0f, -1.0f) * fRow;
-        const float fSide = (float)(((iOrder & 1) == 0) ? 1 : -1);
-        const PblVector3 vSideOffset(fSide * 0.75f, fSide * 0.0f, fSide * 0.0f);
-        const PblVector3 vSum = vSideOffset + vJitter;
-        return vBack + vSum;
+        else
+        {
+            const float fBits = (float)(pSelf->PblHandled::GetHandleId() & 7);
+            PblRandom random = { (pTarget->PblHandled::GetHandleId() - (int)((GameLoop::GetMissionTime() + fBits) * -0.125f)) ^ 0xC71C2830u };
+            for (int i = 0; i < iOrder; ++i)
+            {
+                random.GetVector3();
+            }
+            const PblVector3 vJitter = random.GetVector3() * 0.2f;
+            const float fRow = (float)(iOrder / 2) + 0.25f;
+            const PblVector3 vBack = PblVector3(0.0f, 0.0f, -1.0f) * fRow;
+            const float fSide = (float)(((iOrder & 1) == 0) ? 1 : -1);
+            const PblVector3 vSideOffset(fSide * 0.75f, fSide * 0.0f, fSide * 0.0f);
+            const PblVector3 vSum = vSideOffset + vJitter;
+            return vBack + vSum;
+        }
     }
 
     case FT_CIRCLE:

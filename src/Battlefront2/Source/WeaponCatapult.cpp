@@ -16,6 +16,7 @@
 #include "Trigger.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblQuaternion.h"
+#include "PebbleFL/Common/PblX87Math.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Graphics/RedPose.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
@@ -359,7 +360,14 @@ void WeaponCatapultClass::SetProperty(unsigned int uProperty, const char* pszVal
     {
     case 0x64A37D77: /* "CockedAngle" */
 
-        mCockedAngle = (float)atof(pszValue) * 3.1415927f / 180.0f;
+        if constexpr (sizeof(void*) == 8)
+        {
+            mCockedAngle = PblX87MulDivF((float)atof(pszValue), 3.1415927f, 180.0f);
+        }
+        else
+        {
+            mCockedAngle = (float)atof(pszValue) * 3.1415927f / 180.0f;
+        }
         break;
     case 0x90491ED6: /* "ArmName" */
         mArmHash = PblTEMPHash(pszValue);

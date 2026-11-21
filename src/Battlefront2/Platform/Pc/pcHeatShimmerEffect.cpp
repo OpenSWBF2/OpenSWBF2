@@ -13,7 +13,7 @@
 #include "RedEngineFL/Application/pc/pcRenderHelpers.h"
 
 #include <math.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 
 // GLOBAL: SWBF2 0x01e2fd18
 float HeatShimmerEffect::s_tileU;
@@ -75,7 +75,7 @@ void HeatShimmerEffect::PlatformPostReadInit()
                                            uNumVertices, uNumIndices, true);
 
     const RedCamera* pCamera = RedRenderer::GetCamera();
-    const float fHalfWidth = (float)tan((double)(pCamera->GetFOV() * 0.5f)) * 200.0f;
+    const float fHalfWidth = (float)PblCrtTan((double)(pCamera->GetFOV() * 0.5f)) * 200.0f;
     float fY = s_height + s_posY;
     const float fStartX = -fHalfWidth;
     const float fXStep = (fHalfWidth * 2.0f) / (float)s_tessellationX;

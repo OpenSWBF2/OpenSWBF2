@@ -248,8 +248,8 @@ void ParticleGeometry::Render(Particle& particle, bool bLast) const
             return;
         }
 
-        const float fCos = (float)cos((double)particle.mRotation[0]);
-        const float fSin = (float)sin((double)particle.mRotation[0]);
+        const float fCos = (float)PblCrtCos((double)particle.mRotation[0]);
+        const float fSin = (float)PblCrtSin((double)particle.mRotation[0]);
         const float fSize = particle.mSize[0];
 
         PblMatrix mScale(PblVector3(fSize * fCos, 0.0f, -(fSize * fSin)), PblVector3(0.0f, fSize, 0.0f),

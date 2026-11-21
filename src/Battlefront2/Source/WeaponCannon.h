@@ -47,6 +47,7 @@ public:
     virtual Ordnance* CreateOrdnance(OrdnanceDesc& desc);
 
     bool Fire();
+    float GetYawSpreadTerm() const;
     void PlayWarmUpSound();
     void StopWarmUpSound();
     void UpdateWarmUpSound(float fDeltaTime);

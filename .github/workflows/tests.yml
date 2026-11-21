@@ -64,6 +64,9 @@ jobs:
       - name: Build LuaCompiler Test for Win32 and x64
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\tests\vstools.ps1; $m = Find-MSBuild; foreach ($p in 'Win32', 'x64') { & $m LuaCompiler.vcxproj /p:Configuration=Test /p:Platform=$p /p:SWBF2_NOSTAGE=true /m /v:minimal /nologo; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }"
+      - name: Build Win32 Test tests exe for the x86 reference child
+        shell: cmd
+        run: powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\tests\vstools.ps1; $m = Find-MSBuild; & $m tests\OpenSWBF2Tests.vcxproj /p:Configuration=Test /p:Platform=Win32 /p:SWBF2_NOSTAGE=true /m /v:minimal /nologo; exit $LASTEXITCODE"
       - name: x64 T1 and tlog hardening
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Platform x64 -Configuration Test -Smoke None -NoBuild -Hardening

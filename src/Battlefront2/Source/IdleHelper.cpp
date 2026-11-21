@@ -16,6 +16,7 @@
 #include "UnitAgent.h"
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 
 namespace AI
@@ -246,7 +247,15 @@ void IdleHelper::UpdateState(float dt)
         }
         else
         {
-            float fWander = (PblMath::Cos(mIdleTime / 5.0f * 0.3f) + PblMath::Sin(mIdleTime / 5.0f)) * 0.2f;
+            float fWander;
+            if constexpr (sizeof(void*) == 8)
+            {
+                fWander = PblX87AddMulF(PblMath::Cos(mIdleTime / 5.0f * 0.3f), PblMath::Sin(mIdleTime / 5.0f), 0.2f);
+            }
+            else
+            {
+                fWander = (PblMath::Cos(mIdleTime / 5.0f * 0.3f) + PblMath::Sin(mIdleTime / 5.0f)) * 0.2f;
+            }
             float fSince = fTime - mWanderSuppressTime;
             if (fSince < 2.0f)
             {

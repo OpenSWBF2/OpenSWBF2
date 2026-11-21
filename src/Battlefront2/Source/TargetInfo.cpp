@@ -1,4 +1,5 @@
 #include "Controllable.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 // FUNCTION: SWBF2 0x00652080
 void TargetInfo::SetAimPoint(const PblVector3& aimPoint)
@@ -37,5 +38,12 @@ float TargetInfo::GetTargetPrio(const PblVector3& vStart, const PblVector3& vDir
     {
         return -1.0f;
     }
-    return fOff * 16.0f + fAlong;
+    if constexpr (sizeof(void*) == 8)
+    {
+        return PblX87MulAddF(fOff, 16.0f, fAlong);
+    }
+    else
+    {
+        return fOff * 16.0f + fAlong;
+    }
 }

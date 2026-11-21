@@ -1,6 +1,6 @@
 #include <d3dx9math.h>
 #include "pcRefractionShader.h"
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "PebbleFL/Common/PblChunk.h"
 #include <string.h>
 #include "RedEngineFL/Memory/engineAlloc.h"
@@ -223,7 +223,7 @@ void pcRefractionShader::Begin_Fixed(unsigned int uiState, unsigned int uiPass) 
         PblMatrix mTmp;
         PblMatrix mScale = gMatrixIdentity;
         PblMatrix mRot = gMatrixIdentity;
-        const float fAngle = atan2f(vZ.z, vZ.x) - PblMath::fHalfPi;
+        const float fAngle = PblCrtAtan2F(vZ.z, vZ.x) - PblMath::fHalfPi;
 
         D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mRot), reinterpret_cast<const D3DXMATRIX*>(&mRot), D3DXMatrixRotationZ(reinterpret_cast<D3DXMATRIX*>(&mTmp), fAngle));
         D3DXMatrixMultiply(reinterpret_cast<D3DXMATRIX*>(&mScale), reinterpret_cast<const D3DXMATRIX*>(&mScale),

@@ -47,13 +47,7 @@ function Get-ProjectUnits($proj, [string]$config) {
     $units = New-Object System.Collections.Generic.List[object]
     foreach ($n in @($xml.SelectNodes('//m:ItemGroup/m:ClCompile[@Include]', $ns))) {
         if (-not (Test-MsBuildItemIncluded $n 'x64' $config)) { continue }
-        $inc = $n.GetAttribute('Include')
-        $incs = @($inc)
-        if ($inc.Contains('*')) {
-            $incDir = Split-Path $inc -Parent
-            $incs = @(Get-ChildItem -LiteralPath (Join-Path $dir $incDir) -Filter (Split-Path $inc -Leaf) -File | Sort-Object Name | ForEach-Object { Join-Path $incDir $_.Name })
-        }
-        foreach ($i in $incs) {
+        foreach ($i in @(Expand-MsBuildItemInclude $dir $n)) {
             $src = [IO.Path]::GetFullPath((Join-Path $dir $i))
             $objName = [IO.Path]::GetFileNameWithoutExtension($i) + '.obj'
             if ($proj.Flat) { $obj = Join-Path $proj.IntDir $objName }

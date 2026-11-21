@@ -2,6 +2,7 @@
 #include "RedEngineFL/Util/RedCommandConsole.h"
 
 #include <float.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "PebbleFL/Common/PblVector.h"
 #include <string.h>
 
@@ -542,11 +543,11 @@ void ReadThrustAngleTan(const char* pszValue, float& rTan)
     const float fMax = PblMath::fHalfPi * 0.99f;
     if (rTan >= fMax)
     {
-        rTan = (float)tan(fMax);
+        rTan = PblCrtTanF(fMax);
     }
     else if (rTan > 0.0f)
     {
-        rTan = (float)tan(rTan);
+        rTan = PblCrtTanF(rTan);
     }
 }
 
@@ -920,11 +921,11 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
             const float fMax = PblMath::fHalfPi * 0.99f;
             if (m_fThrustAngleToStrafe_Tan >= fMax)
             {
-                m_fThrustAngleToStrafe_Tan = (float)tan(fMax);
+                m_fThrustAngleToStrafe_Tan = PblCrtTanF(fMax);
             }
             else if (m_fThrustAngleToStrafe_Tan > 0.0f)
             {
-                m_fThrustAngleToStrafe_Tan = (float)tan(m_fThrustAngleToStrafe_Tan);
+                m_fThrustAngleToStrafe_Tan = PblCrtTanF(m_fThrustAngleToStrafe_Tan);
             }
         }
         break;
@@ -939,11 +940,11 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
             const float fMax = PblMath::fHalfPi * 0.99f;
             if (m_fThrustAngleToTurn_Tan >= fMax)
             {
-                m_fThrustAngleToTurn_Tan = (float)tan(fMax);
+                m_fThrustAngleToTurn_Tan = PblCrtTanF(fMax);
             }
             else if (m_fThrustAngleToTurn_Tan > 0.0f)
             {
-                m_fThrustAngleToTurn_Tan = (float)tan(m_fThrustAngleToTurn_Tan);
+                m_fThrustAngleToTurn_Tan = PblCrtTanF(m_fThrustAngleToTurn_Tan);
             }
         }
         break;
@@ -958,11 +959,11 @@ void EntityWalkerClass::SetProperty(unsigned int uProperty, const char* pszValue
             const float fMax = PblMath::fHalfPi * 0.99f;
             if (m_fThrustAngleToStop_Tan >= fMax)
             {
-                m_fThrustAngleToStop_Tan = (float)tan(fMax);
+                m_fThrustAngleToStop_Tan = PblCrtTanF(fMax);
             }
             else if (m_fThrustAngleToStop_Tan > 0.0f)
             {
-                m_fThrustAngleToStop_Tan = (float)tan(m_fThrustAngleToStop_Tan);
+                m_fThrustAngleToStop_Tan = PblCrtTanF(m_fThrustAngleToStop_Tan);
             }
         }
         break;
@@ -2851,8 +2852,8 @@ void EntityWalker::MoveForward(float fDistance)
     {
         fAngle = mBodyPitch * 2.0f;
     }
-    float fCos = cosf(fAngle);
-    float fSin = sinf(fAngle);
+    float fCos = PblCrtCosF(fAngle);
+    float fSin = PblCrtSinF(fAngle);
     if (1.0f > mTurnOffset.mCos)
     {
         float fTurnCos = mTurnOffset.mCos * mTurnOffset.mCos - mTurnOffset.mSin * mTurnOffset.mSin;
@@ -2904,8 +2905,8 @@ void EntityWalker::UpdateOrientation(float fDeltaTime)
             if (fMaxPush > 0.0f)
             {
                 mBodyPitch = (-0.62f - mBodyPitch) * 0.05f + mBodyPitch;
-                float fCos = cosf(mBodyPitch);
-                float fSin = sinf(mBodyPitch);
+                float fCos = PblCrtCosF(mBodyPitch);
+                float fSin = PblCrtSinF(mBodyPitch);
                 mPitchOffset.mCos = fCos;
                 mPitchOffset.mSin = fSin;
                 SetPosition(PblVector3(mMatrix.m[3][0] + 0.0f, mMatrix.m[3][1] + fMaxPush, mMatrix.m[3][2] + 0.0f));
@@ -2935,8 +2936,8 @@ void EntityWalker::UpdateOrientation(float fDeltaTime)
                         fPitch = 0.29552022f;
                     }
                     mBodyPitch = fPitch;
-                    float fCos = cosf(fPitch);
-                    float fSin = sinf(fPitch);
+                    float fCos = PblCrtCosF(fPitch);
+                    float fSin = PblCrtSinF(fPitch);
                     mPitchOffset.mCos = fCos;
                     mPitchOffset.mSin = fSin;
                 }
@@ -3446,12 +3447,12 @@ void EntityWalker::UpdateState(float fDeltaTime, float fMove, float fStrafe, flo
             if ((mYawValue <= 0.0f && fAbsMove * pClass->m_fThrustAngleToStrafe_Tan > -fStrafe) ||
                 (mYawValue >= 0.0f && fAbsMove * pClass->m_fThrustAngleToStrafe_Tan > fStrafe))
             {
-                fYaw = (atan2f(fStrafe, fAbsMove) - mYawValue) * 0.95f;
+                fYaw = (PblCrtAtan2F(fStrafe, fAbsMove) - mYawValue) * 0.95f;
                 bDefault = false;
             }
             else if (!pClass->mSteerAtStrafeLimit)
             {
-                fYaw = (atan2f(fStrafe * pClass->m_fThrustAngleToStrafe_Tan, fAbsStrafe) - mYawValue) * 0.95f;
+                fYaw = (PblCrtAtan2F(fStrafe * pClass->m_fThrustAngleToStrafe_Tan, fAbsStrafe) - mYawValue) * 0.95f;
                 bDefault = false;
             }
         }
@@ -3459,7 +3460,7 @@ void EntityWalker::UpdateState(float fDeltaTime, float fMove, float fStrafe, flo
         {
             if (fAbsStrafe > 0.1f)
             {
-                fYaw = (atan2f(fStrafe * pClass->m_fThrustAngleToStrafe_Tan, fAbsStrafe) - mYawValue) * 0.95f;
+                fYaw = (PblCrtAtan2F(fStrafe * pClass->m_fThrustAngleToStrafe_Tan, fAbsStrafe) - mYawValue) * 0.95f;
             }
             else
             {

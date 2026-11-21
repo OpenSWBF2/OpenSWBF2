@@ -16,6 +16,7 @@
 #include "UnitController.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblRandom.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 #include <d3dx9math.h>
 #include "PebbleFL/Common/PblHashTable.h"
@@ -216,7 +217,14 @@ void UnitDeathmatchAgent::DoJetJumpStuff()
         else
         {
             const float fNow = GameLoop::GetMissionTime();
-            mNextJumpTime = fNow + 5.0f + PblRandom::GetGlobalFloat() * 10.0f;
+            if constexpr (sizeof(void*) == 8)
+            {
+                mNextJumpTime = PblX87MulAddF(PblRandom::GetGlobalFloat(), 10.0f, fNow + 5.0f);
+            }
+            else
+            {
+                mNextJumpTime = fNow + 5.0f + PblRandom::GetGlobalFloat() * 10.0f;
+            }
         }
     }
 }

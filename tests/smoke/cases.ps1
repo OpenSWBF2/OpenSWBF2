@@ -273,7 +273,13 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             $x = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = (@('FATAL: exception 0xC0000005 at 0x[0-9A-F]+ \(d3dx9_43\.dll\+0x1BA553\)') + $hrx) }
         }
         elseif ($class -ne 'Pass') { throw "unknown expected class '$class' for $m in missions file" }
-        $mArgs = "$m $htail -logcmds ""LogMemory Verbose"""
+        $mArgs = "$m $htail -logcmds ""LogMemory Verbose"" -digesttrace 1500"
+        if ($class -ne 'Fatal') {
+            $x = $x.Clone()
+            $cp = @(100)
+            if ($class -eq 'TimeOut' -or $null -ne (Get-DigestExpected $m)) { $cp += 1500 }
+            $x.LogRx = @(@($x.LogRx | Where-Object { $_ }) + @($cp | ForEach-Object { "(?m)OPENSWBF2 DIGEST TRACE turn=$_ state=0x[0-9A-F]{8} rand=\d+/\d+\r?$" }))
+        }
         if ($m -match '_(1flag|ctf|ass)$' -and $null -eq (Get-DigestExpected $m) -and $class -eq 'Pass') { throw "$m has no digest row and runs with -novictory, so it cannot Pass" }
         if ($m -match '_(1flag|ctf|ass)$' -and $null -eq (Get-DigestExpected $m) -and $class -eq 'TimeOut') {
             $mArgs += ' -novictory'
@@ -537,6 +543,12 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             Name = 'crash-particlesound'
             Args = "$standard $tail -crashtest particlesound"
             Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 PARTICLESOUND class=0x[0-9A-F]{8} deleted=1 reset=1 voice_after_reset=0', '(?s)\A(?!.*FATAL:)') }
+            Twice = 0
+        }
+        $cases += New-Object PSObject -Property @{
+            Name = 'crash-particleburst'
+            Args = "$standard $tail -crashtest particleburst"
+            Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 PARTICLEBURST class=0x[0-9A-F]{8} playing=1 released=1 voice_on_next=1', '(?s)\A(?!.*FATAL:)') }
             Twice = 0
         }
         $cases += New-Object PSObject -Property @{

@@ -22,6 +22,8 @@
 #include "PebbleFL/Common/PblMath.h"
 #include "PebbleFL/Common/PblMatrix.h"
 #include "PebbleFL/Common/PblRandom.h"
+#include "PebbleFL/Common/PblX87Math.h"
+#include "VisionManagerDist.h"
 
 class GameObject;
 
@@ -248,12 +250,27 @@ float AttackPatterns::GetNear() const
 // FUNCTION: SWBF2 0x0065f600
 float AttackPatterns::GetFar() const
 {
-    float fOptimal = CombatUtil::GetWeaponOptimalRange(GetMe());
-    float fMax = CombatUtil::GetWeaponMaxRange(GetMe());
-    float fVisible = VisionManager::MaxVisibleDist(GetMe()->GetGameObject(), GetAttackHelper()->GetTarget());
+    if constexpr (sizeof(void*) == 8)
+    {
+        float fOptimal = CombatUtil::GetWeaponOptimalRange(GetMe());
+        float fMax = CombatUtil::GetWeaponMaxRange(GetMe());
+        float fDist;
+        float fModifier;
+        VisionManager::MaxVisibleDistTerms(GetMe()->GetGameObject(), GetAttackHelper()->GetTarget(), fDist, fModifier);
+        const float fVisibleFar = PblX87AddMulAddF(fDist, 30.0f, fModifier, -10.0f);
 
-    float fFar = fMax - 10.0f > fOptimal ? fMax - 10.0f : fOptimal;
-    return fFar > fVisible - 10.0f ? fVisible - 10.0f : fFar;
+        float fFar = fMax - 10.0f > fOptimal ? fMax - 10.0f : fOptimal;
+        return fFar > fVisibleFar ? fVisibleFar : fFar;
+    }
+    else
+    {
+        float fOptimal = CombatUtil::GetWeaponOptimalRange(GetMe());
+        float fMax = CombatUtil::GetWeaponMaxRange(GetMe());
+        float fVisible = VisionManager::MaxVisibleDist(GetMe()->GetGameObject(), GetAttackHelper()->GetTarget());
+
+        float fFar = fMax - 10.0f > fOptimal ? fMax - 10.0f : fOptimal;
+        return fFar > fVisible - 10.0f ? fVisible - 10.0f : fFar;
+    }
 }
 
 // FUNCTION: SWBF2 0x0065f690

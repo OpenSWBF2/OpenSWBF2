@@ -17,6 +17,7 @@
 #include "PassengerSlot.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/Common/PblX87Math.h"
 #include "RedEngineFL/Graphics/RedModel.h"
 #include "RedEngineFL/Util/RedAnimation.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
@@ -4061,9 +4062,18 @@ bool EntityFlyer::Update(float fDeltaTime)
             const GameObject* pIgnore = this;
             float fCenterY = vCenter.y;
             float fBodyY = matrix.m[3][1];
-            float fDist = CollisionManager::RayHit(vCenter, vDown, 1024.0f, pHit, &vNormal, &pIgnore, 1, 400, false) *
-                              1024.0f -
-                          (fCenterY - fBodyY);
+            float fDist;
+            if constexpr (sizeof(void*) == 8)
+            {
+                fDist = PblX87MulSubF(CollisionManager::RayHit(vCenter, vDown, 1024.0f, pHit, &vNormal, &pIgnore, 1, 400, false),
+                                      1024.0f, fCenterY - fBodyY);
+            }
+            else
+            {
+                fDist = CollisionManager::RayHit(vCenter, vDown, 1024.0f, pHit, &vNormal, &pIgnore, 1, 400, false) *
+                            1024.0f -
+                        (fCenterY - fBodyY);
+            }
             fGroundDist = fDist;
             if (mLandedHeight + GetCollisionRadius() >= fDist && mLastAltitude > mLandedHeight + GetCollisionRadius())
             {
@@ -5218,6 +5228,7 @@ void EntityFlyer::DoTrick(Trick eTrick)
     if (!mInRoll && !mInFlip && mEnergyBar.SpendEnergy(fEnergy))
     {
         mSoundTrick.Stop(true);
+        float fTrickSpeed;
         switch (eTrick)
         {
         case SIDE_ROLL:
@@ -5231,7 +5242,15 @@ void EntityFlyer::DoTrick(Trick eTrick)
             break;
         case FLIP_UP_RIGHT:
             FlipAdd(-3.1415927f);
-            if (mGetSpeedSpeed >= (GetFlyerMinSpeed() + GetFlyerMidSpeed()) * 0.5f)
+            if constexpr (sizeof(void*) == 8)
+            {
+                fTrickSpeed = PblX87AddMulF(GetFlyerMidSpeed(), GetFlyerMinSpeed(), 0.5f);
+            }
+            else
+            {
+                fTrickSpeed = (GetFlyerMinSpeed() + GetFlyerMidSpeed()) * 0.5f;
+            }
+            if (mGetSpeedSpeed >= fTrickSpeed)
             {
                 RollAdd(10.210176f);
             }
@@ -5242,7 +5261,15 @@ void EntityFlyer::DoTrick(Trick eTrick)
             break;
         case FLIP_DOWN_RIGHT:
             FlipAdd(3.1415927f);
-            if (mGetSpeedSpeed >= (GetFlyerMinSpeed() + GetFlyerMidSpeed()) * 0.5f)
+            if constexpr (sizeof(void*) == 8)
+            {
+                fTrickSpeed = PblX87AddMulF(GetFlyerMidSpeed(), GetFlyerMinSpeed(), 0.5f);
+            }
+            else
+            {
+                fTrickSpeed = (GetFlyerMinSpeed() + GetFlyerMidSpeed()) * 0.5f;
+            }
+            if (mGetSpeedSpeed >= fTrickSpeed)
             {
                 RollAdd(-10.210176f);
             }
@@ -5253,7 +5280,15 @@ void EntityFlyer::DoTrick(Trick eTrick)
             break;
         case FLIP_UP_LEFT:
             FlipAdd(-3.1415927f);
-            if (mGetSpeedSpeed >= (GetFlyerMinSpeed() + GetFlyerMidSpeed()) * 0.5f)
+            if constexpr (sizeof(void*) == 8)
+            {
+                fTrickSpeed = PblX87AddMulF(GetFlyerMidSpeed(), GetFlyerMinSpeed(), 0.5f);
+            }
+            else
+            {
+                fTrickSpeed = (GetFlyerMinSpeed() + GetFlyerMidSpeed()) * 0.5f;
+            }
+            if (mGetSpeedSpeed >= fTrickSpeed)
             {
                 RollAdd(-10.210176f);
             }
@@ -5264,7 +5299,15 @@ void EntityFlyer::DoTrick(Trick eTrick)
             break;
         case FLIP_DOWN_LEFT:
             FlipAdd(3.1415927f);
-            if (mGetSpeedSpeed >= (GetFlyerMinSpeed() + GetFlyerMidSpeed()) * 0.5f)
+            if constexpr (sizeof(void*) == 8)
+            {
+                fTrickSpeed = PblX87AddMulF(GetFlyerMidSpeed(), GetFlyerMinSpeed(), 0.5f);
+            }
+            else
+            {
+                fTrickSpeed = (GetFlyerMinSpeed() + GetFlyerMidSpeed()) * 0.5f;
+            }
+            if (mGetSpeedSpeed >= fTrickSpeed)
             {
                 RollAdd(10.210176f);
             }

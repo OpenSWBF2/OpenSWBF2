@@ -1,7 +1,7 @@
 #include "AmmoCounter.h"
 #include <float.h>
 #include <math.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "RepairHelper.h"
 
 #include "AILowLevel.h"
@@ -231,7 +231,7 @@ bool RepairHelper::CheckForRecipientAndInit()
             const PblMatrix& matrix = pObj->GetMatrix();
             const PblVector3& vDir = AIUtil::GetSafeNormal(vDiff);
             if (vVel.y * vVel.y + vVel.x * vVel.x + vVel.z * vVel.z < 0.25f ||
-                matrix.m[2][1] * vDir.y + matrix.m[2][0] * vDir.x + matrix.m[2][2] * vDir.z > (float)cos(15.0))
+                matrix.m[2][1] * vDir.y + matrix.m[2][0] * vDir.x + matrix.m[2][2] * vDir.z > (float)PblCrtCos(15.0))
             {
                 pBest = pObj;
                 bestAid = aid;

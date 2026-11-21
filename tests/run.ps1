@@ -151,6 +151,8 @@ if (-not $Rejudge) {
     $paramLines += "tests_exe=$testsExePath"
     $paramLines += "exe.OpenSWBF2Tests.exe=$(Get-RunExeHash $testsExePath)"
     $paramLines | Set-Content -Path (Join-Path $outDir 'run-params.txt') -Encoding ASCII
+    $hostFaultStart = Get-Date
+    Add-HostFaultParams (Join-Path $outDir 'run-params.txt') 'start' $hostFaultStart
 }
 
 function Add-SmokeResult($line, $final) {
@@ -213,13 +215,13 @@ elseif ($runUnit) {
     }
     if ($Filter) { $cases = @($cases | Where-Object { $_.Name -like $Filter }) }
     if ($cases.Count -eq 0) { Write-Host 'No cases run (suite empty or filter matched nothing).'; exit 2 }
-    $t1Skips = Split-T1PlatformSkips $cases $Platform (-not ($Suite -or $Filter -or $Fuzz))
-    foreach ($r in $t1Skips.Stale) {
-        Add-SmokeResult "[FAIL] t1-skip:$($r.Name) - not a test case of $exe" 'FAIL'
+    $t1NotFor = Split-T1NotForPlatform $cases $Platform (-not ($Suite -or $Filter -or $Fuzz))
+    foreach ($r in $t1NotFor.Stale) {
+        Add-SmokeResult "[FAIL] t1-not-for-platform:$($r.Name) - not a test case of $exe" 'FAIL'
         $bad++
     }
-    foreach ($r in $t1Skips.Skipped) { Add-SmokeResult "[SKIP] $($r.Name) - $($r.Until)" 'SKIP' }
-    $cases = @($t1Skips.Run)
+    foreach ($r in $t1NotFor.Skipped) { Add-SmokeResult "[N/A] $($r.Name) - $($r.Reason)" 'SKIP' }
+    $cases = @($t1NotFor.Run)
 
     $silentMax = 0.0
     $silentCase = $null
@@ -323,7 +325,7 @@ if ($hardenActive -and -not $Rejudge) {
         $lcDir = Join-Path $root "obj\$Platform\$SmokeConfiguration\LuaCompiler\LuaCompiler.tlog"
         $lc = $null
         if (Test-Path -LiteralPath $lcDir) { $lc = Get-ClTlogCounts $lcDir }
-        $tlogChecks = @(Get-HardeningChecks '' '' $tl.Total $tl.GsMinus $tl.Sdl | Where-Object { $_.Name -eq 'sdl' }) + @(Get-FlagChecks $tl $tt $SmokeConfiguration $Configuration $lc) + @(Get-X64ObjectsCheck $root $SmokeConfiguration) + @(Get-X64SizeLiteralCheck $root)
+        $tlogChecks = @(Get-HardeningChecks '' '' $tl.Total $tl.GsMinus $tl.Sdl | Where-Object { $_.Name -eq 'sdl' }) + @(Get-FlagChecks $tl $tt $SmokeConfiguration $Configuration $lc) + @(Get-X64ObjectsCheck $root $SmokeConfiguration) + @(Get-CrtTrigRouteResult $root $SmokeConfiguration $Platform) + @(Get-X64SizeLiteralCheck $root)
         foreach ($c in $tlogChecks) {
             if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
             else {
@@ -357,6 +359,17 @@ if ($hardenActive -and -not $Rejudge) {
                 $saCheck = Get-SteamApi64StagedCheck $root $exeDir $imp
                 Add-SmokeResult (Get-D3dxStagedLine (New-Object PSObject -Property @{ Status = $saCheck.Status; Name = "hardening:$($saCheck.Name)"; Detail = $saCheck.Detail })) $saCheck.Status
                 if ($saCheck.Status -eq 'FAIL') { $bad++ }
+            }
+            if ($SmokeConfiguration -ne 'Release') { Add-SmokeResult "[SKIP] hardening:fma3-off - judged on the Release exe, smoke configuration is $SmokeConfiguration" 'SKIP' }
+            else {
+                $fc = $null
+                try { $fc = Get-Fma3OffCheck (Get-Fma3OffDisasm $gameExe ([IO.File]::ReadAllText((Join-Path $gameProjects[0].IntDir 'BattlefrontII.map'))) $Platform) }
+                catch { $fc = New-Object PSObject -Property @{ Name = 'fma3-off'; Ok = $false; Detail = $_.Exception.Message } }
+                if ($fc.Ok) { Add-SmokeResult '[PASS] hardening:fma3-off' 'PASS' }
+                else {
+                    Add-SmokeResult "[FAIL] hardening:fma3-off - $($fc.Detail)" 'FAIL'
+                    $bad++
+                }
             }
         }
     }
@@ -693,6 +706,8 @@ if ($smokeActive -and $Smoke -eq 'All' -and $SmokeConfiguration -eq 'Test' -and 
     $results += New-Object PSObject -Property @{ Line = $offLine; Final = $(if ($offCode -eq 0) { 'PASS' } else { 'FAIL' }); Known = $false }
 }
 
+if (-not $Rejudge) { Add-HostFaultParams (Join-Path $outDir 'run-params.txt') 'end' $hostFaultStart }
+$hostFaultNote = Get-HostFaultNote (Read-KeyValueFile (Join-Path $outDir 'run-params.txt')) $bad
 $normal = @($results | Where-Object { -not $_.Known -and $_.Final -ne 'WARN' })
 $kn = @($results | Where-Object { $_.Known -and $_.Final -ne 'WARN' })
 $summary = @()
@@ -709,6 +724,7 @@ if ($smokeActive -and $asanSmoke) {
     if ($asanRemoved.Count -gt 0) { $summary += "ASan excluded smoke cases: $($asanRemoved -join ', ')" }
     else { $summary += 'ASan excluded smoke cases: none in this group' }
 }
+if ($hostFaultNote) { $summary += $hostFaultNote }
 $summary | ForEach-Object { Write-Host $_ }
 (@($results | ForEach-Object { $_.Line }) + $summary) | Set-Content -Path (Join-Path $outDir $resultsName) -Encoding ASCII
 Write-Host "Artifacts: $outDir"

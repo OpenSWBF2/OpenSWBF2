@@ -150,6 +150,8 @@ private:
 
     static float _RayHit(const PblVector3& vStart, const PblVector3& vEnd, float fA, float fB, bool& bAbove);
 
+    static double _RayHitX87(const PblVector3& vStart, const PblVector3& vEnd, float fA, float fB, bool& bAbove);
+
     static void _ReadPatchInfo(PblFileChunk& chunk);
 
 public:

@@ -1,6 +1,6 @@
 #include <d3dx9math.h>
 #include <math.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "ChaseCamera.h"
 #include "CameraManager.h"
 #include "Character.h"
@@ -375,7 +375,7 @@ void ChaseCamera::SetupCamera(RedCamera* pCamera, float fDeltaTime)
     }
 
     pCamera->SetMatrix(mMatrix);
-    float fLerp = expf(fDeltaTime * -25.0f);
+    float fLerp = PblCrtExpF(fDeltaTime * -25.0f);
     pCamera->SetZoom((pCamera->GetZoom() - fZoom) * fLerp + fZoom);
     pCamera->SetFOV((pCamera->GetFOV() - fFOV) * fLerp + fFOV, fAspectRatio);
 }

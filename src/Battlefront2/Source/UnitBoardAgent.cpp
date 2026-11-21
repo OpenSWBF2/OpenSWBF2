@@ -11,6 +11,7 @@
 #include "UnitController.h"
 #include "VOHelper.h"
 #include "PebbleFL/Common/PblMatrix.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 class Obstacle;
 
@@ -241,7 +242,15 @@ void UnitBoardAgent::UpdateStatePostVision(float dt)
             }
             const CollisionObject* pMe = GetMe()->GetGameObject()->GetCollisionObject();
             const CollisionObject* pVehicleCol = pVehicle->GetCollisionObject();
-            float fRange = pMe->GetCollisionRadius() + pVehicleCol->GetCollisionRadius() + 1.5f;
+            float fRange;
+            if constexpr (sizeof(void*) == 8)
+            {
+                fRange = PblX87AddAddF(pVehicleCol->GetCollisionRadius(), pMe->GetCollisionRadius(), 1.5f);
+            }
+            else
+            {
+                fRange = pMe->GetCollisionRadius() + pVehicleCol->GetCollisionRadius() + 1.5f;
+            }
             if (SquaredLength(pMe->GetCollisionCenter() - pVehicleCol->GetCollisionCenter()) < fRange * fRange)
             {
                 SetNextState(3);

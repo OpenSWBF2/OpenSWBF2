@@ -89,6 +89,28 @@ and `NetGame.cpp`/`NetSetup.cpp` in the game) calls the plain msvcr120 entries, 
 `atan` there follow x87 precision: the case allows only `sqrt.d` and `atan.d` lines to differ and
 prints how many did (273 in Debug, 0 in Release).
 
+## d3dx
+
+`pins.txt`, text data, CRLF, one line per pinned d3dx9 math function:
+
+    <function>\t<cases>\t<FNV-1a 32 of the outputs>
+
+The inputs come from `tests\unit\d3dx_corpus.cpp`. The hashes are the x86 `d3dx9_43.dll`
+outputs, written by `--gen-corpus` from the Win32 tests exe. Only functions without `rsqrtss`,
+`rcpps`, `rcpss` or x87 transcendentals are pinned, because those results depend on the CPU.
+
+## simmath
+
+`crt.txt`, text data, CRLF, one line per block of 65,536 inputs:
+
+    <function>\t<block>\t<count>\t<FNV-1a 32 of the float outputs>
+
+The inputs and the forms (float in, double CRT routine, float out) come from
+`tests\unit\crt_trig.cpp`; the hashes are the x86 CRT outputs, written by `--gen-corpus` from
+the Win32 tests exe. Inputs whose x86 result comes from x87 instructions (sin, cos and tan at
+and above the fallback threshold, every atan2, and fmod of two NaNs with equal significands)
+are not pinned: the T1 compares them with the x86 CRT on the same machine.
+
 ## Provenance of floatparse and mathfn
 
 Generated on v143 (MSVC 14.44.35207, `ucrtbase.dll` 10.0.26100.9711) by running

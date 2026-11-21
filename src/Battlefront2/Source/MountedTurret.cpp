@@ -3,6 +3,7 @@
 #include "EntityFlyer.h"
 
 #include <float.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -907,8 +908,8 @@ bool MountedTurret::Update(float aDt)
         {
             PblVector3 aimLocal;
             D3DXVec3TransformNormal(reinterpret_cast<D3DXVECTOR3*>(&aimLocal), reinterpret_cast<const D3DXVECTOR3*>(&mAimMatrix.GetZAxis()), reinterpret_cast<const D3DXMATRIX*>(&parentMatrix.GetInverseFast()));
-            float aimYaw = atan2(aimLocal.x, aimLocal.z);
-            float aimPitch = -asin(aimLocal.y);
+            float aimYaw = PblCrtAtan2F(aimLocal.x, aimLocal.z);
+            float aimPitch = -PblCrtAsinF(aimLocal.y);
             if (mClass->mShiftYaw && aimYaw < 0.0f)
             {
                 aimYaw += 6.2831855f;
@@ -995,11 +996,11 @@ bool MountedTurret::Update(float aDt)
     if (!mClass->mIsVirtual)
     {
         float fYaw = mClass->mYawTurnFactor * mYaw;
-        float fCosYaw = cos(fYaw);
-        float fSinYaw = sin(fYaw);
+        float fCosYaw = PblCrtCosF(fYaw);
+        float fSinYaw = PblCrtSinF(fYaw);
         float fPitch = mClass->mPitchTurnFactor * mPitch;
-        float fCosPitch = cos(fPitch);
-        PblVector3 rootDir(fCosPitch * fSinYaw, -sin(fPitch), fCosPitch * fCosYaw);
+        float fCosPitch = PblCrtCosF(fPitch);
+        PblVector3 rootDir(fCosPitch * fSinYaw, -PblCrtSinF(fPitch), fCosPitch * fCosYaw);
         mRootMatrix = DirectionMatrix(rootDir, mountUp, mountPos);
 
         if (mPose && mClass->mMountHash)
@@ -1066,10 +1067,10 @@ bool MountedTurret::Update(float aDt)
         }
     }
 
-    float fCosYaw = cos(mYaw);
-    float fSinYaw = sin(mYaw);
-    float fCosPitch = cos(mPitch);
-    PblVector3 aimDir(fCosPitch * fSinYaw, -sin(mPitch), fCosPitch * fCosYaw);
+    float fCosYaw = PblCrtCosF(mYaw);
+    float fSinYaw = PblCrtSinF(mYaw);
+    float fCosPitch = PblCrtCosF(mPitch);
+    PblVector3 aimDir(fCosPitch * fSinYaw, -PblCrtSinF(mPitch), fCosPitch * fCosYaw);
     if (mClass->mForceLockAimerToParentAimer && mParent->GetControllable())
     {
         const PblVector3& vParentDir = mParent->GetControllable()->mEyeDir;

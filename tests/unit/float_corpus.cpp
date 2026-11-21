@@ -15,6 +15,8 @@
 static_assert(sizeof(sin(1.0f)) == 4, "float math overloads");
 
 #include "testutil.h"
+#include "unit/d3dx_corpus.h"
+#include "unit/crt_trig.h"
 
 typedef unsigned __int64 u64;
 
@@ -823,6 +825,11 @@ int FloatCorpusGenerate(const char* pcOutDir)
     }
     printf("gen-corpus: math lines=%u\n", (unsigned int)mathLines.size());
 
+    if (D3dxRefWritePins(sOut) != 0 || CrtSimWritePins(sOut) != 0)
+    {
+        return 1;
+    }
+
     std::vector<std::string> edgeLines;
     for (size_t i = 0; i < sizeof(sEdgeTokens) / sizeof(sEdgeTokens[0]); ++i)
     {
@@ -1064,6 +1071,14 @@ TEST_CASE("float corpus generator writes every file" * doctest::test_suite("corp
         abRead[i] = ReadFileBytes(sDir + "\\" + sFiles[i], asText[i]);
         DeleteFileA((sDir + "\\" + sFiles[i]).c_str());
     }
+    std::string sPins;
+    const bool bPins = ReadFileBytes(sDir + "\\d3dx\\pins.txt", sPins);
+    DeleteFileA((sDir + "\\d3dx\\pins.txt").c_str());
+    RemoveDirectoryA((sDir + "\\d3dx").c_str());
+    std::string sSim;
+    const bool bSim = ReadFileBytes(sDir + "\\simmath\\crt.txt", sSim);
+    DeleteFileA((sDir + "\\simmath\\crt.txt").c_str());
+    RemoveDirectoryA((sDir + "\\simmath").c_str());
     RemoveDirectoryA((sDir + "\\mathfn").c_str());
     RemoveDirectoryA((sDir + "\\floatparse").c_str());
     RemoveDirectoryA(sDir.c_str());
@@ -1081,6 +1096,22 @@ TEST_CASE("float corpus generator writes every file" * doctest::test_suite("corp
         std::string sPinned;
         REQUIRE(ReadFileBytes(sRepo + "\\tests\\corpus\\" + sFiles[i], sPinned));
         CHECK(asText[i] == sPinned);
+    }
+    if (sizeof(void*) == 4)
+    {
+        std::string sPinned;
+        REQUIRE(ReadFileBytes(sRepo + "\\tests\\corpus\\d3dx\\pins.txt", sPinned));
+        CHECK(bPins);
+        CHECK(sPins == sPinned);
+        std::string sSimPinned;
+        REQUIRE(ReadFileBytes(sRepo + "\\tests\\corpus\\simmath\\crt.txt", sSimPinned));
+        CHECK(bSim);
+        CHECK(sSim == sSimPinned);
+    }
+    else
+    {
+        CHECK(!bPins);
+        CHECK(!bSim);
     }
 }
 
@@ -1106,4 +1137,19 @@ TEST_CASE("math corpus x87 pc24" * doctest::test_suite("corpus"))
 #ifndef OPENSWBF2_TESTS_DEBUG
     CHECK(uX87 == 0);
 #endif
+}
+
+class SinCosTable;
+extern SinCosTable _TheSinCosTable;
+
+TEST_CASE("sin cos table bits equal x86" * doctest::test_suite("corpus"))
+{
+    const unsigned char* pucBytes = reinterpret_cast<const unsigned char*>(&_TheSinCosTable);
+    unsigned int uiHash = 2166136261u;
+    for (size_t i = 0; i < 4096 * sizeof(float); ++i)
+    {
+        uiHash = (uiHash ^ pucBytes[i]) * 16777619u;
+    }
+    printf("sin cos table fnv1a32=%08X\n", uiHash);
+    CHECK(uiHash == 0x1052080Bu);
 }

@@ -1,6 +1,7 @@
 #include "SpaceAssault.h"
 
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -619,7 +620,7 @@ GameObject* SpaceAssault::GetRandomCritSys(const Team* pTeam, float fBias) const
     }
 
     float fRandom = AIUtil::GetRandomFloat(0.0f, 1.0f);
-    fRandom = fmodf(fRandom * fRandom + fBias, 1.0f);
+    fRandom = PblCrtFmodF(fRandom * fRandom + fBias, 1.0f);
     int iPick = (int)(fRandom * (float)iCount);
     for (int i = 0; i < mNumCriticalSystems; ++i)
     {

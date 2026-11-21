@@ -2,7 +2,7 @@
 
 #include <math.h>
 #include <d3dx9math.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 // FUNCTION: SWBF2 0x006cb820
 RedCamera::VisibilityT RedCamera::ClassifyPoints(const PblVector3* pPoints, int iNumPoints) const
 {
@@ -364,7 +364,7 @@ void RedCamera::GetAABound(geo::Box&) const
 // FUNCTION: SWBF2 0x006cbca0
 float RedCamera::GetFOV() const
 {
-    return atanf(_fUnzoomedTanHalfFOVWidth) * 2.0f;
+    return PblCrtAtanF(_fUnzoomedTanHalfFOVWidth) * 2.0f;
 }
 
 // FUNCTION: SWBF2 0x006cbcd0
@@ -411,7 +411,7 @@ void RedCamera::GetViewTrans(PblMatrix& rMatrix) const
 // FUNCTION: SWBF2 0x006cbe60
 void RedCamera::SetFOV(float fFOV, float fAspectRatio)
 {
-    _fUnzoomedTanHalfFOVWidth = tanf(fFOV * 0.5f);
+    _fUnzoomedTanHalfFOVWidth = PblCrtTanF(fFOV * 0.5f);
     _fUnzoomedTanHalfFOVHeight = _fUnzoomedTanHalfFOVWidth * fAspectRatio;
     UpdateFrustumDependents();
 }
@@ -445,7 +445,7 @@ void RedCamera::SetNearFarPlane(float fNear, float fFar)
 // FUNCTION: SWBF2 0x006cbf60
 void RedCamera::SetPerspective(float fNear, float fFar, float fFOV, float fAspectRatio)
 {
-    _fUnzoomedTanHalfFOVWidth = tanf(fFOV * 0.5f);
+    _fUnzoomedTanHalfFOVWidth = PblCrtTanF(fFOV * 0.5f);
     _fNear = fNear;
     _fFar = fFar;
     _fUnzoomedTanHalfFOVHeight = _fUnzoomedTanHalfFOVWidth * fAspectRatio;

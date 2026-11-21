@@ -1,7 +1,7 @@
 #include <d3dx9math.h>
 #include <float.h>
 #include <stdio.h>
-
+#include "PebbleFL/Common/PblX87Math.h"
 #include "EntityPathFollower.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblMath.h"
@@ -1609,9 +1609,18 @@ float EntityPathFollower::Roll(const EntityPathFollowerClass* const pClass, floa
     {
         fWeave = 2.0f;
     }
-    float fTarget = PblMath::Sin(fTime * 0.43f) *
-                        (PblMath::Cos(fTime * 2.33f) * (PblMath::Sin(fTime * 1.17f) * fWeave)) +
-                    fBank;
+    float fTarget;
+    if constexpr (sizeof(void*) == 8)
+    {
+        fTarget = PblX87MulAddF(PblMath::Sin(fTime * 0.43f),
+                                PblMath::Cos(fTime * 2.33f) * (PblMath::Sin(fTime * 1.17f) * fWeave), fBank);
+    }
+    else
+    {
+        fTarget = PblMath::Sin(fTime * 0.43f) *
+                      (PblMath::Cos(fTime * 2.33f) * (PblMath::Sin(fTime * 1.17f) * fWeave)) +
+                  fBank;
+    }
 
     float fFactor = Clamp(pClass->mPathRollValues.mRollTurnFactor * fElapsed, 0.0f, 1.0f);
     mSplineRoll = (fTarget - mSplineRoll) * fFactor + mSplineRoll;

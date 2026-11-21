@@ -2,6 +2,7 @@
 #include "SoldierAnimatorLowRes.h"
 
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include <stdio.h>
 
 #include "Combo.h"
@@ -1042,7 +1043,7 @@ bool SoldierAnimatorLowRes::GetRootMatrixAnimation(const EntitySoldier& soldier,
         const PblMatrix& mOwner = soldier.GetMatrix();
         const float fVelX = DotProduct(vVelocity, mOwner.GetXAxis());
         const float fVelZ = DotProduct(vVelocity, mOwner.GetZAxis());
-        const float fYawAngle = atan2f(fVelX, fVelZ);
+        const float fYawAngle = PblCrtAtan2F(fVelX, fVelZ);
 
         kMatrix.SetRotateX(soldier.mStateTimer * 8.0f + 1.0f);
         kMatrix.SetTranslation(s_vRollCenter - kMatrix.ApplyRotation(s_vRollCenter));

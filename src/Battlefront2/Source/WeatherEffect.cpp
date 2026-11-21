@@ -5,6 +5,7 @@
 #include "CollisionManager.h"
 #include "RedEngineFL/Graphics/RedCamera.h"
 #include "PebbleFL/Common/PblConfig.h"
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblListDelete.h"
 #include "PebbleFL/Common/PblRandom.h"
@@ -652,7 +653,7 @@ void PrecipitationEffect::Update(float fDeltaTime)
             FLEffectObject* pEffect = mGroundEffect->BuildEffect();
             if (!pEffect)
             {
-                fTimer = (float)fmod((double)fTimer, (double)fInterval);
+                fTimer = PblCrtFmodF(fTimer, fInterval);
                 break;
             }
             pEffect->AttachEffectToVector(&vPos, false);

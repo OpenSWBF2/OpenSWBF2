@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "Battlefront2/Platform/Pc/pcMathStartup.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "RedEngineFL/Application/pc/pcMessageDrain.h"
@@ -214,6 +215,7 @@ static void ReadHeapCapArgs(bool bReport)
 extern "C" void Startup_RedInitHeap(int, int)
 {
     pcCrash::Install();
+    PcMathStartup();
     pcCrash::EarlyCrashTest("heapinit");
     char const* pcVal = 0;
     int iLen = 0;

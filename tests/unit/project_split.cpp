@@ -109,8 +109,8 @@ TEST_CASE("game projects together compile every game TU exactly once" * doctest:
             ++uiCount;
         }
     }
-    CHECK(uiCount == 784);
-    CHECK(kSeen.size() == 784);
+    CHECK(uiCount == 788);
+    CHECK(kSeen.size() == 788);
 }
 
 TEST_CASE("adler32 links only from unzip.cpp as the one copy in the retail exe" * doctest::test_suite("regression"))
@@ -180,6 +180,86 @@ TEST_CASE("every game project imports the shared props and the exe links library
         CHECK_MESSAGE(sBlock.find("<LinkLibraryDependencies>true</LinkLibraryDependencies>") != std::string::npos, kLib.pcProject);
         CHECK_MESSAGE(sBlock.find("<UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>") != std::string::npos, kLib.pcProject);
     }
+}
+
+namespace
+{
+struct MasmItem
+{
+    std::string sInclude;
+    std::string sTag;
+};
+
+std::vector<MasmItem> MasmItems(const std::string& sText)
+{
+    std::vector<MasmItem> vItems;
+    const std::string sTag = "<MASM Include=\"";
+    size_t uiAt = 0;
+    while ((uiAt = sText.find(sTag, uiAt)) != std::string::npos)
+    {
+        const size_t uiStart = uiAt;
+        uiAt += sTag.size();
+        const size_t uiEnd = sText.find('"', uiAt);
+        const size_t uiClose = sText.find('>', uiAt);
+        REQUIRE(uiEnd != std::string::npos);
+        REQUIRE(uiClose != std::string::npos);
+        MasmItem kItem;
+        kItem.sInclude = sText.substr(uiAt, uiEnd - uiAt);
+        kItem.sTag = sText.substr(uiStart, uiClose + 1 - uiStart);
+        vItems.push_back(kItem);
+        uiAt = uiEnd;
+    }
+    return vItems;
+}
+
+void CheckMasmItems(const char* pcProject, const std::vector<std::string>& vExpected)
+{
+    const std::vector<MasmItem> vItems = MasmItems(ReadProject(pcProject));
+    std::vector<std::string> vFound;
+    for (const MasmItem& kItem : vItems)
+    {
+        vFound.push_back(kItem.sInclude);
+        const std::string sWant = "<MASM Include=\"" + kItem.sInclude + "\" Condition=\"'$(Platform)'=='x64'\" />";
+        CHECK_MESSAGE(kItem.sTag == sWant, kItem.sTag);
+    }
+    INFO(pcProject);
+    CHECK(vFound == vExpected);
+}
+}
+
+TEST_CASE("game MASM items are x64 only by item condition" * doctest::test_suite("regression"))
+{
+    const char* const apcAsm[] = {"src\\PebbleFL\\pc\\pcD3dxX87X64.asm", "src\\PebbleFL\\pc\\pcCrtTrigX64.asm"};
+    std::vector<std::string> vGame;
+    std::vector<std::string> vTests;
+    for (const char* pcAsm : apcAsm)
+    {
+        vGame.push_back(pcAsm);
+        vTests.push_back(std::string("..\\") + pcAsm);
+    }
+    CheckMasmItems("BattlefrontII.vcxproj", vGame);
+    CheckMasmItems("tests\\OpenSWBF2Tests.vcxproj", vTests);
+    for (const LibProject& kLib : kLibs)
+    {
+        CheckMasmItems(kLib.pcProject, std::vector<std::string>());
+    }
+    const char* const apcProjects[] = {"BattlefrontII.vcxproj", "tests\\OpenSWBF2Tests.vcxproj", "OpenSWBF2.Game.props"};
+    for (const char* pcProject : apcProjects)
+    {
+        CHECK_MESSAGE(ReadProject(pcProject).find("ExcludedFromBuild") == std::string::npos, pcProject);
+    }
+    for (const LibProject& kLib : kLibs)
+    {
+        CHECK_MESSAGE(ReadProject(kLib.pcProject).find("ExcludedFromBuild") == std::string::npos, kLib.pcProject);
+    }
+    const std::string sProps = ReadProject("OpenSWBF2.Game.props");
+    const std::string sExe = ReadProject("BattlefrontII.vcxproj");
+    const std::string sTests = ReadProject("tests\\OpenSWBF2Tests.vcxproj");
+    CHECK(sProps.find("<Import Project=\"$(VCTargetsPath)\\BuildCustomizations\\masm.props\" />") != std::string::npos);
+    CHECK(sProps.find("<ObjectFileName>$(IntDir)%(RelativeDir)%(FileName).obj</ObjectFileName>") != std::string::npos);
+    CHECK(sExe.find("<Import Project=\"$(VCTargetsPath)\\BuildCustomizations\\masm.targets\" />") != std::string::npos);
+    CHECK(sTests.find("<Import Project=\"$(VCTargetsPath)\\BuildCustomizations\\masm.props\" />") != std::string::npos);
+    CHECK(sTests.find("<Import Project=\"$(VCTargetsPath)\\BuildCustomizations\\masm.targets\" />") != std::string::npos);
 }
 
 TEST_CASE("project link order keeps the identity matrix first and the shader base before every shader" * doctest::test_suite("regression"))

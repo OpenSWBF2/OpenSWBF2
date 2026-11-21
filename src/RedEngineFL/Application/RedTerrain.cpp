@@ -9,6 +9,7 @@
 #include "PebbleFL/Common/PblFile.h"
 #include "PebbleFL/Common/PblHashTable.h"
 #include "PebbleFL/Common/PblVector.h"
+#include "PebbleFL/Common/PblX87Math.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "Battlefront2/Source/GameMemory.h"
 #include "Battlefront2/Source/CollisionObject.h"
@@ -762,11 +763,29 @@ float RedTerrain::_RayHit(const PblVector3& vStart, const PblVector3& vEnd, floa
     return fStep + fBase;
 }
 
+inline double RedTerrain::_RayHitX87(const PblVector3& vStart, const PblVector3& vEnd, float fA, float fB, bool& bAbove)
+{
+    if (SquaredLengthXZ(vStart - vEnd) > fB * fB)
+    {
+        const float fFirst = (float)_RayHitX87(vStart, (vEnd + vStart) * 0.5f, fA, fB, bAbove);
+        if (1.0f > fFirst)
+        {
+            return (double)fFirst * 0.5;
+        }
+        return PblX87HalfStepD(_RayHitX87((vEnd + vStart) * 0.5f, vEnd, fA, fB, bAbove));
+    }
+    return _RayHit(vStart, vEnd, fA, fB, bAbove);
+}
+
 // FUNCTION: SWBF2 0x006c32f0
 float RedTerrain::_RayHit(const PblVector3& vStart, const PblVector3& vEnd, float fA, float fB, bool& bAbove)
 {
     if (SquaredLengthXZ(vStart - vEnd) > fB * fB)
     {
+        if constexpr (sizeof(void*) == 8)
+        {
+            return (float)_RayHitX87(vStart, vEnd, fA, fB, bAbove);
+        }
         const float fFirst = _RayHit(vStart, (vEnd + vStart) * 0.5f, fA, fB, bAbove);
         if (1.0f > fFirst)
         {

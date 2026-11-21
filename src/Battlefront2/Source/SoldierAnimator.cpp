@@ -1,5 +1,7 @@
 #include <d3dx9math.h>
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
+#include "PebbleFL/Common/PblX87Math.h"
 #include "PebbleFL/Common/PblVector.h"
 
 #include "SoldierAnimator.h"
@@ -468,7 +470,14 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
 
     case SoldierState::FLY:
     {
-        mRotSpeed = PblRandom::GetGlobalFloat() * 20.0f - 10.0f;
+        if constexpr (sizeof(void*) == 8)
+        {
+            mRotSpeed = PblX87MulAddF(PblRandom::GetGlobalFloat(), 20.0f, -10.0f);
+        }
+        else
+        {
+            mRotSpeed = PblRandom::GetGlobalFloat() * 20.0f - 10.0f;
+        }
         float fForward = DotProduct(mMovement, legMatrix.GetZAxis());
         float fSide = DotProduct(mMovement, legMatrix.GetXAxis());
         mActionTime = 0.0f;
@@ -490,7 +499,7 @@ void SoldierAnimator::SetAction(SoldierState::SoldierState eState, const PblMatr
         float fZ = DotProduct(mMovement, mLegMatrix.GetZAxis());
         if (Value(fX) > 0.05f || Value(fZ) > 0.05f)
         {
-            mLegAngle = atan2f(fX, fZ);
+            mLegAngle = PblCrtAtan2F(fX, fZ);
         }
         else
         {
@@ -842,8 +851,8 @@ void SoldierAnimator::SetupPose(RedPose& pose)
     case SoldierAnimType::DIVE:
     {
         UpdateActionAnimation(SoldierAnimType::DIVE, fDeltaTime, 1.0f,
-                              atan2f(DotProduct(mMovement, mLegMatrix.GetXAxis()),
-                                     DotProduct(mMovement, mLegMatrix.GetZAxis())),
+                              PblCrtAtan2F(DotProduct(mMovement, mLegMatrix.GetXAxis()),
+                                           DotProduct(mMovement, mLegMatrix.GetZAxis())),
                               0.0f, false);
         break;
     }
@@ -907,7 +916,7 @@ void SoldierAnimator::SetupPose(RedPose& pose)
             float fX = DotProduct(mMovement, mLegMatrix.GetXAxis());
             if (fX * fX + fZ * fZ > 0.01f)
             {
-                mLegAngle = atan2f(fX, fZ);
+                mLegAngle = PblCrtAtan2F(fX, fZ);
                 if (mAction == SoldierAnimType::TUMBLE_BACKWARD)
                 {
                     mLegAngle -= 3.1415927f;
@@ -922,7 +931,7 @@ void SoldierAnimator::SetupPose(RedPose& pose)
             float fX = DotProduct(mMovement, mLegMatrix.GetXAxis());
             if (Value(fX) > 0.05f || Value(fZ) > 0.05f)
             {
-                mLegAngle = atan2f(fX, fZ);
+                mLegAngle = PblCrtAtan2F(fX, fZ);
                 if (mAction == SoldierAnimType::TUMBLE_BACKWARD)
                 {
                     mLegAngle -= 3.1415927f;
@@ -1061,7 +1070,7 @@ void SoldierAnimator::SetupPose(RedPose& pose)
                                 NetGame::GetJoystickIndex(mOwner->GetPlayerId()) >= 0;
             float fForward = DotProduct(mMovement, mLegMatrix.GetZAxis()) / fDeltaTime;
             float fSide = DotProduct(mMovement, mLegMatrix.GetXAxis()) / fDeltaTime;
-            fAngle = atan2f(fSide, fForward);
+            fAngle = PblCrtAtan2F(fSide, fForward);
             fSpeed = PblMath::Sqrt(fSide * fSide + fForward * fForward) / pAnim->GetVelocityZ();
             if (bFirstPerson)
             {
@@ -1186,9 +1195,9 @@ void SoldierAnimator::ApplyProceduralAnimationAndBuildWorldMatrices(float fDelta
     }
 
     float fPitchSin = DotProduct(mAimDir, mLegMatrix.GetYAxis());
-    float fYaw = atan2f(DotProduct(mAimDir, mLegMatrix.GetXAxis()),
-                       DotProduct(mAimDir, mLegMatrix.GetZAxis()));
-    float fPitch = -asinf(fPitchSin);
+    float fYaw = PblCrtAtan2F(DotProduct(mAimDir, mLegMatrix.GetXAxis()),
+                              DotProduct(mAimDir, mLegMatrix.GetZAxis()));
+    float fPitch = -PblCrtAsinF(fPitchSin);
 
     float fRate;
     if (mSoldierAction == SoldierState::ARMED_PASSENGER || (fRate = fDeltaTime * 4.5f) >= 1.0f)
@@ -1515,8 +1524,8 @@ void SoldierAnimator::UpdateMovementAnimation(float fDeltaTime, const ZephyrAnim
                 {
                     eMove = mMoveAnimation;
                 }
-                fLegAngle += atan2f(DotProduct(mLegDirection, mLegMatrix.GetXAxis()),
-                                   DotProduct(mLegDirection, mLegMatrix.GetZAxis()));
+                fLegAngle += PblCrtAtan2F(DotProduct(mLegDirection, mLegMatrix.GetXAxis()),
+                                          DotProduct(mLegDirection, mLegMatrix.GetZAxis()));
                 if (eMove <= SoldierAnimType::IDLE_LOOK_AROUND)
                 {
 
@@ -1916,7 +1925,7 @@ SoldierAnimType::MovementAnimation SoldierAnimator::GetMovementAnimation(float f
     if ((apAnim[SoldierAnimType::WALK_RIGHT] || apAnim[SoldierAnimType::RUN_RIGHT]) &&
         (apAnim[SoldierAnimType::WALK_LEFT] || apAnim[SoldierAnimType::RUN_LEFT]))
     {
-        fAngle = atan2f(fSide, fForward);
+        fAngle = PblCrtAtan2F(fSide, fForward);
         eAnim = SoldierAnimType::WALK_FORWARD;
         if ((fSide < 0.0f ? -fSide : fSide) > (fForward < 0.0f ? -fForward : fForward))
         {
@@ -1950,7 +1959,7 @@ SoldierAnimType::MovementAnimation SoldierAnimator::GetMovementAnimation(float f
         }
         else
         {
-            fAngle = atan2f(fSide, fForward);
+            fAngle = PblCrtAtan2F(fSide, fForward);
             if (fForward <= 0.0f)
             {
                 eAnim = SoldierAnimType::WALK_BACKWARD;

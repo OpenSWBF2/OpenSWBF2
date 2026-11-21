@@ -1,6 +1,6 @@
 #include <d3dx9math.h>
 #include <string.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "CameraManager.h"
 #include "ChaseCamera.h"
 #include "DeathCamera.h"
@@ -635,5 +635,5 @@ float GetWidescreenFOVAdjustment(float fFOV)
         ((float)FLRenderer::GetViewHeight(0) * (float)uScreenWidth) /
         ((float)FLRenderer::GetViewWidth(0) * (float)uScreenHeight);
     const float fScale = 0.75f / fAspect;
-    return atanf(fScale * tanf(fFOV * 0.5f)) * 2.0f;
+    return PblCrtAtanF(fScale * PblCrtTanF(fFOV * 0.5f)) * 2.0f;
 }

@@ -96,10 +96,16 @@ function Get-GatePath([string]$Path) {
     return [IO.Path]::GetFullPath((Join-Path $root $Path))
 }
 
+function Get-GateStepArgs($S, [string]$Plat) {
+    $a = @($S.Args)
+    if ($S.PlatformArgs -and $S.PlatformArgs.ContainsKey($Plat)) { $a += @($S.PlatformArgs[$Plat]) }
+    return $a
+}
+
 function Expand-GateStep($S, [string]$Plat) {
     $def = @(
         "kind`t$($S.Kind)", "config`t$($S.Config)", "exe`t$(Expand-GateText $S.Exe $Plat $false)",
-        "args`t$(@($S.Args | ForEach-Object { Expand-GateText $_ $Plat $false }) -join [char]0x1f)",
+        "args`t$(@(Get-GateStepArgs $S $Plat | ForEach-Object { Expand-GateText $_ $Plat $false }) -join [char]0x1f)",
         "outputs`t$(@($S.Outputs | ForEach-Object { Expand-GateText $_ $Plat $false }) -join [char]0x1f)",
         "binaries`t$(@($S.Binaries | ForEach-Object { Expand-GateText $_ $Plat $false }) -join [char]0x1f)",
         "dlldir`t$(if ($S.DllDir) { Expand-GateText $S.DllDir $Plat $false })",
@@ -110,7 +116,7 @@ function Expand-GateStep($S, [string]$Plat) {
         Name = $S.Name; Kind = $S.Kind; Config = $S.Config; Platform = $Plat
         JudgeKinds = @($S.JudgeKinds | Where-Object { $_ }); Compare = @($S.Compare | Where-Object { $_ })
         Exe = Expand-GateText $S.Exe $Plat $true
-        Args = @($S.Args | ForEach-Object { Expand-GateText $_ $Plat $true })
+        Args = @(Get-GateStepArgs $S $Plat | ForEach-Object { Expand-GateText $_ $Plat $true })
         Outputs = @($S.Outputs | Where-Object { $_ } | ForEach-Object { Get-GatePath (Expand-GateText $_ $Plat $true) })
         Binaries = @($S.Binaries | Where-Object { $_ } | ForEach-Object { Expand-GateText $_ $Plat $true })
         DllDir = $(if ($S.DllDir) { Get-GatePath (Expand-GateText $S.DllDir $Plat $true) } else { $null })

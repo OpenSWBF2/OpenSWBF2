@@ -1,4 +1,4 @@
-$script:KeyComparedTables = @('cloth-headroom.txt', 'mem-peaks.txt', 'mem-peaks-x64.txt', 'pool-sizes.txt', 'smoke-all-digests.txt', 'lua-bins.txt', 'offthread.txt', 'hardening.txt', 'digests.txt', 'digests-hog.txt', 'digest-trace-geo1c_con.txt', 'digest-trace-hot1g_con.txt', 'digest-trace-nab2g_c.txt', 'digest-trace-spa3c_ass.txt', 'factory-geo1c_con.txt', 'factory-hot1g_con.txt', 'factory-nab2g_c.txt', 'factory-spa3c_ass.txt', 'initializers.txt', 'initializers-di.txt', 'initializers-discarded.txt', 'digests-debug.txt') | ForEach-Object { "tests\baseline\v143\$_" }
+$script:KeyComparedTables = @('cloth-headroom.txt', 'mem-peaks.txt', 'mem-peaks-x64.txt', 'pool-sizes.txt', 'smoke-all-digests.txt', 'lua-bins.txt', 'offthread.txt', 'hardening.txt', 'digests.txt', 'digests-hog.txt', 'digest-trace-geo1c_con.txt', 'digest-trace-hot1g_con.txt', 'digest-trace-nab2g_c.txt', 'digest-trace-spa3c_ass.txt', 'factory-geo1c_con.txt', 'factory-hot1g_con.txt', 'factory-nab2g_c.txt', 'factory-spa3c_ass.txt', 'initializers.txt', 'initializers-di.txt', 'initializers-discarded.txt', 'digests-debug.txt', 'x87-inventory.tsv') | ForEach-Object { "tests\baseline\v143\$_" }
 
 $script:JudgeOnlyFiles = @{
     'smoke' = @(@{ Path = 'tests\smoke\digest-expected.txt'; Reader = 'Test-SmokeExpect' }, @{ Path = 'tests\smoke\expected-errors.txt'; Reader = 'Get-SmokeUnexpected' }) + @($script:KeyComparedTables | ForEach-Object { @{ Path = $_; Reader = 'compare-tables' } })
@@ -317,10 +317,11 @@ function Read-KeyedRecords([string]$Path, [string[]]$KeyColumns) {
     return $records
 }
 
-function Merge-KeyedRecords([string]$Path, [string[]]$Columns, [string[]]$KeyColumns, [string[]]$NewLines) {
+function Merge-KeyedRecords([string]$Path, [string[]]$Columns, [string[]]$KeyColumns, [string[]]$NewLines, [string[]]$DropKeys = @()) {
     $byKey = New-Object 'System.Collections.Generic.SortedDictionary[string,string]' ([StringComparer]::Ordinal)
     $old = Read-KeyedRecords $Path $KeyColumns
     foreach ($k in $old.Keys) {
+        if ($DropKeys -ccontains $k) { continue }
         $p = $old[$k]
         $byKey[$k] = @($Columns | ForEach-Object { [string]$p.$_ }) -join "`t"
     }
@@ -375,7 +376,7 @@ function Get-RunOutcome([string]$Dir) {
     $lines = New-Object 'System.Collections.Generic.SortedDictionary[string,int]' ([StringComparer]::Ordinal)
     foreach ($l in [IO.File]::ReadAllLines($results)) {
         $t = ($l -replace '\s*\(\d+ ms\)', '').TrimEnd()
-        if (-not $t) { continue }
+        if (-not $t -or $t.StartsWith('Suspected hardware:', [StringComparison]::Ordinal)) { continue }
         if ($lines.ContainsKey($t)) { $lines[$t]++ }
         else { $lines[$t] = 1 }
     }

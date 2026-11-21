@@ -3,6 +3,7 @@
 #include "WeaponCannon.h"
 
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +22,7 @@
 #include "PebbleFL/Common/PblRandom.h"
 #include "SoundFL/source/sndvoicevirtualbus.h"
 #include "PebbleFL/Common/PblMath.h"
+#include "PebbleFL/Common/PblX87Math.h"
 
 extern int gDebugCount;
 extern bool netIsLocalTurn;
@@ -281,8 +283,7 @@ void WeaponCannon::NotifySoldierState(int iState, float fTime, bool b0, bool b1,
     Weapon::NotifySoldierState(iState, fTime, b0, b1, vec);
 }
 
-// FUNCTION: SWBF2 0x0067e880
-float WeaponCannon::GetYawSpread() const
+inline float WeaponCannon::GetYawSpreadTerm() const
 {
     const WeaponCannonClass* pClass = (const WeaponCannonClass*)mClass;
 
@@ -327,16 +328,36 @@ float WeaponCannon::GetYawSpread() const
         }
         fYaw = mYawSpreadFactor * fSpread;
     }
+    return fYaw;
+}
 
+// FUNCTION: SWBF2 0x0067e880
+float WeaponCannon::GetYawSpread() const
+{
+    float fYaw = GetYawSpreadTerm();
     float fKick = mKickSpread > 0.0f ? mKickSpread : 0.0f;
-    return mStanceSpread + fKick + fYaw;
+    if constexpr (sizeof(void*) == 8)
+    {
+        return PblX87AddAddF(mStanceSpread, fKick, fYaw);
+    }
+    else
+    {
+        return mStanceSpread + fKick + fYaw;
+    }
 }
 
 // FUNCTION: SWBF2 0x0067ea60
 float WeaponCannon::GetPitchSpread() const
 {
     float fKick = mKickSpread > 0.0f ? mKickSpread : 0.0f;
-    return mStanceSpread + fKick + ((const WeaponCannonClass*)mClass)->mPitchSpread;
+    if constexpr (sizeof(void*) == 8)
+    {
+        return PblX87AddAddF(mStanceSpread, fKick, ((const WeaponCannonClass*)mClass)->mPitchSpread);
+    }
+    else
+    {
+        return mStanceSpread + fKick + ((const WeaponCannonClass*)mClass)->mPitchSpread;
+    }
 }
 
 // FUNCTION: SWBF2 0x0067eaa0
@@ -702,13 +723,26 @@ bool WeaponCannon::Fire()
             mPatternIndex = 0;
         }
     }
-    fPitch += (PblRandom::GetSim().GetFloat() - PblRandom::GetSim().GetFloat()) * GetPitchSpread();
-    fYaw += (PblRandom::GetSim().GetFloat() - PblRandom::GetSim().GetFloat()) * GetYawSpread();
+    if constexpr (sizeof(void*) == 8)
+    {
+        const float fKick = mKickSpread > 0.0f ? mKickSpread : 0.0f;
+        const float fPitchFirst = PblRandom::GetSim().GetFloat();
+        const float fPitchDiff = fPitchFirst - PblRandom::GetSim().GetFloat();
+        fPitch = PblX87AddAddMulAddF(mStanceSpread, fKick, pClass->mPitchSpread, fPitchDiff, fPitch);
+        const float fYawFirst = PblRandom::GetSim().GetFloat();
+        const float fYawDiff = fYawFirst - PblRandom::GetSim().GetFloat();
+        fYaw = PblX87AddAddMulAddF(mStanceSpread, fKick, GetYawSpreadTerm(), fYawDiff, fYaw);
+    }
+    else
+    {
+        fPitch += (PblRandom::GetSim().GetFloat() - PblRandom::GetSim().GetFloat()) * GetPitchSpread();
+        fYaw += (PblRandom::GetSim().GetFloat() - PblRandom::GetSim().GetFloat()) * GetYawSpread();
+    }
 
-    float fCosPitch = (float)cos(fPitch);
-    float fSinPitch = (float)sin(fPitch);
-    float fCosYaw = (float)cos(fYaw);
-    float fSinYaw = (float)sin(fYaw);
+    float fCosPitch = PblCrtCosF(fPitch);
+    float fSinPitch = PblCrtSinF(fPitch);
+    float fCosYaw = PblCrtCosF(fYaw);
+    float fSinYaw = PblCrtSinF(fYaw);
 
     float fEnergyDrain = mClass->mEnergyDrain;
     if (EnergyBar* pBar = mOwner->GetEnergyBar())

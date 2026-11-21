@@ -1,5 +1,6 @@
 #include <d3dx9math.h>
 #include <math.h>
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "PebbleFL/Common/PblVector.h"
 #include <stdio.h>
 
@@ -487,7 +488,7 @@ void EntityClothClass::SetProperty(unsigned int uProperty, const char* pszValue)
         float fAngleY = 0.0f;
         sscanf(pszValue, "%f %f", &fAngleZ, &fAngleY);
         const float fRadiansZ = fAngleZ * 0.017453292f;
-        const PblVector3 vWind(-sinf(fRadiansZ), cosf(fRadiansZ), 0.0f);
+        const PblVector3 vWind(-PblCrtSinF(fRadiansZ), PblCrtCosF(fRadiansZ), 0.0f);
         float fSin, fCos;
         PblMath::SinCos(&fSin, &fCos, fAngleY * 0.017453292f);
         mWindDirection = PblVector3(fCos * vWind.x - fSin * vWind.z, vWind.y, fSin * vWind.x + fCos * vWind.z);

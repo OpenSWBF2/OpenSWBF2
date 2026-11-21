@@ -1,6 +1,6 @@
 #include <d3dx9math.h>
 #include <math.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "Battlefront2/Source/CameraManager.h"
 #include "Battlefront2/Source/GameCamera.h"
 #include "Battlefront2/Source/WeatherEffect.h"
@@ -185,8 +185,8 @@ void FogCloudEffect::Render(unsigned int value) const
     unsigned int uiNumParticles = (iMaxZ - iMinZ + 1) * (iMaxX - iMinX + 1) * PARTICLES_PER_BOX;
 
     float fTime = _TimeStamp.GetElapsed();
-    float fOffsetX = fmodf(VELOCITY.x * fTime, BOX_SIZE);
-    float fOffsetZ = fmodf(VELOCITY.z * fTime, BOX_SIZE);
+    float fOffsetX = PblCrtFmodF(VELOCITY.x * fTime, BOX_SIZE);
+    float fOffsetZ = PblCrtFmodF(VELOCITY.z * fTime, BOX_SIZE);
     if (fOffsetX < 0.0f)
     {
         fOffsetX += BOX_SIZE;
@@ -195,7 +195,7 @@ void FogCloudEffect::Render(unsigned int value) const
     {
         fOffsetZ += BOX_SIZE;
     }
-    float fRotation = fmodf(ROTATION_RATE * fTime + 1.0f, 2.0f) - 1.0f;
+    float fRotation = PblCrtFmodF(ROTATION_RATE * fTime + 1.0f, 2.0f) - 1.0f;
     if (fRotation < -1.0f)
     {
         fRotation += 2.0f;

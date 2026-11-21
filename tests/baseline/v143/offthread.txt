@@ -44,6 +44,7 @@ crash-menurevertsave	0	0	0
 crash-menusavefail	0	0	0
 crash-midoublefree	0	0	0
 crash-nullderef	0	0	0
+crash-particleburst	0	0	0
 crash-particlesound	0	0	0
 crash-poolcount	0	0	0
 crash-resetfatal	0	0	0

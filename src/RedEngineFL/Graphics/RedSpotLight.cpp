@@ -2,7 +2,7 @@
 #include <float.h>
 #include <math.h>
 #include <string.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "RedSpotLight.h"
 #include "RedCamera.h"
 #include "RedColor.h"
@@ -151,8 +151,8 @@ void RedSpotLight::SetFalloff(float fFalloff)
 void RedSpotLight::SetInnerConeAngle(float fAngle)
 {
     float fHalfAngle = fAngle * 0.5f;
-    m_fCosHalfInnerConeAngle = cosf(fHalfAngle);
-    m_fTanHalfInnerConeAngle = tanf(fHalfAngle);
+    m_fCosHalfInnerConeAngle = PblCrtCosF(fHalfAngle);
+    m_fTanHalfInnerConeAngle = PblCrtTanF(fHalfAngle);
     m_bProjectionDirty = true;
 }
 
@@ -160,8 +160,8 @@ void RedSpotLight::SetInnerConeAngle(float fAngle)
 void RedSpotLight::SetOuterConeAngle(float fAngle)
 {
     float fHalfAngle = fAngle * 0.5f;
-    m_fCosHalfOuterConeAngle = cosf(fHalfAngle);
-    m_fTanHalfOuterConeAngle = tanf(fHalfAngle);
+    m_fCosHalfOuterConeAngle = PblCrtCosF(fHalfAngle);
+    m_fTanHalfOuterConeAngle = PblCrtTanF(fHalfAngle);
     m_bProjectionDirty = true;
     m_d3dLight.Phi = fAngle;
     m_fShadowRadius = m_fRadius / m_fCosHalfOuterConeAngle;

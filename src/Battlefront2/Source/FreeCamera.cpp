@@ -2,7 +2,7 @@
 
 #include <math.h>
 #include <d3dx9math.h>
-
+#include "PebbleFL/Common/PblCrtTrig.h"
 #include "CameraManager.h"
 #include "CollisionObject.h"
 #include "CollisionManager.h"
@@ -78,8 +78,8 @@ PblVector3 FreeCamera::GetVelocity()
 void FreeCamera::SetMatrix(const PblMatrix& rMatrix)
 {
     mMatrix = rMatrix;
-    mPitch = asinf(-mMatrix.m[2][1]);
-    mYaw = atan2f(mMatrix.m[2][0], mMatrix.m[2][2]);
+    mPitch = PblCrtAsinF(-mMatrix.m[2][1]);
+    mYaw = PblCrtAtan2F(mMatrix.m[2][0], mMatrix.m[2][2]);
 }
 
 // FUNCTION: SWBF2 0x0052d770
