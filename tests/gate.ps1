@@ -346,6 +346,19 @@ function Get-GateStepConfigs($Steps) {
     return @($script:WorkerConfigurations | Where-Object { $set -ccontains $_ })
 }
 
+function Get-GateCrossRulePaths([string]$Root, $Steps, [string]$Plat) {
+    $out = @()
+    foreach ($s in @($Steps)) {
+        foreach ($b in @($s.Binaries)) {
+            if ("$b" -notmatch '^bin\\(Win32|x64)\\([^\\]+)\\BattlefrontII\.exe$') { continue }
+            $bp = $Matches[1]
+            $bc = $Matches[2]
+            if ($bp -cne $Plat) { $out += Get-FirewallRulePaths $Root @($bp) @($bc) }
+        }
+    }
+    return $out
+}
+
 function Get-GuardWorkerCount {
     $ast = [Management.Automation.Language.Parser]::ParseFile((Join-Path $testsDir 'guard-revert.ps1'), [ref]$null, [ref]$null)
     $d = @{}
@@ -372,6 +385,7 @@ function Get-GatePreflightInput($Steps, [string[]]$Platforms) {
         if (@($ps | Where-Object { Test-GateStepStartsGame $_ $plat }).Count) {
             $gamePlats += $plat
             $paths += Get-FirewallRulePaths $root @($plat) (Get-GateStepConfigs $ps)
+            $paths += @(Get-GateCrossRulePaths $root @($ps | Where-Object { Test-GateStepStartsGame $_ $plat }) $plat | Select-Object -Unique | Where-Object { $paths -notcontains $_ })
         }
         if (@($ps | Where-Object { $_.Kind -eq 'guard' }).Count) {
             $n = Get-GuardWorkerCount

@@ -19,15 +19,15 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 
 | File | SHA-256 | Produced by |
 |------|---------|-------------|
-| `CAUSES.md` | 23AC6B0E129789B1AA095F555125529A1F29E60020DECE31489BB0EF3C952FFF | written by hand from the comparison against `tests/baseline/vs2013/` |
+| `CAUSES.md` | 6D14B4CE5ACD79EFDAD1CCED0A32D5019705A4AA242A19204BAD70B5014E0A1D | written by hand from the comparison against `tests/baseline/vs2013/` |
 | `smoke-all-digests.txt` | 60FE9252FB11AAD362EEF5FBA927BD2CCD2BBC041258E0A585FACE34C676F833 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `pool-sizes.txt` | A2FA679AC1174C9082D1E3DE216F82FC16B5E20B35A41C09AC4F081CF9643D72 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `mem-peaks.txt` | D24B076240DC0D686B07C7F1D33EF273F88E928C863E9C11878061FF3A7D41B0 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
-| `mem-peaks-x64.txt` | 106F4666A61B9134C51D2794CFA5A2691F0B27D06D02BB9E3E0965E338AD4CE1 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Platform x64 -Configuration Release -Smoke All -HogAddrSpace` |
 | `cloth-headroom.txt` | 7C388EDBA9ADC4CF1D82A8C66FD7409CAF534B023E630AB59F9844312104F720 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `hardening.txt` | EE9BFB670D013FE8F08DBA3111FBBAE3C1FBEF982045687911EDACA814EA525A | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
 | `offthread.txt` | 2D70A010C5B9E2DA6F6A2E79D230A3D505C72D065FE5066F17207379561E4DD5 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
 | `lua-bins.txt` | A6E3FF46D1E8A6D69232061361199590BC6FB0C1AEEF6EFF0A0E19F69DA5936A | `capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All` |
+| `lua-hist.txt` | CB394BFAF9FDEF86E9C4A51C16F9AAEDFABD0882A150490E6A8EEFE3F88B488A | `capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All` |
 | `digests-debug.txt` | B0856D73AF662CC495ECC019194E0DE150C71A8BA648B9211A33C29AEB18A122 | `capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug` |
 | `digests.txt` | 9AE18CAC28450E27A9AD9992321734DFAE2BBBFF90C50FAA6EBD99518B89D6B7 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
 | `digests-hog.txt` | 9AE18CAC28450E27A9AD9992321734DFAE2BBBFF90C50FAA6EBD99518B89D6B7 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
@@ -35,6 +35,8 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 | `digest-trace-hot1g_con.txt` | 21509E3C46BDE4C15ED1435FB1639F9E38B291EF070CF0EB3701755002B93994 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
 | `digest-trace-nab2g_c.txt` | D81004C7FD74558721DF792795F156E08D085E6CFFED20F8BB3D78C13080AC21 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
 | `digest-trace-spa3c_ass.txt` | 68AEF8A5CEEF5BB4335436E3EDA69D3E7368EF9C7A0CAB97834885E437A6560F | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `digest-trace-dag1c_ctf.txt` | BD12FDFA82CB2DB57D9D6041BFABDE0B6D1FF11C90BD387D48634C03D5E30651 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `digest-trace-kas2c_uber.txt` | C19068BAEFD49012871FB438375FD7FC8CB115F571BDD5D5E9956EB738BAD32A | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
 | `factory-geo1c_con.txt` | 0C3C380156342E1C492092575630152541B648FF038F8B6285A840C6F73D9C7A | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
 | `factory-hot1g_con.txt` | 21739D89813BFA37EC08B53900C0EDE5AD79CA96D8DFDEBAEDE5692127F3E5D6 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
 | `factory-nab2g_c.txt` | 2192336505D7A03D0ABD400927A962AFB6EF09358AB6E572657AC7A4EC0C94E7 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
@@ -87,5 +89,12 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 - Phase 48 (plan 48-25) added the `host-fault-capture` and `all-checkpoints` lines to `hardening.txt` (C-HOSTFAULT-CHECKPOINT); no other table changed.
 - Phase 48 (plan 48-26) added the `crash-particleburst` row to `smoke-all-digests.txt` and `offthread.txt` (C-CASE-PARTICLEBURST); no other row moved.
 - Phase 48 (plan 48-19) updated C-X64-X87TRIG (`errno` for +-inf on x64), C-X64-CRTF and C-X64-FMOD (the fmod two-NaN tie compared on the same machine) in `CAUSES.md`; no table changed.
+- Phase 49 (plan 49-01) moved `mem-peaks-x64.txt`, byte for byte, to `tests/baseline/v143-x64/mem-peaks.txt` (C-X64-BASELINE-FOLDER in `tests/baseline/v143-x64/CAUSES.md`); no other file changed.
+- Phase 49 (plan 49-05) added C-X86-NO-COMMIT-TABLE to `CAUSES.md`: x86 gets no `commit.txt` and keeps its self-relative `commit-flat` rule; no table changed.
+- Phase 49 (plan 49-07) added `lua-hist.txt`, the Test Lua demand histogram per 4-byte bin, and C-LUA-HIST to `CAUSES.md`; no other table changed.
+- Phase 49 (plan 49-09) added C-SAVE-LIGHTUD-WIDTH to `CAUSES.md`: Lua save items write and skip a light userdata at 4 bytes on both builds; no table changed.
+- Phase 49 (plan 49-13) marked C-HEAPCAP-X64-Lua and C-HEAPCAP-X64-Runtime as superseded by C-HEAPCAP-X64-Lua-RETUNE and pointed C-MEMPEAKS-X64-PARITY at the re-captured x64 table (both in `tests/baseline/v143-x64/CAUSES.md`); no table changed.
+- Phase 49 (plan 49-16) added `digest-trace-dag1c_ctf.txt` and `digest-trace-kas2c_uber.txt`, the per-turn references for the digest smoke cases of those missions, from two byte-identical Win32 `-Collect` captures (an x64 capture gives the same bytes). Every other `-Collect` file equals its pinned copy byte for byte.
+- Phase 49 (plan 49-17) added C-DIGEST-TRACE-49 to `CAUSES.md`, the cause of those two traces; no table changed.
 - `capture-vs2013.ps1 -Verify -Baseline v143` checks this manifest. `-Archive` assumes the VS2013 build identity and is not used for this directory.
 - `compare-tables.ps1` holds the reader of every file here, and the `baseline-readers` hardening check fails on a file with no reader.

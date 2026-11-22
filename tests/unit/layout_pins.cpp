@@ -530,3 +530,45 @@ TEST_CASE("game object damageable base and vanish bits keep the retail offsets" 
 }
 
 #endif
+
+#include <stddef.h>
+#include <string>
+
+#include "third_party/doctest/doctest.h"
+
+#include "Battlefront2/Source/PlayerProfile.h"
+#include "Battlefront2/Source/SaveFsm.h"
+#include "testutil.h"
+
+static_assert(sizeof(PlayerProfile::tProfile) == 4352, "profile on disk");
+static_assert(offsetof(PlayerProfile::tProfile, mName) == 2, "profile on disk name");
+static_assert(offsetof(PlayerProfile::tProfile, mVersion) == 40, "profile on disk version");
+static_assert(offsetof(PlayerProfile::tProfile, mGameOptions) == 48, "profile on disk game options");
+static_assert(offsetof(PlayerProfile::tProfile, mSoundOptions) == 1520, "profile on disk sound options");
+static_assert(offsetof(PlayerProfile::tProfile, mOnlineOptions) == 1592, "profile on disk online options");
+static_assert(offsetof(PlayerProfile::tProfile, mToolTipOptions) == 3908, "profile on disk tooltip options");
+static_assert(offsetof(PlayerProfile::tProfile, mAccumPoints) == 3976, "profile on disk points");
+static_assert(offsetof(PlayerProfile::tProfile, mPCOptions) == 3988, "profile on disk pc options");
+static_assert(offsetof(PlayerProfile::tProfile, mCurMission) == 4336, "profile on disk mission");
+static_assert(offsetof(PlayerProfile::tProfile, mBonus) == 4340, "profile on disk bonus");
+static_assert(offsetof(PlayerProfile::tProfile, mIsDirty) == 4344, "profile on disk dirty flag");
+static_assert(offsetof(PlayerProfile::tProfile, mCRC) == 4348, "profile on disk crc");
+static_assert(sizeof(PlayerProfile::tGameOpt) == 1472, "profile on disk game options size");
+static_assert(sizeof(PlayerProfile::tSoundOpt) == 72, "profile on disk sound options size");
+static_assert(sizeof(PlayerProfile::tOnlineOpt) == 2316, "profile on disk online options size");
+static_assert(sizeof(PlayerProfile::tToolTipOpt) == 66, "profile on disk tooltip options size");
+static_assert(sizeof(PlayerProfile::tAccumPoints) == 12, "profile on disk points size");
+static_assert(sizeof(PlayerProfile::tPCOpt) == 252, "profile on disk pc options size");
+static_assert(sizeof(RenderOptionsT) == 72, "profile on disk render options size");
+static_assert(SaveFsm::CRC_SIZE == 4, "save file checksum");
+
+TEST_CASE("save buffers on disk are 512 and 256 bytes on every platform" * doctest::test_suite("regression"))
+{
+    std::string sText;
+    REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\LuaCallbacks_LoadSave.cpp", sText));
+    CHECK(sText.find("\nunsigned char sMetagameBuffer[512];") != std::string::npos);
+    CHECK(sText.find("\nunsigned char sCampaignBuffer[256];") != std::string::npos);
+    CHECK(sText.find("QueueSave(ausFilename, 2, sMetagameBuffer, sizeof(sMetagameBuffer));") != std::string::npos);
+    CHECK(sText.find("QueueSave(ausFilename, 3, sCampaignBuffer, sizeof(sCampaignBuffer));") != std::string::npos);
+    CHECK(sText.find("QueueSave(pProfile->GetTrueProfileName(), 1, pProfile, sizeof(PlayerProfile::tProfile));") != std::string::npos);
+}

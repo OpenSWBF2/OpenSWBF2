@@ -140,4 +140,22 @@ TEST_CASE("lua spill counts allocations that miss a full bin" * doctest::test_su
     CHECK(LuaMemory::GetSpillCount(uiBin) == 0);
     LuaMemory::Reset();
 }
+
+TEST_CASE("lua demand histogram line format" * doctest::test_suite("regression"))
+{
+    char acLine[256];
+    REQUIRE(LuaMemory::FormatLuaHistLine(13, 7, 120, acLine, sizeof(acLine)));
+    CHECK(strcmp(acLine, "OPENSWBF2 MEMREPORT luahist bin=13 peak=7 calls=120") == 0);
+    REQUIRE(LuaMemory::FormatLuaHistLine(640, 1, 2, acLine, sizeof(acLine)));
+    CHECK(strcmp(acLine, "OPENSWBF2 MEMREPORT luahist bin=640 peak=1 calls=2") == 0);
+    REQUIRE(LuaMemory::FormatLuaHistLine(641, 4294967295u, 4294967295u, acLine, sizeof(acLine)));
+    CHECK(strcmp(acLine, "OPENSWBF2 MEMREPORT luahist bin=over peak=4294967295 calls=4294967295") == 0);
+    CHECK(!LuaMemory::FormatLuaHistLine(642, 1, 1, acLine, sizeof(acLine)));
+    char acSmall[16];
+    memset(acSmall, 'x', sizeof(acSmall));
+    CHECK(!LuaMemory::FormatLuaHistLine(13, 7, 120, acSmall, sizeof(acSmall)));
+    CHECK(acSmall[15] == 0);
+    CHECK(!LuaMemory::FormatLuaHistLine(13, 7, 120, 0, 16));
+    CHECK(!LuaMemory::FormatLuaHistLine(13, 7, 120, acLine, 0));
+}
 #endif

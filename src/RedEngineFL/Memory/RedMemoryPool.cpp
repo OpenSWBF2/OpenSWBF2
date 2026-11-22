@@ -130,7 +130,7 @@ void MemoryPool::Create(unsigned int uiCount, unsigned int uiSize, unsigned int 
     }
 
     uiSize = (uiSize + kPoolBlockAlign - 1) & ~(kPoolBlockAlign - 1);
-    if (uiCount != 0 && !RedScriptLimits::PoolBytesOk(uiCount, uiSize, RedScriptLimits::kPoolBytesMax))
+    if (uiCount != 0 && !RedScriptLimits::PoolBytesOk(uiCount, uiSize, RedScriptLimits::kPoolEntryBytesMax))
     {
         LOG(LogMemory, Warning, "Memory pool \"%s\" refused count %u size %u", mLabel, uiCount, uiSize);
         uiCount = 0;
@@ -199,7 +199,7 @@ PBL_ASAN_NO_SANITIZE void* MemoryPool::Allocate(unsigned int uiSize)
             mHeap = __RedCurrHeap;
         }
 
-        if (!RedScriptLimits::PoolBytesOk(mGrow, mSize, RedScriptLimits::kPoolBytesMax) || mGrow == 0)
+        if (!RedScriptLimits::PoolBytesOk(mGrow, mSize, RedScriptLimits::kPoolEntryBytesMax) || mGrow == 0)
         {
             LOG(LogMemory, Warning, "Memory pool \"%s\" refused growth %u size %u", mLabel, mGrow, mSize);
             return 0;

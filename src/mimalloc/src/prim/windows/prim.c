@@ -257,8 +257,16 @@ void _mi_prim_mem_init( mi_os_mem_config_t* config )
 // Free
 //---------------------------------------------
 
+#ifdef OPENSWBF2_TEST
+extern "C" void RedVmLedgerAdd(const void* p);
+extern "C" void RedVmLedgerRemove(const void* p);
+#endif
+
 int _mi_prim_free(void* addr, size_t size ) {
   MI_UNUSED(size);
+  #ifdef OPENSWBF2_TEST
+  RedVmLedgerRemove(addr);
+  #endif
   DWORD errcode = 0;
   bool err = (VirtualFree(addr, 0, MEM_RELEASE) == 0);
   if (err) { errcode = GetLastError(); }
@@ -394,6 +402,9 @@ int _mi_prim_alloc(void* hint_addr, size_t size, size_t try_alignment, bool comm
   int flags = MEM_RESERVE;
   if (commit) { flags |= MEM_COMMIT; }
   *addr = win_virtual_alloc(hint_addr, size, try_alignment, flags, false, allow_large, is_large);
+  #ifdef OPENSWBF2_TEST
+  if (*addr != NULL) { RedVmLedgerAdd(*addr); }
+  #endif
   return (*addr != NULL ? 0 : (int)GetLastError());
 }
 
@@ -517,6 +528,9 @@ static void* _mi_prim_alloc_huge_os_pagesx(void* hint_addr, size_t size, int num
 int _mi_prim_alloc_huge_os_pages(void* hint_addr, size_t size, int numa_node, bool* is_zero, void** addr) {
   *is_zero = true;
   *addr = _mi_prim_alloc_huge_os_pagesx(hint_addr,size,numa_node);
+  #ifdef OPENSWBF2_TEST
+  if (*addr != NULL) { RedVmLedgerAdd(*addr); }
+  #endif
   return (*addr != NULL ? 0 : (int)GetLastError());
 }
 

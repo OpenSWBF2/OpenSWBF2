@@ -1,0 +1,6 @@
+# commit 79299a77
+steam	hog	state	arena	rest
+yes	1	mission	4452352	348160
+yes	1	shell	4452352	348160
+no	1	mission	4452352	348160
+no	1	shell	4452352	348160

@@ -173,6 +173,56 @@ function Invoke-SmokeCase($name, $exe, $workDir, $argLine, $caseDir, $asanOption
     return New-Object PSObject -Property @{ Name = $name; Class = $class; Code = $code; Dumps = $dumps; LogText = $logText; Ms = $ms; CaseDir = $caseDir; WorkDir = $workDir; Asan = $asan; Stall = [int][bool]$wait.Stalled; SilentMaxS = $silent; Turns = $turns; Steps = $steps }
 }
 
+function Get-SmokeThenSteps($case, [string]$caseDir, [string]$extraArg, [bool]$asan) {
+    $steps = @()
+    $k = 0
+    foreach ($t in @($case.Then | Where-Object { $_ })) {
+        $k++
+        $d = Join-Path $caseDir "then-$k"
+        $o = $null
+        if ($asan) { $o = Get-AsanOptions $d }
+        $steps += New-Object PSObject -Property @{ ArgLine = ([string]$t).Replace('{CASEDIR}', $d) + $extraArg; CaseDir = $d; AsanOptions = $o }
+    }
+    return $steps
+}
+
+function Join-SmokeThenStep($res, $step) {
+    $stepLog = Join-Path $step.CaseDir 'run.log'
+    $stepText = ''
+    if (Test-Path -LiteralPath $stepLog) { $stepText = [IO.File]::ReadAllText($stepLog) }
+    [IO.File]::AppendAllText((Join-Path $res.CaseDir 'run.log'), $stepText)
+    $leaf = Split-Path $step.CaseDir -Leaf
+    foreach ($d in @($step.Dumps)) { Copy-Item -LiteralPath $d.FullName -Destination (Join-Path $res.CaseDir "$leaf-$($d.Name)") -Force }
+    $res.Dumps = @(Get-ChildItem -LiteralPath $res.CaseDir -Filter '*.dmp' -File -ErrorAction SilentlyContinue)
+    $res.LogText = [string]$res.LogText + "`r`n" + [string]$step.LogText
+    if ($step.Class -ne 'Pass') {
+        $res.Class = $step.Class
+        $res.Code = $step.Code
+        $res.Stall = $step.Stall
+        $res.Asan = $step.Asan
+    }
+    $rf = Join-Path $res.CaseDir 'result.txt'
+    $lines = @([IO.File]::ReadAllLines($rf) | ForEach-Object {
+        if ($_ -like 'class=*') { "class=$($res.Class)" }
+        elseif ($_ -like 'exit=*') { 'exit=0x{0:X8}' -f [uint32]$res.Code }
+        elseif ($_ -like 'dumps=*') { "dumps=$(@($res.Dumps).Count)" }
+        elseif ($_ -like 'stall=*') { "stall=$([int]$res.Stall)" }
+        else { $_ }
+    })
+    $lines += "then=$leaf class=$($step.Class) exit=0x$('{0:X8}' -f [uint32]$step.Code)"
+    Set-Content -Path $rf -Value $lines -Encoding ASCII
+    return $res
+}
+
+function Invoke-SmokeCaseSteps([string]$name, [string]$exe, [string]$workDir, [string]$argLine, [string]$caseDir, $asanOptions, $steps) {
+    $res = Invoke-SmokeCase $name $exe $workDir $argLine $caseDir $asanOptions
+    foreach ($s in @($steps | Where-Object { $_ })) {
+        if ($res.Class -ne 'Pass') { break }
+        $res = Join-SmokeThenStep $res (Invoke-SmokeCase $name $exe $workDir $s.ArgLine $s.CaseDir $s.AsanOptions)
+    }
+    return $res
+}
+
 function Read-KeyValueFile([string]$path) {
     $map = [ordered]@{}
     foreach ($line in [IO.File]::ReadAllLines($path)) {
@@ -502,7 +552,7 @@ function Start-SmokeBatch($items, $workDirs, $srcDir) {
         try {
             Clear-SmokeWorkerDir $dir $keep
             Sync-SmokeWorkerFiles $srcDir $dir $item
-            Invoke-SmokeCase $item.Name (Join-Path $dir $item.ExeName) $dir $item.ArgLine $item.CaseDir $item.AsanOptions
+            Invoke-SmokeCaseSteps $item.Name (Join-Path $dir $item.ExeName) $dir $item.ArgLine $item.CaseDir $item.AsanOptions $item.Then
         }
         finally { $queue.Enqueue($dir) }
     }
@@ -657,15 +707,130 @@ function Get-DumpFatalMismatch($res) {
     return $null
 }
 
+function Get-TableModeSkip([string]$Platform, [bool]$Hog) {
+    if ($Platform -ceq 'x64' -and -not $Hog) { return 'x64 without -HogAddrSpace' }
+    if ($Platform -cne 'x64' -and $Hog) { return '-HogAddrSpace' }
+    return $null
+}
+
 function Get-HeapCapMismatchX64($res) {
     $ct = Join-Path $PSScriptRoot 'baseline\compare-tables.ps1'
-    $dir = Join-Path $PSScriptRoot 'baseline\v143'
+    $dir = Join-Path $PSScriptRoot 'baseline\v143-x64'
     $log = Join-Path $res.CaseDir 'run.log'
-    $out = @(& { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $ct -Tables $dir -Baseline $dir -MemPeaksX64 -RunLog $log 2>&1 | ForEach-Object { "$_" } })
+    $out = @(& { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $ct -Platform x64 -Tables $dir -MemPeaksX64 -RunLog $log 2>&1 | ForEach-Object { "$_" } })
     if ($LASTEXITCODE -eq 0) { return $null }
     $lines = @($out | Where-Object { $_ -cmatch '^\s+\S' } | ForEach-Object { $_.Trim() })
     if ($lines.Count -eq 0) { $lines = @("compare-tables exited $LASTEXITCODE`: $($out -join ' ')") }
     return 'HeapCapsX64 mismatch: ' + ($lines -join '; ')
+}
+
+function Read-MapSymbols([string]$mapFile) {
+    if (-not (Test-Path -LiteralPath $mapFile)) { throw "map not found: $mapFile" }
+    $ts = $null
+    $base = $null
+    $on = $false
+    $textEnd = 0
+    $secRx = New-Object regex '^\s*0001:([0-9a-fA-F]{8})\s+([0-9a-fA-F]{8})H\s+\S+\s+CODE'
+    $rx = New-Object regex '^\s*([0-9a-fA-F]{4}):([0-9a-fA-F]{8})\s+(\S+)\s+([0-9a-fA-F]{8}(?:[0-9a-fA-F]{8})?)\s'
+    $rows = New-Object System.Collections.Generic.List[object]
+    foreach ($l in [IO.File]::ReadAllLines($mapFile)) {
+        if (-not $ts) { $t = [regex]::Match($l, 'Timestamp is ([0-9a-fA-F]+)'); if ($t.Success) { $ts = $t.Groups[1].Value.ToUpperInvariant().PadLeft(8, '0') }; continue }
+        if ($null -eq $base) { $b = [regex]::Match($l, 'Preferred load address is ([0-9a-fA-F]+)'); if ($b.Success) { $base = [Convert]::ToInt64($b.Groups[1].Value, 16) }; continue }
+        if ($l -match 'Publics by Value' -or $l.Trim() -eq 'Static symbols') { $on = $true; continue }
+        if (-not $on) {
+            $sec = $secRx.Match($l)
+            if ($sec.Success) { $textEnd = [Math]::Max($textEnd, [Convert]::ToInt64($sec.Groups[1].Value, 16) + [Convert]::ToInt64($sec.Groups[2].Value, 16)) }
+            continue
+        }
+        $m = $rx.Match($l)
+        if (-not $m.Success -or $m.Groups[1].Value -ne '0001') { continue }
+        $rows.Add(@([Convert]::ToInt64($m.Groups[4].Value, 16), $m.Groups[3].Value, [Convert]::ToInt64($m.Groups[2].Value, 16)))
+    }
+    if (-not $ts) { throw 'no Timestamp line in the map' }
+    if ($null -eq $base) { throw 'no Preferred load address line in the map' }
+    if ($rows.Count -eq 0) { throw 'no code symbols in the map' }
+    if ($textEnd -eq 0) { throw 'no 0001 CODE section lines in the map' }
+    $sorted = New-Object System.Collections.Generic.List[object]
+    foreach ($r in @($rows | Sort-Object { $_[0] }, { $_[1] } -CaseSensitive)) { if ($sorted.Count -eq 0 -or $sorted[$sorted.Count - 1][0] -ne $r[0]) { $sorted.Add($r) } }
+    $textEndVa = $rows[0][0] - $rows[0][2] + $textEnd
+    return New-Object PSObject -Property @{ Timestamp = $ts; Base = $base; TextEnd = $textEndVa; Addrs = [long[]]@($sorted | ForEach-Object { $_[0] }); Names = [string[]]@($sorted | ForEach-Object { $_[1] }) }
+}
+
+function Find-MapSymbol($sym, $frame) {
+    $f = [regex]::Match($frame, '^(.+)\+0x([0-9A-Fa-f]+)$')
+    if (-not $f.Success) { throw "bad stack frame '$frame'" }
+    if (-not $f.Groups[1].Value.Equals('BattlefrontII.exe', [StringComparison]::OrdinalIgnoreCase)) { return @($null, 0, $frame) }
+    $a = $sym.Base + [Convert]::ToInt64($f.Groups[2].Value, 16)
+    $i = [Array]::BinarySearch($sym.Addrs, [long]$a)
+    if ($i -lt 0) { $i = (-bnot $i) - 1 }
+    if ($i -lt 0) { throw "frame '$frame' is below the first map symbol" }
+    if ($a -ge $sym.TextEnd) { throw "frame '$frame' is past the end of .text" }
+    return @($sym.Names[$i], ($a - $sym.Addrs[$i]), $frame)
+}
+
+function Get-SmokeMapFile {
+    return (Join-Path (Split-Path $PSScriptRoot -Parent) "obj\$script:SmokePlatform\$script:SmokeDigestConfiguration\BattlefrontII.map")
+}
+
+function Get-SharedDigestRow([string]$name) {
+    $file = Join-Path $PSScriptRoot 'baseline\v143\smoke-all-digests.txt'
+    if (-not (Test-Path -LiteralPath $file)) { throw "digest table not found: $file" }
+    foreach ($line in [IO.File]::ReadAllLines($file)) {
+        $i = $line.IndexOf("`t")
+        if ($i -gt 0 -and $line.Substring(0, $i) -ceq $name) { return $line.Substring($i + 1) }
+    }
+    return $null
+}
+
+function Assert-SmokeCaseData($cases) {
+    $names = @($cases | ForEach-Object { $_.Name })
+    foreach ($c in $cases) {
+        if ($c.OwnedOn) {
+            foreach ($p in @($c.OwnedOn.Keys)) {
+                $o = $c.OwnedOn[$p]
+                if ($p -cnotin 'Win32', 'x64') { throw "$($c.Name) owned entry has unknown platform '$p'" }
+                if ([string]$o.Owner -cnotmatch '^Phase \d+ [A-Z][A-Z0-9]*-\d+$') { throw "$($c.Name) owned entry on $p needs an Owner naming a later phase and a requirement (Phase <n> <REQ-NN>), got '$($o.Owner)'" }
+                if ([string]$o.Function -cnotmatch '^[A-Za-z_]\w*(::[A-Za-z_]\w*)*$') { throw "$($c.Name) owned entry on $p needs a Function, got '$($o.Function)'" }
+                if ($o.Class -cne 'Fatal') { throw "$($c.Name) owned entry on $p needs Class Fatal, got '$($o.Class)'" }
+                if ($c.Expect.Class -ceq $o.Class) { throw "$($c.Name) owned entry on $p records the class the case expects" }
+            }
+        }
+        if ($c.DigestRow) {
+            $t = [string]$c.DigestRow
+            if ($names -ccontains $t) { throw "$($c.Name) digest row $t is a case of the same run" }
+            if (Get-DigestExpected $c.Name) { throw "$($c.Name) has a digest-expected row and a digest row name" }
+            $row = Get-SharedDigestRow $t
+            if ($row -cne "none`tnone") { throw "$($c.Name) digest row $t must be a none row of v143\smoke-all-digests.txt, found '$row'" }
+        }
+    }
+}
+
+function Get-OwnedMismatch($owned, $res, [string]$mapFile) {
+    if ($res.Class -cne $owned.Class) { return "class $($res.Class), recorded $($owned.Class)" }
+    $f = [regex]::Match([string]$res.LogText, 'FATAL: exception 0x[0-9A-F]{8} at 0x[0-9A-F]{1,16} \(BattlefrontII\.exe\+0x([0-9A-F]{1,16})\) build ([0-9A-F]{8,})')
+    if (-not $f.Success) { return 'no FATAL exception line in BattlefrontII.exe' }
+    try {
+        $sym = Read-MapSymbols $mapFile
+        if ($f.Groups[2].Value.Substring(0, 8) -cne $sym.Timestamp) { return "map timestamp mismatch: build $($f.Groups[2].Value) map $($sym.Timestamp)" }
+        $hit = Find-MapSymbol $sym ('BattlefrontII.exe+0x' + $f.Groups[1].Value)
+    }
+    catch { return "map: $($_.Exception.Message)" }
+    $parts = @($owned.Function -split '::')
+    [array]::Reverse($parts)
+    $prefix = '?' + ($parts -join '@') + '@@'
+    $at = ('{0}+0x{1:X}' -f $hit[0], $hit[1])
+    if (-not $hit[0].StartsWith($prefix, [StringComparison]::Ordinal)) { return "FATAL at $at, recorded $($owned.Function)" }
+    return $null
+}
+
+function Get-SmokeOwnedVerdict($case, $res, [bool]$ok, [string]$mapFile = (Get-SmokeMapFile)) {
+    if (-not $case.OwnedOn) { return $null }
+    $owned = $case.OwnedOn[$script:SmokePlatform]
+    if (-not $owned) { return $null }
+    if ($ok) { return @{ Tok = 'FAIL'; Line = "[FAIL] smoke:$($case.Name) - owned failure no longer fails; remove the $($owned.Owner) entry" } }
+    $why = Get-OwnedMismatch $owned $res $mapFile
+    if ($why) { return @{ Tok = $null; Note = " - owned entry $($owned.Owner) $($owned.Function): $why" } }
+    return @{ Tok = 'OWNED'; Line = ('[OWNED] smoke:{0} class={1} exit=0x{2:X8} ({3} ms) - {4} {5}' -f $case.Name, $res.Class, $res.Code, $res.Ms, $owned.Owner, $owned.Function) }
 }
 
 function Test-SmokeExpect($case, $res) {
@@ -721,7 +886,7 @@ function Test-SmokeExpect($case, $res) {
         }
     }
     if ($x.ContainsKey('CommitFlat')) {
-        $why = Test-CommitFlat $res.LogText ([long]$x.CommitFlat) ([int]$x.CommitCycles) ([int]$x.CommitSettled)
+        $why = Test-CommitFlat $res.LogText ([long]$x.CommitFlat) ([int]$x.CommitCycles) ([int]$x.CommitSettled) (Join-Path $res.CaseDir 'run.log')
         if ($why) {
             Write-Host "    commit-flat: $why"
             foreach ($m in [regex]::Matches([string]$res.LogText, 'OPENSWBF2 COMMIT(PARTS)? state=\w+ [^\r\n]*')) { Write-Host "    $($m.Value)" }
@@ -742,6 +907,7 @@ function Test-SmokeExpect($case, $res) {
             if ($want -cne $got) {
                 Write-Host "    digest expected: $want"
                 Write-Host "    digest actual: $got"
+                foreach ($l in @(Get-DigestSplitLines $case $res.CaseDir)) { Write-Host "    $l" }
                 return $false
             }
         }
@@ -753,6 +919,7 @@ function Test-SmokeExpect($case, $res) {
             if ($want -cne $got) {
                 Write-Host "    digest finding (Asan, not gated): expected $want"
                 Write-Host "    digest finding (Asan, not gated): actual $got"
+                foreach ($l in @(Get-DigestSplitLines $case $res.CaseDir)) { Write-Host "    $l" }
             }
         }
     }
@@ -795,11 +962,11 @@ function Test-SameDigests($lines, [int]$count) {
     return $true
 }
 
-function Test-CommitFlat([string]$logText, [long]$bound, [int]$cycles, [int]$settled) {
+function Test-CommitFlat([string]$logText, [long]$bound, [int]$cycles, [int]$settled, [string]$runLog = '') {
     if ($cycles -lt 1 -or $settled -lt 1) { return 'CommitCycles and CommitSettled are required' }
     if ($settled -ge $cycles) { return 'CommitSettled must be below CommitCycles' }
     $rows = @([regex]::Matches($logText, 'OPENSWBF2 COMMIT state=(\w+) bytes=(\d+)') | ForEach-Object { ,@($_.Groups[1].Value, [long]$_.Groups[2].Value) })
-    $parts = @([regex]::Matches($logText, 'OPENSWBF2 COMMITPARTS state=(\w+) private=(\d+) gamecrt=(\d+) heaps=(\d+) threads=(\d+) threadcount=\d+ arena=(\d+)') | ForEach-Object { ,@($_.Groups[1].Value, [long]$_.Groups[3].Value, [long]$_.Groups[4].Value, [long]$_.Groups[6].Value, [long]$_.Groups[5].Value, [long]$_.Groups[2].Value) })
+    $parts = @([regex]::Matches($logText, 'OPENSWBF2 COMMITPARTS state=(\w+) private=\d+ gamecrt=(\d+) heaps=\d+ threads=\d+ threadcount=\d+ arena=(\d+) crtbusy=\d+ crtcommitted=\d+ crtlarge=\d+ gamevm=(\d+)') | ForEach-Object { ,@($_.Groups[1].Value, [long]$_.Groups[2].Value, [long]$_.Groups[3].Value, [long]$_.Groups[4].Value) })
     $states = @($rows | ForEach-Object { $_[0] }) -join ','
     $want = @(0..(2 * $cycles - 1) | ForEach-Object { if ($_ % 2) { 'shell' } else { 'mission' } }) -join ','
     if ($states -cne $want) { return "expected $(2 * $cycles) states starting with mission and alternating, got '$states'" }
@@ -810,8 +977,8 @@ function Test-CommitFlat([string]$logText, [long]$bound, [int]$cycles, [int]$set
         $rest = @()
         for ($k = 0; $k -lt $rows.Count; $k++) {
             if ($rows[$k][0] -cne $s) { continue }
-            $arena += $parts[$k][3]
-            $rest += ($parts[$k][5] - $parts[$k][2] - $parts[$k][3] - $parts[$k][4] + $parts[$k][1])
+            $arena += $parts[$k][2]
+            $rest += ($parts[$k][3] + $parts[$k][1])
         }
         foreach ($c in @(@('arena', $arena), @('rest', $rest))) {
             $v = $c[1]
@@ -822,7 +989,26 @@ function Test-CommitFlat([string]$logText, [long]$bound, [int]$cycles, [int]$set
             }
         }
     }
-    return $null
+    if (-not $runLog) { return $null }
+    return Get-CommitRowMismatch $runLog $settled
+}
+
+function Get-CommitTableDir {
+    if ($script:SmokeCommitTableDir) { return $script:SmokeCommitTableDir }
+    return Join-Path $PSScriptRoot ('baseline\' + $(if ($script:SmokePlatform -ceq 'x64') { 'v143-x64' } else { 'v143' }))
+}
+
+function Get-CommitRowMismatch([string]$runLog, [int]$settled) {
+    $dir = Get-CommitTableDir
+    if (-not (Test-Path -LiteralPath (Join-Path $dir 'commit.txt') -PathType Leaf)) { return $null }
+    if ($script:SmokeSteam -cnotmatch '^(yes|no)$') { return "missing input: run-params has no steam=yes|no, so no commit row can be chosen" }
+    $ct = Join-Path $PSScriptRoot 'baseline\compare-tables.ps1'
+    $hog = [string][int][bool]$script:SmokeHog
+    $out = @(& { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $ct -Platform $script:SmokePlatform -Tables $dir -Commit -RunLog $runLog -Steam $script:SmokeSteam -Hog $hog -Settled $settled 2>&1 | ForEach-Object { "$_" } })
+    if ($LASTEXITCODE -eq 0) { return $null }
+    $lines = @($out | Where-Object { $_ -cmatch '^\s+\S' } | ForEach-Object { $_.Trim() })
+    if ($lines.Count -eq 0) { $lines = @("compare-tables exited $LASTEXITCODE`: $($out -join ' ')") }
+    return 'commit row mismatch: ' + ($lines -join '; ')
 }
 
 function Get-PerturbProofMissing($case, [string]$logText) {
@@ -931,6 +1117,23 @@ function Compare-DigestTraceFull($a, $b, $maxTurn = 0) {
         if ($a[$t] -cne $b[$t]) { return $t }
     }
     return 0
+}
+
+function Get-DigestSplitLines($case, $caseDir) {
+    $mission = @([string]$case.Args -split ' ')[0]
+    $refFile = Join-Path $PSScriptRoot "baseline\v143\digest-trace-$mission.txt"
+    if (-not (Test-Path -LiteralPath $refFile)) { return @("digest split: no reference trace baseline\v143\digest-trace-$mission.txt") }
+    $ref = @(Get-DigestTraceSegments $refFile)[0]
+    $segs = @(Get-DigestTraceSegments (Join-Path $caseDir 'run.log'))
+    $out = @()
+    for ($i = 0; $i -lt $segs.Count; $i++) {
+        $t = Compare-DigestTraceFull $ref $segs[$i] 1500
+        $seg = "segment $($i + 1) of $($segs.Count)"
+        if ($t -gt 0) { $out += "digest split: $seg first differs from digest-trace-$mission.txt at turn $t (reference $($ref[$t]), actual $($segs[$i][$t]))" }
+        elseif ($t -eq 0) { $out += "digest split: $seg equals digest-trace-$mission.txt through turn 1500" }
+        else { $out += "digest split: $seg trace has no line for some turn up to 1500" }
+    }
+    return $out
 }
 
 function Get-SimDigestLines($log) {
@@ -1065,6 +1268,139 @@ function Compare-LaaRuns($base, $laa, $minRuns = 5) {
     $keys = @(($base + $laa) | ForEach-Object { "$($_.Key) [f=$($_.Frames)]" } | Select-Object -Unique)
     if ($keys.Count -gt 1) { [void]$failures.Add("runs differ: $($keys -join ' | ')") }
     return New-Object PSObject -Property @{ Ok = ($failures.Count -eq 0); Failures = $failures; Keys = $keys }
+}
+
+$script:SaveCrossTypes = [ordered]@{ profile = @{ Type = '1'; Ext = '.profile' }; campaign = @{ Type = '3'; Ext = '.rote' } }
+
+function Get-SaveCrossCase([string]$platform, [bool]$hog) {
+    $sp = $script:SmokePlatform
+    $sc = $script:SmokeDigestConfiguration
+    try {
+        $script:SmokePlatform = $platform
+        $script:SmokeDigestConfiguration = 'Test'
+        $found = @(Get-SmokeCases 'Standard' @() $false $null $hog | Where-Object { $_.Name -ceq 'save-roundtrip' })
+    }
+    finally {
+        $script:SmokePlatform = $sp
+        $script:SmokeDigestConfiguration = $sc
+    }
+    if ($found.Count -ne 1) { throw "$platform Test Standard has $($found.Count) save-roundtrip cases" }
+    $c = $found[0]
+    $load = @{}
+    foreach ($t in @($c.Then)) { if ($t -match ' -savetest load ([13]) SaveTest( |$)') { $load[$Matches[1]] = [string]$t } }
+    if ($c.Args -notmatch ' -savetest write( |$)' -or $load.Count -ne 2) { throw "$platform save-roundtrip does not write and then load a profile and a campaign save" }
+    return @{ Write = [string]$c.Args; Load = $load; LogRx = @(@($c.Expect.LogRx) | Where-Object { $_ -and $_ -notmatch 'SAVETEST write' }) }
+}
+
+function Get-SaveCrossRunProblem($res) {
+    if ($res.Class -ne 'Pass') { return ('class={0} exit=0x{1:X8}' -f $res.Class, [uint32]$res.Code) }
+    return $null
+}
+
+function Get-SaveCrossRxProblem($res, $rx) {
+    foreach ($r in @($rx)) { if ([string]$res.LogText -notmatch $r) { return "log does not match /$r/" } }
+    return $null
+}
+
+function Invoke-SaveCross([string]$Root, [string]$Configuration, [bool]$Hog, [string]$OutDir, [string]$GameDataRoot, [scriptblock]$Runner) {
+    $lines = New-Object System.Collections.Generic.List[string]
+    $plats = @('Win32', 'x64')
+    $exeDirs = @{}
+    foreach ($p in $plats) {
+        $exeDirs[$p] = Join-Path $Root "bin\$p\$Configuration"
+        $why = Get-SmokePrecheck $GameDataRoot $exeDirs[$p] $false $p
+        if ($why) { $lines.Add("[FAIL] savecross:${p}:exe - $why") }
+    }
+    if ($lines.Count) { return $lines.ToArray() }
+    $cases = @{ Win32 = (Get-SaveCrossCase 'Win32' $false); x64 = (Get-SaveCrossCase 'x64' $Hog) }
+    $sp = $script:SmokePlatform
+    $workers = @()
+    try {
+        $writes = @{}
+        foreach ($p in $plats) {
+            $script:SmokePlatform = $p
+            $w = Get-WorkerPath $Root $p $Configuration 'smoke' 1
+            $workers += $w
+            New-SmokeWorkerDir $exeDirs[$p] $w
+            $dir = Join-Path $OutDir "write-$p"
+            $res = & $Runner "savecross-write-$p" (Join-Path $w 'BattlefrontII.exe') $w $cases[$p].Write.Replace('{CASEDIR}', $dir) $dir $null
+            $runWhy = Get-SaveCrossRunProblem $res
+            if (-not $runWhy) { $runWhy = Get-SaveCrossRxProblem $res $cases[$p].LogRx }
+            $writes[$p] = @{}
+            foreach ($t in $script:SaveCrossTypes.Keys) {
+                $ty = $script:SaveCrossTypes[$t]
+                $why = $runWhy
+                $ms = @([regex]::Matches([string]$res.LogText, "OPENSWBF2 SAVETEST write type=$($ty.Type) name=([0-9A-Za-z_-]{1,31}) bytes=(\d+) crc=0x[0-9A-F]{8} fields=(0x[0-9A-F]{8}) result=(\w+)"))
+                $file = $null
+                $src = $null
+                if (-not $why) {
+                    if ($ms.Count -ne 1) { $why = "$($ms.Count) write lines for the $t" }
+                    elseif ($ms[0].Groups[4].Value -cne 'ok') { $why = "write result=$($ms[0].Groups[4].Value)" }
+                    else {
+                        $file = $ms[0].Groups[1].Value + $ty.Ext
+                        $src = Join-Path $w "SaveGames\$file"
+                        if (-not [IO.File]::Exists($src)) { $why = "SaveGames\$file was not written" }
+                        elseif ((New-Object IO.FileInfo $src).Length -ne [long]$ms[0].Groups[2].Value) { $why = "SaveGames\$file is $((New-Object IO.FileInfo $src).Length) bytes, the write line says $($ms[0].Groups[2].Value)" }
+                    }
+                }
+                if ($why) { $lines.Add("[FAIL] savecross:${p}:write-$t - $why"); continue }
+                $keep = Join-Path $dir 'files'
+                New-Item -ItemType Directory -Force -Path $keep | Out-Null
+                $dst = Join-Path $keep $file
+                Copy-Item -LiteralPath $src -Destination $dst -Force
+                $hasher = [Security.Cryptography.SHA256]::Create()
+                try { $sha = ([BitConverter]::ToString($hasher.ComputeHash([IO.File]::ReadAllBytes($dst))) -replace '-', '').ToLowerInvariant() }
+                finally { $hasher.Dispose() }
+                $writes[$p][$t] = @{ Name = $ms[0].Groups[1].Value; File = $file; Path = $dst; Fields = $ms[0].Groups[3].Value; Sha = $sha }
+                $lines.Add("[PASS] savecross:${p}:write-$t - $file $($ms[0].Groups[2].Value) bytes fields=$($ms[0].Groups[3].Value)")
+            }
+        }
+        foreach ($t in $script:SaveCrossTypes.Keys) {
+            $a = $writes['Win32'][$t]
+            $b = $writes['x64'][$t]
+            if (-not $a -or -not $b) { $lines.Add("[FAIL] savecross:bytes:$t - no $t file from the $(@($plats | Where-Object { -not $writes[$_][$t] }) -join ' and ') write"); continue }
+            if ($a.Sha -ceq $b.Sha) { $lines.Add("[PASS] savecross:bytes:$t - Win32 $($a.File) and x64 $($b.File) are byte-identical, sha256 $($a.Sha)") }
+            else { $lines.Add("[FAIL] savecross:bytes:$t - Win32 $($a.File) sha256 $($a.Sha) differs from x64 $($b.File) sha256 $($b.Sha)") }
+        }
+        foreach ($pair in @(@('Win32', 'x64'), @('x64', 'Win32'))) {
+            $from = $pair[0]
+            $to = $pair[1]
+            $script:SmokePlatform = $to
+            $w = Get-WorkerPath $Root $to $Configuration 'smoke' 2
+            $workers += $w
+            New-SmokeWorkerDir $exeDirs[$to] $w
+            $sg = Join-Path $w 'SaveGames'
+            New-Item -ItemType Directory -Force -Path $sg | Out-Null
+            foreach ($t in $script:SaveCrossTypes.Keys) {
+                $f = $writes[$from][$t]
+                if ($f) { Copy-Item -LiteralPath $f.Path -Destination (Join-Path $sg $f.File) }
+            }
+            foreach ($t in $script:SaveCrossTypes.Keys) {
+                $id = "savecross:$from-${to}:$t"
+                $f = $writes[$from][$t]
+                if (-not $f) { $lines.Add("[FAIL] $id - nothing to load, the $from write of the $t failed"); continue }
+                $ty = $script:SaveCrossTypes[$t]
+                $dir = Join-Path $OutDir "$from-$to-$t"
+                $res = & $Runner "savecross-$from-$to-$t" (Join-Path $w 'BattlefrontII.exe') $w $cases[$to].Load[$ty.Type].Replace('{CASEDIR}', $dir) $dir $null
+                $why = Get-SaveCrossRunProblem $res
+                if (-not $why) {
+                    $ms = @([regex]::Matches([string]$res.LogText, "OPENSWBF2 SAVETEST load type=$($ty.Type) name=(\S+) result=(\w+) fields=(\S+)"))
+                    if ($ms.Count -ne 1) { $why = "$($ms.Count) load lines" }
+                    elseif ($ms[0].Groups[2].Value -cne 'ok') { $why = "load result=$($ms[0].Groups[2].Value)" }
+                    elseif ($ms[0].Groups[1].Value -cne $f.Name) { $why = "loaded $($ms[0].Groups[1].Value), not the $from file $($f.Name)" }
+                    elseif ($ms[0].Groups[3].Value -cne $f.Fields) { $why = "load fields=$($ms[0].Groups[3].Value) differs from the $from write fields=$($f.Fields)" }
+                }
+                if (-not $why) { $why = Get-SaveCrossRxProblem $res $cases[$to].LogRx }
+                if ($why) { $lines.Add("[FAIL] $id - $why") }
+                else { $lines.Add("[PASS] $id - $to loaded the $from $($f.File) with the write's fields=$($f.Fields)") }
+            }
+        }
+    }
+    finally {
+        $script:SmokePlatform = $sp
+        foreach ($w in $workers) { Remove-HarnessTree $w }
+    }
+    return $lines.ToArray()
 }
 
 function Get-HardeningChecks($hdr, $cfg, $clTotal, $clGsMinus, $clSdl) {
@@ -1731,7 +2067,7 @@ function Get-FlagChecks($game, $tests, [string]$gameConfig, [string]$testsConfig
             continue
         }
         $l = $lines[0]
-        foreach ($need in @(@('MI_NO_GETENV=1', 'MI_NO_GETENV=1'), @('MI_USE_RTLGENRANDOM', 'MI_USE_RTLGENRANDOM(?:=1)?'))) {
+        foreach ($need in @(@('MI_NO_GETENV=1', 'MI_NO_GETENV=1'), @('MI_USE_RTLGENRANDOM', 'MI_USE_RTLGENRANDOM(?:=1)?'), @('MI_PAGE_CACHE_OFFSET=0', 'MI_PAGE_CACHE_OFFSET=0'))) {
             if ($l -cnotmatch ('(?:^| )/D "?' + $need[1] + '"?(?= |$)')) { $miBad += ('{0} missing {1}' -f $mb[0], $need[0]) }
         }
         $want = $script:MiDefines[$mb[2]]
@@ -2058,7 +2394,7 @@ function Get-AllCheckpointsCheck([string]$root) {
     $smoke = Join-Path $root 'tests\smoke.ps1'
     $missions = Join-Path $root 'tests\smoke\missions-all.txt'
     $q = { param($s) "'" + $s.Replace("'", "''") + "'" }
-    $cmd = ". $(& $q $smoke); `$script:SmokeWerKey = `$true; `$script:SmokeDigestConfiguration = 'Release'; `$ml = @([IO.File]::ReadAllLines($(& $q $missions)) | Where-Object { `$_.Trim() }); `$names = @(`$ml | ForEach-Object { @(`$_.Trim() -split '\s+')[0] }); foreach (`$p in 'Win32', 'x64') { `$script:SmokePlatform = `$p; foreach (`$hog in `$false, `$true) { foreach (`$c in @(Get-SmokeCases 'All' `$ml `$false `$null `$hog 'Short' | Where-Object { `$names -ccontains `$_.Name })) { `$rx = @(`$c.Expect.LogRx) -join '|'; `$miss = @(); if (-not `$c.Args.Contains(' -digesttrace 1500')) { `$miss += 'switch' }; if (`$c.Expect.Class -ne 'Fatal' -and -not `$rx.Contains('OPENSWBF2 DIGEST TRACE turn=100 ')) { `$miss += 'turn100' }; if (`$c.Expect.Class -ne 'Fatal' -and ((Get-DigestExpected `$c.Name) -or `$rx.Contains('OPENSWBF2 SIM DIGEST turns=1500 ')) -and -not `$rx.Contains('OPENSWBF2 DIGEST TRACE turn=1500 ')) { `$miss += 'turn1500' };`$t = `$(if (`$miss.Count) { 'MISS' } else { 'OK' }); Write-Output ('CASE {0} {1}/{2} {3}' -f `$t, `$p, `$(if (`$hog) { 'hog' } else { 'plain' }), ((@(`$c.Name) + `$miss) -join ' ')) } } }; exit 0"
+    $cmd = ". $(& $q $smoke); `$script:SmokeWerKey = `$true; `$script:SmokeDigestConfiguration = 'Release'; `$ml = @([IO.File]::ReadAllLines($(& $q $missions)) | Where-Object { `$_.Trim() }); `$names = @(`$ml | ForEach-Object { @(`$_.Trim() -split '\s+')[0] }); foreach (`$p in 'Win32', 'x64') { `$script:SmokePlatform = `$p; foreach (`$hog in `$false, `$true) { foreach (`$c in @(Get-SmokeCases 'All' `$ml `$false `$null `$hog 'Short' | Where-Object { `$names -ccontains `$_.Name })) { `$rx = @(`$c.Expect.LogRx) -join '|'; `$miss = @(); if (-not `$c.Args.Contains(' -digesttrace 1500')) { `$miss += 'switch' }; if (`$c.Expect.Class -ne 'Fatal' -and -not `$rx.Contains('OPENSWBF2 DIGEST TRACE turn=100 ')) { `$miss += 'turn100' }; if (`$c.Expect.Class -ne 'Fatal' -and ((Get-DigestExpected `$c.Name) -or `$rx.Contains('OPENSWBF2 SIM DIGEST turns=1500 ')) -and -not `$rx.Contains('OPENSWBF2 DIGEST TRACE turn=1500 ')) { `$miss += 'turn1500' };`$t = `$(if (`$miss.Count) { 'MISS' } else { 'OK' }); Write-Output ('CASE {0} {1}/{2} {3}' -f `$t, `$p, `$(if (`$hog) { 'hog' } else { 'plain' }), ((@(`$c.Name) + `$miss) -join ' ')) } } }; foreach (`$p in 'Win32', 'x64') { `$script:SmokePlatform = `$p; foreach (`$cfg in 'Release', 'Test') { `$script:SmokeDigestConfiguration = `$cfg; foreach (`$hog in `$false, `$true) { foreach (`$g in 'Standard', 'Twice') { foreach (`$c in @(Get-SmokeCases `$g @() `$false `$null `$hog 'Short' | Where-Object { Get-DigestExpected `$_.Name })) { `$rx = @(`$c.Expect.LogRx) -join '|'; `$miss = @(); if (`$c.Args -notmatch ' -digesttrace (\d+)' -or [int]`$Matches[1] -lt 1500) { `$miss += 'switch' }; if (-not `$rx.Contains('OPENSWBF2 DIGEST TRACE turn=1500 ')) { `$miss += 'turn1500' }; `$t = `$(if (`$miss.Count) { 'MISS' } else { 'OK' }); Write-Output ('CASE {0} {1}/{2}/{3} {4}' -f `$t, `$p, `$cfg, `$(if (`$hog) { 'hog' } else { 'plain' }), ((@(`$g, `$c.Name) + `$miss) -join ' ')) } } } } }; exit 0"
     $c = Invoke-HarnessChild $cmd
     $rows = @($c.Lines | Where-Object { $_ -cmatch '^CASE ' })
     if ($c.Code -ne 0) { $hits.Add("case build exited $($c.Code): $(@($c.Lines | Select-Object -Last 3) -join ' ')") }
@@ -2070,7 +2406,7 @@ function Get-AllCheckpointsCheck([string]$root) {
 function Get-BaselineReadersCheck([string]$root) {
     $hits = New-Object System.Collections.Generic.List[string]
     $ct = Join-Path $root 'tests\baseline\compare-tables.ps1'
-    $dir = Join-Path $root 'tests\baseline\v143'
+    $folders = @('v143', 'v143-x64')
     $map = @()
     $params = @()
     if (-not (Test-Path -LiteralPath $ct)) { $hits.Add('tests\baseline\compare-tables.ps1 not found') }
@@ -2087,25 +2423,33 @@ function Get-BaselineReadersCheck([string]$root) {
         }
     }
     $files = @()
-    if (Test-Path -LiteralPath $dir) { $files = @(Get-ChildItem -LiteralPath $dir -Recurse -File | ForEach-Object { $_.FullName.Substring($dir.TrimEnd('\').Length + 1) } | Sort-Object) }
-    else { $hits.Add('tests\baseline\v143 not found') }
+    foreach ($fd in $folders) {
+        $dir = Join-Path $root "tests\baseline\$fd"
+        if (Test-Path -LiteralPath $dir) { $files += @(Get-ChildItem -LiteralPath $dir -Recurse -File | ForEach-Object { "$fd\" + $_.FullName.Substring($dir.TrimEnd('\').Length + 1) }) }
+        else { $hits.Add("tests\baseline\$fd not found") }
+    }
+    $files = @($files | Sort-Object)
     $mapped = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
     foreach ($e in $map) {
         if ($e -isnot [hashtable] -or -not $e.File -or -not $e.Reader) { $hits.Add("reader map entry without File and Reader: $e"); continue }
-        if (-not $mapped.Add($e.File)) { $hits.Add("$($e.File) is in the reader map twice") }
+        $fd = $(if ($e.Folder) { [string]$e.Folder } else { 'v143' })
+        if ($folders -cnotcontains $fd) { $hits.Add("$($e.File) names folder $fd, which is not a baseline folder"); continue }
+        $key = "$fd\$($e.File)"
+        if (-not $mapped.Add($key)) { $hits.Add("$key is in the reader map twice") }
         $r = [string]$e.Reader
         if ($r.StartsWith('t1:')) {
             $src = Join-Path $root $r.Substring(3)
-            if (-not (Test-Path -LiteralPath $src) -or [IO.File]::ReadAllText($src).IndexOf("$($e.File)`"", [StringComparison]::Ordinal) -lt 0) { $hits.Add("$($e.File) reader $($r.Substring(3)) does not name it") }
+            if (-not (Test-Path -LiteralPath $src) -or [IO.File]::ReadAllText($src).IndexOf("$($e.File)`"", [StringComparison]::Ordinal) -lt 0) { $hits.Add("$key reader $($r.Substring(3)) does not name it") }
         }
-        elseif ($r -ceq 'verify-v143') {
+        elseif ($r -cmatch '^verify-(.+)$' -and $folders -ccontains $Matches[1]) {
+            $vf = $Matches[1]
             $cap = Join-Path $root 'tests\baseline\capture-vs2013.ps1'
-            if (-not (Test-Path -LiteralPath $cap) -or [IO.File]::ReadAllText($cap).IndexOf("'v143'", [StringComparison]::Ordinal) -lt 0) { $hits.Add("$($e.File) reader verify-v143 is not in capture-vs2013.ps1") }
+            if (-not (Test-Path -LiteralPath $cap) -or [IO.File]::ReadAllText($cap).IndexOf("'$vf'", [StringComparison]::Ordinal) -lt 0) { $hits.Add("$key reader $r is not in capture-vs2013.ps1") }
         }
-        elseif ($params -cnotcontains $r) { $hits.Add("$($e.File) reader $r is not a compare-tables.ps1 branch") }
+        elseif ($params -cnotcontains $r) { $hits.Add("$key reader $r is not a compare-tables.ps1 branch") }
     }
     foreach ($f in $files) { if (-not $mapped.Contains($f)) { $hits.Add("$f has no reader") } }
-    foreach ($k in @($mapped | Sort-Object)) { if ($files -cnotcontains $k) { $hits.Add("$k is in the reader map but not in tests\baseline\v143") } }
+    foreach ($k in @($mapped | Sort-Object)) { if ($files -cnotcontains $k) { $hits.Add("$k is in the reader map but not in tests\baseline") } }
     return New-Object PSObject -Property @{ Name = 'baseline-readers'; Ok = ($hits.Count -eq 0); Detail = ($hits -join ', ') }
 }
 

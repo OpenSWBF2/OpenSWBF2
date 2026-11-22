@@ -6,6 +6,7 @@
 #include "PebbleFL/Common/PblVector.h"
 #include "PebbleFL/Common/PblQuaternion.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
+#include "RedEngineFL/Memory/RedScriptLimits.h"
 #include "GameObject.h"
 
 class CollisionObject;
@@ -44,6 +45,8 @@ public:
 
     static MemoryPool sMemoryPool;
 };
+
+const unsigned int kStickListCapacity = RedScriptLimits::kPoolEntryBytesMax / sizeof(StickInfo);
 
  
  

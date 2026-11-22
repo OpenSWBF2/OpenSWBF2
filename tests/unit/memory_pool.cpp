@@ -458,14 +458,14 @@ TEST_CASE("memory pool create refuses overflowing count" * doctest::test_suite("
 
 TEST_CASE("memory pool create refuses count over ceiling" * doctest::test_suite("regression"))
 {
-    const unsigned int uOver = RedScriptLimits::kPoolBytesMax / 16 + 1;
+    const unsigned int uOver = RedScriptLimits::kPoolEntryBytesMax / 16 + 1;
     MemoryPool kPool("t1ceil", 16);
     {
         LogCapture capture;
         kPool.Create(uOver, 16, 0);
         CHECK(!kPool.mPool);
         CHECK(!kPool.mFree);
-        CHECK(capture.Count("Memory pool \"t1ceil\" refused count 1048577 size 16") == 1);
+        CHECK(capture.Count((std::string("Memory pool \"t1ceil\" refused count ") + std::to_string(uOver) + " size 16").c_str()) == 1);
     }
     {
         LogCapture capture;

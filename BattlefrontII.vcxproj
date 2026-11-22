@@ -424,6 +424,7 @@
     <ClCompile Include="src\Battlefront2\Source\PowerupStation.cpp" />
     <ClCompile Include="src\Battlefront2\Source\PowerupUtility.cpp" />
     <ClCompile Include="src\Battlefront2\Source\ProceduralAnimation.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\ProfileCRC.cpp" />
     <ClCompile Include="src\Battlefront2\Source\PropCluster.cpp" />
     <ClCompile Include="src\Battlefront2\Source\PropGenerator.cpp" />
     <ClCompile Include="src\Battlefront2\Source\PropLayer.cpp" />
@@ -931,6 +932,7 @@
     <ClInclude Include="src\Battlefront2\Source\PowerupStation.h" />
     <ClInclude Include="src\Battlefront2\Source\PowerupUtility.h" />
     <ClInclude Include="src\Battlefront2\Source\ProceduralAnimation.h" />
+    <ClInclude Include="src\Battlefront2\Source\ProfileCRC.h" />
     <ClInclude Include="src\Battlefront2\Source\ProfileNameFormat.h" />
     <ClInclude Include="src\Battlefront2\Source\PropCluster.h" />
     <ClInclude Include="src\Battlefront2\Source\PropGenerator.h" />

@@ -19,7 +19,7 @@ param(
     [string]$MissionsFile,
     [string]$OffThreadSoundDir,
     [string]$DebugSmokeDir,
-    [ValidateSet('vs2013', 'v143')][string]$Baseline = 'vs2013'
+    [ValidateSet('vs2013', 'v143', 'v143-x64')][string]$Baseline = 'vs2013'
 )
 $ErrorActionPreference = 'Stop'
 $archiveDirGiven = $PSBoundParameters.ContainsKey('ArchiveDir')
@@ -37,8 +37,8 @@ if ($Configuration -eq 'Test' -and ($Map -or $Layouts -or $Collect -or $Archive 
     Write-Host '-Configuration Test is only for -Tables -OffThreadDir or -LuaBinsDir.'
     exit 2
 }
-if ($Baseline -eq 'v143' -and $Archive) {
-    Write-Host '-Baseline v143 has no archive; -Archive writes the vs2013 manifest.'
+if ($Baseline -in 'v143', 'v143-x64' -and $Archive) {
+    Write-Host "-Baseline $Baseline has no archive; -Archive writes the vs2013 manifest."
     exit 2
 }
 if (-not $MissionsFile) { $MissionsFile = Join-Path $root 'tests\smoke\missions-all.txt' }
@@ -370,50 +370,6 @@ function Get-LogLines($caseDir, $pattern, [switch]$BeforeSoak) {
     return $out
 }
 
-function Read-MapSymbols {
-    if (-not (Test-Path -LiteralPath $mapFile)) { throw "map not found: obj\$Platform\$Configuration\BattlefrontII.map" }
-    $ts = $null
-    $base = $null
-    $on = $false
-    $textEnd = 0
-    $secRx = New-Object regex '^\s*0001:([0-9a-fA-F]{8})\s+([0-9a-fA-F]{8})H\s+\S+\s+CODE'
-    $rx = New-Object regex '^\s*([0-9a-fA-F]{4}):([0-9a-fA-F]{8})\s+(\S+)\s+([0-9a-fA-F]{8})'
-    $rows = New-Object System.Collections.Generic.List[object]
-    foreach ($l in [IO.File]::ReadAllLines($mapFile)) {
-        if (-not $ts) { $t = [regex]::Match($l, 'Timestamp is ([0-9a-fA-F]+)'); if ($t.Success) { $ts = $t.Groups[1].Value.ToUpperInvariant().PadLeft(8, '0') }; continue }
-        if ($null -eq $base) { $b = [regex]::Match($l, 'Preferred load address is ([0-9a-fA-F]+)'); if ($b.Success) { $base = [Convert]::ToInt64($b.Groups[1].Value, 16) }; continue }
-        if ($l -match 'Publics by Value' -or $l.Trim() -eq 'Static symbols') { $on = $true; continue }
-        if (-not $on) {
-            $sec = $secRx.Match($l)
-            if ($sec.Success) { $textEnd = [Math]::Max($textEnd, [Convert]::ToInt64($sec.Groups[1].Value, 16) + [Convert]::ToInt64($sec.Groups[2].Value, 16)) }
-            continue
-        }
-        $m = $rx.Match($l)
-        if (-not $m.Success -or $m.Groups[1].Value -ne '0001') { continue }
-        $rows.Add(@([Convert]::ToInt64($m.Groups[4].Value, 16), $m.Groups[3].Value, [Convert]::ToInt64($m.Groups[2].Value, 16)))
-    }
-    if (-not $ts) { throw 'no Timestamp line in the map' }
-    if ($null -eq $base) { throw 'no Preferred load address line in the map' }
-    if ($rows.Count -eq 0) { throw 'no code symbols in the map' }
-    if ($textEnd -eq 0) { throw 'no 0001 CODE section lines in the map' }
-    $sorted = New-Object System.Collections.Generic.List[object]
-    foreach ($r in @($rows | Sort-Object { $_[0] }, { $_[1] } -CaseSensitive)) { if ($sorted.Count -eq 0 -or $sorted[$sorted.Count - 1][0] -ne $r[0]) { $sorted.Add($r) } }
-    $textEndVa = $rows[0][0] - $rows[0][2] + $textEnd
-    return New-Object PSObject -Property @{ Timestamp = $ts; Base = $base; TextEnd = $textEndVa; Addrs = [long[]]@($sorted | ForEach-Object { $_[0] }); Names = [string[]]@($sorted | ForEach-Object { $_[1] }) }
-}
-
-function Find-MapSymbol($sym, $frame) {
-    $f = [regex]::Match($frame, '^(.+)\+0x([0-9A-Fa-f]+)$')
-    if (-not $f.Success) { throw "bad stack frame '$frame'" }
-    if (-not $f.Groups[1].Value.Equals('BattlefrontII.exe', [StringComparison]::OrdinalIgnoreCase)) { return @($null, 0, $frame) }
-    $a = $sym.Base + [Convert]::ToInt64($f.Groups[2].Value, 16)
-    $i = [Array]::BinarySearch($sym.Addrs, [long]$a)
-    if ($i -lt 0) { $i = (-bnot $i) - 1 }
-    if ($i -lt 0) { throw "frame '$frame' is below the first map symbol" }
-    if ($a -ge $sym.TextEnd) { throw "frame '$frame' is past the end of .text" }
-    return @($sym.Names[$i], ($a - $sym.Addrs[$i]), $frame)
-}
-
 function Get-OffThreadRows($smokeDir, $sym, $rows, $sources) {
     $dirs = @(Get-ChildItem -LiteralPath $smokeDir -Directory -ErrorAction SilentlyContinue | Sort-Object Name)
     if ($dirs.Count -eq 0) { throw "no case dirs under $smokeDir" }
@@ -481,8 +437,8 @@ function Step-Collect {
     $ign = Join-Path $artRoot '.gitignore'
     if (-not (Test-Path -LiteralPath $ign)) { Set-Content -Path $ign -Value '*' -Encoding ASCII }
     $runDir = New-StampedDir (Join-Path $artRoot 'baseline')
-    $std = (Get-SmokeCases 'Standard' @() $false $null $false)[0].Args.Replace(" -soakturns $script:SmokeTurnCap", ' -soakturns 1600')
-    $hog = (Get-SmokeCases 'Standard' @() $false $null $true)[0].Args.Replace(" -soakturns $script:SmokeTurnCap", ' -soakturns 1600')
+    $std = (Get-SmokeCases 'Standard' @() $false $null $false)[0].Args.Replace(' -digesttrace 1500', '').Replace(" -soakturns $script:SmokeTurnCap", ' -soakturns 1600')
+    $hog = (Get-SmokeCases 'Standard' @() $false $null $true)[0].Args.Replace(' -digesttrace 1500', '').Replace(" -soakturns $script:SmokeTurnCap", ' -soakturns 1600')
     $mission = $script:SmokeStandardMission
     $digests = New-Object System.Collections.Generic.List[string]
     $hogDigests = New-Object System.Collections.Generic.List[string]
@@ -516,6 +472,16 @@ function Step-Collect {
         $s2 = [regex]::Match([string]$hdigest, 'state=(0x[0-9A-F]{8})')
         if (-not $s1.Success -or -not $s2.Success -or $s1.Groups[1].Value -ne $s2.Groups[1].Value) { $hogDiff.Add("$m base='$digest' hog='$hdigest'") }
     }
+    foreach ($m in 'dag1c_ctf', 'kas2c_uber') {
+        $caseDir = Join-Path $runDir $m
+        $argLine = ($m + $std.Substring($mission.Length)).Replace('{CASEDIR}', $caseDir) + ' -digesttrace 1600'
+        $res = Invoke-SmokeCase $m $gameExe $exeDir $argLine $caseDir
+        $trace = Get-LogLines $caseDir 'OPENSWBF2 DIGEST TRACE turn=.*'
+        Write-Host "INFO: collect $m class=$($res.Class) trace=$($trace.Count) $(Get-DigestKey $caseDir)"
+        if ($res.Class -ne 'Pass') { [void]$problems.Add("$m class=$($res.Class)") }
+        if ($trace.Count -ne 1600) { [void]$problems.Add("$m has $($trace.Count) DIGEST TRACE lines, expected 1600") }
+        Write-BaselineText (Join-Path $OutDir "digest-trace-$m.txt") $trace
+    }
     Write-BaselineText (Join-Path $OutDir 'digests.txt') $digests
     Write-BaselineText (Join-Path $OutDir 'digests-hog.txt') $hogDigests
     if ($hogDiff.Count -eq 0) { Write-Host '[PASS] capture:hog-digest same' }
@@ -537,12 +503,16 @@ function Step-Tables {
         $any = $true
         $rows = New-Object System.Collections.Generic.List[string]
         $smokeDir = Join-Path $SmokeAllDir 'smoke'
+        $rowNames = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
+        foreach ($c in @(Get-SmokeCases 'All' @() $false $null)) { if ($c.DigestRow) { $rowNames[$c.Name] = [string]$c.DigestRow } }
         foreach ($d in @(Get-ChildItem -LiteralPath $smokeDir -Directory -ErrorAction SilentlyContinue | Sort-Object Name)) {
             $dk = Get-DigestKey $d.FullName
             $fk = Get-FinalScoreKey $d.FullName
             if (-not $dk) { $dk = 'none' }
             if (-not $fk) { $fk = 'none' }
-            $rows.Add("$($d.Name)`t$dk`t$fk")
+            $rn = $d.Name
+            if ($rowNames.ContainsKey($rn)) { $rn = $rowNames[$rn] }
+            $rows.Add("$rn`t$dk`t$fk")
         }
         if ($rows.Count -eq 0) { throw 'no case dirs under -SmokeAllDir\smoke' }
         Write-BaselineText (Join-Path $OutDir 'smoke-all-digests.txt') $rows
@@ -574,6 +544,7 @@ function Step-Tables {
                 if ($l.StartsWith('OPENSWBF2 MEMREPORT source=')) { $src = $l.Substring('OPENSWBF2 MEMREPORT source='.Length); continue }
                 if ($l.StartsWith('OPENSWBF2 MEMREPORT offthread ')) { continue }
                 if ($l.StartsWith('OPENSWBF2 MEMREPORT luaspill ')) { continue }
+                if ($l.StartsWith('OPENSWBF2 MEMREPORT luahist ')) { continue }
                 if (-not $src) { throw "MEMREPORT line before source= in ${m}: $l" }
                 $h = [regex]::Match($l, '^OPENSWBF2 MEMREPORT heap=(.*) cap=(\d+) peak=(\d+) used=(\d+) allocs=(\d+) failed=(\d+)$')
                 $p = [regex]::Match($l, '^OPENSWBF2 MEMREPORT pool=(.*) count=(\d+) size=(\d+) peak=(\d+) grown=(\d+)$')
@@ -608,7 +579,7 @@ function Step-Tables {
     else { Write-Host '[SKIP] capture:tables hardening - no -HardeningDir' }
     if ($OffThreadDir) {
         $any = $true
-        $sym = Read-MapSymbols
+        $sym = Read-MapSymbols $mapFile
         $rows = New-Object System.Collections.Generic.List[object]
         $sources = New-Object System.Collections.Generic.List[object]
         $rows.Add('# commit ' + (Get-GitText 'rev-parse HEAD').Trim())
@@ -643,24 +614,37 @@ function Step-Tables {
         $rows = New-Object System.Collections.Generic.List[string]
         $rows.Add('# commit ' + (Get-GitText 'rev-parse HEAD').Trim())
         $rows.Add("mission`tsource`tbin`tcount`tsize`tpeak`tgrown`tspill")
+        $histRows = New-Object System.Collections.Generic.List[string]
+        $histRows.Add($rows[0])
+        $histRows.Add("mission`tbin`tpeak`tcalls")
         foreach ($m in $missions) {
             $blocks = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
             $cur = $null
             foreach ($l in @(Get-LogLines (Join-Path $smokeDir $m) 'OPENSWBF2 MEMREPORT .*' -BeforeSoak)) {
                 if ($l.StartsWith('OPENSWBF2 MEMREPORT source=')) {
-                    $cur = [pscustomobject]@{ Source = $l.Substring('OPENSWBF2 MEMREPORT source='.Length); Pools = New-Object System.Collections.Generic.List[object]; Spill = @{} }
+                    $cur = [pscustomobject]@{ Source = $l.Substring('OPENSWBF2 MEMREPORT source='.Length); Pools = New-Object System.Collections.Generic.List[object]; Spill = @{}; Hist = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal) }
                     $blocks[$cur.Source] = $cur
                     continue
                 }
                 if (-not $cur) { continue }
                 $p = [regex]::Match($l, '^OPENSWBF2 MEMREPORT pool=Lua(\d+) count=(\d+) size=(\d+) peak=(\d+) grown=(\d+)$')
                 $s = [regex]::Match($l, '^OPENSWBF2 MEMREPORT luaspill pool=Lua(\d+) count=(\d+)$')
+                $hm = [regex]::Match($l, '^OPENSWBF2 MEMREPORT luahist bin=(\d+|over) peak=(\d+) calls=(\d+)$')
                 if ($p.Success) { $cur.Pools.Add($p) }
                 elseif ($s.Success) { $cur.Spill[$s.Groups[1].Value] = $s.Groups[2].Value }
                 elseif ($l.StartsWith('OPENSWBF2 MEMREPORT luaspill ')) { throw "bad luaspill line in ${m}: $l" }
+                elseif ($hm.Success) {
+                    if ($cur.Hist.ContainsKey($hm.Groups[1].Value)) { throw "duplicate luahist bin $($hm.Groups[1].Value) in ${m} $($cur.Source)" }
+                    $cur.Hist[$hm.Groups[1].Value] = "$($hm.Groups[2].Value)`t$($hm.Groups[3].Value)"
+                }
+                elseif ($l.StartsWith('OPENSWBF2 MEMREPORT luahist ')) { throw "bad luahist line in ${m}: $l" }
             }
             $b = $blocks['turn1500']
             if (-not $b) { $b = $blocks['exit'] }
+            if (-not $b -or $b.Hist.Count -eq 0) { $histRows.Add("$m`t-`t-`t-") }
+            else {
+                foreach ($k in @($b.Hist.Keys | Sort-Object { if ($_ -eq 'over') { [int]::MaxValue } else { [int]$_ } })) { $histRows.Add("$m`t$k`t$($b.Hist[$k])") }
+            }
             if (-not $b -or $b.Pools.Count -eq 0) {
                 $src = '-'
                 if ($b) { $src = $b.Source }
@@ -675,6 +659,7 @@ function Step-Tables {
             }
         }
         Write-BaselineText (Join-Path $OutDir 'lua-bins.txt') $rows
+        Write-BaselineText (Join-Path $OutDir 'lua-hist.txt') $histRows
     }
     else { Write-Host '[SKIP] capture:tables lua-bins - no -LuaBinsDir' }
     if (-not $any) { throw 'none of -SmokeAllDir, -HardeningDir, -OffThreadDir, -LuaBinsDir given' }
@@ -701,10 +686,14 @@ function Get-Producer($rel) {
     if ($n.StartsWith('layouts\')) { return '`capture-vs2013.ps1 -Layouts`' }
     if ($n.StartsWith('factory-') -or $n.StartsWith('digest-trace-') -or $n -eq 'digests.txt' -or $n -eq 'digests-hog.txt') { return '`capture-vs2013.ps1 -Collect`' }
     if ($n -eq 'digests-debug.txt') { return '`capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug`' }
+    if ($Baseline -eq 'v143-x64' -and ($n -eq 'mem-peaks.txt' -or $n -eq 'pool-sizes.txt' -or $n -eq 'cloth-headroom.txt')) { return '`capture-vs2013.ps1 -Platform x64 -Tables` from `run.ps1 -Platform x64 -Configuration Release -Smoke All -HogAddrSpace`' }
+    if ($Baseline -eq 'v143-x64' -and $n -eq 'offthread.txt') { return '`capture-vs2013.ps1 -Platform x64 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Platform x64 -Configuration Test -Smoke All -HogAddrSpace`; no sound-on section (Phase 50 AV-03)' }
+    if ($Baseline -eq 'v143-x64' -and $n -eq 'lua-bins.txt') { return '`capture-vs2013.ps1 -Platform x64 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Platform x64 -Configuration Test -Smoke All -HogAddrSpace`' }
     if ($n -eq 'smoke-all-digests.txt' -or $n -eq 'pool-sizes.txt' -or $n -eq 'mem-peaks.txt' -or $n -eq 'cloth-headroom.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All`' }
-    if ($n -eq 'mem-peaks-x64.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Platform x64 -Configuration Release -Smoke All -HogAddrSpace`' }
     if ($n -eq 'hardening.txt') { return '`capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening`' }
     if ($n -eq 'offthread.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1`' }
+    if ($Baseline -eq 'v143-x64' -and $n -eq 'lua-hist.txt') { return '`capture-vs2013.ps1 -Platform x64 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Platform x64 -Configuration Test -Smoke All -HogAddrSpace`' }
+    if ($n -eq 'lua-hist.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All`' }
     if ($n -eq 'lua-bins.txt') { return '`capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All`' }
     return 'unknown'
 }
@@ -817,8 +806,8 @@ function Step-Verify {
     foreach ($rel in (Get-TextArtifacts)) { if (-not $listed.ContainsKey($rel)) { $problems.Add("not in manifest $rel") } }
     $verifyDir = $ArchiveDir
     if ($zipDir -and -not $archiveDirGiven) { $verifyDir = [Environment]::ExpandEnvironmentVariables($zipDir) }
-    if ($Baseline -eq 'v143') {
-        if ($zipName -or $members.Count) { $problems.Add('archive section in the v143 manifest') }
+    if ($Baseline -in 'v143', 'v143-x64') {
+        if ($zipName -or $members.Count) { $problems.Add("archive section in the $Baseline manifest") }
     }
     elseif (-not $zipName) { $problems.Add('no archive line') }
     elseif (Test-InsideRepo $verifyDir) { $problems.Add('archive dir is inside the repo') }

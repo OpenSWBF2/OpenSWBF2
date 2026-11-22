@@ -6,8 +6,8 @@
 
 namespace RedScriptLimits
 {
-
 const unsigned int kPoolBytesMax = 0x1000000;
+const unsigned int kPoolEntryBytesMax = kPoolBytesMax / 4u * (unsigned int)sizeof(void*);
 const unsigned int kTempHeapMin = 4096;
 const unsigned int kTempHeapMax = 0x800000;
 const unsigned int kArtistStealMin = 32;
@@ -24,8 +24,8 @@ struct ScriptLimit
     bool bKeepWrap;
 };
 
-const ScriptLimit kSetMemoryPoolSize = { "SetMemoryPoolSize", 0, kPoolBytesMax, false, true };
-const ScriptLimit kAddWalkerType = { "AddWalkerType", 0, kPoolBytesMax, false, true };
+const ScriptLimit kSetMemoryPoolSize = { "SetMemoryPoolSize", 0, kPoolEntryBytesMax, false, true };
+const ScriptLimit kAddWalkerType = { "AddWalkerType", 0, kPoolEntryBytesMax, false, true };
 const ScriptLimit kSetupTempHeap = { "SetupTempHeap", kTempHeapMin, kTempHeapMax, false, false };
 const ScriptLimit kStealArtistHeap = { "StealArtistHeap", kArtistStealMin, kArtistStealMax, true, false };
 const ScriptLimit kSetHeapCap = { "SetHeapCap", 0, kHeapCapMax, false, false };

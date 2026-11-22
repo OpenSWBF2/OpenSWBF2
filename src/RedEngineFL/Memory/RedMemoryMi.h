@@ -61,6 +61,8 @@ void RedMiRegisterOutput();
 bool RedMiFormatOptions(char* pcOut, unsigned int uSize);
 void RedMiOutputLines(const char* pcMsg, void (*pfnLine)(const char* pcLine, int iLen, void* pArg), void* pArg);
 bool RedMiFirstArena(uintptr_t* puBase, size_t* puSize);
+uintptr_t RedMiArenaRegionStart(uintptr_t uProbe, size_t uSize);
+bool RedMiArenaRegion(uintptr_t* puBase, size_t* puSize);
 void RedMiRecordReservation(const void* p);
 void RedMiNoteOutput(const char* pcMsg);
 bool RedMiTakeErrorFatal(int err);

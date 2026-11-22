@@ -68,7 +68,7 @@ TEST_CASE("command line keeps -perturbheap and -repeatmission out of the mission
 
 TEST_CASE("command line reports test-only switches it ignores" * doctest::test_suite("regression"))
 {
-    Parse("-perturbheap 1:pad -repeatmission 2 -shellfirst -exitonmovieclose -digestdetail 4 geo1c_con");
+    Parse("-perturbheap 1:pad -repeatmission 2 -shellfirst -exitonmovieclose -digestdetail 4 -savetest write geo1c_con");
     std::string ignored;
     const char* pcName = 0;
     int iCount = 0;
@@ -81,11 +81,12 @@ TEST_CASE("command line reports test-only switches it ignores" * doctest::test_s
             ignored += " ";
         }
     }
-    CHECK(iCount == 5);
+    CHECK(iCount == 6);
+    CHECK(Mission() == "geo1c_con");
 #ifdef OPENSWBF2_TEST
     CHECK(ignored == "");
 #else
-    CHECK(ignored == "perturbheap repeatmission shellfirst exitonmovieclose digestdetail ");
+    CHECK(ignored == "perturbheap repeatmission shellfirst exitonmovieclose digestdetail savetest ");
 #endif
 
     Parse("geo1c_con");
@@ -133,6 +134,75 @@ TEST_CASE("command line -digestdetail takes a turn in Test builds and keeps it o
     CHECK(Mission() == "geo1c_con");
     Parse("geo1c_con");
     CHECK(gDigestDetail == 0);
+}
+
+TEST_CASE("command line -savetest takes write or load with a checked type and name and keeps them out of the mission name" * doctest::test_suite("regression"))
+{
+    {
+        LogCapture capture;
+        Parse("-savetest write geo1c_con");
+        CHECK(Mission() == "geo1c_con");
+#ifdef OPENSWBF2_TEST
+        CHECK(gSaveTestMode == 1);
+#else
+        CHECK(gSaveTestMode == 0);
+#endif
+        Parse("-savetest load 1 SaveTest geo1c_con");
+        CHECK(Mission() == "geo1c_con");
+#ifdef OPENSWBF2_TEST
+        CHECK(gSaveTestMode == 2);
+        CHECK(gSaveTestType == 1);
+        CHECK(std::string(gSaveTestName) == "SaveTest");
+#else
+        CHECK(gSaveTestMode == 0);
+#endif
+        Parse("geo1c_con -savetest load 3 Save-Test_15chr");
+        CHECK(Mission() == "geo1c_con");
+#ifdef OPENSWBF2_TEST
+        CHECK(gSaveTestMode == 2);
+        CHECK(gSaveTestType == 3);
+        CHECK(std::string(gSaveTestName) == "Save-Test_15chr");
+#endif
+        CHECK(capture.Count("-savetest") == 0);
+    }
+    const char* apcBad[] = { "-savetest load 1 ..\\x geo1c_con", "-savetest load 1 a/b geo1c_con",
+        "-savetest load 1 C:x geo1c_con", "-savetest load 1 x.profile geo1c_con", "-savetest load 1 Sixteen_chars_xx geo1c_con",
+        "-savetest load 2 SaveTest geo1c_con", "-savetest load 0 SaveTest geo1c_con", "-savetest load 13 SaveTest geo1c_con" };
+    for (int n = 0; n < (int)(sizeof(apcBad) / sizeof(apcBad[0])); ++n)
+    {
+        CAPTURE(n);
+        LogCapture capture;
+        Parse(apcBad[n]);
+        CHECK(Mission() == "geo1c_con");
+        CHECK(gSaveTestMode == 0);
+        CHECK(gSaveTestName[0] == 0);
+        CHECK(capture.Count("-savetest load needs a type 1 or 3 and a name of 1 to 15 letters, digits, _ or -, ignored") == 1);
+    }
+    {
+        LogCapture capture;
+        Parse("-savetest load 1 -exitongameover geo1c_con");
+        CHECK(Mission() == "geo1c_con");
+        CHECK(gExitOnGameOver);
+        CHECK(gSaveTestMode == 0);
+        CHECK(capture.Count("-savetest load needs a type 1 or 3") == 1);
+    }
+    {
+        LogCapture capture;
+        Parse("-savetest geo1c_con");
+        CHECK(Mission() == "geo1c_con");
+        CHECK(gSaveTestMode == 0);
+        CHECK(capture.Count("-savetest needs write or load, ignored") == 1);
+    }
+    CHECK(SaveTestNameOk("A"));
+    CHECK(SaveTestNameOk("Save-Test_15chr"));
+    CHECK_FALSE(SaveTestNameOk(""));
+    CHECK_FALSE(SaveTestNameOk("Sixteen_chars_xx"));
+    CHECK_FALSE(SaveTestNameOk("a b"));
+    CHECK_FALSE(SaveTestNameOk("a\\b"));
+    CHECK_FALSE(SaveTestNameOk("a:b"));
+    CHECK_FALSE(SaveTestNameOk("a.b"));
+    Parse("geo1c_con");
+    CHECK(gSaveTestMode == 0);
 }
 
 TEST_CASE("command line sets -novictory and keeps parsing after it" * doctest::test_suite("regression"))

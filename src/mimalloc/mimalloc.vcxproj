@@ -13,6 +13,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <CompileAs>CompileAsCpp</CompileAs>
+      <PreprocessorDefinitions>MI_PAGE_CACHE_OFFSET=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(OpenSWBF2Root)src;$(OpenSWBF2Root)src\mimalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>

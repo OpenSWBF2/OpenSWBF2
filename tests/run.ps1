@@ -19,6 +19,7 @@ param(
     [switch]$Clean,
     [int]$WorkerBase = 0,
     [ValidateSet('Short','Long')][string]$Soak = 'Short',
+    [string]$Case,
     [string]$Rejudge
 )
 $ErrorActionPreference = 'Stop'
@@ -46,6 +47,7 @@ if ($Rejudge) {
         else { Set-Variable -Name $pn -Value $pv }
     }
     $script:SmokeWerKey = ($runParams['wer_localdumps'] -ceq '1')
+    $script:SmokeSteam = $runParams['steam']
     if ($runParams['perturb_missions']) { $env:OPENSWBF2_PERTURB_MISSIONS = $runParams['perturb_missions'] }
     else { Remove-Item Env:\OPENSWBF2_PERTURB_MISSIONS -ErrorAction SilentlyContinue }
 }
@@ -56,6 +58,7 @@ $extraArg = $(if ($FactoryLog) { ' -factorylog' } else { '' })
 if ($MiPurge -ge 0) { $extraArg += " -mipurge $MiPurge" }
 if ($Jobs -eq 0) { $Jobs = [Math]::Max(1, [Math]::Min(8, [int][Math]::Floor([Environment]::ProcessorCount / 2))) }
 $script:SmokePlatform = $Platform
+$script:SmokeHog = $HogAddrSpace.IsPresent
 Write-ToolBanner $Platform
 if ($Asan) {
     if ($bound -contains 'Configuration' -and $Configuration -ne 'Asan') { Write-Host "-Asan conflicts with -Configuration $Configuration."; exit 2 }
@@ -98,6 +101,10 @@ if ($smokeActive) {
     $missions = @()
     if (Test-Path $missionFile) { $missions = @(Get-Content $missionFile | Where-Object { $_.Trim() }) }
     $smokeCases = @(Add-MiOptionsExpect @(Add-SerialTieExpect @(Get-SmokeCases $Smoke $missions $Movies.IsPresent $null $HogAddrSpace.IsPresent $Soak)) $MiPurge)
+    if ($Case) {
+        $smokeCases = @($smokeCases | Where-Object { $_.Name -ceq $Case })
+        if ($smokeCases.Count -ne 1) { Write-Host "-Case ${Case}: no such case in -Smoke $Smoke for $SmokeConfiguration on $Platform."; exit 2 }
+    }
     if ($asanSmoke) {
         $asanRemoved = @($smokeCases | Where-Object { $script:SmokeAsanExcluded -contains $_.Name } | ForEach-Object { $_.Name })
         $smokeCases = @($smokeCases | Where-Object { $script:SmokeAsanExcluded -notcontains $_.Name })
@@ -148,6 +155,8 @@ if (-not $Rejudge) {
     $paramLines += "missions=$missionFile"
     $paramLines += "perturb_missions=$env:OPENSWBF2_PERTURB_MISSIONS"
     $paramLines += "wer_localdumps=$([int][bool]$script:SmokeWerKey)"
+    $script:SmokeSteam = Get-SteamRunning
+    $paramLines += "steam=$script:SmokeSteam"
     $paramLines += "tests_exe=$testsExePath"
     $paramLines += "exe.OpenSWBF2Tests.exe=$(Get-RunExeHash $testsExePath)"
     $paramLines | Set-Content -Path (Join-Path $outDir 'run-params.txt') -Encoding ASCII
@@ -456,9 +465,9 @@ elseif ($hardenActive) {
     }
 }
 if ($hardenActive) {
-    if ($Platform -ne 'Win32') { Write-Host "[SKIP] tables:hardening - platform is $Platform" }
+    if ($Platform -ne 'Win32') { Write-Host "[SKIP] tables:hardening - platform is $Platform, owned by Phase 52 HARDX-01" }
     elseif ($Configuration -eq 'Release' -and $SmokeConfiguration -eq 'Release') {
-        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Tables $hardDir -Hardening
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Platform $Platform -Tables $hardDir -Hardening
         $hardCode = $LASTEXITCODE
         $hardLine = '[PASS] tables:hardening'
         if ($hardCode -ne 0) {
@@ -503,8 +512,15 @@ if ($smokeActive) {
         elseif ($tok -eq 'PASS') { $tok = 'FAIL' }
         if ($res.Asan) { $tok = 'FAIL' }
         $line = ('[{0}] smoke:{1} class={2} exit=0x{3:X8} ({4} ms)' -f $tok, $sc.Name, $res.Class, $res.Code, $res.Ms)
+        $owned = $null
+        if (-not $res.Asan) { $owned = Get-SmokeOwnedVerdict $sc $res $ok }
+        if ($owned -and $owned.Line) {
+            $tok = $owned.Tok
+            $line = $owned.Line
+        }
+        elseif ($owned) { $line += $owned.Note }
         Add-SmokeResult $line $tok
-        if ($tok -ne 'PASS') {
+        if ($tok -ne 'PASS' -and $tok -ne 'OWNED') {
             Write-Host "    details: $caseDir"
             $script:bad++
         }
@@ -604,7 +620,7 @@ if ($smokeActive) {
         $items = @()
         foreach ($sc in $smokeCases) {
             $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
-            $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $extraArg; CaseDir = $caseDir; AsanOptions = (Get-SmokeCaseAsan $caseDir); Omit = $sc.Omit; Swap = $sc.Swap; NeedsFile = $sc.NeedsFile; SkipReason = $sc.SkipReason }
+            $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $extraArg; CaseDir = $caseDir; AsanOptions = (Get-SmokeCaseAsan $caseDir); Omit = $sc.Omit; Swap = $sc.Swap; NeedsFile = $sc.NeedsFile; SkipReason = $sc.SkipReason; Then = @(Get-SmokeThenSteps $sc $caseDir $extraArg ([bool]$asanSmoke)) }
         }
         try {
             foreach ($d in $workDirs) { New-SmokeWorkerDir $exeDir $d }
@@ -644,16 +660,17 @@ function Invoke-TableCapture([string]$dir, [string[]]$captureArgs) {
 
 $tablesSkip = $null
 $compareSkip = $null
+$tableModeSkip = Get-TableModeSkip $Platform $HogAddrSpace.IsPresent
 if (-not $smokeActive) { $tablesSkip = 'no smoke run' }
 elseif ($Smoke -ne 'All') { $tablesSkip = "smoke group is $Smoke" }
 elseif ($SmokeConfiguration -ne 'Release') { $tablesSkip = "smoke configuration is $SmokeConfiguration" }
 elseif ($MiPurge -ge 0) { $tablesSkip = '-MiPurge' }
 elseif ($Movies) { $tablesSkip = '-Movies' }
-elseif ($HogAddrSpace) { $compareSkip = '-HogAddrSpace' }
+elseif ($tableModeSkip) { $compareSkip = $tableModeSkip }
 if ($tablesSkip) { Write-Host "[SKIP] tables:compare - $tablesSkip" }
 elseif ($compareSkip) {
     $tablesDir = Join-Path $outDir 'tables'
-    $tablesCode = Invoke-TableCapture $tablesDir @('-Tables', '-SmokeAllDir', $outDir, '-OutDir', $tablesDir)
+    $tablesCode = Invoke-TableCapture $tablesDir @('-Platform', $Platform, '-Tables', '-SmokeAllDir', $outDir, '-OutDir', $tablesDir)
     if ($tablesCode -eq 0) { Write-Host "[SKIP] tables:compare - $compareSkip" }
     else {
         $tablesLine = "[FAIL] tables:capture exit $tablesCode"
@@ -664,9 +681,9 @@ elseif ($compareSkip) {
 }
 else {
     $tablesDir = Join-Path $outDir 'tables'
-    $tablesCode = Invoke-TableCapture $tablesDir @('-Tables', '-SmokeAllDir', $outDir, '-OutDir', $tablesDir)
+    $tablesCode = Invoke-TableCapture $tablesDir @('-Platform', $Platform, '-Tables', '-SmokeAllDir', $outDir, '-OutDir', $tablesDir)
     if ($tablesCode -eq 0) {
-        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Tables $tablesDir
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Platform $Platform -Tables $tablesDir
         $tablesCode = $LASTEXITCODE
     }
     $tablesLine = '[PASS] tables:compare'
@@ -677,11 +694,12 @@ else {
     Write-Host $tablesLine
     $results += New-Object PSObject -Property @{ Line = $tablesLine; Final = $(if ($tablesCode -eq 0) { 'PASS' } else { 'FAIL' }); Known = $false }
 }
-if ($smokeActive -and $Smoke -eq 'All' -and $SmokeConfiguration -eq 'Test' -and -not $HogAddrSpace -and $MiPurge -lt 0 -and -not $Movies) {
+if ($smokeActive -and $Smoke -eq 'All' -and $SmokeConfiguration -eq 'Test' -and -not $tableModeSkip -and $MiPurge -lt 0 -and -not $Movies) {
     $luaDir = Join-Path $outDir 'lua-bins'
-    $luaCode = Invoke-TableCapture $luaDir @('-Configuration', 'Test', '-Tables', '-LuaBinsDir', $outDir, '-OutDir', $luaDir)
+    $luaCapCode = Invoke-TableCapture $luaDir @('-Platform', $Platform, '-Configuration', 'Test', '-Tables', '-LuaBinsDir', $outDir, '-OutDir', $luaDir)
+    $luaCode = $luaCapCode
     if ($luaCode -eq 0) {
-        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Tables $luaDir -LuaBins
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Platform $Platform -Tables $luaDir -LuaBins
         $luaCode = $LASTEXITCODE
     }
     $luaLine = '[PASS] tables:lua-bins'
@@ -691,10 +709,22 @@ if ($smokeActive -and $Smoke -eq 'All' -and $SmokeConfiguration -eq 'Test' -and 
     }
     Write-Host $luaLine
     $results += New-Object PSObject -Property @{ Line = $luaLine; Final = $(if ($luaCode -eq 0) { 'PASS' } else { 'FAIL' }); Known = $false }
+    $histCode = $luaCapCode
+    if ($histCode -eq 0) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Platform $Platform -Tables $luaDir -LuaHist
+        $histCode = $LASTEXITCODE
+    }
+    $histLine = '[PASS] tables:lua-hist'
+    if ($histCode -ne 0) {
+        $histLine = "[FAIL] tables:lua-hist exit $histCode"
+        $bad++
+    }
+    Write-Host $histLine
+    $results += New-Object PSObject -Property @{ Line = $histLine; Final = $(if ($histCode -eq 0) { 'PASS' } else { 'FAIL' }); Known = $false }
     $offDir = Join-Path $outDir 'offthread'
-    $offCode = Invoke-TableCapture $offDir @('-Configuration', 'Test', '-Tables', '-OffThreadDir', $outDir, '-OutDir', $offDir)
+    $offCode = Invoke-TableCapture $offDir @('-Platform', $Platform, '-Configuration', 'Test', '-Tables', '-OffThreadDir', $outDir, '-OutDir', $offDir)
     if ($offCode -eq 0) {
-        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Tables $offDir -OffThread
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'baseline\compare-tables.ps1') -Platform $Platform -Tables $offDir -OffThread
         $offCode = $LASTEXITCODE
     }
     $offLine = '[PASS] tables:offthread'
@@ -713,7 +743,7 @@ $kn = @($results | Where-Object { $_.Known -and $_.Final -ne 'WARN' })
 $summary = @()
 $summary += ''
 $summary += 'Results'
-foreach ($t in 'PASS', 'FAIL', 'SKIP', 'STALL', 'CRASH') {
+foreach ($t in 'PASS', 'FAIL', 'SKIP', 'STALL', 'CRASH', 'OWNED') {
     $summary += ('  {0,-8} {1}' -f $t, @($normal | Where-Object { $_.Final -eq $t }).Count)
 }
 $summary += 'Known bugs'

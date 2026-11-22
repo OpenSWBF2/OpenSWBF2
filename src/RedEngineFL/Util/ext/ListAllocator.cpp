@@ -211,7 +211,7 @@ public:
     // FUNCTION: SWBF2 0x006e9760
     DLNode<Buffer>* ExternalAlloc_(unsigned int uSize)
     {
-        if (usedmem_ + uSize <= maxmem_)
+        if (usedmem_ + uSize <= WideCeiling_(maxmem_))
         {
             Buffer buf(0, uSize);
             baseAlloc_->Allocate(buf);
@@ -282,6 +282,43 @@ protected:
             }
         }
         return ~0ull;
+    }
+
+    static unsigned int FitCount_(unsigned int uHdr, unsigned int uReq, unsigned int uBase, unsigned int uMax,
+                                  unsigned int uPage)
+    {
+        const unsigned int uPg = uPage > uReq + 2 * uHdr ? uPage : uReq + 2 * uHdr;
+        const unsigned int uPages = uMax > uBase ? (uMax - uBase) / uPg : 0;
+        const unsigned int uInBase = uBase > uHdr ? (uBase - uHdr) / (uReq + uHdr) : 0;
+        return uInBase + (uPg - uHdr) / (uReq + uHdr) * uPages;
+    }
+
+    unsigned int WideCeiling_(unsigned int uMax)
+    {
+        const unsigned int kX86NodeBytes = 16;
+        const unsigned int uHdr = (unsigned int)sizeof(DLNode<Buffer>);
+        unsigned int uCeiling = uMax;
+        if (uHdr > kX86NodeBytes)
+        {
+            const unsigned int uPage = (unsigned int)pageSize_;
+            const unsigned int uTop = uMax > basemem_ ? uMax : basemem_;
+            for (unsigned int uReq = (unsigned int)roundsize_; uReq <= uTop; uReq += (unsigned int)roundsize_)
+            {
+                const unsigned int uWant = FitCount_(kX86NodeBytes, uReq, basemem_, uMax, uPage);
+                const unsigned int uHave = FitCount_(uHdr, uReq, basemem_, basemem_, uPage);
+                if (uWant > uHave)
+                {
+                    const unsigned int uPg = uPage > uReq + 2 * uHdr ? uPage : uReq + 2 * uHdr;
+                    const unsigned int uPer = (uPg - uHdr) / (uReq + uHdr);
+                    const unsigned int uNeed = basemem_ + (uWant - uHave + uPer - 1) / uPer * uPg;
+                    if (uNeed > uCeiling)
+                    {
+                        uCeiling = uNeed;
+                    }
+                }
+            }
+        }
+        return uCeiling;
     }
 
     VNewAllocator valloc_;
