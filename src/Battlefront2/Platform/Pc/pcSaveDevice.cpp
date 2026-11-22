@@ -2,6 +2,7 @@
 
 #include "pcSaveDevice.h"
 #include "PebbleFL/Common/PblUnicode.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 #include <direct.h>
 #include <errno.h>
@@ -155,6 +156,15 @@ int SaveDevice::StartReadFile(SaveFile& file, void* pBuf, unsigned int uiSize)
     unsigned int uiRead = fread(pBuf, 1, uiSize, file.mFileHandle);
     if (uiRead != uiSize)
     {
+        char acName[128] = {};
+        PblUnicode::ustrncnv(acName, file.mFileName, sizeof(acName) - 1);
+        char acExt[16] = {};
+        if ((unsigned int)file.GetType() < sizeof(SFTPrefix) / sizeof(SFTPrefix[0]))
+        {
+            PblUnicode::ustrncnv(acExt, SFTPrefix[file.GetType()], sizeof(acExt) - 1);
+        }
+        LOG(LogLoad, Warning, "OPENSWBF2 SAVE rejected short file \"%s.%s\" read %u of %u bytes", acName,
+            acExt, uiRead, uiSize);
         return -5;
     }
     mLastAsyncResult = uiRead;

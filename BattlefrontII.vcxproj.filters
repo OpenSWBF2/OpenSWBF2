@@ -1149,6 +1149,9 @@
     <ClCompile Include="src\Battlefront2\Source\ProceduralAnimation.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\ProfileCRC.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\PropCluster.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -2658,6 +2661,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\ProceduralAnimation.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\ProfileCRC.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\ProfileNameFormat.h">

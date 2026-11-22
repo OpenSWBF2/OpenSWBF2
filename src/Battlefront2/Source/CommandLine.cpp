@@ -62,8 +62,11 @@ bool gSeedSet;
 unsigned int gSeed;
 static bool sbNoVictoryNetLogged;
 static unsigned int suTestOnlyIgnored;
+int gSaveTestMode;
+int gSaveTestType;
+char gSaveTestName[16];
 static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", "shellfirst", "exitonmovieclose",
-    "digestdetail" };
+    "digestdetail", "savetest" };
 // GLOBAL: SWBF2 0x007e6310
 int gBootLaggerPing = 300;
 
@@ -351,6 +354,61 @@ static void NoteTestOnlyArg(int i)
 #endif
 }
 
+bool SaveTestNameOk(char const* pcName)
+{
+    const size_t uLen = strlen(pcName);
+    if (uLen < 1 || uLen >= sizeof(gSaveTestName))
+    {
+        return false;
+    }
+    for (size_t i = 0; i < uLen; ++i)
+    {
+        const char c = pcName[i];
+        const bool bOk = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' ||
+                         c == '-';
+        if (!bOk)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+static int ParseSaveTestArgs(char** const apcArgs, int iCount)
+{
+    if (iCount >= 1 && _stricmp(apcArgs[0], "write") == 0)
+    {
+#ifdef OPENSWBF2_TEST
+        gSaveTestMode = 1;
+        gSaveTestType = 0;
+        gSaveTestName[0] = 0;
+#endif
+        return 1;
+    }
+    if (iCount >= 1 && _stricmp(apcArgs[0], "load") == 0)
+    {
+        int iUsed = 1;
+        while (iUsed < iCount && iUsed < 3 && apcArgs[iUsed][0] != '-')
+        {
+            ++iUsed;
+        }
+        if (iUsed == 3 && (strcmp(apcArgs[1], "1") == 0 || strcmp(apcArgs[1], "3") == 0) &&
+            SaveTestNameOk(apcArgs[2]))
+        {
+#ifdef OPENSWBF2_TEST
+            gSaveTestMode = 2;
+            gSaveTestType = apcArgs[1][0] - '0';
+            strcpy(gSaveTestName, apcArgs[2]);
+#endif
+            return iUsed;
+        }
+        LOG(LogCore, Warning, "-savetest load needs a type 1 or 3 and a name of 1 to 15 letters, digits, _ or -, ignored");
+        return iUsed;
+    }
+    LOG(LogCore, Warning, "-savetest needs write or load, ignored");
+    return 0;
+}
+
 // FUNCTION: SWBF2 0x00479740
 void ParseCommandLine(int iArgc, char** const apcArgv)
 {
@@ -363,6 +421,9 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
     gNoVictory = false;
     gSoakTurns = 0;
     gDigestDetail = 0;
+    gSaveTestMode = 0;
+    gSaveTestType = 0;
+    gSaveTestName[0] = 0;
     gMissionOnCommandLine = false;
     sbNoVictoryNetLogged = false;
     suTestOnlyIgnored = 0;
@@ -641,6 +702,13 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             {
                 pcCrash::SetCrashTest(apcArgv[++i]);
             }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "savetest") == 0)
+        {
+            i += ParseSaveTestArgs(apcArgv + i + 1, iArgc - i - 1);
+            NoteTestOnlyArg(5);
             continue;
         }
 

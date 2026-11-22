@@ -2026,7 +2026,8 @@ the P42 runs already print it.
 - Peaks: x86 2617536 (kam1c_c, turn1500), x64 4553172 (geo1c_c, turn1500); x64/x86 1.739. x86
   cap/peak 6.410. ceil(4553172 * 16777216 / 2617536) = 29183763, rounded to 29229056.
 - Cause: the measured x64 peak is above the x86 peak; the cap follows C-HEAPCAP-X64-RULE.
-- Status: added in 47-09, 2026-11-19.
+- Status: added in 47-09, 2026-11-19. Superseded in 49-13 by C-HEAPCAP-X64-Lua-RETUNE in
+  `tests\baseline\v143-x64\CAUSES.md` (0x1570000, `kArenaSize` 0x54D2160).
 
 ### C-HEAPCAP-X64-Runtime
 
@@ -2036,7 +2037,8 @@ the P42 runs already print it.
   x86 cap/peak 1.666. ceil(25157728 * 32235168 / 19346544) = 41917750, rounded to 41943040.
 - Cause: the measured x64 peak is above the x86 peak; the cap follows C-HEAPCAP-X64-RULE. The
   peak includes the x64 pool blocks after the 47-03 fix (Weapon 592, Ordnance 560 bytes).
-- Status: added in 47-09, 2026-11-19.
+- Status: added in 47-09, 2026-11-19. The cap is unchanged; since 49-13 it is set through
+  `kArenaSize` 0x54D2160 (C-HEAPCAP-X64-Lua-RETUNE in `tests\baseline\v143-x64\CAUSES.md`).
 
 ### C-HEAPCAP-X64-KEPT
 
@@ -3220,6 +3222,8 @@ the P42 runs already print it.
 - Both files have 109 missions and the same 13718 keys; the 12955 pool keys are equal, so the
   three 47-09 pool differences (`dea1g_con` Aimer and MountedTurret, `kas2c_uber` RayRequest)
   are gone.
+- Since 49-13 the x64 table is `tests\baseline\v143-x64\mem-peaks.txt`, re-captured after the
+  Lua bin re-tune (C-X64-TABLES there).
 - Pool block sizes still differ by pointer width for 100 pool types, for example Weapon 448 and
   592, Ordnance 384 and 560, EntitySoldier 4048 and 6112, RayRequest 20 and 40 (x86 and x64);
   blocks per page differ with them. These are layout sizes, not a simulation difference; the
@@ -3251,6 +3255,78 @@ the P42 runs already print it.
   `artifacts\tests\20261120-101518`, then `capture-vs2013.ps1 -Tables -HardeningDir`.
 - Guards: rows HOSTFAULT-END, HOSTFAULT-NOTE and CHECKPOINT-ALL turn the checks RED.
 - Status: re-pinned, 48-25, 2026-11-20.
+
+### C-X86-NO-COMMIT-TABLE
+
+- No digest row moved. No table in this directory changed, and there is no `commit.txt` here.
+- Decision (phase 49, plan 49-05): x64 `commit-flat` is also judged against pinned rows in
+  `tests\baseline\v143-x64\commit.txt` (C-X64-COMMIT-TABLE there). x86 keeps its self-relative
+  rule in this phase: settled `arena` and `rest = gamevm + gamecrt` must not rise above the peak
+  of cycles 1-8. No new x86 gating check is added. The row check runs only where the platform's
+  baseline folder holds `commit.txt`, so x86 judging is unchanged.
+- Status: decided, 49-05, 2026-11-21.
+
+### C-LUA-HIST
+
+- No digest row moved. `lua-hist.txt` is a new table; no other table changed.
+- What it counts: the Lua demand per 4-byte size bin. Test builds count every block in
+  `Lua_Red_realloc` (the new size, and the old size as freed when the block moves) and in
+  `Lua_Red_Free`, whether the block came from a pool or the Lua heap. For each bin
+  `(size + 3) >> 2` up to 640 (twice the largest bin of `gShellPoolInfo` and `gGamePoolInfo`),
+  plus one `over` row for larger sizes, the table holds the peak number of live blocks and the
+  total allocation calls since `LuaMemory::CreatePools`, read from the
+  `OPENSWBF2 MEMREPORT luahist` lines of the turn1500 block (rows with no calls are not logged).
+- It does not depend on the bin table: the counters see the requested size before a pool is
+  chosen, so a change to `gShellPoolInfo` or `gGamePoolInfo` changes `lua-bins.txt` but not
+  this table. It is the demand signal a bin re-tune starts from (the spill column of
+  `lua-bins.txt` only counts sizes that already have a bin).
+- Exact: two Test `-Smoke All -Soak Short` runs at 502047e0 gave byte-identical captures below
+  `# commit`: `artifacts\tests\20261121-072049` and `artifacts\tests\20261121-072442`. Both
+  runs passed `tables:lua-bins` against the unchanged `lua-bins.txt`.
+- No Release object changed: the counting calls are inline no-ops outside Test, and the
+  Win32 Release objects compare equal before and after (`coffcmp.py`, 1068 same, 0 diff).
+- Guards: rows LUAHIST-FREE and LUAHIST-FREE-X64 break the free-side decrement and turn the
+  T1 `lua demand histogram counts peak and calls per bin` RED.
+- Status: pinned, 49-07, 2026-11-21.
+
+### C-SAVE-LIGHTUD-WIDTH
+
+- No digest row moved. No table in this directory changed.
+- Defect: `LuaSaveItems` wrote a Lua light userdata as `sizeof(void*)` bytes and skipped
+  `sizeof(void*)` bytes on read, so an x64 metagame, campaign or mission setup payload was 4
+  bytes longer per light userdata than the x86 one, and each build misparsed the other's file.
+  The on-disk format is the x86 format (D-12).
+- Fix (phase 49, plan 49-09): both builds write the low 32 bits as exactly 4 bytes and skip
+  exactly 4 bytes on read; the value is still read back as nil. Every load of a Lua save
+  payload goes through `LuaSaveItems::Load`, which logs one Warning line
+  `OPENSWBF2 SAVE rejected <type> save "<name>"` when the payload is rejected (D-14).
+- x86 bytes are unchanged: `WriteLuaItem` and `ReadLuaItem` disassemble identically before and
+  after in the Win32 Test and Release objects. The only changed x86 functions are the new
+  `LuaSaveItems::Load`, `LoadLuaItems` and its three callers (two extra arguments).
+- Retail `.gc` saves hold no light userdata (7 files decoded in 49-RESEARCH), so retail data
+  never hit the defect; a mod script could.
+- Proof: the T1 `lua save items match pinned x86 bytes` writes a fixed item set (string and
+  number keys only, so traversal order is the same on both builds) and requires the 89 bytes
+  the unchanged Win32 build wrote; it failed on x64 before the fix (101 bytes) and passes on
+  both after. Guards: LHND-39, LSIW-WRITE-X64, LSIW-SKIP-X64 and LSIW-LOG.
+- Status: fixed, 49-09, 2026-11-21.
+
+### C-DIGEST-TRACE-49
+
+- No digest row moved. `digest-trace-dag1c_ctf.txt` and `digest-trace-kas2c_uber.txt` are new
+  reference traces; no other file in this directory changed.
+- What they hold: the `OPENSWBF2 DIGEST TRACE` lines of turns 1 to 1600 for the Standard
+  digest cases `digest-dag1c_ctf` and `digest-kas2c_uber`, written by `capture-vs2013.ps1
+  -Collect` with the Standard arguments. Turn 1500 of each equals the state and rand values of
+  that case's row in `tests\smoke\digest-expected.txt`.
+- Why (phase 49, plan 49-16): every digest smoke case runs with `-digesttrace 1500`, and a
+  digest mismatch prints the first turn that differs from `digest-trace-<mission>.txt`. These
+  two missions had no pinned trace, so a split in them could not name its turn.
+- Exact: two Win32 `-Collect` captures, `artifacts\gate49\p16\collect-1` and `collect-2`, are
+  byte-identical in every file, and the x64 capture `artifacts\gate49\p16\collect-x64` gives
+  the same bytes for both traces. Every other `-Collect` file equals its pinned copy.
+- Reader: `compare-tables.ps1 -Collect`; both files are in `KeyComparedTables`.
+- Status: pinned, 49-16, 2026-11-21.
 
 ## Policy
 

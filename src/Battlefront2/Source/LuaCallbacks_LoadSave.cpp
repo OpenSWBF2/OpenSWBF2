@@ -16,6 +16,7 @@
 #include "RedEngineFL/Graphics/PC/pcRedAutoSettings.h"
 #include "Battlefront2/Platform/Pc/pcSaveFile.h"
 #include "PlayerProfile.h"
+#include "ProfileCRC.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 #include "ZlibFL/zlib.h"
 #include "FLGuiManager.h"
@@ -116,7 +117,8 @@ static unsigned int SaveLuaItems(lua_State* L, unsigned char* pBuffer, unsigned 
 }
 namespace Lua_Callbacks
 {
-static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize);
+static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize, const char* pcType,
+                        const unsigned short* pusName);
 }
 
 struct OneSavegame
@@ -557,6 +559,17 @@ static void LoadProfileDoneCallback()
     LuaHelper::CallGlobalProc("ifs_saveop_LoadProfileDone", bSuccess);
 }
 
+static unsigned short sLoadProfileName[66];
+
+static void LoadProfileFileDoneCallback()
+{
+    if (SaveGameManager::GetSuccess() && (gProfilesLoaded & 1))
+    {
+        PlayerProfile::CheckLoadedCRC(*PlayerProfile::GetProfile(0), sLoadProfileName);
+    }
+    LoadProfileDoneCallback();
+}
+
 namespace Lua_Callbacks
 {
 
@@ -580,10 +593,11 @@ int ScriptCB_StartLoadProfile(lua_State* L)
         SaveGameManager::StartQueue();
         if (pusName)
         {
+            PblUnicode::ustrlcpy(sLoadProfileName, pusName, sizeof(sLoadProfileName) / sizeof(sLoadProfileName[0]));
             SaveGameManager::QueueLoad(pusName, 1, PlayerProfile::GetProfile(0),
                                        sizeof(PlayerProfile::tProfile));
         }
-        SaveGameManager::FinishQueue(LoadProfileDoneCallback);
+        SaveGameManager::FinishQueue(LoadProfileFileDoneCallback);
     }
     else
     {
@@ -780,6 +794,9 @@ int ScriptCB_StartSaveProfile(lua_State* L)
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetProfile(iIndex);
         if (pProfile->mIsDirty)
         {
+            pProfile->mIsDirty = false;
+            pProfile->mCRC = pProfile->CalcProfCRC();
+            pProfile->mIsDirty = true;
             SaveGameManager::StartQueue();
             SaveGameManager::QueueSave(pProfile->GetTrueProfileName(), 1, pProfile, sizeof(PlayerProfile::tProfile));
             SaveGameManager::FinishQueue(SaveProfileDoneCallback);
@@ -1405,7 +1422,7 @@ int ScriptCB_SaveMetagameState(lua_State* L)
 // FUNCTION: SWBF2 0x0058a1c0
 int ScriptCB_LoadMetagameState(lua_State* L)
 {
-    return Lua_Callbacks::LoadLuaItems(L, sMetagameBuffer, sMetagameBufferSize);
+    return Lua_Callbacks::LoadLuaItems(L, sMetagameBuffer, sMetagameBufferSize, "metagame", sMetagameFilename);
 }
 
 // FUNCTION: SWBF2 0x0058a1e0
@@ -1425,7 +1442,7 @@ int ScriptCB_SaveCampaignState(lua_State* L)
 // FUNCTION: SWBF2 0x0058a240
 int ScriptCB_LoadCampaignState(lua_State* L)
 {
-    return Lua_Callbacks::LoadLuaItems(L, sCampaignBuffer, sCampaignBufferSize);
+    return Lua_Callbacks::LoadLuaItems(L, sCampaignBuffer, sCampaignBufferSize, "campaign", sCampaignFilename);
 }
 
 // FUNCTION: SWBF2 0x0058a260
@@ -1455,7 +1472,7 @@ int ScriptCB_SaveMissionSetup(lua_State* L)
 // FUNCTION: SWBF2 0x0058a330
 int ScriptCB_LoadMissionSetup(lua_State* L)
 {
-    return Lua_Callbacks::LoadLuaItems(L, sMissionBuffer, sMissionBufferSize);
+    return Lua_Callbacks::LoadLuaItems(L, sMissionBuffer, sMissionBufferSize, "mission setup", 0);
 }
 
 // FUNCTION: SWBF2 0x0058a350
@@ -1629,7 +1646,8 @@ namespace Lua_Callbacks
 {
 
 // FUNCTION: SWBF2 0x0058a960
-static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize)
+static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize, const char* pcType,
+                        const unsigned short* pusName)
 {
     (void)L;
     if (!iSize)
@@ -1638,7 +1656,7 @@ static int LoadLuaItems(lua_State* L, unsigned char* pBuffer, unsigned int iSize
     }
     unsigned char aSerialized[65536];
     const unsigned int uSize = _zlibuncompress(aSerialized, sizeof(aSerialized), pBuffer, iSize);
-    return LuaSaveItems::Read(LuaHelper::mState, aSerialized, uSize);
+    return LuaSaveItems::Load(LuaHelper::mState, aSerialized, uSize, pcType, pusName);
 }
 }
 

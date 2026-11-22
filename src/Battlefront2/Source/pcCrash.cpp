@@ -1491,8 +1491,15 @@ static __declspec(noinline) int Recurse(int iDepth)
     return Recurse(iDepth + 1) + acBuf[0] + acBuf[4095];
 }
 
+#ifdef OPENSWBF2_TEST
+static void SaveTestFrame();
+#endif
+
 void pcCrash::RunCrashTest()
 {
+#ifdef OPENSWBF2_TEST
+    SaveTestFrame();
+#endif
     if (gCrashKind[0] == 0 || !gbReinstalled || gbCrashTestRan)
     {
         return;
@@ -1534,3 +1541,276 @@ void pcCrash::RunCrashTest()
         SteamAPI_RunCallbacks();
     }
 }
+
+#ifdef OPENSWBF2_TEST
+#include "SaveFsm.h"
+#include "GameLoop.h"
+#include "PebbleFL/Common/PblUnicode.h"
+
+namespace SaveGameManager
+{
+extern SaveFsm mSaveFsm;
+extern void (*mOnDone)();
+bool GetSuccess();
+void ResetFileList();
+unsigned short const* GetNextFileName(int iType, int* piArg);
+}
+
+extern unsigned int CalcCRC(void const* pData, unsigned int uiSize, unsigned int uiSeed);
+
+static const char kSaveTestCanon[] =
+    "local function canon(v) local t = type(v) if t == 'table' then local p = {} "
+    "for k, x in pairs(v) do table.insert(p, canon(k) .. '=' .. canon(x)) end table.sort(p) "
+    "return '{' .. table.concat(p, ',') .. '}' elseif t == 'string' then return string.format('%q', v) end "
+    "return t .. ':' .. tostring(v) end ";
+
+static const char kSaveTestWriteCampaign[] =
+    "local a = { true, 2.5, 'planet', { res = 40, [3] = 'three', nested = { deep = 7 } } } "
+    "ScriptCB_SaveCampaignState(a[1], a[2], a[3], a[4]) "
+    "ScriptCB_StartSaveCampaign(nil, ScriptCB_tounicode('SaveTest')) return canon(a), table.getn(a)";
+
+static const char kSaveTestLoadCampaign[] = "local a = { ScriptCB_LoadCampaignState() } return canon(a), table.getn(a)";
+
+enum SaveTestStep
+{
+    kSaveTestIdle,
+    kSaveTestPreOp,
+    kSaveTestProfile,
+    kSaveTestCampaign,
+    kSaveTestLoad,
+    kSaveTestDone
+};
+
+static int siSaveTestStep;
+static bool sbSaveTestPending;
+static bool sbSaveTestSuccess;
+static unsigned int suSaveTestFields;
+static char sacSaveTestFile[128];
+
+static bool SaveTestRun(const char* pcPrefix, const char* pcChunk, unsigned int* puDigest, int* piCount)
+{
+    char acChunk[1024];
+    _snprintf(acChunk, sizeof(acChunk) - 1, "%s%s", pcPrefix, pcChunk);
+    acChunk[sizeof(acChunk) - 1] = 0;
+    lua_State* L = LuaHelper::mState;
+    const int iTop = lua_gettop(L);
+    const bool bOk = luaL_loadbuffer(L, acChunk, strlen(acChunk), "=savetest") == 0 && lua_pcall(L, 0, 2, 0) == 0;
+    if (!bOk)
+    {
+        const char* pcErr = lua_tostring(L, -1);
+        LOG(LogCore, Warning, "OPENSWBF2 SAVETEST lua error: %s", pcErr ? pcErr : "?");
+    }
+    else if (puDigest)
+    {
+        const char* pcText = lua_tostring(L, iTop + 1);
+        *puDigest = pcText ? CalcCRC(pcText, (unsigned int)lua_strlen(L, iTop + 1), 0) : 0;
+        *piCount = (int)lua_tonumber(L, iTop + 2);
+    }
+    lua_settop(L, iTop);
+    return bOk;
+}
+
+static void SaveTestCall(const char* pcFunc, const unsigned short* pusArg)
+{
+    lua_State* L = LuaHelper::mState;
+    const int iTop = lua_gettop(L);
+    lua_pushstring(L, pcFunc);
+    lua_gettable(L, LUA_GLOBALSINDEX);
+    LuaHelper::PushString(pusArg);
+    if (lua_pcall(L, 1, 0, 0) != 0)
+    {
+        const char* pcErr = lua_tostring(L, -1);
+        LOG(LogCore, Warning, "OPENSWBF2 SAVETEST lua error: %s", pcErr ? pcErr : "?");
+    }
+    lua_settop(L, iTop);
+}
+
+static void SaveTestQueued()
+{
+    sbSaveTestPending = SaveGameManager::mOnDone != 0;
+    sbSaveTestSuccess = false;
+}
+
+static unsigned int SaveTestProfileFields()
+{
+    PlayerProfile::tProfile kCopy;
+    memcpy(&kCopy, PlayerProfile::GetProfile(0), sizeof(kCopy));
+    kCopy.mIsDirty = false;
+    kCopy.mCRC = 0;
+    return CalcCRC(&kCopy, sizeof(kCopy), 0);
+}
+
+static bool SaveTestFindCampaign(const char* pcName)
+{
+    unsigned short ausWant[16];
+    PblUnicode::ustrncnv(ausWant, pcName, 16);
+    int iFound = 0;
+    int iArg = 0;
+    SaveGameManager::ResetFileList();
+    for (unsigned short const* pusFile = SaveGameManager::GetNextFileName(3, &iArg); pusFile;
+         pusFile = SaveGameManager::GetNextFileName(3, &iArg))
+    {
+        unsigned short ausName[128];
+        SaveFile::SplitMetagameFilename(pusFile, ausName, 0, 0, 0, 0);
+        if (PblUnicode::ustrcmp(ausName, ausWant) == 0)
+        {
+            ++iFound;
+            PblUnicode::ustrncnv(sacSaveTestFile, pusFile, sizeof(sacSaveTestFile));
+        }
+    }
+    if (iFound != 1)
+    {
+        LOG(LogCore, Warning, "OPENSWBF2 SAVETEST found %d campaign saves named %s", iFound, pcName);
+        strcpy(sacSaveTestFile, pcName);
+    }
+    return iFound == 1;
+}
+
+static void SaveTestLogWrite(int iType, const char* pcName, const char* pcExt)
+{
+    char acPath[160];
+    _snprintf(acPath, sizeof(acPath) - 1, "SaveGames\\%s.%s", pcName, pcExt);
+    acPath[sizeof(acPath) - 1] = 0;
+    long lBytes = 0;
+    unsigned char aucCrc[4] = {};
+    FILE* pFile = fopen(acPath, "rb");
+    const bool bFile = pFile != 0;
+    if (bFile)
+    {
+        if (fread(aucCrc, 1, sizeof(aucCrc), pFile) != sizeof(aucCrc))
+        {
+            memset(aucCrc, 0, sizeof(aucCrc));
+        }
+        fseek(pFile, 0, SEEK_END);
+        lBytes = ftell(pFile);
+        fclose(pFile);
+    }
+    const unsigned int uCrc = aucCrc[0] | (aucCrc[1] << 8) | (aucCrc[2] << 16) | ((unsigned int)aucCrc[3] << 24);
+    LOG(LogCore, Inform, "OPENSWBF2 SAVETEST write type=%d name=%s bytes=%ld crc=0x%08X fields=0x%08X result=%s", iType,
+        pcName, lBytes, uCrc, suSaveTestFields, sbSaveTestSuccess && bFile ? "ok" : "fail");
+}
+
+static void SaveTestStartLoad()
+{
+    if (gSaveTestType == 1)
+    {
+        unsigned short ausName[16];
+        PblUnicode::ustrncnv(ausName, gSaveTestName, 16);
+        strcpy(sacSaveTestFile, gSaveTestName);
+        SaveTestCall("ScriptCB_StartLoadProfile", ausName);
+    }
+    else
+    {
+        SaveTestFindCampaign(gSaveTestName);
+        unsigned short ausFile[128];
+        PblUnicode::ustrncnv(ausFile, sacSaveTestFile, 128);
+        SaveTestCall("ScriptCB_StartLoadCampaign", ausFile);
+    }
+    SaveTestQueued();
+}
+
+static void SaveTestLogLoad()
+{
+    bool bOk = sbSaveTestSuccess;
+    unsigned int uFields = 0;
+    if (gSaveTestType == 1)
+    {
+        uFields = SaveTestProfileFields();
+    }
+    else
+    {
+        int iItems = 0;
+        SaveTestRun(kSaveTestCanon, kSaveTestLoadCampaign, &uFields, &iItems);
+        bOk = bOk && iItems > 0;
+    }
+    if (bOk)
+    {
+        LOG(LogCore, Inform, "OPENSWBF2 SAVETEST load type=%d name=%s result=ok fields=0x%08X", gSaveTestType,
+            sacSaveTestFile, uFields);
+    }
+    else
+    {
+        LOG(LogCore, Inform, "OPENSWBF2 SAVETEST load type=%d name=%s result=reject fields=none", gSaveTestType,
+            sacSaveTestFile);
+    }
+}
+
+static void SaveTestFrame()
+{
+    if (gSaveTestMode == 0 || siSaveTestStep == kSaveTestDone || GameState::GetState() != 0x11E1FC01)
+    {
+        return;
+    }
+    SaveFsm& rFsm = SaveGameManager::mSaveFsm;
+    if (sbSaveTestPending)
+    {
+        if (SaveGameManager::mOnDone != 0)
+        {
+            if (!rFsm.IsDone() && rFsm.mLoadSavePopupAnswer == -1 && rFsm.mBtns != 0)
+            {
+                char acAnswer[64];
+                _snprintf(acAnswer, sizeof(acAnswer) - 1, "ScriptCB_LoadSavePopupResult(%u)",
+                          (unsigned int)rFsm.mBtnDefault);
+                acAnswer[sizeof(acAnswer) - 1] = 0;
+                LOG(LogCore, Inform, "OPENSWBF2 SAVETEST popup answer=%u", (unsigned int)rFsm.mBtnDefault);
+                SaveTestRun("", acAnswer, 0, 0);
+            }
+            return;
+        }
+        sbSaveTestPending = false;
+        sbSaveTestSuccess = SaveGameManager::GetSuccess();
+    }
+    switch (siSaveTestStep)
+    {
+    case kSaveTestIdle:
+        if (!rFsm.IsDone() || SaveGameManager::mOnDone != 0)
+        {
+            return;
+        }
+        siSaveTestStep = kSaveTestPreOp;
+        SaveTestRun("", gSaveTestMode == 1 ? "ScriptCB_StartPreOp(false, ScriptCB_tounicode('savetest'), true)"
+                                           : "ScriptCB_StartPreOp(true, ScriptCB_tounicode('savetest'), true)",
+                    0, 0);
+        SaveTestQueued();
+        return;
+    case kSaveTestPreOp:
+        if (!sbSaveTestSuccess)
+        {
+            LOG(LogCore, Warning, "OPENSWBF2 SAVETEST preop failed");
+        }
+        if (gSaveTestMode == 2)
+        {
+            siSaveTestStep = kSaveTestLoad;
+            SaveTestStartLoad();
+            return;
+        }
+        siSaveTestStep = kSaveTestProfile;
+        SaveTestRun("", "ScriptCB_AddProfile(ScriptCB_tounicode('SaveTest'))", 0, 0);
+        suSaveTestFields = SaveTestProfileFields();
+        SaveTestRun("", "ScriptCB_StartSaveProfile(1)", 0, 0);
+        SaveTestQueued();
+        return;
+    case kSaveTestProfile:
+    {
+        SaveTestLogWrite(1, "SaveTest", "profile");
+        siSaveTestStep = kSaveTestCampaign;
+        suSaveTestFields = 0;
+        int iItems = 0;
+        SaveTestRun(kSaveTestCanon, kSaveTestWriteCampaign, &suSaveTestFields, &iItems);
+        SaveTestQueued();
+        return;
+    }
+    case kSaveTestCampaign:
+        SaveTestFindCampaign("SaveTest");
+        SaveTestLogWrite(3, sacSaveTestFile, "rote");
+        break;
+    case kSaveTestLoad:
+        SaveTestLogLoad();
+        break;
+    default:
+        return;
+    }
+    siSaveTestStep = kSaveTestDone;
+    GameLoop::PostRunComplete();
+}
+#endif

@@ -21,6 +21,8 @@ bool NoVictoryActive();
 
 bool TestOnlyArgIgnored(int i, char const** ppcName);
 
+bool SaveTestNameOk(char const* pcName);
+
 extern char gGamespyAutoName[32];
 extern char gGamespyAutoConnectAddr[64];
 extern char gGamespyAutoPassStr[128];
@@ -34,6 +36,9 @@ extern bool gExitOnGameOver;
 extern bool gNoVictory;
 extern int gDigestTrace;
 extern int gDigestDetail;
+extern int gSaveTestMode;
+extern int gSaveTestType;
+extern char gSaveTestName[16];
 extern int gSoakTurns;
 extern bool gMissionOnCommandLine;
 extern bool gFactoryLog;

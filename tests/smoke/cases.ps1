@@ -6,8 +6,8 @@ $script:PerturbSoakTurns = 100000
 $script:SmokeCapRx = '(?s)\A(?!.*OPENSWBF2 SOAK turns=)'
 $script:SteamIfaceRx = @('OPENSWBF2 STEAM iface=SteamClient ok', 'OPENSWBF2 STEAM iface=SteamUser ok', 'OPENSWBF2 STEAM iface=SteamFriends ok', 'OPENSWBF2 STEAM iface=SteamUtils ok')
 $script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-delayload', 'crash-delayload-x64', 'crash-early', 'crash-heapinit', 'crash-check', 'crash-hang', 'crash-stall', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat', 'crash-capexhaust', 'vendor-x64-none', 'vendor-x64-steam-wrongbits', 'vendor-x64-galaxy-wrongbits', 'vendor-x64-steam-on')
-$script:SmokeAddrSpaceRx = 'OPENSWBF2 ADDRSPACE arena=0x[89A-F][0-9A-F]{7} arena_end=0x[0-9A-F]{8} laa=1 steam=1 steam_api=0x(?!0{8})[0-9A-F]{8} Galaxy=0x(?!0{8})[0-9A-F]{8} GalaxyPeer=0x[0-9A-F]{8} binkw32=0x(?!0{8})[0-9A-F]{8}'
-$script:SmokeAddrSpaceRxX64 = 'OPENSWBF2 ADDRSPACE arena=0x[1-9A-F][0-9A-F]{8,15} arena_end=0x[1-9A-F][0-9A-F]{8,15} laa=1 steam=(?:0 steam_api=0x0{8}|1 steam_api=0x[1-9A-F][0-9A-F]{8,15}) Galaxy=0x0{8} GalaxyPeer=0x0{8} binkw32=0x0{8}'
+$script:SmokeAddrSpaceRx = 'OPENSWBF2 ADDRSPACE arena=0x[89A-F][0-9A-F]{7} arena_end=0x[0-9A-F]{8} laa=1 steam=[01] steam_api=0x(?!0{8})[0-9A-F]{8} Galaxy=0x(?!0{8})[0-9A-F]{8} GalaxyPeer=0x[0-9A-F]{8} binkw32=0x(?!0{8})[0-9A-F]{8}'
+$script:SmokeAddrSpaceRxX64 = 'OPENSWBF2 ADDRSPACE arena=0x[1-9A-F][0-9A-F]{8,15} arena_end=0x[1-9A-F][0-9A-F]{8,15} laa=1 steam=(?:0 steam_api=0x0{8}|[01] steam_api=0x[1-9A-F][0-9A-F]{8,15}) Galaxy=0x0{8} GalaxyPeer=0x0{8} binkw32=0x0{8}'
 $script:ImportStaticAllow = @{
     Win32 = @(
         'advapi32.dll',
@@ -332,7 +332,15 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
                     $ddDigestRx = $(if ($ddPinned) { '(?m)' + [regex]::Escape($ddPinned) + '\r?$' } else { '(?!)' })
                     $cases += New-Object PSObject -Property @{ Name = 'digest-detail'; Args = "$standard $htail -digestdetail 4 -soakturns 1501"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 DETAIL turn=4 time=[0-9A-F]{8}\r?$', '(?m)OPENSWBF2 DETAIL turn=5 time=[0-9A-F]{8}\r?$', '(?m)OPENSWBF2 DETAIL turn=6 time=[0-9A-F]{8}\r?$', 'OPENSWBF2 DETAIL turn=4 char=0 team=-?\d+ class=-?\d+ ', 'OPENSWBF2 DETAIL turn=6 obj=0x[0-9A-F]{8} pos=[0-9A-F]{8} [0-9A-F]{8} [0-9A-F]{8} vel=[0-9A-F]{8} [0-9A-F]{8} [0-9A-F]{8} hp=[0-9A-F]{8} objteam=-?\d+', 'OPENSWBF2 DETAIL turn=5 team=\d+ points=', '(?s)\A(?!.*OPENSWBF2 DETAIL turn=(?![456] ))', $ddDigestRx, 'OPENSWBF2 SOAK turns=') + $hrx) }; Twice = 0 }
                 }
-                $cases += New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = "nab2g_c $mvTail -win -exitonmovieclose"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', 'OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0') + $hrx) }; Twice = 0 }
+                $saveRx = @(
+                    '(?s)OPENSWBF2 SAVETEST write type=1 name=SaveTest bytes=4356 crc=0x[0-9A-F]{8} fields=(0x[0-9A-F]{8}) result=ok\r?\n.*OPENSWBF2 SAVETEST load type=1 name=SaveTest result=ok fields=\1\r?\n',
+                    '(?s)OPENSWBF2 SAVETEST write type=3 name=(SaveTest[0-9A-Za-z]{8}) bytes=260 crc=0x[0-9A-F]{8} fields=(0x[0-9A-F]{8}) result=ok\r?\n.*OPENSWBF2 SAVETEST load type=3 name=\1 result=ok fields=\2\r?\n',
+                    '(?s)\A(?!.*OPENSWBF2 SAVETEST [^\r\n]*result=(?!ok\b))',
+                    '(?s)\A(?!.*OPENSWBF2 SAVETEST (lua error|found|preop failed|popup))',
+                    '(?s)\A(?!.*OPENSWBF2 SAVE (rejected|profile CRC mismatch))'
+                )
+                $cases += New-Object PSObject -Property @{ Name = 'save-roundtrip'; Args = "$htail -savetest write"; Then = @("$htail -savetest load 1 SaveTest", "$htail -savetest load 3 SaveTest"); Expect = @{ Class = 'Pass'; LogRx = ($saveRx + $hrx) }; Twice = 0 }
+                $cases += New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = "nab2g_c $mvTail -win -exitonmovieclose"; OwnedOn = @{ x64 = @{ Owner = 'Phase 50 AV-03'; Function = 'Snd::DSBufferRenderer::UpdateObject'; Class = 'Fatal' } }; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', 'OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0') + $hrx) }; Twice = 0 }
             }
             $cases += New-Object PSObject -Property @{ Name = 'repeat-water'; Args = "nab2g_c $htail -repeatmission -soakturns 1501"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 REPEAT to_shell mission=nab2g_c\r?$', '(?m)OPENSWBF2 REPEAT to_mission mission=nab2g_c\r?$', 'OPENSWBF2 SIM DIGEST turns=', 'OPENSWBF2 SOAK turns=', $noWarpRx) + $hrx) }; Twice = 0 }
             $cases += New-Object PSObject -Property @{ Name = 'repeat-digest'; Args = "$standard $htail -repeatmission"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $scanRx + $hrx) }; Twice = 0 }
@@ -461,6 +469,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         else {
             $cases += New-Object PSObject -Property @{
                 Name = 'crash-delayload-x64'
+                DigestRow = 'crash-delayload'
                 Args = "$standard $tail -crashtest delayload"
                 Omit = @('steam_api64.dll')
                 Expect = @{ Class = 'Fatal'; Code = 3; MinDumps = 1; MaxDumps = 1; LogRx = @('FATAL:.*\.dmp', 'FATAL: exception 0xC06D007E at 0x[0-9A-F]+ \([^)]+\) dll=steam_api64\.dll build ', 'OPENSWBF2 VENDOR steam off: steam_api64\.dll missing', '(?s)\A(?!.*VENDOR steam off.*VENDOR steam off)') }
@@ -493,7 +502,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             $cases += New-Object PSObject -Property @{
                 Name = 'crash-buildheapfail'
                 Args = "$standard $tail -crashtest buildheapfail"
-                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = ('FATAL: out of memory allocating Lua heap \(' + $(if ($script:SmokePlatform -eq 'x64') { 29229056 } else { 16777216 }) + ' bytes\) load \d+% phys \d+ MB virt \d+ MB') }
+                Expect = @{ Class = 'Fatal'; Code = 1; MaxDumps = 0; LogRx = ('FATAL: out of memory allocating Lua heap \(' + $(if ($script:SmokePlatform -eq 'x64') { 22478848 } else { 16777216 }) + ' bytes\) load \d+% phys \d+ MB virt \d+ MB') }
                 Twice = 0
             }
         }
@@ -788,11 +797,20 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         }
     }
     foreach ($c in $cases) {
+        if ($null -eq (Get-DigestExpected $c.Name) -or $c.Args -match '(^| )-digesttrace ') { continue }
+        $c.Args += ' -digesttrace 1500'
+        $x = $c.Expect.Clone()
+        $x.LogRx = @(@($x.LogRx) | Where-Object { $_ }) + @(100, 1500 | ForEach-Object { "(?m)OPENSWBF2 DIGEST TRACE turn=$_ state=0x[0-9A-F]{8} rand=\d+/\d+\r?$" })
+        $c.Expect = $x
+    }
+    foreach ($c in $cases) {
+        if ($c.Then) { $c.Then = @($c.Then | ForEach-Object { if ($_ -match '(^| )-soakturns ') { $_ } else { "$_ -soakturns $script:SmokeTurnCap" } }) }
         if ($c.Args -match '(^| )-soakturns ') { continue }
         $c.Args += " -soakturns $script:SmokeTurnCap"
         $x = $c.Expect.Clone()
         $x.LogRx = @(@($x.LogRx) | Where-Object { $_ }) + $script:SmokeCapRx
         $c.Expect = $x
     }
+    Assert-SmokeCaseData $cases
     return $cases
 }

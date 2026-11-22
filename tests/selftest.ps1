@@ -836,12 +836,14 @@ try {
 finally {
     Remove-Item -Recurse -Force $handleDir -ErrorAction SilentlyContinue
 }
-$miGood = '/c /ISRC\MIMALLOC\INCLUDE /D MI_DEBUG=2 /D MI_SECURE=0 /D MI_NO_GETENV=1 /D MI_USE_RTLGENRANDOM /GS C:\X\SRC\MIMALLOC\SRC\STATIC.C'
+$miGood = '/c /ISRC\MIMALLOC\INCLUDE /D MI_PAGE_CACHE_OFFSET=0 /D MI_DEBUG=2 /D MI_SECURE=0 /D MI_NO_GETENV=1 /D MI_USE_RTLGENRANDOM /GS C:\X\SRC\MIMALLOC\SRC\STATIC.C'
 $miRelease = $miGood.Replace('MI_DEBUG=2 /D MI_SECURE=0', 'MI_DEBUG=0 /D MI_SECURE=4')
 $miScenarios = @(
     @('mimalloc-defines good static.c line passes', $miGood, 'Debug', $true, $true),
-    @('mimalloc-defines quoted asan line passes', '/c /fsanitize=address /D "MI_DEBUG=0" /D "MI_SECURE=0" /D "MI_TRACK_ASAN=1" /D "MI_NO_GETENV=1" /D "MI_USE_RTLGENRANDOM" C:\X\SRC\MIMALLOC\SRC\STATIC.C', 'Asan', $true, $true),
+    @('mimalloc-defines quoted asan line passes', '/c /fsanitize=address /D "MI_PAGE_CACHE_OFFSET=0" /D "MI_DEBUG=0" /D "MI_SECURE=0" /D "MI_TRACK_ASAN=1" /D "MI_NO_GETENV=1" /D "MI_USE_RTLGENRANDOM" C:\X\SRC\MIMALLOC\SRC\STATIC.C', 'Asan', $true, $true),
     @('mimalloc-defines missing MI_NO_GETENV fails', $miGood.Replace(' /D MI_NO_GETENV=1', ''), 'Debug', $false, $true),
+    @('mimalloc-defines missing MI_PAGE_CACHE_OFFSET=0 fails', $miGood.Replace(' /D MI_PAGE_CACHE_OFFSET=0', ''), 'Debug', $false, $true),
+    @('mimalloc-defines MI_PAGE_CACHE_OFFSET=1 fails', $miGood.Replace('MI_PAGE_CACHE_OFFSET=0', 'MI_PAGE_CACHE_OFFSET=1'), 'Debug', $false, $true),
     @('mimalloc-defines asan without MI_TRACK_ASAN fails', $miGood.Replace('/c ', '/c /fsanitize=address '), 'Debug', $false, $true),
     @('mimalloc-defines MI_TRACK_ASAN without asan fails', $miGood.Replace('/c ', '/c /D MI_TRACK_ASAN=1 '), 'Debug', $false, $true),
     @('mimalloc-defines release line passes', $miRelease, 'Release', $true, $true),
@@ -892,7 +894,7 @@ foreach ($sc in $libScenarios) {
         Set-Content -Encoding Unicode -Path (Join-Path $libTl 'CL.command.1.tlog') -Value @('^C:\X\LIB\B.CPP', $sc[1])
         if ($sc[0] -notmatch 'missing mimalloc') {
             New-Item -ItemType Directory -Force -Path $miTl | Out-Null
-            Set-Content -Encoding Unicode -Path (Join-Path $miTl 'CL.command.1.tlog') -Value @('^C:\X\SRC\MIMALLOC\SRC\STATIC.C', '/c /Zc:alignedNew- /Zc:inline /sdl /GS /D MI_DEBUG=2 /D MI_SECURE=0 /D MI_NO_GETENV=1 /D MI_USE_RTLGENRANDOM C:\X\SRC\MIMALLOC\SRC\STATIC.C')
+            Set-Content -Encoding Unicode -Path (Join-Path $miTl 'CL.command.1.tlog') -Value @('^C:\X\SRC\MIMALLOC\SRC\STATIC.C', '/c /Zc:alignedNew- /Zc:inline /sdl /GS /D MI_PAGE_CACHE_OFFSET=0 /D MI_DEBUG=2 /D MI_SECURE=0 /D MI_NO_GETENV=1 /D MI_USE_RTLGENRANDOM C:\X\SRC\MIMALLOC\SRC\STATIC.C')
         }
         $bag = Get-ClTlogCounts @($exeTl, $libTl, $miTl)
         $got = @(Get-FlagChecks $bag $null 'Debug' 'Debug') + @(Get-HardeningChecks $goodHdr $goodCfg $bag.Total $bag.GsMinus $bag.Sdl)
@@ -1266,14 +1268,18 @@ $n++
 $readersDir = Join-Path $env:TEMP ("openswbf2-readers-" + [guid]::NewGuid().ToString('N'))
 try {
     foreach ($d in 'tests\baseline', 'tests\unit') { New-Item -ItemType Directory -Path (Join-Path $readersDir $d) | Out-Null }
-    Copy-Item -LiteralPath (Join-Path (Split-Path $PSScriptRoot -Parent) 'tests\baseline\v143') -Destination (Join-Path $readersDir 'tests\baseline') -Recurse
+    foreach ($fd in 'v143', 'v143-x64') { Copy-Item -LiteralPath (Join-Path (Split-Path $PSScriptRoot -Parent) "tests\baseline\$fd") -Destination (Join-Path $readersDir 'tests\baseline') -Recurse }
     foreach ($f in 'tests\baseline\compare-tables.ps1', 'tests\baseline\capture-vs2013.ps1', 'tests\unit\memory_baseline.cpp') { Copy-Item -LiteralPath (Join-Path (Split-Path $PSScriptRoot -Parent) $f) -Destination (Join-Path $readersDir $f) }
     $good = @(Get-SourceChecks $readersDir -Only 'baseline-readers')
     Set-Content -Encoding ASCII -Path (Join-Path $readersDir 'tests\baseline\v143\extra-table.txt') -Value 'x'
     $bad = @(Get-SourceChecks $readersDir -Only 'baseline-readers')
-    if ($good.Count -ne 1 -or -not $good[0].Ok) { $failed++; Write-Host "FAILED ${n}: baseline-readers fails a v143 file with no reader: unmodified copy flagged $($good.Detail)" }
-    elseif ($bad.Count -ne 1 -or $bad[0].Ok -or $bad[0].Detail -cne 'extra-table.txt has no reader') { $failed++; Write-Host "FAILED ${n}: baseline-readers fails a v143 file with no reader: $($bad.Detail)" }
-    else { Write-Host "OK $n baseline-readers fails a v143 file with no reader" }
+    Remove-Item -LiteralPath (Join-Path $readersDir 'tests\baseline\v143\extra-table.txt')
+    Set-Content -Encoding ASCII -Path (Join-Path $readersDir 'tests\baseline\v143-x64\extra-table.txt') -Value 'x'
+    $badX64 = @(Get-SourceChecks $readersDir -Only 'baseline-readers')
+    if ($good.Count -ne 1 -or -not $good[0].Ok) { $failed++; Write-Host "FAILED ${n}: baseline-readers fails a v143 or v143-x64 file with no reader: unmodified copy flagged $($good.Detail)" }
+    elseif ($bad.Count -ne 1 -or $bad[0].Ok -or $bad[0].Detail -cne 'v143\extra-table.txt has no reader') { $failed++; Write-Host "FAILED ${n}: baseline-readers fails a v143 file with no reader: $($bad.Detail)" }
+    elseif ($badX64.Count -ne 1 -or $badX64[0].Ok -or $badX64[0].Detail -cne 'v143-x64\extra-table.txt has no reader') { $failed++; Write-Host "FAILED ${n}: baseline-readers fails a v143-x64 file with no reader: $($badX64.Detail)" }
+    else { Write-Host "OK $n baseline-readers fails a v143 file and a v143-x64 file with no reader" }
 }
 finally {
     Remove-Item -Recurse -Force $readersDir -ErrorAction SilentlyContinue
@@ -1585,9 +1591,12 @@ $btGood = @(
     'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
     'OPENSWBF2 ADDRSPACE arena=0x1C5080F0000 arena_end=0x1C50C0F0000 laa=1 steam=1 steam_api=0x1C5074D0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
     'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x100000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=0 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000'
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=0 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x1F780000000 arena_end=0x1F790000000 laa=1 steam=0 steam_api=0x1F790030000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000'
 )
 $btBad = @(
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=0 steam_api=0x7FFF0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
     'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x7FFF0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
     'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x80000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
     'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0xFFFFFFFF Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
@@ -1618,7 +1627,7 @@ else {
 if (-not $why) { foreach ($btg in $btGood) { if ($btg -cnotmatch $script:SmokeAddrSpaceRxX64) { $why = "the x64 ADDRSPACE pattern rejects $btg"; break } } }
 if (-not $why) { foreach ($btb in $btBad) { if ($btb -cmatch $script:SmokeAddrSpaceRxX64) { $why = "the x64 ADDRSPACE pattern accepts $btb"; break } } }
 if ($why) { $failed++; Write-Host "FAILED ${n}: x64 Boot case: $why" }
-else { Write-Host "OK $n Boot runs the shell to 300 updates without a mission on both platforms (x64 under -hogaddrspace, Win32 without), x64 runs hot1g_con, tat2g_eli and nab2g_c under -hogaddrspace without a pool refusal or cursor warp, and x64 requires an ADDRSPACE line above 4 GB without Galaxy or Bink and Steam off or above the hog limit" }
+else { Write-Host "OK $n Boot runs the shell to 300 updates without a mission on both platforms (x64 under -hogaddrspace, Win32 without), x64 runs hot1g_con, tat2g_eli and nab2g_c under -hogaddrspace without a pool refusal or cursor warp, and x64 requires an ADDRSPACE line above 4 GB without Galaxy or Bink and steam_api64 not loaded (Steam off) or above the hog limit whether or not Steam initialized" }
 $n++
 $c = Get-D3dxStagedCheck $dpRoot 'Win32' (Join-Path $dsDir 'c1') $dsPins
 if ($c.Status -ne 'FAIL') { $failed++; Write-Host "FAILED ${n}: vendor:d3dx9-staged on Win32 judged an x64-pinned copy $($c.Status)" }
@@ -1761,15 +1770,129 @@ $script:SmokePlatform = $pbPlat
 if ($pbWhy) { $failed++; Write-Host "FAILED ${n}: particle burst crash case: $pbWhy" }
 else { Write-Host "OK $n particle burst crash case requires the voice on the next info" }
 $n++
+$owTmp = Join-Path $env:TEMP ('openswbf2-owned-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $owTmp | Out-Null
+$owPlat = $script:SmokePlatform
+$owCfg = $script:SmokeDigestConfiguration
+try {
+    $owMap = {
+        param([string]$name, [string]$ts)
+        $p = Join-Path $owTmp $name
+        [IO.File]::WriteAllLines($p, [string[]]@(' BattlefrontII', '', " Timestamp is $ts (Fri Nov 20 22:34:01 2026)", '', ' Preferred load address is 0000000140000000', '', ' Start         Length     Name                   Class', ' 0001:00000000 00500000H .text$mn                CODE', '', '  Address         Publics by Value              Rva+Base               Lib:Object', '', ' 0001:00000000       ?Other@@YAXXZ 0000000140001000 f   a.obj', ' 0001:00476a10       ?UpdateObject@DSBufferRenderer@Snd@@UEAAXXZ 0000000140477a10 f   snddsbufferrenderer.obj', ' 0001:00477000       ?Next@@YAXXZ 0000000140478000 f   b.obj'))
+        return $p
+    }
+    $owGood = & $owMap 'good.map' '6b011f39'
+    $owStale = & $owMap 'stale.map' '6b011f3a'
+    $owFatal = 'FATAL: exception 0xC0000005 at 0x7FF61DB27C25 (BattlefrontII.exe+0x477C25) build 6B011F392279000 dump C:\x\a.dmp'
+    $owRes = { param([string]$class, [string]$log) New-Object PSObject -Property @{ Class = $class; Code = [uint32]3; Ms = 1; LogText = $log } }
+    $script:SmokePlatform = 'x64'
+    $script:SmokeDigestConfiguration = 'Test'
+    $owCase = @(Get-SmokeCases 'Standard' @() $false $null $true | Where-Object { $_.Name -ceq 'campaign-movies' })
+    $why = $null
+    if ($owCase.Count -ne 1 -or @($owCase[0].OwnedOn.Keys).Count -ne 1 -or $owCase[0].OwnedOn.x64.Owner -cne 'Phase 50 AV-03' -or $owCase[0].OwnedOn.x64.Function -cne 'Snd::DSBufferRenderer::UpdateObject' -or $owCase[0].OwnedOn.x64.Class -cne 'Fatal') { $why = 'campaign-movies must carry exactly the x64 Phase 50 AV-03 Snd::DSBufferRenderer::UpdateObject Fatal entry' }
+    else {
+        $c = $owCase[0]
+        $v = Get-SmokeOwnedVerdict $c (& $owRes 'Fatal' $owFatal) $false $owGood
+        if (-not $v -or $v.Tok -cne 'OWNED' -or $v.Line -cne '[OWNED] smoke:campaign-movies class=Fatal exit=0x00000003 (1 ms) - Phase 50 AV-03 Snd::DSBufferRenderer::UpdateObject') { $why = "matching signature: $($v.Tok) $($v.Line)$($v.Note)" }
+        if (-not $why) {
+            $v = Get-SmokeOwnedVerdict $c (& $owRes 'Pass' 'OPENSWBF2 RUN COMPLETE') $true $owGood
+            if (-not $v -or $v.Tok -cne 'FAIL' -or $v.Line -cne '[FAIL] smoke:campaign-movies - owned failure no longer fails; remove the Phase 50 AV-03 entry') { $why = "a pass: $($v.Tok) $($v.Line)$($v.Note)" }
+        }
+        if (-not $why) {
+            $v = Get-SmokeOwnedVerdict $c (& $owRes 'Fatal' $owFatal.Replace('+0x477C25', '+0x478010')) $false $owGood
+            if (-not $v -or $v.Tok -or $v.Note -cne ' - owned entry Phase 50 AV-03 Snd::DSBufferRenderer::UpdateObject: FATAL at ?Next@@YAXXZ+0x10, recorded Snd::DSBufferRenderer::UpdateObject') { $why = "another function: $($v.Tok) $($v.Line)$($v.Note)" }
+        }
+        if (-not $why) {
+            $v = Get-SmokeOwnedVerdict $c (& $owRes 'Fatal' $owFatal) $false $owStale
+            if (-not $v -or $v.Tok -or $v.Note -notmatch 'map timestamp mismatch: build 6B011F392279000 map 6B011F3A$') { $why = "a map with another timestamp: $($v.Tok) $($v.Line)$($v.Note)" }
+        }
+        if (-not $why) {
+            $v = Get-SmokeOwnedVerdict $c (& $owRes 'Stall' $owFatal) $false $owGood
+            if (-not $v -or $v.Tok -or $v.Note -notmatch 'class Stall, recorded Fatal$') { $why = "another class: $($v.Tok) $($v.Line)$($v.Note)" }
+        }
+        if (-not $why) {
+            $script:SmokePlatform = 'Win32'
+            $v = Get-SmokeOwnedVerdict $c (& $owRes 'Fatal' $owFatal) $false $owGood
+            $script:SmokePlatform = 'x64'
+            if ($v) { $why = "the x64 entry applied on Win32: $($v.Tok) $($v.Line)" }
+        }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: owned failure entry: $why" }
+    else { Write-Host "OK $n owned failure entry: the recorded class and map-resolved function in an x64 map is OWNED, a pass fails naming the entry to remove, another function, map timestamp or class fails as usual, and Win32 ignores the x64 entry" }
+    $n++
+    $owNew = { param([hashtable]$owned, [string]$row) $o = New-Object PSObject -Property @{ Name = 'x-case'; Expect = @{ Class = 'Pass' } }; if ($owned) { $o | Add-Member -NotePropertyName OwnedOn -NotePropertyValue @{ x64 = $owned } }; if ($row) { $o | Add-Member -NotePropertyName DigestRow -NotePropertyValue $row }; $o }
+    $owRefused = { param($c) try { Assert-SmokeCaseData @($c); return $false } catch { return $true } }
+    $owSpecs = @(
+        @('no owner', (& $owNew @{ Function = 'Snd::DSBufferRenderer::UpdateObject'; Class = 'Fatal' } $null), $true),
+        @('owner without a requirement', (& $owNew @{ Owner = 'Phase 50'; Function = 'Snd::DSBufferRenderer::UpdateObject'; Class = 'Fatal' } $null), $true),
+        @('owner without a phase', (& $owNew @{ Owner = 'AV-03'; Function = 'Snd::DSBufferRenderer::UpdateObject'; Class = 'Fatal' } $null), $true),
+        @('no function', (& $owNew @{ Owner = 'Phase 50 AV-03'; Class = 'Fatal' } $null), $true),
+        @('class Pass', (& $owNew @{ Owner = 'Phase 50 AV-03'; Function = 'Snd::DSBufferRenderer::UpdateObject'; Class = 'Pass' } $null), $true),
+        @('a full entry', (& $owNew @{ Owner = 'Phase 50 AV-03'; Function = 'Snd::DSBufferRenderer::UpdateObject'; Class = 'Fatal' } $null), $false),
+        @('digest row onto a row with a digest', (& $owNew $null 'cor1c_c'), $true),
+        @('digest row onto no row', (& $owNew $null 'zzz-no-such-row'), $true),
+        @('digest row onto a none row', (& $owNew $null 'crash-delayload'), $false)
+    )
+    $why = $null
+    foreach ($s in $owSpecs) { if ((& $owRefused $s[1]) -ne $s[2]) { $why = "$($s[0]) refused=$(-not $s[2])"; break } }
+    if (-not $why -and @((Get-Command Get-SmokeCases).ScriptBlock.Ast.FindAll({ param($a) $a -is [Management.Automation.Language.CommandAst] -and $a.GetCommandName() -ceq 'Assert-SmokeCaseData' }, $true)).Count -ne 1) { $why = 'Get-SmokeCases does not check its cases with Assert-SmokeCaseData' }
+    if (-not $why) {
+        $owSelf = & $owNew $null 'y-case'
+        $owOther = New-Object PSObject -Property @{ Name = 'y-case'; Expect = @{ Class = 'Pass' } }
+        try { Assert-SmokeCaseData @($owSelf, $owOther); $why = 'digest row onto a case of the same run was accepted' } catch { }
+    }
+    if (-not $why) {
+        $owX64 = @(Get-SmokeCases 'Crash' @() $false $null | Where-Object { $_.DigestRow })
+        if ($owX64.Count -ne 1 -or $owX64[0].Name -cne 'crash-delayload-x64' -or $owX64[0].DigestRow -cne 'crash-delayload') { $why = "x64 digest row names: $(@($owX64 | ForEach-Object { "$($_.Name)=$($_.DigestRow)" }) -join ', ')" }
+        $script:SmokePlatform = 'Win32'
+        $owMarked = @(@(Get-SmokeCases 'Standard' @() $false $null) + @(Get-SmokeCases 'All' @() $false $null) | Where-Object { $_.DigestRow -or $_.OwnedOn } | ForEach-Object { $_.Name }) -join ','
+        if (-not $why -and $owMarked -cne 'campaign-movies') { $why = "Win32 cases with a digest row name or an owned entry: $owMarked" }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: case data load check: $why" }
+    else { Write-Host "OK $n case data load check refuses an owned entry without a Phase <n> <REQ-NN> owner, function or failing class and a digest row name onto a row with a digest, a missing row or a case of the same run; only crash-delayload-x64 names crash-delayload" }
+    $n++
+    $owAll = Join-Path $owTmp 'all'
+    foreach ($line in [IO.File]::ReadAllLines((Join-Path $PSScriptRoot 'baseline\v143\smoke-all-digests.txt'))) {
+        $f = $line.Split([char[]]@([char]9), 3)
+        $cn = $(if ($f[0] -ceq 'crash-delayload') { 'crash-delayload-x64' } else { $f[0] })
+        $cd = Join-Path $owAll "smoke\$cn"
+        New-Item -ItemType Directory -Force -Path $cd | Out-Null
+        if ($f[1] -cne 'none') { [IO.File]::WriteAllText((Join-Path $cd 'run.log'), $f[1] + "`r`n") }
+        if ($f[2] -cne 'none') { [IO.File]::WriteAllText((Join-Path $cd 'finalscore.log'), "x`t" + $f[2] + "`r`n") }
+    }
+    $owCap = Join-Path $PSScriptRoot 'baseline\capture-vs2013.ps1'
+    $owCmp = Join-Path $PSScriptRoot 'baseline\compare-tables.ps1'
+    $why = $null
+    foreach ($p in 'x64', 'Win32') {
+        $od = Join-Path $owTmp "tables-$p"
+        $co = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $owCap -Platform $p -NoBuild -Tables -SmokeAllDir $owAll -OutDir $od 2>&1 | Out-String }
+        if ($LASTEXITCODE -ne 0) { $why = "$p capture exit $LASTEXITCODE`: $co"; break }
+        $ro = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $owCmp -Platform $p -Tables $od 2>&1 | Out-String }
+        $dg = [regex]::Match($ro, '\[(?:PASS|FAIL)\] tables:digests[^\r\n]*\r?\n(?:    [^\r\n]*\r?\n)*')
+        $dt = $(if ($dg.Success) { $dg.Value.Trim() -replace '\r?\n\s*', ' | ' } else { 'no tables:digests line' })
+        if ($p -eq 'x64' -and $dt -cne '[PASS] tables:digests keys=161') { $why = "x64 capture of a crash-delayload-x64 folder does not compare clean: $dt"; break }
+        if ($p -eq 'Win32' -and $dt -cne '[FAIL] tables:digests keys=161 | crash-delayload missing from tables | crash-delayload-x64 not in baseline') { $why = "capture without the digest row name: $dt"; break }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: x64 digest row name: $why" }
+    else { Write-Host "OK $n an x64 capture of a crash-delayload-x64 folder writes the crash-delayload row and compares clean; without the name it gives one missing and one extra key" }
+    $n++
+}
+finally {
+    $script:SmokePlatform = $owPlat
+    $script:SmokeDigestConfiguration = $owCfg
+    Remove-Item -LiteralPath $owTmp -Recurse -Force -ErrorAction SilentlyContinue
+}
 $hrx = $script:SmokeAddrSpaceRx
 $hrxPlat = Get-SmokeAddrSpaceRx
 $okLine = 'OPENSWBF2 ADDRSPACE arena=0x82000000 arena_end=0x86000000 laa=1 steam=1 steam_api=0x65740000 Galaxy=0x652E0000 GalaxyPeer=0x00000000 binkw32=0x18000000'
-$badLines = @($okLine.Replace('arena=0x82000000', 'arena=0x02000000'), $okLine.Replace('laa=1', 'laa=0'), $okLine.Replace('steam=1', 'steam=0'), $okLine.Replace('Galaxy=0x652E0000', 'Galaxy=0x00000000'), $okLine.Replace('binkw32=0x18000000', 'binkw32=0x00000000'), $okLine.Replace('steam_api=0x65740000', 'steam_api=0x00000000'))
+$okClosedLine = $okLine.Replace('steam=1 steam_api=0x65740000', 'steam=0 steam_api=0x75140000')
+$badLines = @($okLine.Replace('arena=0x82000000', 'arena=0x02000000'), $okLine.Replace('laa=1', 'laa=0'), $okLine.Replace('steam=1', 'steam=2'), $okClosedLine.Replace('steam_api=0x75140000', 'steam_api=0x00000000'), $okLine.Replace('steam=1 ', ''), $okLine.Replace('Galaxy=0x652E0000', 'Galaxy=0x00000000'), $okLine.Replace('binkw32=0x18000000', 'binkw32=0x00000000'), $okLine.Replace('steam_api=0x65740000', 'steam_api=0x00000000'))
 $hogCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con') $false $null $true)
 $hogByName = @{}
 foreach ($c in $hogCases) { $hogByName[$c.Name] = $c }
 $why = $null
 if ($okLine -cnotmatch $hrx) { $why = 'positive line rejected' }
+elseif ($okClosedLine -cnotmatch $hrx) { $why = 'Steam-closed line rejected' }
 foreach ($b in $badLines) { if (-not $why -and $b -cmatch $hrx) { $why = "bad line accepted: $b" } }
 if (-not $why) {
     foreach ($name in 'foo1c_ctf', 'tat3c_con', 'bar1c_con', 'dedicated') {
@@ -2051,6 +2174,205 @@ foreach ($vt in @(
     if ($vres[$vt[0]]) { $failed++; Write-Host "FAILED ${n}: $($vt[1]): $($vres[$vt[0]])" }
     else { Write-Host "OK $n $($vt[1])" }
 }
+$tPlat = $script:SmokePlatform
+$script:SmokePlatform = 'Win32'
+$tsrc = Join-Path $env:TEMP ("openswbf2-then-" + [guid]::NewGuid().ToString('N'))
+$tdir = Join-Path $tsrc 'artifacts\smoke-workers\Win32\Test\smoke\w1'
+$tbatch = $null
+$tres = [ordered]@{ direct = 'not run'; mutant = 'not run'; batch = 'not run' }
+try {
+    New-Item -ItemType Directory -Path (Join-Path $tsrc 'data') | Out-Null
+    Copy-Item -LiteralPath $env:ComSpec -Destination (Join-Path $tsrc 'BattlefrontII.exe')
+    New-SmokeWorkerDir $tsrc $tdir
+    $tExe = Join-Path $tdir 'BattlefrontII.exe'
+    $tStep1 = '/c (type SaveGames\k.txt & echo OPENSWBF2 RUN COMPLETE)>"{CASEDIR}\run.log"'
+    $tCase = New-Object PSObject -Property @{ Name = 'then'; Then = @($tStep1, '/c exit 3', '/c echo never>"{CASEDIR}\run.log"') }
+    $tMain = { param($d) '/c mkdir SaveGames & (echo kept)>SaveGames\k.txt & (echo main-ran & echo OPENSWBF2 RUN COMPLETE)>"' + $d + '\run.log"' }
+    $tRun = {
+        param($fn, $label)
+        $d = Join-Path $tsrc "case-$label"
+        Clear-SmokeWorkerDir $tdir
+        $r = & $fn 'then' $tExe $tdir (& $tMain $d) $d $null @(Get-SmokeThenSteps $tCase $d '' $false)
+        $arc = Read-SmokeCaseArchive $d $false
+        if ($r.LogText -notmatch 'main-ran' -or $r.LogText -notmatch '(?m)^kept') { return "a step did not see the file the first invocation left in the worker: $($r.LogText -replace '\s+', ' ')" }
+        if ($r.Class -ne 'Fatal' -or $r.Code -ne 3) { return "class $($r.Class) exit $($r.Code), expected the failing step's Fatal exit 3" }
+        if ($r.LogText -match 'never' -or (Test-Path -LiteralPath (Join-Path $d 'then-3'))) { return 'a step ran after a failing step' }
+        if ([IO.File]::ReadAllText((Join-Path $d 'run.log')) -notmatch '(?m)^kept') { return 'the step log was not appended to the case run.log' }
+        if ($arc.Problem -or $arc.Class -ne 'Fatal' -or $arc.Code -ne 3) { return "archive problem '$($arc.Problem)' class '$($arc.Class)' exit '$($arc.Code)'" }
+        return $null
+    }
+    $tres.direct = & $tRun ${function:Invoke-SmokeCaseSteps} 'direct'
+    $tDef = (Get-Command Invoke-SmokeCaseSteps).Definition
+    $tAnchor = '$res = Join-SmokeThenStep $res ('
+    if (([regex]::Matches($tDef, [regex]::Escape($tAnchor))).Count -ne 1) { $tres.mutant = "anchor '$tAnchor' not found exactly once" }
+    else {
+        $tMut = [scriptblock]::Create($tDef.Replace($tAnchor, 'Clear-SmokeWorkerDir $workDir; ' + $tAnchor))
+        $tMutWhy = & $tRun $tMut 'mutant'
+        $tres.mutant = $(if ($tMutWhy -like 'a step did not see the file*') { $null } else { "a mutant that clears the worker between steps was not caught: $tMutWhy" })
+    }
+    $tbd = Join-Path $tsrc 'case-batch'
+    $titem = New-Object PSObject -Property @{ Name = 'then-batch'; ExeName = 'BattlefrontII.exe'; ArgLine = (& $tMain $tbd); CaseDir = $tbd; Then = @(Get-SmokeThenSteps (New-Object PSObject -Property @{ Then = @($tStep1) }) $tbd '' $false) }
+    $tbatch = Start-SmokeBatch @($titem) @($tdir) $tsrc
+    $tb = Receive-SmokeCase $tbatch 0
+    if ($tb.Class -ne 'Pass' -or $tb.LogText -notmatch '(?m)^kept' -or -not (Test-Path -LiteralPath (Join-Path $tbd 'then-1\run.log'))) { $tres.batch = "batch class $($tb.Class), log '$($tb.LogText -replace '\s+', ' ')'" }
+    else { $tres.batch = $null }
+}
+catch { foreach ($k in @($tres.Keys)) { if ($tres[$k] -ceq 'not run') { $tres[$k] = "threw: $($_.Exception.Message)" } } }
+finally {
+    if ($tbatch) { Stop-SmokeBatch $tbatch }
+    Remove-HarnessTree $tdir
+    Remove-Item -Recurse -Force $tsrc -ErrorAction SilentlyContinue
+    $script:SmokePlatform = $tPlat
+}
+foreach ($tt in @(
+        @('direct', 'smoke Then steps run in the same worker without clearing it, stop at the first step that does not pass, take its class and exit, and append their logs to the case run.log and result.txt'),
+        @('mutant', 'smoke Then steps discriminate: a mutant that clears the worker between steps loses the file the first invocation wrote'),
+        @('batch', 'Start-SmokeBatch runs the Then steps of a case after its first invocation'))) {
+    $n++
+    if ($tres[$tt[0]]) { $failed++; Write-Host "FAILED ${n}: $($tt[1]): $($tres[$tt[0]])" }
+    else { Write-Host "OK $n $($tt[1])" }
+}
+$n++
+$sjWhy = $null
+$sjCfg = $script:SmokeDigestConfiguration
+$sjPlat = $script:SmokePlatform
+try {
+    $script:SmokeDigestConfiguration = 'Test'
+    foreach ($sjp in 'x64', 'Win32') {
+        $script:SmokePlatform = $sjp
+        $sjAll = @(Get-SmokeCases 'Standard' @() $false $null ($sjp -eq 'x64') | Where-Object { $_.Name -ceq 'save-roundtrip' })
+        if ($sjAll.Count -ne 1) { $sjWhy = "$sjp Test Standard has $($sjAll.Count) save-roundtrip cases"; break }
+        $sjCase = $sjAll[0]
+        if ($sjCase.Args -notmatch ' -savetest write( |$)' -or @($sjCase.Then).Count -ne 2 -or @($sjCase.Then)[0] -notmatch ' -savetest load 1 SaveTest( |$)' -or @($sjCase.Then)[1] -notmatch ' -savetest load 3 SaveTest( |$)') { $sjWhy = "$sjp save-roundtrip does not write and then load both files in later steps"; break }
+    }
+    $script:SmokeDigestConfiguration = 'Release'
+    if (-not $sjWhy -and @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.Name -ceq 'save-roundtrip' }).Count -ne 0) { $sjWhy = 'save-roundtrip runs in a Release Standard group, where -savetest is ignored' }
+    $script:SmokeDigestConfiguration = 'Test'
+    $sjL = { param($t) "[t=1.000] [f=1] LogCore Inform Battlefront2\Source\pcCrash.cpp:1: $t`r`n" }
+    $sjW1 = 'OPENSWBF2 SAVETEST write type=1 name=SaveTest bytes=4356 crc=0xBB652547 fields=0x2641F4EC result=ok'
+    $sjW3 = 'OPENSWBF2 SAVETEST write type=3 name=SaveTest399fbeef bytes=260 crc=0xEA0F001A fields=0x92EC1197 result=ok'
+    $sjL1 = 'OPENSWBF2 SAVETEST load type=1 name=SaveTest result=ok fields=0x2641F4EC'
+    $sjL3 = 'OPENSWBF2 SAVETEST load type=3 name=SaveTest399fbeef result=ok fields=0x92EC1197'
+    $sjText = { param($w1, $w3, $l1, $l3, $extra) ((@($w1, $w3, 'OPENSWBF2 RUN COMPLETE', $l1, 'OPENSWBF2 RUN COMPLETE', $l3, $extra, 'OPENSWBF2 RUN COMPLETE') | Where-Object { $_ } | ForEach-Object { & $sjL $_ }) -join '') }
+    $sjRes = { param($t) New-Object PSObject -Property @{ Class = 'Pass'; CaseDir = (Join-Path $env:TEMP ('openswbf2-savejudge-' + [guid]::NewGuid().ToString('N'))); LogText = $t; Dumps = @(); Stall = 0; Turns = '-' } }
+    $sjBad = @(
+        @('the profile load line missing', (& $sjText $sjW1 $sjW3 $null $sjL3 $null)),
+        @('the campaign load line missing', (& $sjText $sjW1 $sjW3 $sjL1 $null $null)),
+        @('a rejected profile load', (& $sjText $sjW1 $sjW3 'OPENSWBF2 SAVETEST load type=1 name=SaveTest result=reject fields=none' $sjL3 $null)),
+        @('a rejected campaign load', (& $sjText $sjW1 $sjW3 $sjL1 'OPENSWBF2 SAVETEST load type=3 name=SaveTest399fbeef result=reject fields=none' $null)),
+        @('a profile digest that differs from the write', (& $sjText $sjW1 $sjW3 $sjL1.Replace('0x2641F4EC', '0x2641F4ED') $sjL3 $null)),
+        @('a campaign digest that differs from the write', (& $sjText $sjW1 $sjW3 $sjL1 $sjL3.Replace('0x92EC1197', '0x92EC1198') $null)),
+        @('a campaign load of another file', (& $sjText $sjW1 $sjW3 $sjL1 $sjL3.Replace('399fbeef', '399fbef0') $null)),
+        @('a failed write', (& $sjText $sjW1.Replace('result=ok', 'result=fail') $sjW3 $sjL1 $sjL3 $null)),
+        @('an answered error popup', (& $sjText $sjW1 $sjW3 $sjL1 $sjL3 'OPENSWBF2 SAVETEST popup answer=1')),
+        @('a rejected save log line', (& $sjText $sjW1 $sjW3 $sjL1 $sjL3 'OPENSWBF2 SAVE rejected campaign save "SaveTest399fbeef"')),
+        @('a profile CRC mismatch on load', (& $sjText $sjW1 $sjW3 $sjL1 $sjL3 'OPENSWBF2 SAVE profile CRC mismatch "SaveTest.profile"'))
+    )
+    if (-not $sjWhy -and -not (Test-SmokeExpect $sjCase (& $sjRes (& $sjText $sjW1 $sjW3 $sjL1 $sjL3 $null)))) { $sjWhy = 'a clean write and load failed' }
+    foreach ($b in $sjBad) {
+        if ($sjWhy) { break }
+        if (Test-SmokeExpect $sjCase (& $sjRes $b[1])) { $sjWhy = "$($b[0]) passed" }
+    }
+    if (-not $sjWhy) {
+        $sjMut = $sjCase.PSObject.Copy()
+        $sjMut.Expect = $sjCase.Expect.Clone()
+        $sjMut.Expect.LogRx = @($sjCase.Expect.LogRx | ForEach-Object { $_.Replace('fields=\1', 'fields=0x[0-9A-F]{8}') })
+        if (-not (Test-SmokeExpect $sjMut (& $sjRes $sjBad[4][1]))) { $sjWhy = 'mutant survived: without the digest back-reference the differing profile digest still failed' }
+    }
+}
+catch { $sjWhy = "threw: $($_.Exception.Message)" }
+finally {
+    $script:SmokeDigestConfiguration = $sjCfg
+    $script:SmokePlatform = $sjPlat
+}
+if ($sjWhy) { $failed++; Write-Host "FAILED ${n}: save-roundtrip judge: $sjWhy" }
+else { Write-Host "OK $n save-roundtrip writes then loads both files in later steps on Win32 and x64 Test only, and fails on a missing or rejected load line, a digest or file that differs from the write, a failed write, a popup, a reject line or a profile CRC mismatch; mutant without the digest back-reference passes a differing digest" }
+$n++
+$scWhy = $null
+$scMuts = @()
+$scPlat = $script:SmokePlatform
+$scRoot = Join-Path $env:TEMP ('openswbf2-savecross-' + [guid]::NewGuid().ToString('N'))
+try {
+    foreach ($p in 'Win32', 'x64') {
+        $d = Join-Path $scRoot "bin\$p\Test"
+        New-Item -ItemType Directory -Force -Path (Join-Path $d 'data\_lvl_pc') | Out-Null
+        foreach ($f in @('BattlefrontII.exe', 'data\_lvl_pc\shell.lvl') + @($script:SmokeRequiredDlls[$p])) { [IO.File]::WriteAllText((Join-Path $d $f), 'x') }
+    }
+    $scLine = { param($t) "[t=1.000] [f=1] LogCore Inform Battlefront2\Source\pcCrash.cpp:1: $t`r`n" }
+    $scRun = {
+        param($name, $exe, $workDir, $argLine, $caseDir, $asanOptions)
+        New-Item -ItemType Directory -Force -Path $caseDir | Out-Null
+        $plat = $(if ($exe -match '\\x64\\') { 'x64' } else { 'Win32' })
+        $sg = Join-Path $workDir 'SaveGames'
+        $log = @()
+        if ($plat -eq 'x64') { $log += 'OPENSWBF2 ADDRSPACE arena=0x100000000 arena_end=0x104000000 laa=1 steam=0 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000' }
+        if ($argLine -match ' -savetest write( |$)') {
+            New-Item -ItemType Directory -Force -Path $sg | Out-Null
+            $pb = [byte[]](1..40)
+            if ($scMode -ceq 'bytes' -and $plat -eq 'x64') { $pb[7] = 99 }
+            [IO.File]::WriteAllBytes((Join-Path $sg 'SaveTest.profile'), $pb)
+            $rn = $(if ($plat -eq 'x64') { 'SaveTest399fbef0' } else { 'SaveTest399fbeef' })
+            [IO.File]::WriteAllBytes((Join-Path $sg "$rn.rote"), [byte[]](5..30))
+            $log += 'OPENSWBF2 SAVETEST write type=1 name=SaveTest bytes=40 crc=0xBB652547 fields=0x2641F4EC result=ok'
+            $log += "OPENSWBF2 SAVETEST write type=3 name=$rn bytes=26 crc=0xEA0F001A fields=0x92EC1197 result=ok"
+        }
+        elseif ($argLine -match ' -savetest load 1 SaveTest( |$)') {
+            $fields = $(if ($scMode -ceq 'digest' -and $plat -eq 'x64') { '0x2641F4ED' } else { '0x2641F4EC' })
+            if (($scMode -ceq 'reject' -and $plat -eq 'x64') -or -not [IO.File]::Exists((Join-Path $sg 'SaveTest.profile'))) { $log += 'OPENSWBF2 SAVETEST load type=1 name=SaveTest result=reject fields=none' }
+            else { $log += "OPENSWBF2 SAVETEST load type=1 name=SaveTest result=ok fields=$fields" }
+        }
+        elseif ($argLine -match ' -savetest load 3 SaveTest( |$)') {
+            $r = @(Get-ChildItem -LiteralPath $sg -Filter 'SaveTest*.rote' -ErrorAction SilentlyContinue)
+            if ($r.Count -eq 1) { $log += "OPENSWBF2 SAVETEST load type=3 name=$($r[0].BaseName) result=ok fields=0x92EC1197" }
+            else { $log += 'OPENSWBF2 SAVETEST load type=3 name=SaveTest result=reject fields=none' }
+        }
+        $log += 'OPENSWBF2 RUN COMPLETE'
+        $text = (@($log | ForEach-Object { & $scLine $_ }) -join '')
+        [IO.File]::WriteAllText((Join-Path $caseDir 'run.log'), $text)
+        New-Object PSObject -Property @{ Name = $name; Class = 'Pass'; Code = [uint32]0; LogText = $text; CaseDir = $caseDir; Dumps = @() }
+    }
+    $scCall = {
+        param([string]$mode, $fn)
+        $script:scMode = $mode
+        return @(& $fn $scRoot 'Test' $true (Join-Path $scRoot "out-$mode-$([guid]::NewGuid().ToString('N'))") $scRoot $scRun)
+    }
+    $scIds = @('Win32:write-profile', 'Win32:write-campaign', 'x64:write-profile', 'x64:write-campaign', 'bytes:profile', 'bytes:campaign', 'Win32-x64:profile', 'Win32-x64:campaign', 'x64-Win32:profile', 'x64-Win32:campaign')
+    $scCheck = {
+        param($fn)
+        $l = @(& $scCall 'clean' $fn)
+        foreach ($i in $scIds) { if (@($l | Where-Object { $_ -like "``[PASS``] savecross:$i - *" }).Count -ne 1) { return "the clean case has no single PASS for ${i}: $($l -join ' | ')" } }
+        if ($l.Count -ne $scIds.Count) { return "the clean case gave $($l.Count) lines: $($l -join ' | ')" }
+        foreach ($b in @(@('reject', 'Win32-x64:profile', 'a rejected load'), @('digest', 'Win32-x64:profile', 'a load digest that differs from the write'), @('bytes', 'bytes:profile', 'profile bytes that differ between the exes'))) {
+            $l = @(& $scCall $b[0] $fn)
+            if (@($l | Where-Object { $_ -like "``[FAIL``] savecross:$($b[1]) - *" }).Count -ne 1) { return "$($b[2]) passed: $($l -join ' | ')" }
+        }
+        $exe = Join-Path $scRoot 'bin\Win32\Test\BattlefrontII.exe'
+        Remove-Item -LiteralPath $exe
+        try { $l = @(& $scCall 'missing' $fn) }
+        finally { [IO.File]::WriteAllText($exe, 'x') }
+        if ($l.Count -ne 1 -or $l[0] -notlike '`[FAIL`] savecross:Win32:exe - BattlefrontII.exe not found*') { return "a missing Win32 exe passed: $($l -join ' | ')" }
+        return $null
+    }
+    $scWhy = & $scCheck ${function:Invoke-SaveCross}
+    $scDef = (Get-Command Invoke-SaveCross).Definition
+    foreach ($m in @(
+            @('elseif ($ms[0].Groups[3].Value -cne $f.Fields)', 'elseif ($false)', 'a load digest that differs'),
+            @('if ($a.Sha -ceq $b.Sha)', 'if ($true)', 'profile bytes that differ'),
+            @('$why = Get-SmokePrecheck $GameDataRoot $exeDirs[$p] $false $p', '$why = $null', 'a missing Win32 exe'))) {
+        if ($scWhy) { break }
+        if (([regex]::Matches($scDef, [regex]::Escape($m[0]))).Count -ne 1) { $scWhy = "mutant anchor '$($m[0])' not found exactly once"; break }
+        $mw = & $scCheck ([scriptblock]::Create($scDef.Replace($m[0], $m[1])))
+        if ($mw -notlike "$($m[2])*") { $scWhy = "mutant without '$($m[0])' was not caught: $mw" }
+        else { $scMuts += $mw.Split(':')[0] }
+    }
+}
+catch { $scWhy = "threw: $($_.Exception.Message)" }
+finally {
+    $script:SmokePlatform = $scPlat
+    Remove-Item -Recurse -Force $scRoot -ErrorAction SilentlyContinue
+}
+if ($scWhy) { $failed++; Write-Host "FAILED ${n}: savecross: $scWhy" }
+else { Write-Host "OK $n savecross writes with both Test exes, loads each file with the other exe and compares the files, and fails on a rejected load, a load digest that differs from the write, file bytes that differ and a missing Win32 exe; mutants fail: $($scMuts -join '; ')" }
 function New-LaaRec($l, $lr, $wr, $frames = 9274, $dur = 309) {
     return New-Object PSObject -Property @{ Key = "geo1c_con`t ${dur}s`tL=Rep`t28u@$l`P`t ${lr}r`t 0p`tW=CIS`t28u@10 `t ${wr}r`t 0p"; Frames = $frames }
 }
@@ -2226,7 +2548,8 @@ try {
                         elseif ([regex]::Matches($c.Args, ' -soakturns \d+').Count -ne 1) { $capWhy = "$cfg $g $sk $($c.Name) does not carry exactly one -soakturns: $($c.Args)" }
                         elseif ($req -eq $forbid) { $capWhy = "$cfg $g $sk $($c.Name) requires=$req forbids=$forbid the SOAK line" }
                         elseif ($forbid -and -not $c.Args.EndsWith(" -soakturns $script:SmokeTurnCap")) { $capWhy = "$cfg $g $sk $($c.Name) forbids the SOAK line but does not end at the work cap: $($c.Args)" }
-                        elseif ((@($c.PSObject.Properties.Name | Where-Object { $_ -notin 'Omit', 'Swap', 'NeedsFile', 'SkipReason' } | Sort-Object) -join ',') -cne 'Args,Expect,Name,Twice') { $capWhy = "$cfg $g $sk $($c.Name) carries fields other than Name, Args, Expect, Twice and the worker file fields: $(@($c.PSObject.Properties.Name) -join ',')" }
+                        elseif ((@($c.PSObject.Properties.Name | Where-Object { $_ -notin 'Omit', 'Swap', 'NeedsFile', 'SkipReason', 'DigestRow', 'OwnedOn', 'Then' } | Sort-Object) -join ',') -cne 'Args,Expect,Name,Twice') { $capWhy = "$cfg $g $sk $($c.Name) carries fields other than Name, Args, Expect, Twice, the worker file fields, the Then steps and the digest row and owned entry fields: $(@($c.PSObject.Properties.Name) -join ',')" }
+                        elseif (@($c.Then | Where-Object { $_ } | Where-Object { [regex]::Matches([string]$_, ' -soakturns \d+').Count -ne 1 -or -not ([string]$_).EndsWith(" -soakturns $script:SmokeTurnCap") -or [regex]::Matches([string]$_, '(?:^| )-hangtimeout 0(?: |$)').Count -ne 1 }).Count -gt 0) { $capWhy = "$cfg $g $sk $($c.Name) has a Then step without one -soakturns at the work cap and one -hangtimeout 0: $(@($c.Then) -join ' | ')" }
                         elseif (($c.Args -replace '^.*(?:^| )-hangtimeout (\S+)(?: .*)?$', '$1') -cne $(if ($c.Name -eq 'crash-hang') { '5' } else { '0' }) -or [regex]::Matches($c.Args, '(?:^| )-hangtimeout ').Count -ne 1) { $capWhy = "$cfg $g $sk $($c.Name) does not carry exactly one -hangtimeout 0 (crash-hang: 5): $($c.Args)" }
                     }
                 }
@@ -2238,7 +2561,7 @@ try {
     if (-not $capWhy -and ($capTo -lt 1 -or $capReq -lt 12 * $capTo)) { $capWhy = "$capReq cases require SOAK, expected at least 12 x $capTo TimeOut missions" }
     if (-not $capWhy -and $script:SmokeTurnCap -ne $script:SoakLongTurns) { $capWhy = "work cap is $script:SmokeTurnCap" }
     if ($capWhy) { $failed++; Write-Host "FAILED ${n}: work cap: $capWhy" }
-    else { Write-Host "OK $n no case expects TimeOut; every case carries one -soakturns and either requires the SOAK line or forbids it at the work cap, runs supervised and carries only Name, Args, Expect and Twice ($capSeen cases)" }
+    else { Write-Host "OK $n no case expects TimeOut; every case carries one -soakturns and either requires the SOAK line or forbids it at the work cap, runs supervised, carries only Name, Args, Expect, Twice and Then, and every Then step ends at the work cap ($capSeen cases)" }
     $capSrc = @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.Name -eq 'digest-kas2c_uber' })[0]
     $capCase = New-Object PSObject -Property @{ Name = 'selftest-cap'; Args = $capSrc.Args; Expect = $capSrc.Expect }
     $capEnd = "[t=9.000] [f=9274] LogSim Inform GameLoop.cpp:1: OPENSWBF2 RUN COMPLETE geo1c_con`r`n"
@@ -2398,16 +2721,17 @@ try {
     [IO.File]::WriteAllText($repLog, "$digLine`r`n")
     $n++
     $cfLine = { param($s, $v) "[t=1.000] [f=1] LogMemory Inform GameState.cpp:1: OPENSWBF2 COMMIT state=$s bytes=$v`r`n" }
-    $cfCrt = { param($s, $b, $c, $a, $th, $pv) "[t=1.000] [f=1] LogMemory Inform GameMemory.cpp:1: OPENSWBF2 COMMITPARTS state=$s private=$pv gamecrt=$b heaps=$c threads=$th threadcount=9 arena=$a crtbusy=0 crtcommitted=0 crtlarge=0`r`n" }
-    $cfLog = { param($m, $mb, $mc, $ma, $order, $noParts, $mt)
+    $cfCrt = { param($s, $b, $c, $a, $th, $pv, $vm) "[t=1.000] [f=1] LogMemory Inform GameMemory.cpp:1: OPENSWBF2 COMMITPARTS state=$s private=$pv gamecrt=$b heaps=$c threads=$th threadcount=9 arena=$a crtbusy=0 crtcommitted=0 crtlarge=0 gamevm=$vm`r`n" }
+    $cfLog = { param($m, $mb, $mc, $ma, $order, $noParts, $mt, $mv)
         if (-not $mt) { $mt = @(0, 0, 0, 0) }
+        if (-not $mv) { $mv = @(500000, 500000, 500000, 500000) }
         $t = ''
         for ($k = 0; $k -lt 4; $k++) {
             $t += & $cfLine mission $m[$k]
-            if (-not $noParts) { $t += & $cfCrt mission $mb[$k] $mc[$k] $ma[$k] $mt[$k] $m[$k] }
+            if (-not $noParts) { $t += & $cfCrt mission $mb[$k] $mc[$k] $ma[$k] $mt[$k] $m[$k] $mv[$k] }
             $sState = $(if ($order -and $k -eq 1) { 'mission' } else { 'shell' })
             $t += & $cfLine $sState 60000000
-            if (-not $noParts) { $t += & $cfCrt $sState 3000000 2000000 1000000 0 60000000 }
+            if (-not $noParts) { $t += & $cfCrt $sState 3000000 2000000 1000000 0 60000000 500000 }
         }
         $t
     }
@@ -2415,8 +2739,8 @@ try {
     $cfC = @(2000000, 2000000, 2000000, 2000000)
     $cfA = @(1000000, 1000000, 1000000, 1000000)
     $cfFlat = @(100000000, 100000000, 100000000, 100000000)
-    $cfP = Test-CommitFlat (& $cfLog @(100000000, 100003000, 100001000, 100004000) $cfB $cfC $cfA $false $false) 1000 4 2
-    $cfH = Test-CommitFlat (& $cfLog @(100000000, 100003000, 100001000, 100004001) $cfB $cfC $cfA $false $false) 1000 4 2
+    $cfP = Test-CommitFlat (& $cfLog @(100000000, 100003000, 100001000, 100004000) $cfB $cfC $cfA $false $false $null @(500000, 500900, 500100, 501000)) 1000 4 2
+    $cfH = Test-CommitFlat (& $cfLog $cfFlat $cfB $cfC $cfA $false $false $null @(500000, 500900, 500100, 501901)) 1000 4 2
     $cfR = Test-CommitFlat (& $cfLog @(100000000, 100000000, 100000000, 100500000) $cfB @(2000000, 2000000, 2000000, 2500000) $cfA $false $false) 1000 4 2
     $cfL = Test-CommitFlat (& $cfLog $cfFlat @(3000000, 3000000, 3000000, 3002000) $cfC $cfA $false $false) 1000 4 2
     $cfN = Test-CommitFlat (& $cfLog @(100000000, 100000000, 100000000, 100262144) $cfB $cfC @(1000000, 1000000, 1000000, 1262144) $false $false) 1000 4 2
@@ -2427,6 +2751,9 @@ try {
     $cfS = Test-CommitFlat (& $cfLog $cfFlat $cfB $cfC $cfA $false $false) 1000 4 4
     $cfT = Test-CommitFlat (& $cfLog @(100000000, 100000000, 100000000, 100184320) $cfB $cfC $cfA $false $false @(400000, 400000, 400000, 584320)) 0 4 2
     $cfG = Test-CommitFlat (& $cfLog $cfFlat @(3000000, 3000000, 3000000, 3000001) $cfC $cfA $false $false) 0 4 2
+    $cfV = Test-CommitFlat (& $cfLog $cfFlat $cfB $cfC $cfA $false $false $null @(500000, 500000, 500000, 500001)) 0 4 2
+    $cfW = Test-CommitFlat (& $cfLog @(100000000, 100000000, 100000000, 102097152) $cfB $cfC $cfA $false $false) 0 4 2
+    $cfO = Test-CommitFlat ((& $cfLog $cfFlat $cfB $cfC $cfA $false $false) -replace ' gamevm=\d+', '') 0 4 2
     $cfCfg = $script:SmokeDigestConfiguration
     $script:SmokeDigestConfiguration = 'Test'
     $cfCase = @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.Name -eq 'commit-flat' })
@@ -2437,10 +2764,88 @@ try {
     $rwRel = @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.Name -eq 'repeat-water' })
     $script:SmokeDigestConfiguration = $cfCfg
     $cfWhy = $null
-    if ($cfP -or -not $cfH -or $cfR -or -not $cfL -or $cfN -notmatch ' arena = ' -or $cfX -or $cfM -notmatch 'COMMITPARTS' -or -not $cfF -or $cfZ -cne 'CommitCycles and CommitSettled are required' -or $cfS -cne 'CommitSettled must be below CommitCycles' -or $cfT -or $cfG -notmatch 'rest = ') { $cfWhy = "pass='$cfP' high='$cfH' retention='$cfR' leak='$cfL' newpage='$cfN' cross='$cfX' noparts='$cfM' order='$cfF' zero='$cfZ' settled='$cfS' threads='$cfT' gamecrt='$cfG'" }
+    if ($cfP -or -not $cfH -or $cfR -or -not $cfL -or $cfN -notmatch ' arena = ' -or $cfX -or $cfM -notmatch 'COMMITPARTS' -or -not $cfF -or $cfZ -cne 'CommitCycles and CommitSettled are required' -or $cfS -cne 'CommitSettled must be below CommitCycles' -or $cfT -or $cfG -notmatch 'rest = ' -or $cfV -notmatch 'rest = ' -or $cfW -or $cfO -notmatch 'COMMITPARTS') { $cfWhy = "pass='$cfP' high='$cfH' retention='$cfR' leak='$cfL' newpage='$cfN' cross='$cfX' noparts='$cfM' order='$cfF' zero='$cfZ' settled='$cfS' threads='$cfT' gamecrt='$cfG' gamevm='$cfV' foreign='$cfW' nogamevm='$cfO'" }
     elseif ($cfCase.Count -ne 1 -or $cfCase[0].Expect.CommitFlat -ne 0 -or $cfCase[0].Expect.CommitCycles -ne 16 -or $cfCase[0].Expect.CommitSettled -ne 8 -or $cfCase[0].Expect.SameDigests -ne 17 -or -not $cfCase[0].Args.EndsWith(" -repeatmission 16 -soakturns $script:SmokeTurnCap")) { $cfWhy = 'commit-flat case missing or wrong' }
     if ($cfWhy) { $failed++; Write-Host "FAILED ${n}: commit flat: $cfWhy" }
-    else { Write-Host "OK $n commit flat fails a new arena or rest high after the settled cycles, counts game CRT bytes in place of heap and thread commit and needs alternating states" }
+    else { Write-Host "OK $n commit flat fails a new arena or rest high after the settled cycles, takes rest as game VM plus game CRT bytes, ignores foreign private memory and needs alternating states" }
+    $n++
+    $crSaved = @($script:SmokePlatform, $script:SmokeSteam, $script:SmokeHog, $script:SmokeCommitTableDir)
+    $crDir = Join-Path $digTmp 'commit-row'
+    New-Item -ItemType Directory -Force -Path $crDir | Out-Null
+    $crLog = Join-Path $crDir 'run.log'
+    [IO.File]::WriteAllText($crLog, (& $cfLog $cfFlat $cfB $cfC $cfA $false $false))
+    $crTable = { param($rows, $sep) (@(('#' + ' commit 79299a77'), (@('steam', 'hog', 'state', 'arena', 'rest') -join $sep)) + @($rows | ForEach-Object { $_ -join $sep })) -join "`r`n" }
+    $crYes = @(@('yes', '1', 'mission', '1000000', '3500000'), @('yes', '1', 'shell', '1000000', '3500000'))
+    $crNoRows = @(@('no', '1', 'mission', '1000000', '3500000'), @('no', '1', 'shell', '1000000', '3500000'))
+    $crYesHi = @(@('yes', '1', 'mission', '1004096', '3500000'), @('yes', '1', 'shell', '1000000', '3500000'))
+    $crNoHi = @(@('no', '1', 'mission', '1000000', '3504096'), @('no', '1', 'shell', '1000000', '3500000'))
+    $crRun = { param($text, $steam, $hog)
+        [IO.File]::WriteAllText((Join-Path $crDir 'commit.txt'), $text + "`r`n")
+        $script:SmokePlatform = 'x64'
+        $script:SmokeCommitTableDir = $crDir
+        $script:SmokeSteam = $steam
+        $script:SmokeHog = $hog
+        Test-CommitFlat ([IO.File]::ReadAllText($crLog)) 0 4 2 $crLog
+    }
+    $crWhy = $null
+    try {
+        $crOk = & $crRun (& $crTable ($crYes + $crNoHi) "`t") 'yes' $true
+        $crHi = & $crRun (& $crTable ($crYesHi + $crNoRows) "`t") 'yes' $true
+        $crMiss = & $crRun (& $crTable $crNoRows "`t") 'yes' $true
+        $crNoOk = & $crRun (& $crTable ($crYesHi + $crNoRows) "`t") 'no' $true
+        $crNoBad = & $crRun (& $crTable ($crYes + $crNoHi) "`t") 'no' $true
+        $crHog = & $crRun (& $crTable ($crYes + $crNoRows) "`t") 'yes' $false
+        $crNoKey = & $crRun (& $crTable ($crYes + $crNoRows) "`t") $null $true
+        $crSpace = & $crRun (& $crTable ($crYes + $crNoRows) ' ') 'yes' $true
+        $crSelf = Test-CommitFlat ([IO.File]::ReadAllText($crLog)) 0 4 2
+        $script:SmokePlatform = 'Win32'
+        $script:SmokeCommitTableDir = $null
+        $script:SmokeSteam = $null
+        $crX86 = Test-CommitFlat ([IO.File]::ReadAllText($crLog)) 0 4 2 $crLog
+        $crX86Table = Test-Path -LiteralPath (Join-Path $PSScriptRoot 'baseline\v143\commit.txt')
+        if ($crOk) { $crWhy = "matching rows failed: $crOk" }
+        elseif ($crHi -notmatch 'commit row mismatch: mission 3 arena = 1000000, the row for steam=yes hog=1 state=mission has 1004096') { $crWhy = "a row 4096 above the run passed or named the wrong value: '$crHi'" }
+        elseif ($crMiss -notmatch 'no commit row for steam=yes hog=1 state=mission; no commit row for steam=yes hog=1 state=shell') { $crWhy = "a missing row did not fail naming steam, hog and state: '$crMiss'" }
+        elseif ($crNoOk) { $crWhy = "a steam=no run was not judged against the no rows: '$crNoOk'" }
+        elseif ($crNoBad -notmatch 'rest = 3500000, the row for steam=no hog=1 state=mission has 3504096') { $crWhy = "a steam=no run passed against a wrong no row: '$crNoBad'" }
+        elseif ($crHog -notmatch 'no commit row for steam=yes hog=0 state=mission') { $crWhy = "a no-hog run did not need a hog=0 row: '$crHog'" }
+        elseif ($crNoKey -cnotmatch '^missing input: run-params has no steam=yes\|no') { $crWhy = "a run without steam= did not fail as a missing input: '$crNoKey'" }
+        elseif ($crSpace -notmatch 'header is not steam, hog, state, arena, rest separated by tabs') { $crWhy = "a space-separated table was not refused: '$crSpace'" }
+        elseif ($crSelf) { $crWhy = "the self-relative check without a run log failed: '$crSelf'" }
+        elseif ($crX86 -or $crX86Table) { $crWhy = "x86 judged a commit row or has tests\baseline\v143\commit.txt: '$crX86' table=$crX86Table" }
+    }
+    catch { $crWhy = "threw: $_" }
+    finally { $script:SmokePlatform, $script:SmokeSteam, $script:SmokeHog, $script:SmokeCommitTableDir = $crSaved }
+    if ($crWhy) { $failed++; Write-Host "FAILED ${n}: commit row: $crWhy" }
+    else { Write-Host "OK $n commit row is chosen by the recorded steam and hog keys, fails a value 4096 off, a missing row, a missing steam key and a space-separated table, and x86 has no table" }
+    $n++
+    $ccScript = Join-Path $PSScriptRoot 'baseline\capture-commit.ps1'
+    $ccRun = { param($procStub, $cimStub, $outDir)
+        $cmd = "function global:Get-Process { $procStub }; function global:Get-CimInstance { $cimStub }; function global:powershell { 'Artifacts: none' }; & '$ccScript' -Platform x64 -SteamState Running -OutDir '$outDir'; exit `$LASTEXITCODE"
+        $o = @(& powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cmd))) 2>&1 | ForEach-Object { "$_" })
+        New-Object PSObject -Property @{ Code = $LASTEXITCODE; Out = ($o -join ' | ') }
+    }
+    $ccOut = Join-Path $digTmp 'capture-commit'
+    $ccWhy = $null
+    try {
+        $ccGame = & $ccRun "[pscustomobject]@{ Name = 'BattlefrontII'; Id = 4242 }" '' $ccOut
+        $ccGate = & $ccRun '' "[pscustomobject]@{ ProcessId = 4243; CommandLine = 'powershell -File C:\x\tests\gate.ps1 -Tier plan' }" $ccOut
+        $ccBase = & $ccRun '' '' (Join-Path $PSScriptRoot 'baseline\commit-scratch')
+        if ($ccGame.Code -ne 2 -or $ccGame.Out -notmatch 'refusing beside: \|\s+game process BattlefrontII \(4242\)') { $ccWhy = "beside a game process: exit $($ccGame.Code): $($ccGame.Out)" }
+        elseif ($ccGate.Code -ne 2 -or $ccGate.Out -notmatch 'harness process 4243: powershell -File C:\\x\\tests\\gate\.ps1') { $ccWhy = "beside a gate: exit $($ccGate.Code): $($ccGate.Out)" }
+        elseif ($ccBase.Code -ne 2 -or $ccBase.Out -notmatch 'is inside tests\\baseline') { $ccWhy = "into tests\baseline: exit $($ccBase.Code): $($ccBase.Out)" }
+        elseif ((Test-Path -LiteralPath $ccOut) -or (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'baseline\commit-scratch'))) { $ccWhy = 'a refused capture created its output folder' }
+    }
+    catch { $ccWhy = "threw: $_" }
+    if ($ccWhy) { $failed++; Write-Host "FAILED ${n}: capture-commit refusal: $ccWhy" }
+    else { Write-Host "OK $n capture-commit refuses beside a game process or a gate and never writes into tests\baseline" }
+    $n++
+    $rcOut = @(& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'run.ps1') -Platform x64 -Configuration Test -NoBuild -Smoke Standard -Case 'no-such-case' -WorkerBase 100000 2>&1 | ForEach-Object { "$_" })
+    $rcCode = $LASTEXITCODE
+    $rcCases = @($rcOut | Where-Object { $_ -cmatch '^-Case no-such-case: no such case in -Smoke Standard for Test on x64\.$' })
+    $rcCt = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'run.ps1'))
+    if ($rcCode -ne 2 -or $rcCases.Count -ne 1 -or $rcCt.IndexOf('$smokeCases = @($smokeCases | Where-Object { $_.Name -ceq $Case })', [StringComparison]::Ordinal) -lt 0) { $failed++; Write-Host "FAILED ${n}: run.ps1 -Case: exit $rcCode, $($rcOut -join ' | ')" }
+    else { Write-Host "OK $n run.ps1 -Case keeps only the named smoke case and refuses a name the group does not have" }
     $n++
     if ($rwCase.Count -ne 2 -or $rwRel.Count -ne 0 -or @($rwCase | Where-Object { $_.Expect.Class -ne 'Pass' -or $_.Expect.SameDigests -ne 2 -or -not $_.Args.EndsWith(' -soakturns 1501') -or @($_.Expect.LogRx) -notcontains 'OPENSWBF2 SOAK turns=' }).Count -ne 0) { $failed++; Write-Host "FAILED ${n}: repeat-water must run in Test and Asan only, end on -soakturns 1501 with two equal digests and the SOAK line" }
     else { Write-Host "OK $n repeat-water runs in Test and Asan and ends on its second digest" }
@@ -2798,7 +3203,9 @@ foreach ($p in @(@('nab2g_c', $parTw, 'twice-digest-1'), @('hot1g_con', $parTw, 
     if (-not $p[1].ContainsKey($p[2])) { $why = "case $($p[2]) missing"; break }
     $allArgs = $parAll[$p[0]].Args -creplace ' -soakturns \d+', ''
     if (-not $allArgs.EndsWith($sfx)) { $why = "All $($p[0]) lacks the LogMemory Verbose and digest trace switches"; break }
-    if ($allArgs.Substring(0, $allArgs.Length - $sfx.Length) -cne ($p[1][$p[2]].Args -creplace ' -soakturns \d+', '')) { $why = "All $($p[0]) args differ from $($p[2])"; break }
+    $parArgs = $p[1][$p[2]].Args -creplace ' -soakturns \d+', ''
+    if (-not $parArgs.EndsWith(' -digesttrace 1500')) { $why = "$($p[2]) lacks the digest trace switch"; break }
+    if ($allArgs.Substring(0, $allArgs.Length - $sfx.Length) -cne $parArgs.Substring(0, $parArgs.Length - ' -digesttrace 1500'.Length)) { $why = "All $($p[0]) args differ from $($p[2])"; break }
 }
 if (-not $why -and (-not $parAll['nab2g_c'].Args.EndsWith(" -soakturns $script:SoakShortTurns"))) { $why = 'All nab2g_c must end at the short soak count' }
 if (-not $why -and (Get-SmokeCases 'Standard' @() $false $null)[0].Name -cne 'geo1c_con') { $why = 'Standard[0] must be geo1c_con for the ASLR probe' }
@@ -2850,6 +3257,62 @@ finally {
 }
 if ($cpWhy) { $failed++; Write-Host "FAILED ${n}: All mission checkpoint lines: $cpWhy" }
 else { Write-Host "OK $n All mission checkpoint lines: every All mission runs with -digesttrace 1500, non-Fatal cases need the turn-100 DIGEST TRACE line and digest cases the turn-1500 one" }
+$n++
+$dsWhy = $null
+$dsTmp = Join-Path $env:TEMP ('openswbf2-digestsplit-' + [guid]::NewGuid().ToString('N'))
+$dsCfg = $script:SmokeDigestConfiguration
+$dsPlat = $script:SmokePlatform
+try {
+    foreach ($p in 'Win32', 'x64') {
+        $script:SmokePlatform = $p
+        foreach ($cfg in 'Release', 'Test') {
+            $script:SmokeDigestConfiguration = $cfg
+            foreach ($g in 'Standard', 'Twice') {
+                foreach ($c in @(Get-SmokeCases $g @() $false $null ($p -eq 'x64') 'Short' | Where-Object { Get-DigestExpected $_.Name })) {
+                    if ($dsWhy) { break }
+                    if ($c.Args -notmatch ' -digesttrace (\d+)' -or [int]$Matches[1] -lt 1500) { $dsWhy = "$p $cfg $($c.Name) args lack -digesttrace 1500: $($c.Args)" }
+                    elseif (-not ((@($c.Expect.LogRx) -join '|').Contains('OPENSWBF2 DIGEST TRACE turn=1500 '))) { $dsWhy = "$p $cfg $($c.Name) does not require the turn-1500 DIGEST TRACE line" }
+                }
+            }
+        }
+    }
+    $script:SmokePlatform = 'Win32'
+    $script:SmokeDigestConfiguration = 'Release'
+    $dsCase = @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.Name -ceq 'digest-dag1c_ctf' })[0]
+    $dsRow = Get-DigestExpected 'digest-dag1c_ctf'
+    $dsRef = [IO.File]::ReadAllLines((Join-Path $PSScriptRoot 'baseline\v143\digest-trace-dag1c_ctf.txt'))
+    if (-not $dsWhy -and (-not $dsCase -or -not $dsRow -or $dsRef.Count -lt 1500)) { $dsWhy = 'digest-dag1c_ctf case, row or reference trace missing' }
+    foreach ($v in @(@('equal', 0, $dsRow, $true), @('split', 737, ($dsRow -creplace 'state=0x[0-9A-F]{8}', 'state=0x00000000'), $false))) {
+        if ($dsWhy) { break }
+        $cd = Join-Path $dsTmp $v[0]
+        New-Item -ItemType Directory -Path $cd -Force | Out-Null
+        $lines = @('[t=0.500] [f=1] LogSim Inform GameLoop.cpp:1258: OPENSWBF2 MISSION RUNNING dag1c_ctf')
+        for ($t = 1; $t -le 1500; $t++) {
+            $l = $dsRef[$t - 1]
+            if ($v[1] -gt 0 -and $t -ge $v[1]) { $l = $l -creplace 'state=0x[0-9A-F]{8}', ('state=0x{0:X8}' -f $t) }
+            $lines += "[t=1.000] [f=$t] LogSim Inform SimDigest.cpp:249: $l"
+        }
+        $lines += "[t=2.000] [f=1500] LogSim Inform GameLoop.cpp:1413: $($v[2])"
+        $lines += '[t=9.000] [f=9300] OPENSWBF2 RUN COMPLETE'
+        $text = ($lines -join "`r`n") + "`r`n"
+        [IO.File]::WriteAllText((Join-Path $cd 'run.log'), $text)
+        $res = New-Object PSObject -Property @{ Class = 'Pass'; Code = [uint32]0; Dumps = @(); LogText = $text; CaseDir = $cd; Turns = '1500'; Stall = 0 }
+        $outAll = @(Test-SmokeExpect $dsCase $res 6>&1)
+        $ok = @($outAll | Where-Object { $_ -is [bool] })
+        $said = (@($outAll | Where-Object { $_ -isnot [bool] } | ForEach-Object { [string]$_ }) -join ' | ')
+        if ($ok.Count -ne 1 -or $ok[0] -ne $v[3]) { $dsWhy = "$($v[0]) log gave '$($ok -join ',')', expected $($v[3]): $said"; break }
+        if ($v[1] -gt 0 -and -not $said.Contains("first differs from digest-trace-dag1c_ctf.txt at turn $($v[1]) ")) { $dsWhy = "split log did not name turn $($v[1]): $said"; break }
+        if ($v[1] -eq 0 -and $said.Contains('digest split')) { $dsWhy = "equal log printed a split: $said"; break }
+    }
+}
+catch { $dsWhy = "threw: $_" }
+finally {
+    $script:SmokeDigestConfiguration = $dsCfg
+    $script:SmokePlatform = $dsPlat
+    Remove-Item -LiteralPath $dsTmp -Recurse -Force -ErrorAction SilentlyContinue
+}
+if ($dsWhy) { $failed++; Write-Host "FAILED ${n}: digest case traces: $dsWhy" }
+else { Write-Host "OK $n digest case traces: every digest case runs with -digesttrace 1500 and a digest mismatch names the first turn that differs from the pinned trace" }
 foreach ($probeCfg in $exeConfigs) {
     $testExe = Join-Path (Split-Path $PSScriptRoot -Parent) "bin\Tests\$Platform\$probeCfg\OpenSWBF2Tests.exe"
     foreach ($probe in 'strictness probe emits an undeclared error', 'strictness probe unmatched expectation') {
@@ -3114,6 +3577,47 @@ try {
     else { Write-Host "OK $n every x64 T1 gate step needs an x64 build step that builds the Win32 tests exe of its configuration in each of its tiers and keys on that exe; mutant fails: $rfMut" }
     $n++
     $why = $null
+    $scgMut = $null
+    try {
+        $scgAst = [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot 'gate.ps1'), [ref]$null, [ref]$null)
+        $scgDef = @($scgAst.FindAll({ param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst] -and $a.Name -ceq 'Get-GateCrossRulePaths' }, $false))
+        if ($scgDef.Count -ne 1) { throw "found $($scgDef.Count) Get-GateCrossRulePaths in gate.ps1" }
+        . ([scriptblock]::Create($scgDef[0].Extent.Text))
+        $scgCheck = {
+            param($steps)
+            $byName = @{}
+            foreach ($s in $steps) { $byName[$s.Name] = $s }
+            $s = $byName['savecross-Test']
+            if (-not $s) { return 'no savecross-Test step' }
+            if ((@($s.Platform) -join ',') -cne 'x64' -or $s.Kind -cne 'capture' -or $s.Config -cne 'Test' -or -not $s.StartsGame) { return "savecross-Test platform '$(@($s.Platform) -join ',')' kind '$($s.Kind)' config '$($s.Config)' starts game '$($s.StartsGame)'" }
+            foreach ($t in @($byName['run-Test'].Tiers) + @('plan', 'branch')) { if (@($s.Tiers) -notcontains $t) { return "savecross-Test is not in tier $t" } }
+            foreach ($b in 'bin\Win32\Test\BattlefrontII.exe', 'bin\x64\Test\BattlefrontII.exe') { if (@($s.Binaries) -notcontains $b) { return "savecross-Test does not key on $b" } }
+            if (@($s.Outputs) -notcontains 'artifacts\gate\$Stamp\savecross' -or (@($s.Args) -join ' ') -notmatch '(^| )tests\\savecross\.ps1 .*-HogAddrSpace .*-OutDir artifacts\\gate\\\$Stamp\\savecross( |$)') { return "savecross-Test args '$(@($s.Args) -join ' ')' outputs '$(@($s.Outputs) -join ',')'" }
+            $x64Test = @($s.Needs | Where-Object { $byName[$_] -and $byName[$_].Kind -eq 'build' -and (-not $byName[$_].Platform -or @($byName[$_].Platform) -contains 'x64') -and @($byName[$_].Binaries) -contains 'bin\$Platform\Test\BattlefrontII.exe' })
+            $w32 = @($s.Needs | Where-Object { $byName[$_] -and $byName[$_].Kind -eq 'build' -and @($byName[$_].Platform) -contains 'x64' -and @($byName[$_].Binaries) -contains 'bin\Win32\Test\BattlefrontII.exe' -and (@($byName[$_].Args) -join ' ') -match 'BattlefrontII\.vcxproj /p:Configuration=Test /p:Platform=Win32 ' })
+            if ($x64Test.Count -ne 1 -or $w32.Count -ne 1) { return "savecross-Test needs $($x64Test.Count) x64 Test game builds and $($w32.Count) Win32 Test game builds run on x64" }
+            foreach ($t in @($s.Tiers)) { foreach ($b in $x64Test[0], $w32[0]) { if (@($byName[$b].Tiers) -notcontains $t) { return "$b is not in tier $t of savecross-Test" } } }
+            $rp = @(Get-GateCrossRulePaths 'C:\r' @($s) 'x64')
+            $want = Join-Path (Get-WorkerPath 'C:\r' 'Win32' 'Test' 'smoke' 1) 'BattlefrontII.exe'
+            if ($rp -notcontains 'C:\r\bin\Win32\Test\BattlefrontII.exe' -or $rp -notcontains $want -or @($rp | Where-Object { $_ -like 'C:\r\*\x64\*' }).Count) { return "the x64 preflight rule paths of savecross-Test miss the Win32 Test exe paths ($($rp.Count) paths)" }
+            return $null
+        }
+        $why = & $scgCheck (& $tfLoad $tfText)
+        if (-not $why) {
+            $scgAnchor = "Binaries = @('bin\Win32\Test\BattlefrontII.exe', 'bin\x64\Test\BattlefrontII.exe')"
+            $scgCount = ([regex]::Matches($tfText, [regex]::Escape($scgAnchor))).Count
+            if ($scgCount -ne 1) { $why = "mutant anchor found $scgCount times in tiers.ps1" }
+            else {
+                $scgMut = & $scgCheck (& $tfLoad $tfText.Replace($scgAnchor, "Binaries = @('bin\x64\Test\BattlefrontII.exe')"))
+                if ($scgMut -notlike 'savecross-Test does not key on bin\Win32\Test\BattlefrontII.exe*') { $why = "mutant without the Win32 exe in Binaries was not caught: $scgMut" }
+            }
+        }
+    }
+    catch { $why = "threw: $_" }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: gate savecross-Test step: $why" }
+    else { Write-Host "OK $n savecross-Test runs on x64 at every tier of run-Test plus plan and branch, keys on both Test game exes, needs the Test build and an x64 step that builds the Win32 Test game exe in each of its tiers, and its x64 preflight covers the Win32 Test exe rule paths; mutant fails: $scgMut" }
+    $n++
+    $why = $null
     $paMut = $null
     $paMut2 = $null
     try {
@@ -3127,7 +3631,7 @@ try {
             . (Join-Path $PSScriptRoot 'gate\keys.ps1')
             . ([scriptblock]::Create($defs))
             $root = Split-Path $PSScriptRoot -Parent
-            foreach ($name in 'all-Release-short', 'all-Release') {
+            foreach ($name in 'all-Release-short', 'all-Release', 'all-Test-short') {
                 $s = @($steps | Where-Object { $_.Name -ceq $name })
                 if ($s.Count -ne 1) { return "$name found $($s.Count) times" }
                 if (@($s[0].Platform) -notcontains 'x64' -or @($s[0].Platform) -notcontains 'Win32') { return "$name runs on '$(@($s[0].Platform) -join ',')'" }
@@ -3158,7 +3662,75 @@ try {
     }
     catch { $why = "threw: $_" }
     if ($why) { $failed++; Write-Host "FAILED ${n}: gate All smoke steps run on both platforms, x64 under -HogAddrSpace: $why" }
-    else { Write-Host "OK $n all-Release-short and all-Release run on Win32 and x64, and every All smoke step expands with -HogAddrSpace on x64 only; mutants fail: $paMut; $paMut2" }
+    else { Write-Host "OK $n all-Release-short, all-Release and all-Test-short run on Win32 and x64, and every All smoke step expands with -HogAddrSpace on x64 only; mutants fail: $paMut; $paMut2" }
+    $n++
+    $why = $null
+    $xgMut = $null
+    $xgMut2 = $null
+    $xgMut3 = $null
+    $xgMut4 = $null
+    $xgMut5 = $null
+    $xgPlat = $script:SmokePlatform
+    $xgCfg = $script:SmokeDigestConfiguration
+    $xgWer = $script:SmokeWerKey
+    try {
+        $xgCheck = {
+            param($steps, [string]$defs)
+            . (Join-Path $PSScriptRoot 'gate\keys.ps1')
+            . ([scriptblock]::Create($defs))
+            $root = Split-Path $PSScriptRoot -Parent
+            $script:SmokeWerKey = $true
+            $script:SmokePlatform = 'x64'
+            $groups = @{}
+            foreach ($s in @($steps | Where-Object { @($_.Platform) -contains 'x64' -and @($_.Args) -contains '-Smoke' })) {
+                $a = @($s.Args)
+                $g = $a[[Array]::IndexOf($a, '-Smoke') + 1]
+                if ($g -ceq 'None') { continue }
+                if ($s.Job) { return "$($s.Name) runs smoke on x64 in gate job $($s.Job)" }
+                $script:SmokeDigestConfiguration = $s.Config
+                $plain = @(Get-SmokeCases $g @() $false $null $false | ForEach-Object { "$($_.Name)|$($_.Args)" }) -join "`n"
+                $hogged = @(Get-SmokeCases $g @() $false $null $true | ForEach-Object { "$($_.Name)|$($_.Args)" }) -join "`n"
+                $hog = @((Expand-GateStep $s 'x64').Args) -ccontains '-HogAddrSpace'
+                if ($plain -cne $hogged -and -not $hog) { return "$($s.Name) runs the x64 $g group without -HogAddrSpace" }
+                foreach ($t in @($s.Tiers)) {
+                    foreach ($b in @($s.Needs)) { if (@(@($steps | Where-Object { $_.Name -ceq $b })[0].Tiers) -notcontains $t) { return "$($s.Name) needs $b, which is not in tier $t" } }
+                    $groups["$g|$($s.Config)|$t"] = $s.Name
+                }
+            }
+            foreach ($w in @('Standard|Release|plan', 'Standard|Release|branch', 'Standard|Release|milestone', 'Twice|Release|branch', 'Twice|Release|milestone', 'Standard|Test|pr', 'Standard|Test|milestone', 'Dedicated|Release|pr', 'Dedicated|Release|milestone', 'Perturb|Test|milestone', 'Crash|Release|branch', 'Crash|Release|milestone', 'All|Release|branch', 'All|Release|milestone', 'All|Test|milestone')) {
+                if (-not $groups.ContainsKey($w)) { return "no x64 step runs $w" }
+            }
+            return $null
+        }
+        $why = & $xgCheck (& $tfLoad $tfText) $paText
+        if (-not $why) {
+            $xgAnchor = "@{ Name = 'dedicated-Release'; Tiers = @('pr', 'milestone'); Platform = @('x64'); PlatformArgs = @{ x64 = @('-HogAddrSpace') }; "
+            $xgAnchor2 = "@{ Name = 'perturb-Test'; Tiers = @('milestone'); Platform = @('Win32', 'x64');"
+            $xgAnchor3 = "@{ Name = 'all-Test-short'; Tiers = @('milestone'); Platform = @('Win32', 'x64'); PlatformArgs = @{ x64 = @('-HogAddrSpace') }; "
+            $xgCount = ([regex]::Matches($tfText, [regex]::Escape($xgAnchor))).Count + ([regex]::Matches($tfText, [regex]::Escape($xgAnchor2))).Count + ([regex]::Matches($tfText, [regex]::Escape($xgAnchor3))).Count
+            if ($xgCount -ne 3) { $why = "mutant anchors found $xgCount times" }
+            else {
+                $xgMut = & $xgCheck (& $tfLoad $tfText.Replace($xgAnchor, $xgAnchor.Replace("PlatformArgs = @{ x64 = @('-HogAddrSpace') }; ", ''))) $paText
+                $xgMut3 = & $xgCheck (& $tfLoad $tfText.Replace('(New-GateBuild ''build-Release'' ''Release'' $all),', '(New-GateBuild ''build-Release'' ''Release'' @(''plan'', ''branch'', ''milestone'')),')) $paText
+                $xgMut2 = & $xgCheck (& $tfLoad $tfText.Replace($xgAnchor2, $xgAnchor2.Replace("@('Win32', 'x64')", "@('Win32')"))) $paText
+                $xgMut4 = & $xgCheck (& $tfLoad $tfText.Replace($xgAnchor3, $xgAnchor3.Replace("PlatformArgs = @{ x64 = @('-HogAddrSpace') }; ", ''))) $paText
+                $xgMut5 = & $xgCheck (& $tfLoad $tfText.Replace($xgAnchor3, $xgAnchor3.Replace("@('Win32', 'x64'); PlatformArgs = @{ x64 = @('-HogAddrSpace') }; ", "@('Win32'); "))) $paText
+                if (-not $xgMut) { $why = 'mutant survived: dedicated-Release without its x64 PlatformArgs passed the check' }
+                elseif (-not $xgMut2) { $why = 'mutant survived: perturb-Test without x64 passed the check' }
+                elseif (-not $xgMut3) { $why = 'mutant survived: build-Release outside the pr tier passed the check' }
+                elseif (-not $xgMut4) { $why = 'mutant survived: all-Test-short without its x64 PlatformArgs passed the check' }
+                elseif (-not $xgMut5) { $why = 'mutant survived: all-Test-short without x64 passed the check' }
+            }
+        }
+    }
+    catch { $why = "threw: $_" }
+    finally {
+        $script:SmokePlatform = $xgPlat
+        $script:SmokeDigestConfiguration = $xgCfg
+        $script:SmokeWerKey = $xgWer
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: gate x64 smoke group steps: $why" }
+    else { Write-Host "OK $n every x64 smoke group step whose cases change under -HogAddrSpace expands with it, none has a gate job, and Standard, Twice, Test Standard, Dedicated, Perturb, Crash, All and Test All sit at the Win32 tiers with their build steps in each of their tiers; mutants fail: $xgMut; $xgMut2; $xgMut3; $xgMut4; $xgMut5" }
     $n++
     $why = $null
     try {
@@ -3410,6 +3982,8 @@ function Invoke-SmokeCase([string]$name, [string]$exe, [string]$runDir, [string]
     $bad = -not (Get-OcOk $script:CopiedCfg)
     New-Object PSObject -Property @{ Class = $(if ($bad) { 'Fatal' } else { 'Pass' }); Code = [int]$bad; Dumps = @(); LogText = '' }
 }
+function Get-SmokeThenSteps($case, [string]$caseDir, [string]$extraArg, [bool]$asan) { @() }
+function Invoke-SmokeCaseSteps([string]$name, [string]$exe, [string]$runDir, [string]$argLine, [string]$caseDir, $asanOptions, $steps) { Invoke-SmokeCase $name $exe $runDir $argLine $caseDir $asanOptions }
 function Test-SmokeExpect($case, $res) { Add-OcTrace 'Test-SmokeExpect' $script:SmokeDigestConfiguration; return ($res.Class -eq 'Pass') }
 function Get-GuardSmokeCase([string]$config, [string]$name) { Add-OcTrace 'Get-GuardSmokeCase' $config; Add-OcTrace 'Get-GuardSmokeCase-digest' $script:SmokeDigestConfiguration; New-Object PSObject -Property @{ Name = $name; Args = 'a'; Expect = @{} } }
 function Get-SmokeCases { Add-OcTrace 'Get-SmokeCases' $script:SmokeDigestConfiguration; @(New-Object PSObject -Property @{ Name = 'p1'; Args = 'a' }) }
@@ -4680,7 +5254,101 @@ try {
     if ($lbWhy) { $failed++; Write-Host "FAILED ${n}: compare-tables lua-bins: $lbWhy" }
     else { Write-Host "OK $n compare-tables -LuaBins passes an equal lua-bins table and fails a 1-count spill change" }
     $n++
-    $hcCaps = [ordered]@{ Application = 22413312; Gamespy = 2097136; Debug = 3145728; Lua = 29229056; Artist = 8192; Runtime = 41943040; HUDEditHeap = 1048560 }
+    $lhX86 = [IO.File]::ReadAllLines((Join-Path $cbBase 'lua-hist.txt'))
+    $lhX64 = [IO.File]::ReadAllLines((Join-Path $PSScriptRoot 'baseline\v143-x64\lua-hist.txt'))
+    $lhRow = -1
+    for ($i = 0; $i -lt $lhX86.Count; $i++) { if ($lhX86[$i] -cmatch "^[^`t]+`t\d+`t\d+`t\d+$") { $lhRow = $i; break } }
+    $lhRun = {
+        param([string]$name, [string[]]$lines, [string]$plat)
+        $d = Join-Path $cbTmp "luahist-$name"
+        New-Item -ItemType Directory -Force -Path $d | Out-Null
+        [IO.File]::WriteAllLines((Join-Path $d 'lua-hist.txt'), $lines)
+        $o = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Platform $plat -Tables $d -LuaHist 2>&1 | Out-String }
+        return @{ Code = $LASTEXITCODE; Out = $o; Labels = @([regex]::Matches($o, '(?m)^\[(?:PASS|FAIL)\] (tables:\S+)') | ForEach-Object { $_.Groups[1].Value }) }
+    }
+    $lhWhy = $null
+    if ($lhRow -lt 0) { $lhWhy = 'no lua-hist row with a bin, peak and calls' }
+    elseif (($lhX86 -join "`n") -ceq ($lhX64 -join "`n")) { $lhWhy = 'v143 and v143-x64 lua-hist.txt are equal, so the x64 read cannot be shown' }
+    else {
+        $lhPeak = [string[]]$lhX86.Clone()
+        $f = $lhPeak[$lhRow] -split "`t"
+        $f[2] = [string]([long]$f[2] + 1)
+        $lhPeak[$lhRow] = $f -join "`t"
+        $lhGone = [string[]]($lhX86[0..($lhRow - 1)] + $lhX86[($lhRow + 1)..($lhX86.Count - 1)])
+        $lhGoneKey = [regex]::Escape((@($lhX86[$lhRow] -split "`t")[0..1]) -join "`t")
+        $lhSame = & $lhRun 'same' $lhX86 'Win32'
+        $lhBadPeak = & $lhRun 'peak' $lhPeak 'Win32'
+        $lhBadGone = & $lhRun 'gone' $lhGone 'Win32'
+        $lhSame64 = & $lhRun 'same64' $lhX64 'x64'
+        $lhX86On64 = & $lhRun 'x86on64' $lhX86 'x64'
+        if ($lhSame.Code -ne 0 -or ($lhSame.Labels -join ' ') -cne 'tables:lua-hist') { $lhWhy = "equal table gave exit $($lhSame.Code) labels '$($lhSame.Labels -join ' ')'" }
+        elseif ($lhBadPeak.Code -ne 1 -or ($lhBadPeak.Labels -join ' ') -cne 'tables:lua-hist' -or $lhBadPeak.Out -cnotmatch '\[FAIL\] tables:lua-hist ') { $lhWhy = "a 1-count peak change gave exit $($lhBadPeak.Code)" }
+        elseif ($lhBadGone.Code -ne 1 -or $lhBadGone.Out -cnotmatch "(?m)^    $lhGoneKey missing from tables") { $lhWhy = "a removed bin row gave exit $($lhBadGone.Code): $($lhBadGone.Out)" }
+        elseif ($lhSame64.Code -ne 0 -or ($lhSame64.Labels -join ' ') -cne 'tables:lua-hist-x64') { $lhWhy = "the v143-x64 table on x64 gave exit $($lhSame64.Code) labels '$($lhSame64.Labels -join ' ')'" }
+        elseif ($lhX86On64.Code -ne 1 -or ($lhX86On64.Labels -join ' ') -cne 'tables:lua-hist-x64') { $lhWhy = "the v143 table on x64 gave exit $($lhX86On64.Code) labels '$($lhX86On64.Labels -join ' ')'" }
+    }
+    if ($lhWhy) { $failed++; Write-Host "FAILED ${n}: compare-tables lua-hist: $lhWhy" }
+    else { Write-Host "OK $n compare-tables -LuaHist passes an equal table, fails a 1-count peak change and a removed bin row, and on x64 compares once against v143-x64\lua-hist.txt" }
+    $n++
+    $sbX64 = Join-Path $PSScriptRoot 'baseline\v143-x64'
+    $sbRun = {
+        param([string]$name, [hashtable]$files, [string]$mode)
+        $d = Join-Path $cbTmp "sibling-$name"
+        New-Item -ItemType Directory -Force -Path $d | Out-Null
+        foreach ($f in $files.Keys) { Copy-Item -LiteralPath (Join-Path $files[$f] $f) -Destination (Join-Path $d $f) }
+        $ma = @()
+        if ($mode) { $ma = @("-$mode") }
+        $o = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Platform x64 -Tables $d @ma 2>&1 | Out-String }
+        return @{ Code = $LASTEXITCODE; Out = $o; Labels = @([regex]::Matches($o, '(?m)^\[(?:PASS|FAIL)\] (tables:\S+)') | ForEach-Object { $_.Groups[1].Value }) }
+    }
+    $sbTables = @{ 'cloth-headroom.txt' = $sbX64; 'mem-peaks.txt' = $sbX64; 'pool-sizes.txt' = $sbX64; 'smoke-all-digests.txt' = $cbBase }
+    $sbCloth86 = $sbTables.Clone()
+    $sbCloth86['cloth-headroom.txt'] = $cbBase
+    $sbCases = @(
+        @{ Name = 'tables'; Files = $sbTables; Mode = ''; Code = 0; Labels = 'tables:cloth-x64 tables:mem-peaks tables:pool-sizes-x64 tables:digests' },
+        @{ Name = 'cloth86'; Files = $sbCloth86; Mode = ''; Code = 1; Labels = 'tables:cloth-x64 tables:mem-peaks tables:pool-sizes-x64 tables:digests'; Want = '\[FAIL\] tables:cloth-x64 ' },
+        @{ Name = 'luabins'; Files = @{ 'lua-bins.txt' = $sbX64 }; Mode = 'LuaBins'; Code = 0; Labels = 'tables:lua-bins-x64' },
+        @{ Name = 'luabins86'; Files = @{ 'lua-bins.txt' = $cbBase }; Mode = 'LuaBins'; Code = 1; Labels = 'tables:lua-bins-x64'; Want = '\[FAIL\] tables:lua-bins-x64 ' },
+        @{ Name = 'offthread'; Files = @{ 'offthread.txt' = $sbX64 }; Mode = 'OffThread'; Code = 0; Labels = 'tables:offthread-x64' }
+    )
+    $sbWhy = $null
+    foreach ($c in $sbCases) {
+        $r = & $sbRun $c.Name $c.Files $c.Mode
+        if ($r.Code -ne $c.Code -or ($r.Labels -join ' ') -cne $c.Labels -or ($c.Want -and $r.Out -cnotmatch $c.Want)) { $sbWhy = "$($c.Name) gave exit $($r.Code) labels '$($r.Labels -join ' ')': $($r.Out)"; break }
+    }
+    if ($sbWhy) { $failed++; Write-Host "FAILED ${n}: compare-tables x64 siblings: $sbWhy" }
+    else { Write-Host "OK $n compare-tables -Platform x64 compares cloth-headroom, pool-sizes, lua-bins and offthread once each against v143-x64 and fails the x86 cloth-headroom and lua-bins tables there" }
+    $n++
+    $tmCheck = {
+        param([string]$def, [string]$runText)
+        . ([scriptblock]::Create($def))
+        foreach ($c in @(@('x64', $true, $null), @('x64', $false, 'x64 without -HogAddrSpace'), @('Win32', $true, '-HogAddrSpace'), @('Win32', $false, $null))) {
+            $got = Get-TableModeSkip $c[0] $c[1]
+            if ($got -cne $c[2]) { return "$($c[0]) hog=$($c[1]) gave '$got', want '$($c[2])'" }
+        }
+        foreach ($t in @('$tableModeSkip = Get-TableModeSkip $Platform $HogAddrSpace.IsPresent', 'elseif ($tableModeSkip) { $compareSkip = $tableModeSkip }', "`$SmokeConfiguration -eq 'Test' -and -not `$tableModeSkip -and ")) {
+            if (([regex]::Matches($runText, [regex]::Escape($t))).Count -ne 1) { return "run.ps1 does not hold '$t' once" }
+        }
+        if ($runText -cmatch '-not \$HogAddrSpace|\(\$HogAddrSpace\)') { return 'run.ps1 decides a table block on -HogAddrSpace outside Get-TableModeSkip' }
+        if (([regex]::Matches($runText, [regex]::Escape("compare-tables.ps1')"))).Count -ne ([regex]::Matches($runText, [regex]::Escape("compare-tables.ps1') -Platform `$Platform -Tables"))).Count) { return 'run.ps1 has a table compare without -Platform $Platform' }
+        if (([regex]::Matches($runText, "Invoke-TableCapture \S+ @\(")).Count -ne ([regex]::Matches($runText, "Invoke-TableCapture \S+ @\('-Platform', \`$Platform, ")).Count) { return 'run.ps1 has a table capture without -Platform $Platform' }
+        return $null
+    }
+    $tmDef = 'function Get-TableModeSkip {' + ${function:Get-TableModeSkip}.ToString() + '}'
+    $tmRun = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'run.ps1'))
+    $tmWhy = & $tmCheck $tmDef $tmRun
+    $tmMut = $null
+    $tmMut2 = $null
+    if (-not $tmWhy) {
+        $tmMut = & $tmCheck 'function Get-TableModeSkip([string]$Platform, [bool]$Hog) { if ($Hog) { return ''-HogAddrSpace'' }; return $null }' $tmRun
+        $tmMut2 = & $tmCheck 'function Get-TableModeSkip([string]$Platform, [bool]$Hog) { if ($Platform -cne ''x64'' -and $Hog) { return ''-HogAddrSpace'' }; return $null }' $tmRun
+        if (-not $tmMut) { $tmWhy = 'mutant survived: the old hog rule on x64 passed the check' }
+        elseif (-not $tmMut2) { $tmWhy = 'mutant survived: an x64 run without -HogAddrSpace compared against the hog pins' }
+    }
+    if ($tmWhy) { $failed++; Write-Host "FAILED ${n}: run.ps1 table mode: $tmWhy" }
+    else { Write-Host "OK $n run.ps1 captures and compares the tables on x64 under -HogAddrSpace and on Win32 without it, against the platform's folder; mutants fail: $tmMut; $tmMut2" }
+    $n++
+    $hcCaps = [ordered]@{ Application = 22413312; Gamespy = 2097136; Debug = 3145728; Lua = 22478848; Artist = 8192; Runtime = 41943040; HUDEditHeap = 1048560 }
     $hcLog = {
         param([string]$dir, [hashtable]$over)
         $t = @('[t=1.000] [f=1500] LogMemory Inform RedEngineFL\Memory\RedMemoryReport.cpp:224: OPENSWBF2 MEMREPORT source=turn1500')
@@ -4698,7 +5366,7 @@ try {
     }
     $hcRun = {
         param([string]$tables, [string]$log)
-        $o = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $tables -Baseline $tables -MemPeaksX64 -RunLog $log 2>&1 | Out-String }
+        $o = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Platform x64 -Tables $tables -MemPeaksX64 -RunLog $log 2>&1 | Out-String }
         return @{ Code = $LASTEXITCODE; Out = $o }
     }
     $hcGoodDir = Join-Path $cbTmp 'heapcaps-good'
@@ -4707,8 +5375,8 @@ try {
     $hcGoodText = & $hcLog $hcGoodDir $null
     $hcBadText = & $hcLog $hcBadDir @{ Lua = 16777216 }
     New-Item -ItemType Directory -Force -Path $hcPeakDir | Out-Null
-    Copy-Item -LiteralPath (Join-Path $cbBase 'mem-peaks.txt') -Destination $hcPeakDir
-    $hcX64 = [IO.File]::ReadAllLines((Join-Path $cbBase 'mem-peaks-x64.txt'))
+    $cbX64 = Join-Path $PSScriptRoot 'baseline\v143-x64'
+    $hcX64 = [IO.File]::ReadAllLines((Join-Path $cbX64 'mem-peaks.txt'))
     $hcRow = -1
     $hcMax = 0L
     for ($i = 0; $i -lt $hcX64.Count; $i++) {
@@ -4718,14 +5386,14 @@ try {
         }
     }
     $hcWhy = $null
-    if ($hcRow -lt 0) { $hcWhy = 'no Lua heap row in mem-peaks-x64.txt' }
+    if ($hcRow -lt 0) { $hcWhy = 'no Lua heap row in v143-x64\mem-peaks.txt' }
     else {
         $f = $hcX64[$hcRow] -split "`t"
         $f[6] = [string]($hcMax + 1048576)
         $hcX64[$hcRow] = $f -join "`t"
-        [IO.File]::WriteAllLines((Join-Path $hcPeakDir 'mem-peaks-x64.txt'), $hcX64)
-        $hcGood = & $hcRun $cbBase (Join-Path $hcGoodDir 'run.log')
-        $hcBad = & $hcRun $cbBase (Join-Path $hcBadDir 'run.log')
+        [IO.File]::WriteAllLines((Join-Path $hcPeakDir 'mem-peaks.txt'), $hcX64)
+        $hcGood = & $hcRun $cbX64 (Join-Path $hcGoodDir 'run.log')
+        $hcBad = & $hcRun $cbX64 (Join-Path $hcBadDir 'run.log')
         $hcPeak = & $hcRun $hcPeakDir (Join-Path $hcGoodDir 'run.log')
         $hcOne = { param($o) @([regex]::Matches($o, '(?m)^    \S')).Count }
         $hcCase = New-Object PSObject -Property @{ Name = 'selftest-heapcaps'; Expect = @{ Class = 'Pass'; HeapCapsX64 = $true } }
@@ -4736,8 +5404,8 @@ try {
             @($GuardRevertRows | Where-Object { $_.Id -ceq 'HEAPCAP-X64' })[0].RedRx
         }
         if ($hcGood.Code -ne 0 -or $hcGood.Out -cnotmatch '\[PASS\] tables:heap-caps-x64 ') { $hcWhy = "the committed peaks and the expected caps gave exit $($hcGood.Code): $($hcGood.Out)" }
-        elseif ($hcBad.Code -ne 1 -or $hcBad.Out -cnotmatch '\[FAIL\] tables:heap-caps-x64' -or $hcBad.Out -cnotmatch 'Lua logged cap 16777216 derived 29229056' -or (& $hcOne $hcBad.Out) -ne 1) { $hcWhy = "a logged Lua cap of 16777216 gave exit $($hcBad.Code): $($hcBad.Out)" }
-        elseif ($hcPeak.Code -ne 1 -or $hcPeak.Out -cnotmatch '\[FAIL\] tables:heap-caps-x64' -or $hcPeak.Out -cnotmatch 'Lua logged cap 29229056 derived (?!29229056\b)\d+' -or (& $hcOne $hcPeak.Out) -ne 1) { $hcWhy = "a raised x64 Lua peak gave exit $($hcPeak.Code): $($hcPeak.Out)" }
+        elseif ($hcBad.Code -ne 1 -or $hcBad.Out -cnotmatch '\[FAIL\] tables:heap-caps-x64' -or $hcBad.Out -cnotmatch 'Lua logged cap 16777216 derived 22478848' -or (& $hcOne $hcBad.Out) -ne 1) { $hcWhy = "a logged Lua cap of 16777216 gave exit $($hcBad.Code): $($hcBad.Out)" }
+        elseif ($hcPeak.Code -ne 1 -or $hcPeak.Out -cnotmatch '\[FAIL\] tables:heap-caps-x64' -or $hcPeak.Out -cnotmatch 'Lua logged cap 22478848 derived (?!22478848\b)\d+' -or (& $hcOne $hcPeak.Out) -ne 1) { $hcWhy = "a raised x64 Lua peak gave exit $($hcPeak.Code): $($hcPeak.Out)" }
         elseif (-not (Test-SmokeExpect $hcCase $hcGoodRes)) { $hcWhy = 'HeapCapsX64 failed the expected caps' }
         elseif (Test-SmokeExpect $hcCase $hcBadRes) { $hcWhy = 'HeapCapsX64 passed a logged Lua cap of 16777216' }
         elseif (-not $hcRedRx -or $hcBadRes.LogText -cnotmatch $hcRedRx) { $hcWhy = "the HeapCapsX64 mismatch does not match the HEAPCAP-X64 RedRx '$hcRedRx'" }
@@ -4747,24 +5415,62 @@ try {
     $n++
     $mpDir = Join-Path $cbTmp 'mempeaks-nopool'
     New-Item -ItemType Directory -Force -Path $mpDir | Out-Null
-    Copy-Item -LiteralPath (Join-Path $cbBase 'mem-peaks.txt') -Destination $mpDir
-    $mpLines = [IO.File]::ReadAllLines((Join-Path $cbBase 'mem-peaks-x64.txt'))
+    $mpLines = [IO.File]::ReadAllLines((Join-Path $cbX64 'mem-peaks.txt'))
     $mpRow = -1
-    for ($i = 0; $i -lt $mpLines.Count; $i++) { if ($mpLines[$i] -cmatch "^[^`t]+`t[^`t]+`tpool`t") { $mpRow = $i; break } }
+    $mpLua = -1
+    for ($i = 0; $i -lt $mpLines.Count; $i++) {
+        if ($mpRow -lt 0 -and $mpLines[$i] -cmatch "^[^`t]+`t[^`t]+`tpool`t(?!Lua\d+`t)") { $mpRow = $i }
+        if ($mpLua -lt 0 -and $mpLines[$i] -cmatch "^[^`t]+`t[^`t]+`tpool`tLua\d+`t") { $mpLua = $i }
+    }
     $mpWhy = $null
-    if ($mpRow -lt 0) { $mpWhy = 'no pool row in mem-peaks-x64.txt' }
+    if ($mpRow -lt 0 -or $mpLua -lt 0) { $mpWhy = "no non-Lua and Lua pool rows in v143-x64\mem-peaks.txt ($mpRow, $mpLua)" }
     else {
+        $mpRun = {
+            param([string]$name, [string[]]$lines)
+            $d = Join-Path $cbTmp "mempeaks-$name"
+            New-Item -ItemType Directory -Force -Path $d | Out-Null
+            [IO.File]::WriteAllLines((Join-Path $d 'mem-peaks.txt'), $lines)
+            $o = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Platform x64 -Tables $d -MemPeaksX64 2>&1 | Out-String }
+            return @{ Code = $LASTEXITCODE; Out = $o }
+        }
         $mpKey = [regex]::Escape((@($mpLines[$mpRow] -split "`t")[0..3]) -join "`t")
-        [IO.File]::WriteAllLines((Join-Path $mpDir 'mem-peaks-x64.txt'), [string[]]($mpLines[0..($mpRow - 1)] + $mpLines[($mpRow + 1)..($mpLines.Count - 1)]))
-        $mpOk = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $cbBase -Baseline $cbBase -MemPeaksX64 2>&1 | Out-String }
-        $mpOkCode = $LASTEXITCODE
-        $mpBad = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File $cbScript -Tables $mpDir -Baseline $mpDir -MemPeaksX64 2>&1 | Out-String }
-        $mpBadCode = $LASTEXITCODE
-        if ($mpOkCode -ne 0 -or $mpOk -cnotmatch '\[PASS\] tables:mem-peaks-x64 ') { $mpWhy = "the pinned pair gave exit ${mpOkCode}: $mpOk" }
-        elseif ($mpBadCode -ne 1 -or $mpBad -cnotmatch '\[FAIL\] tables:mem-peaks-x64 ' -or $mpBad -cnotmatch "(?m)^    $mpKey missing from mem-peaks-x64\.txt") { $mpWhy = "a removed pool row gave exit ${mpBadCode}: $mpBad" }
+        $mpLuaKey = (@($mpLines[$mpLua] -split "`t")[0..3]) -join "`t"
+        $mpStray = [string[]]$mpLines.Clone()
+        $mpStray[$mpLua] = $mpStray[$mpLua] -creplace "^([^`t]+`t[^`t]+`tpool`t)Lua\d+`t", "`${1}Lua9999`t"
+        $mpStrayKey = [regex]::Escape((@($mpStray[$mpLua] -split "`t")[0..3]) -join "`t")
+        $mpOk = & $mpRun 'same' $mpLines
+        $mpBad = & $mpRun 'nopool' ([string[]]($mpLines[0..($mpRow - 1)] + $mpLines[($mpRow + 1)..($mpLines.Count - 1)]))
+        $mpBadLua = & $mpRun 'stray' $mpStray
+        if ($mpOk.Code -ne 0 -or $mpOk.Out -cnotmatch '\[PASS\] tables:mem-peaks-x64 ') { $mpWhy = "the pinned pair gave exit $($mpOk.Code): $($mpOk.Out)" }
+        elseif ($mpBad.Code -ne 1 -or $mpBad.Out -cnotmatch '\[FAIL\] tables:mem-peaks-x64 ' -or $mpBad.Out -cnotmatch "(?m)^    $mpKey missing from x64 mem-peaks\.txt") { $mpWhy = "a removed non-Lua pool row gave exit $($mpBad.Code): $($mpBad.Out)" }
+        elseif ($mpBadLua.Code -ne 1 -or $mpBadLua.Out -cnotmatch "(?m)^    $mpStrayKey not a bin of x64 lua-bins\.txt" -or $mpBadLua.Out -cnotmatch "(?m)^    $([regex]::Escape($mpLuaKey)) missing from x64 mem-peaks\.txt") { $mpWhy = "a Lua pool key outside the x64 bins gave exit $($mpBadLua.Code): $($mpBadLua.Out)" }
     }
     if ($mpWhy) { $failed++; Write-Host "FAILED ${n}: compare-tables mem-peaks-x64 pool keys: $mpWhy" }
-    else { Write-Host "OK $n compare-tables -MemPeaksX64 passes the pinned pair and fails a mem-peaks-x64.txt without one pool row, naming its key" }
+    else { Write-Host "OK $n compare-tables -Platform x64 -MemPeaksX64 passes the pinned pair, fails a v143-x64 mem-peaks.txt without one non-Lua pool row, naming its key, and fails a LuaN key outside the bins of v143-x64\lua-bins.txt" }
+    $n++
+    $pfRoot = Join-Path $cbTmp 'platform-folder'
+    $pfRows = @{ X86 = [string[]]@("m`tsrc`tLua4`t10`t1", "m`tsrc`tLua8`t20`t2"); X64 = [string[]]@("m`tsrc`tLua4`t10`t1", "m`tsrc`tLua8`t40`t2") }
+    $pfRun = {
+        param([string]$withX64, [string]$tableRows, [string]$plat)
+        $b = Join-Path $pfRoot ([guid]::NewGuid().ToString('N'))
+        $bb = Join-Path $b 'baseline'
+        New-Item -ItemType Directory -Force -Path (Join-Path $bb 'v143'), (Join-Path $bb 'v143-x64'), (Join-Path $b 'tables') | Out-Null
+        Copy-Item -LiteralPath $cbScript -Destination $bb
+        [IO.File]::WriteAllLines((Join-Path $bb 'v143\lua-bins.txt'), $pfRows.X86)
+        if ($withX64) { [IO.File]::WriteAllLines((Join-Path $bb 'v143-x64\lua-bins.txt'), $pfRows.X64) }
+        [IO.File]::WriteAllLines((Join-Path $b 'tables\lua-bins.txt'), $pfRows[$tableRows])
+        $o = & { $ErrorActionPreference = 'Continue'; & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $bb 'compare-tables.ps1') -Platform $plat -Tables (Join-Path $b 'tables') -LuaBins 2>&1 | Out-String }
+        return "$plat x64file=$([bool]$withX64) tables=$tableRows exit=$LASTEXITCODE"
+    }
+    $pfA = @((& $pfRun '1' 'X64' 'x64'), (& $pfRun '1' 'X86' 'x64'), (& $pfRun '1' 'X64' 'Win32'), (& $pfRun '1' 'X86' 'Win32'))
+    $pfWantA = @('x64 x64file=True tables=X64 exit=0', 'x64 x64file=True tables=X86 exit=1', 'Win32 x64file=True tables=X64 exit=1', 'Win32 x64file=True tables=X86 exit=0')
+    if (($pfA -join '; ') -cne ($pfWantA -join '; ')) { $failed++; Write-Host "FAILED ${n}: compare-tables -Platform x64 compares a table present in v143-x64 against it and Win32 always against v143: $($pfA -join '; ')" }
+    else { Write-Host "OK $n compare-tables -Platform x64 compares a table present in v143-x64 against it, and -Platform Win32 compares it against v143" }
+    $n++
+    $pfB = @((& $pfRun '' 'X86' 'x64'), (& $pfRun '' 'X64' 'x64'))
+    $pfWantB = @('x64 x64file=False tables=X86 exit=0', 'x64 x64file=False tables=X64 exit=1')
+    if (($pfB -join '; ') -cne ($pfWantB -join '; ')) { $failed++; Write-Host "FAILED ${n}: compare-tables -Platform x64 compares a table absent from v143-x64 against v143: $($pfB -join '; ')" }
+    else { Write-Host "OK $n compare-tables -Platform x64 compares a table absent from v143-x64 against v143" }
     $n++
     $hdLines = [IO.File]::ReadAllLines((Join-Path $cbBase 'hardening.txt'))
     $hdCases = @(
@@ -5007,7 +5713,7 @@ try {
     else { Write-Host "OK $n the hardening run code names no file KindRunUnread lists, and the scan finds an injected read" }
     $n++
     $ctText = [IO.File]::ReadAllText((Join-Path $repo 'tests\baseline\compare-tables.ps1'))
-    $ctFiles = @([regex]::Matches($ctText, "@\{ File = '([^']+)'") | ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ -notlike '*.md' } | ForEach-Object { "tests\baseline\v143\$_" } | Sort-Object)
+    $ctFiles = @([regex]::Matches($ctText, "@\{ File = '([^']+)'(?:; Folder = '([^']+)')?") | Where-Object { $_.Groups[1].Value -notlike '*.md' } | ForEach-Object { $fd = $(if ($_.Groups[2].Success) { $_.Groups[2].Value } else { 'v143' }); "tests\baseline\$fd\$($_.Groups[1].Value)" } | Sort-Object)
     if (($ctFiles -join '|') -cne (@($script:KeyComparedTables | Sort-Object) -join '|')) { $failed++; Write-Host "FAILED ${n}: keys.ps1 compared tables differ from compare-tables.ps1 readers: $($ctFiles -join ', ')" }
     else { Write-Host "OK $n keys.ps1 compared tables equal the compare-tables.ps1 data readers" }
     $n++
@@ -5111,6 +5817,8 @@ try {
             New-Item -ItemType Directory -Force -Path (Join-Path $t 'smoke') | Out-Null
             foreach ($f in 'common.ps1', 'vstools.ps1', 'smoke.ps1') { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $f) -Destination $t }
             Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'smoke') -File | Copy-Item -Destination (Join-Path $t 'smoke')
+            New-Item -ItemType Directory -Force -Path (Join-Path $t 'baseline\v143') | Out-Null
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'baseline\v143\smoke-all-digests.txt') -Destination (Join-Path $t 'baseline\v143')
             return $t
         }
         $rcCase = {
@@ -5500,7 +6208,7 @@ $rjTmp = Join-Path $env:TEMP ('openswbf2-rejudge-' + [guid]::NewGuid().ToString(
 New-Item -ItemType Directory -Path $rjTmp | Out-Null
 $rjDigestCfg = $script:SmokeDigestConfiguration
 try {
-    $rjDefaults = @{ Configuration = 'Debug'; Platform = $Platform; NoBuild = 'False'; Suite = ''; Filter = ''; Fuzz = 'False'; Seed = '1'; Iterations = '100000'; Smoke = 'Standard'; FactoryLog = 'False'; MiPurge = '-1'; SmokeConfiguration = 'Release'; Movies = 'False'; Hardening = 'False'; HogAddrSpace = 'False'; Jobs = '0'; Asan = 'False'; Clean = 'False'; WorkerBase = '0'; Soak = 'Short' }
+    $rjDefaults = @{ Configuration = 'Debug'; Platform = $Platform; NoBuild = 'False'; Suite = ''; Filter = ''; Fuzz = 'False'; Seed = '1'; Iterations = '100000'; Smoke = 'Standard'; FactoryLog = 'False'; MiPurge = '-1'; SmokeConfiguration = 'Release'; Movies = 'False'; Hardening = 'False'; HogAddrSpace = 'False'; Jobs = '0'; Asan = 'False'; Clean = 'False'; WorkerBase = '0'; Soak = 'Short'; Case = '' }
     $rjMio = 'OPENSWBF2 MIOPTIONS purge_delay=1000 retry_on_oom=0 arena_reserve=67108864 arena_eager_commit=0 reserve_os_memory=0 page_full_retain=-1'
     $rjDigest = 'OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=1/2 snd=49.923 state=0x12345678'
     $rjRun = {
@@ -5570,7 +6278,8 @@ try {
     else { Write-Host "OK $n re-judge of an archived case gives the live verdict, with and without the case's stdout and with an incomplete stream" }
     $n++
     $why = $null
-    $d = & $rjRun 'flip' 'Dedicated' 'none' @('dedicated') $null
+    $rjTrace = (@(100, 1500) | ForEach-Object { "OPENSWBF2 DIGEST TRACE turn=$_ state=0x12345678 rand=1/2" }) -join "`r`n"
+    $d = & $rjRun 'flip' 'Dedicated' 'none' @('dedicated') @{ dedicated = @{ Log = "$rjMio`r`n$rjTrace`r`n$rjDigest`r`nOPENSWBF2 RUN COMPLETE`r`n" } }
     $exp = Join-Path $rjTmp 'digest-expected.txt'
     $oldExp = $env:OPENSWBF2_DIGEST_EXPECTED
     try {
@@ -6299,5 +7008,76 @@ try {
 }
 catch { $failed++; Write-Host "FAILED: item exclude block threw: $_" }
 finally { Remove-Item -LiteralPath $exTmp -Recurse -Force -ErrorAction SilentlyContinue }
+try {
+    $tpErrs = $null
+    $tpAst = [Management.Automation.Language.Parser]::ParseFile($run, [ref]$null, [ref]$tpErrs)
+    $tpRows = @()
+    $tpCalls = @($tpAst.FindAll({ param($x) $x -is [Management.Automation.Language.CommandAst] }, $true))
+    foreach ($c in $tpCalls) {
+        $els = @($c.CommandElements)
+        $kind = $null
+        if ($c.GetCommandName() -ceq 'Join-Path') { continue }
+        if ($c.GetCommandName() -ceq 'Invoke-TableCapture') { $kind = 'capture' }
+        elseif ($c.Extent.Text.Contains('compare-tables.ps1')) { $kind = 'compare' }
+        elseif ($c.Extent.Text.Contains('capture-vs2013.ps1') -and -not $c.Extent.Text.Contains('@captureArgs')) { $kind = 'capture-direct' }
+        if (-not $kind) { continue }
+        $tpArgs = & {
+            $Platform = 'x64'
+            $outDir = 'o'; $tablesDir = 't'; $luaDir = 'l'; $offDir = 'f'; $hardDir = 'h'; $testsDir = 'tests'
+            $list = @()
+            foreach ($e in $els[1..($els.Count - 1)]) {
+                if ($e -is [Management.Automation.Language.CommandParameterAst]) { $list += $e.Extent.Text }
+                elseif ($e -is [Management.Automation.Language.StringConstantExpressionAst]) { $list += $e.Value }
+                else { $list += @(& ([scriptblock]::Create($e.Extent.Text))) }
+            }
+            $list
+        }
+        $tpArgs = @($tpArgs | ForEach-Object { [string]$_ })
+        $ok = $false
+        for ($i = 0; $i -lt $tpArgs.Count - 1; $i++) { if ($tpArgs[$i] -ceq '-Platform' -and $tpArgs[$i + 1] -ceq 'x64') { $ok = $true } }
+        $tpRows += New-Object PSObject -Property @{ Kind = $kind; Line = $c.Extent.StartLineNumber; Ok = $ok }
+    }
+    $tpBad = @($tpRows | Where-Object { -not $_.Ok } | ForEach-Object { "$($_.Kind) at run.ps1:$($_.Line)" })
+    $tpCap = @($tpRows | Where-Object { $_.Kind -ceq 'capture' }).Count
+    $tpCmp = @($tpRows | Where-Object { $_.Kind -ceq 'compare' }).Count
+    if (@($tpErrs).Count -or $tpCap -lt 4 -or $tpCmp -lt 4 -or $tpBad.Count) { $failed++; Write-Host "FAILED ${n}: run.ps1 passes -Platform x64 to every table capture and compare of an x64 run: captures=$tpCap compares=$tpCmp missing: $($tpBad -join ', ')" }
+    else { Write-Host "OK $n run.ps1 passes -Platform x64 to every table capture ($tpCap) and compare ($tpCmp) of an x64 run" }
+}
+catch { $failed++; Write-Host "FAILED ${n}: run.ps1 table platform block threw: $_" }
+$n++
+$stTmp = Join-Path $env:TEMP ('openswbf2-steamparam-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $stTmp | Out-Null
+try {
+    $stStub = Join-Path $stTmp 'stub.cmd'
+    Set-Content -Path $stStub -Value ("@echo off`r`n" + $list + "`r`n" + $onePass + "`r`nexit /b 0") -Encoding ASCII
+    $env:OPENSWBF2_TEST_EXE = $stStub
+    $stOut = (& powershell -NoProfile -File $run -Platform $Platform -NoBuild -Smoke None -Suite unit 2>&1 | Out-String)
+    $stCode = $LASTEXITCODE
+    $stWhy = $null
+    $stDir = [regex]::Match($stOut, '(?m)^Artifacts: (.+?)\r?$')
+    if ($stCode -ne 0 -or -not $stDir.Success) { $stWhy = "the stub run gave exit $stCode without an artifacts folder: $stOut" }
+    else {
+        $stParams = [IO.File]::ReadAllLines((Join-Path $stDir.Groups[1].Value 'run-params.txt'))
+        $stKeys = @($stParams | Where-Object { $_ -cmatch '^steam=' })
+        if ($stKeys.Count -ne 1 -or $stKeys[0] -cnotmatch '^steam=(yes|no)$') { $stWhy = "run-params.txt has $($stKeys.Count) steam lines: $($stKeys -join ', ')" }
+        Remove-Item -LiteralPath $stDir.Groups[1].Value -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if (-not $stWhy) {
+        $stOld = & $rjRun 'steam-absent' 'Dedicated' 'none' @('dedicated') $null
+        $stRj = & $rjJudge $stOld
+        $stHas = @([IO.File]::ReadAllLines((Join-Path $stOld 'run-params.txt')) | Where-Object { $_ -cmatch '^steam=' }).Count
+        if ($stHas -ne 0) { $stWhy = 'the old-format fixture folder has a steam line' }
+        elseif ($stRj.Code -ne 0 -or $stRj.Text -notmatch '(?m)^\[PASS\] smoke:dedicated ') { $stWhy = "re-judge of a folder without steam= gave exit $($stRj.Code): $($stRj.Out)" }
+    }
+    if ($stWhy) { $failed++; Write-Host "FAILED ${n}: run-params records steam=yes|no and re-judge accepts a folder without it: $stWhy" }
+    else { Write-Host "OK $n run-params records steam=yes|no at run start and re-judge accepts a folder without it" }
+}
+catch { $failed++; Write-Host "FAILED ${n}: steam run-params block threw: $_" }
+finally {
+    Remove-Item Env:\OPENSWBF2_TEST_EXE -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $stTmp -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $rjTmp -Recurse -Force -ErrorAction SilentlyContinue
+}
+$n++
 if ($failed -gt 0) { exit 1 }
 exit 0

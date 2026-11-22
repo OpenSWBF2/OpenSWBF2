@@ -120,7 +120,7 @@ function Run-Smoke([string]$wt, [string]$tag, $case, [Parameter(Mandatory = $tru
             $argLine = $case.Args.Replace('{CASEDIR}', $caseDir)
             $asanOptions = $null
             if ($config -eq 'Asan') { $asanOptions = Get-AsanOptions $caseDir }
-            $res = Invoke-SmokeCase $case.Name (Join-Path $runDir 'BattlefrontII.exe') $runDir $argLine $caseDir $asanOptions
+            $res = Invoke-SmokeCaseSteps $case.Name (Join-Path $runDir 'BattlefrontII.exe') $runDir $argLine $caseDir $asanOptions @(Get-SmokeThenSteps $case $caseDir '' ($config -eq 'Asan'))
         }
         finally { Remove-HarnessTree $runDir }
     }

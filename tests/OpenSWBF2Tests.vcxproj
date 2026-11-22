@@ -160,11 +160,25 @@
     <ClCompile Include="..\src\Battlefront2\Source\LuaMatrixArg.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaHandleArg.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\LuaSaveItems.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Platform\Pc\pcSaveDevice.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Platform\Pc\pcSaveFile.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\SaveFile.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\ProfileCRC.cpp" />
+    <ClCompile Include="..\src\ZlibFL\adler32.c" />
+    <ClCompile Include="..\src\ZlibFL\compress.c" />
+    <ClCompile Include="..\src\ZlibFL\crc32.c" />
+    <ClCompile Include="..\src\ZlibFL\deflate.c" />
+    <ClCompile Include="..\src\ZlibFL\inffast.c" />
+    <ClCompile Include="..\src\ZlibFL\inflate.c" />
+    <ClCompile Include="..\src\ZlibFL\inftrees.c" />
+    <ClCompile Include="..\src\ZlibFL\trees.c" />
+    <ClCompile Include="..\src\ZlibFL\zutil.c" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemory.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Memory\RedMemoryMi.cpp" />
     <ClCompile Include="..\src\mimalloc\src\static.c">
       <CompileAs>CompileAsCpp</CompileAs>
       <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)..\src;$(MSBuildThisFileDirectory)..\src\mimalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>MI_PAGE_CACHE_OFFSET=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">MI_DEBUG=2;MI_SECURE=0;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">MI_DEBUG=0;MI_SECURE=4;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)'=='Test'">MI_DEBUG=1;MI_SECURE=4;MI_NO_GETENV=1;MI_USE_RTLGENRANDOM;%(PreprocessorDefinitions)</PreprocessorDefinitions>

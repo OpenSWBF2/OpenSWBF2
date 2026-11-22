@@ -1,10 +1,15 @@
 #include "third_party/doctest/doctest.h"
 
+#include <windows.h>
+
+#include <stdint.h>
 #include <string.h>
 #include <vector>
 
 #include "Battlefront2/Source/LuaSaveItems.h"
 #include "LuaFL/include/lua.h"
+#include "testutil.h"
+#include "unit/lua_save_pins.h"
 
 namespace
 {
@@ -50,6 +55,96 @@ void CheckReadRejected(lua_State* L, const unsigned char* pData, unsigned int uS
     CHECK(LuaSaveItems::Read(L, pData, uSize) == 0);
     CHECK(lua_gettop(L) == iTop);
 }
+
+}
+
+const unsigned char kPinnedItems[] =
+{
+    0x05, 0x01, 0x01, 0x03, 0x00, 0x00, 0x20, 0x40, 0x04, 0x70, 0x6c, 0x61,
+    0x6e, 0x65, 0x74, 0x00, 0x05, 0x04, 0x72, 0x65, 0x73, 0x00, 0x03, 0x00,
+    0x00, 0x20, 0x42, 0x03, 0x00, 0x00, 0x40, 0x40, 0x04, 0x74, 0x68, 0x72,
+    0x65, 0x65, 0x00, 0x04, 0x68, 0x61, 0x6e, 0x64, 0x6c, 0x65, 0x00, 0x02,
+    0x78, 0x56, 0x34, 0x12, 0x04, 0x6e, 0x65, 0x73, 0x74, 0x65, 0x64, 0x00,
+    0x05, 0x03, 0x00, 0x00, 0x80, 0x3f, 0x02, 0x78, 0x56, 0x34, 0x12, 0x04,
+    0x64, 0x65, 0x65, 0x70, 0x00, 0x03, 0x00, 0x00, 0xe0, 0x40, 0x00, 0x00,
+    0x02, 0x78, 0x56, 0x34, 0x12
+};
+
+void* FixedLightUserdata()
+{
+    return reinterpret_cast<void*>(static_cast<uintptr_t>(0x12345678u));
+}
+
+void PushPinnedItems(lua_State* L)
+{
+    lua_pushboolean(L, 1);
+    lua_pushnumber(L, 2.5);
+    lua_pushstring(L, "planet");
+    lua_newtable(L);
+    lua_pushstring(L, "res");
+    lua_pushnumber(L, 40.0);
+    lua_rawset(L, -3);
+    lua_pushnumber(L, 3.0);
+    lua_pushstring(L, "three");
+    lua_rawset(L, -3);
+    lua_pushstring(L, "handle");
+    lua_pushlightuserdata(L, FixedLightUserdata());
+    lua_rawset(L, -3);
+    lua_pushstring(L, "nested");
+    lua_newtable(L);
+    lua_pushstring(L, "deep");
+    lua_pushnumber(L, 7.0);
+    lua_rawset(L, -3);
+    lua_pushnumber(L, 1.0);
+    lua_pushlightuserdata(L, FixedLightUserdata());
+    lua_rawset(L, -3);
+    lua_rawset(L, -3);
+    lua_pushlightuserdata(L, FixedLightUserdata());
+}
+
+namespace
+{
+
+class GuardedBytes
+{
+public:
+    GuardedBytes()
+    {
+        SYSTEM_INFO kInfo;
+        GetSystemInfo(&kInfo);
+        mPage = kInfo.dwPageSize;
+        mpBase = static_cast<unsigned char*>(VirtualAlloc(0, mPage * 2, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+        DWORD uOld = 0;
+        mbOk = mpBase && VirtualProtect(mpBase + mPage, mPage, PAGE_NOACCESS, &uOld);
+    }
+
+    ~GuardedBytes()
+    {
+        if (mpBase)
+        {
+            VirtualFree(mpBase, 0, MEM_RELEASE);
+        }
+    }
+
+    bool Ok() const
+    {
+        return mbOk;
+    }
+
+    const unsigned char* Place(const unsigned char* pData, size_t uSize)
+    {
+        unsigned char* pDest = mpBase + mPage - uSize;
+        memcpy(pDest, pData, uSize);
+        return pDest;
+    }
+
+private:
+    GuardedBytes(const GuardedBytes&);
+    GuardedBytes& operator=(const GuardedBytes&);
+    unsigned char* mpBase;
+    size_t mPage;
+    bool mbOk;
+};
 
 }
 
@@ -223,7 +318,7 @@ TEST_CASE("lua save items read rejects malformed buffers" * doctest::test_suite(
     vKeys.push_back(1);
     vKeys.push_back(LUA_TTABLE);
     vKeys.push_back(LUA_TLIGHTUSERDATA);
-    vKeys.insert(vKeys.end(), sizeof(void*), 0x41);
+    vKeys.insert(vKeys.end(), sizeof(unsigned int), 0x41);
     vKeys.push_back(LUA_TBOOLEAN);
     vKeys.push_back(1);
     vKeys.push_back(LUA_TNUMBER);
@@ -250,5 +345,92 @@ TEST_CASE("lua save items read rejects malformed buffers" * doctest::test_suite(
 
     CHECK(lua_gettop(L) == 1);
     CHECK(strcmp(lua_tostring(L, 1), "sentinel") == 0);
+    lua_close(L);
+}
+
+TEST_CASE("lua save items match pinned x86 bytes" * doctest::test_suite("regression"))
+{
+    lua_State* L = lua_open();
+    REQUIRE(L != (lua_State*)0);
+
+    PushPinnedItems(L);
+    REQUIRE(lua_gettop(L) == 5);
+    std::vector<unsigned char> vBuffer(256, 0);
+    const unsigned int uWritten = LuaSaveItems::Write(L, &vBuffer[0], (unsigned int)vBuffer.size());
+    CHECK(uWritten == sizeof(kPinnedItems));
+    CHECK(memcmp(&vBuffer[0], kPinnedItems, sizeof(kPinnedItems)) == 0);
+    for (size_t i = sizeof(kPinnedItems); i < vBuffer.size(); ++i)
+    {
+        INFO(i);
+        CHECK(vBuffer[i] == 0);
+    }
+
+    lua_settop(L, 0);
+    GuardedBytes kGuard;
+    REQUIRE(kGuard.Ok());
+    CHECK(LuaSaveItems::Read(L, kGuard.Place(kPinnedItems, sizeof(kPinnedItems)), sizeof(kPinnedItems)) == 5);
+    REQUIRE(lua_gettop(L) == 5);
+    CHECK(lua_type(L, 1) == LUA_TBOOLEAN);
+    CHECK(lua_toboolean(L, 1) != 0);
+    CHECK(lua_tonumber(L, 2) == 2.5);
+    CHECK(lua_type(L, 3) == LUA_TSTRING);
+    CHECK(strcmp(lua_tostring(L, 3), "planet") == 0);
+    REQUIRE(lua_type(L, 4) == LUA_TTABLE);
+    CHECK(CountPairs(L, 4) == 3);
+    CHECK(GetFieldNumber(L, 4, "res") == 40.0);
+    CHECK(GetFieldType(L, 4, "handle") == LUA_TNIL);
+    lua_pushnumber(L, 3.0);
+    lua_rawget(L, 4);
+    CHECK(lua_type(L, -1) == LUA_TSTRING);
+    CHECK(strcmp(lua_tostring(L, -1), "three") == 0);
+    lua_pop(L, 1);
+    lua_pushstring(L, "nested");
+    lua_rawget(L, 4);
+    REQUIRE(lua_type(L, -1) == LUA_TTABLE);
+    CHECK(CountPairs(L, lua_gettop(L)) == 1);
+    CHECK(GetFieldNumber(L, lua_gettop(L), "deep") == 7.0);
+    lua_pop(L, 1);
+    CHECK(lua_type(L, 5) == LUA_TNIL);
+
+    lua_settop(L, 0);
+    lua_pushstring(L, "sentinel");
+    for (unsigned int uSize = 0; uSize < sizeof(kPinnedItems); ++uSize)
+    {
+        INFO(uSize);
+        CheckReadRejected(L, kGuard.Place(kPinnedItems, uSize), uSize);
+    }
+    CHECK(lua_gettop(L) == 1);
+
+    lua_close(L);
+}
+
+TEST_CASE("lua save items load logs one line per rejected save" * doctest::test_suite("regression"))
+{
+    lua_State* L = lua_open();
+    REQUIRE(L != (lua_State*)0);
+    const unsigned short ausName[] = { 'R', 'e', 'b', 'e', 'l', '1', 0 };
+    const char acLine[] = "OPENSWBF2 SAVE rejected metagame save \"Rebel1\"";
+
+    {
+        LogCapture kCapture;
+        CHECK(LuaSaveItems::Load(L, kPinnedItems, sizeof(kPinnedItems), "metagame", ausName) == 5);
+        CHECK(kCapture.Count("OPENSWBF2 SAVE") == 0);
+    }
+    lua_settop(L, 0);
+
+    {
+        LogCapture kCapture;
+        CHECK(LuaSaveItems::Load(L, kPinnedItems, sizeof(kPinnedItems) - 2, "metagame", ausName) == 0);
+        CHECK(lua_gettop(L) == 0);
+        CHECK(kCapture.Count(acLine) == 1);
+        CHECK(kCapture.Count("OPENSWBF2 SAVE") == 1);
+    }
+
+    {
+        LogCapture kCapture;
+        CHECK(LuaSaveItems::Load(L, kPinnedItems, 0, "mission setup", 0) == 0);
+        CHECK(kCapture.Count("OPENSWBF2 SAVE rejected mission setup save \"\"") == 1);
+    }
+
     lua_close(L);
 }

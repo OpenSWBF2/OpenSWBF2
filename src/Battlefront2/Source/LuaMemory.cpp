@@ -74,7 +74,6 @@ void NoteLuaSpill(unsigned int uiSize)
         }
     }
 }
-
 }
 
 unsigned int LuaMemory::GetSpillCount(unsigned int uiBin)
@@ -99,6 +98,7 @@ void LuaMemory::LogMemReportLines()
             LOG(LogMemory, Inform, "%s", acLine);
         }
     }
+    LogLuaHistLines();
 }
 
 bool LuaMemory::FormatLuaSpillLine(int iBin, unsigned int uCount, char* pcOut, unsigned int uSize)
@@ -112,17 +112,17 @@ bool LuaMemory::FormatLuaSpillLine(int iBin, unsigned int uCount, char* pcOut, u
     return iLen >= 0 && (unsigned int)iLen < uSize;
 }
 #endif
-
+namespace { extern MemPoolInfo sMissionPoolInfo64[48]; }
 // FUNCTION: SWBF2 0x005a15d0
 void LuaMemory::CreatePools(bool bMission)
 {
 #ifdef OPENSWBF2_TEST
-    memset(suLuaSpill, 0, sizeof(suLuaSpill));
+    LuaMemory::ResetTestCounters();
 #endif
     int iOldHeap = RedSetCurrentHeap(GameMemory::LuaHeap);
     RedAllocFromHeap(iOldHeap, 4, 0);
 
-    MemPoolInfo* pInfo = bMission ? gGamePoolInfo : gShellPoolInfo;
+    MemPoolInfo* pInfo = sizeof(void*) == 8 && !bMission ? sMissionPoolInfo64 : bMission ? gGamePoolInfo : gShellPoolInfo;
     MemoryPool** ppPool = gPools;
     int iLeft = 48;
     int iIndex = 0;
@@ -189,7 +189,7 @@ void Lua_Red_Free(void* pBlock, unsigned int uiSize)
     {
         return;
     }
-
+    LuaMemory::NoteHistFree(uiSize);
     MemoryPool* pPool = LuaMemory::LocatePool(uiSize, pBlock);
     if (pPool)
     {
@@ -222,7 +222,7 @@ void* Lua_Red_realloc(void* pBlock, unsigned int uiOldSize, unsigned int uiNewSi
             gLuaUsedMemory, LuaMemory::gLuaNumBlocks, uiNewSize);
         return 0;
     }
-
+    LuaMemory::NoteHistAlloc(uiNewSize, bHeapToHeap, uiOldSize);
     if (pBlock)
     {
         if (bHeapToHeap)
@@ -276,4 +276,107 @@ void LuaMemory::Reset()
     gLuaUsedMemory = 0;
     LuaMemory::gLuaNumBlocks = 0;
     memset(gPoolInfo, 0, sizeof(gPoolInfo));
+}
+
+#ifdef OPENSWBF2_TEST
+namespace
+{
+
+int siLuaHistLive[LuaMemory::kLuaHistRows];
+unsigned int suLuaHistPeak[LuaMemory::kLuaHistRows];
+unsigned int suLuaHistCalls[LuaMemory::kLuaHistRows];
+
+}
+
+void LuaMemory::ResetTestCounters()
+{
+    memset(suLuaSpill, 0, sizeof(suLuaSpill));
+    memset(siLuaHistLive, 0, sizeof(siLuaHistLive));
+    memset(suLuaHistPeak, 0, sizeof(suLuaHistPeak));
+    memset(suLuaHistCalls, 0, sizeof(suLuaHistCalls));
+}
+
+unsigned int LuaMemory::LuaHistRow(unsigned int uiSize)
+{
+    if (uiSize > kLuaHistMaxBin * 4)
+    {
+        return kLuaHistMaxBin + 1;
+    }
+    return (uiSize + 3) >> 2;
+}
+
+void LuaMemory::NoteHistAlloc(unsigned int uiNewSize, bool bOldFreed, unsigned int uiOldSize)
+{
+    unsigned int uRow = LuaHistRow(uiNewSize);
+    ++suLuaHistCalls[uRow];
+    ++siLuaHistLive[uRow];
+    if (siLuaHistLive[uRow] > (int)suLuaHistPeak[uRow])
+    {
+        suLuaHistPeak[uRow] = (unsigned int)siLuaHistLive[uRow];
+    }
+    if (bOldFreed)
+    {
+        NoteHistFree(uiOldSize);
+    }
+}
+
+void LuaMemory::NoteHistFree(unsigned int uiSize)
+{
+    --siLuaHistLive[LuaHistRow(uiSize)];
+}
+
+unsigned int LuaMemory::GetHistPeak(unsigned int uRow)
+{
+    return uRow < kLuaHistRows ? suLuaHistPeak[uRow] : 0;
+}
+
+unsigned int LuaMemory::GetHistCalls(unsigned int uRow)
+{
+    return uRow < kLuaHistRows ? suLuaHistCalls[uRow] : 0;
+}
+
+bool LuaMemory::FormatLuaHistLine(unsigned int uRow, unsigned int uPeak, unsigned int uCalls, char* pcOut,
+                                  unsigned int uSize)
+{
+    if (!pcOut || uSize == 0 || uRow >= kLuaHistRows)
+    {
+        return false;
+    }
+    int iLen = uRow > kLuaHistMaxBin
+                   ? _snprintf(pcOut, uSize, "OPENSWBF2 MEMREPORT luahist bin=over peak=%u calls=%u", uPeak, uCalls)
+                   : _snprintf(pcOut, uSize, "OPENSWBF2 MEMREPORT luahist bin=%u peak=%u calls=%u", uRow, uPeak,
+                               uCalls);
+    pcOut[uSize - 1] = 0;
+    return iLen >= 0 && (unsigned int)iLen < uSize;
+}
+
+void LuaMemory::LogLuaHistLines()
+{
+    char acLine[96];
+    for (unsigned int i = 0; i < kLuaHistRows; ++i)
+    {
+        if (suLuaHistCalls[i] != 0 && FormatLuaHistLine(i, suLuaHistPeak[i], suLuaHistCalls[i], acLine, sizeof(acLine)))
+        {
+            LOG(LogMemory, Inform, "%s", acLine);
+        }
+    }
+}
+#endif
+
+namespace
+{
+MemPoolInfo sMissionPoolInfo64[48] = {
+    {  2945,  20, 0 }, {   719, 224, 0 }, {   899, 112, 0 }, {  1730,   8, 0 },
+    {   472,  56, 0 }, {   574, 448, 0 }, {  1682,  12, 0 }, {   139,  28, 0 },
+    {   876,  30, 0 }, {   743,   9, 0 }, {   661,  11, 0 }, {   774,  10, 0 },
+    {   254,  15, 0 }, {   453,  13, 0 }, {   437,  14, 0 }, {   175,   7, 0 },
+    {   200,  16, 0 }, {    71,   4, 0 }, {    99,  24, 0 }, {    52,  22, 0 },
+    {    69,  18, 0 }, {    46,  23, 0 }, {    49,  17, 0 }, {    71,  26, 0 },
+    {    42,  21, 0 }, {    93,   1, 0 }, {    50,  19, 0 }, {    40,   6, 0 },
+    {    34,  25, 0 }, {    63,  32, 0 }, {    37,   5, 0 }, {    41,  27, 0 },
+    {    23,   2, 0 }, {    49,  64, 0 }, {    37,  52, 0 }, {    22,   3, 0 },
+    {    33,  44, 0 }, {    32,  40, 0 }, {    32,  48, 0 }, {    32,  36, 0 },
+    {    24,  60, 0 }, {    17,  68, 0 }, {    18,  72, 0 }, {    16,  92, 0 },
+    {    15,  80, 0 }, {    14,  96, 0 }, {    15,  76, 0 }, {    12, 108, 0 },
+};
 }

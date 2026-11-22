@@ -270,14 +270,30 @@ TEST_CASE("lua realloc keeps the pad test hook on the heap path" * doctest::test
 TEST_CASE("lua mission bin table is the re-tuned one" * doctest::test_suite("regression"))
 {
     LuaMemory::CreatePools(false);
-    const unsigned int auBins[4] = { 8, 56, 10, 28 };
-    const unsigned int auCounts[4] = { 743, 2662, 4589, 2102 };
-    for (int i = 0; i < 4; ++i)
+    const unsigned int auBins86[4] = { 8, 56, 10, 28 };
+    const unsigned int auCounts86[4] = { 743, 2662, 4589, 2102 };
+    const unsigned int auBins64[48] = {
+        20, 224, 112, 8, 56, 448, 12, 28, 30, 9, 11, 10,
+        15, 13, 14, 7, 16, 4, 24, 22, 18, 23, 17, 26,
+        21, 1, 19, 6, 25, 32, 5, 27, 2, 64, 52, 3,
+        44, 40, 48, 36, 60, 68, 72, 92, 80, 96, 76, 108
+    };
+    const unsigned int auCounts64[48] = {
+        2945, 719, 899, 1730, 472, 574, 1682, 139, 876, 743, 661, 774,
+        254, 453, 437, 175, 200, 71, 99, 52, 69, 46, 49, 71,
+        42, 93, 50, 40, 34, 63, 37, 41, 23, 49, 37, 22,
+        33, 32, 32, 32, 24, 17, 18, 16, 15, 14, 15, 12
+    };
+    const bool bWide = sizeof(void*) == 8;
+    const unsigned int* puBins = bWide ? auBins64 : auBins86;
+    const unsigned int* puCounts = bWide ? auCounts64 : auCounts86;
+    const int iEntries = bWide ? 48 : 4;
+    for (int i = 0; i < iEntries; ++i)
     {
-        CAPTURE(auBins[i]);
-        MemoryPool* pPool = LuaMemory::LocatePool(auBins[i] * 4, 0);
+        CAPTURE(puBins[i]);
+        MemoryPool* pPool = LuaMemory::LocatePool(puBins[i] * 4, 0);
         REQUIRE(pPool);
-        CHECK(pPool->mCount == auCounts[i]);
+        CHECK(pPool->mCount == puCounts[i]);
     }
     CHECK(!LuaMemory::LocatePool(320 * 4, 0));
     LuaMemory::Reset();
@@ -294,3 +310,115 @@ TEST_CASE("lua shell bin table is unchanged" * doctest::test_suite("regression")
     CHECK(pLast->mCount == 33);
     LuaMemory::Reset();
 }
+
+#ifdef OPENSWBF2_TEST
+extern MemPoolInfo gGamePoolInfo[48];
+extern MemPoolInfo gShellPoolInfo[48];
+
+TEST_CASE("lua demand histogram bound covers twice every bin" * doctest::test_suite("regression"))
+{
+    CHECK(LuaMemory::kLuaHistMaxBin == 640);
+    CHECK(LuaMemory::kLuaHistRows == 642);
+    for (int i = 0; i < 48; ++i)
+    {
+        CAPTURE(i);
+        CHECK(2u * gGamePoolInfo[i].mBin <= LuaMemory::kLuaHistMaxBin);
+        CHECK(2u * gShellPoolInfo[i].mBin <= LuaMemory::kLuaHistMaxBin);
+    }
+    CHECK(LuaMemory::LuaHistRow(0) == 0);
+    CHECK(LuaMemory::LuaHistRow(1) == 1);
+    CHECK(LuaMemory::LuaHistRow(4) == 1);
+    CHECK(LuaMemory::LuaHistRow(5) == 2);
+    CHECK(LuaMemory::LuaHistRow(2557) == 640);
+    CHECK(LuaMemory::LuaHistRow(2560) == 640);
+    CHECK(LuaMemory::LuaHistRow(2561) == 641);
+    CHECK(LuaMemory::LuaHistRow(0xFFFFFFFEu) == 641);
+    CHECK(LuaMemory::LuaHistRow(0xFFFFFFFFu) == 641);
+}
+
+TEST_CASE("lua demand histogram counts peak and calls per bin" * doctest::test_suite("regression"))
+{
+    ExpectLog expect("Lua out of memory");
+    MiLuaHeap kHeap;
+    {
+        FillGuard guard(GameMemory::LuaHeap, 0);
+        CHECK(!Lua_Red_realloc(0, 0, 2000));
+    }
+    void* pA = Lua_Red_realloc(0, 0, 32);
+    void* pB = Lua_Red_realloc(0, 0, 29);
+    void* pC = Lua_Red_realloc(0, 0, 30);
+    REQUIRE(pA);
+    REQUIRE(pB);
+    REQUIRE(pC);
+    CHECK(LuaMemory::LocatePool(32, pA));
+    Lua_Red_Free(pA, 32);
+    void* pB2 = Lua_Red_realloc(pB, 29, 40);
+    REQUIRE(pB2);
+    CHECK(LuaMemory::LocatePool(40, pB2));
+    void* pH = Lua_Red_realloc(0, 0, 2000);
+    REQUIRE(pH);
+    CHECK(!LuaMemory::LocatePool(2000, pH));
+    void* pH2 = Lua_Red_realloc(pH, 2000, 1500);
+    REQUIRE(pH2);
+    void* pH3 = Lua_Red_realloc(pH2, 1500, 2560);
+    REQUIRE(pH3);
+    void* pH4 = Lua_Red_realloc(pH3, 2560, 2561);
+    REQUIRE(pH4);
+    void* pP = Lua_Red_realloc(0, 0, 2000);
+    REQUIRE(pP);
+    void* pP2 = Lua_Red_realloc(pP, 2000, 32);
+    REQUIRE(pP2);
+    CHECK(LuaMemory::LocatePool(32, pP2));
+    void* pQ = Lua_Red_realloc(0, 0, 2000);
+    void* pQ2 = Lua_Red_realloc(0, 0, 1999);
+    REQUIRE(pQ);
+    REQUIRE(pQ2);
+    Lua_Red_Free(pQ, 2000);
+    Lua_Red_Free(pQ2, 1999);
+    Lua_Red_Free(pC, 30);
+    Lua_Red_Free(pP2, 32);
+    Lua_Red_Free(pB2, 40);
+    Lua_Red_Free(pH4, 2561);
+    LuaMemory::NoteHistAlloc(0xFFFFFFFEu, false, 0);
+    LuaMemory::NoteHistFree(0xFFFFFFFEu);
+    void* pLast = Lua_Red_realloc(0, 0, 31);
+    REQUIRE(pLast);
+    Lua_Red_Free(pLast, 31);
+
+    const unsigned int auRow[6] = { 8, 10, 375, 500, 640, 641 };
+    const unsigned int auPeak[6] = { 3, 1, 1, 2, 1, 1 };
+    const unsigned int auCalls[6] = { 5, 1, 1, 4, 1, 2 };
+    for (int i = 0; i < 6; ++i)
+    {
+        CAPTURE(auRow[i]);
+        CHECK(LuaMemory::GetHistPeak(auRow[i]) == auPeak[i]);
+        CHECK(LuaMemory::GetHistCalls(auRow[i]) == auCalls[i]);
+    }
+    unsigned int uRows = 0;
+    unsigned int uCalls = 0;
+    for (unsigned int i = 0; i < 642; ++i)
+    {
+        if (LuaMemory::GetHistCalls(i) != 0)
+        {
+            ++uRows;
+        }
+        uCalls += LuaMemory::GetHistCalls(i);
+    }
+    CHECK(uRows == 6);
+    CHECK(uCalls == 14);
+    CHECK(LuaMemory::GetHistCalls(0) == 0);
+    CHECK(LuaMemory::GetHistCalls(642) == 0);
+    {
+        LogCapture capture;
+        LuaMemory::LogMemReportLines();
+        CHECK(capture.Contains("OPENSWBF2 MEMREPORT luahist bin=8 peak=3 calls=5"));
+        CHECK(capture.Contains("OPENSWBF2 MEMREPORT luahist bin=500 peak=2 calls=4"));
+        CHECK(capture.Contains("OPENSWBF2 MEMREPORT luahist bin=over peak=1 calls=2"));
+        CHECK(capture.Count("OPENSWBF2 MEMREPORT luahist ") == 6);
+    }
+    LuaMemory::Reset();
+    LuaMemory::CreatePools(true);
+    CHECK(LuaMemory::GetHistCalls(8) == 0);
+    CHECK(LuaMemory::GetHistPeak(8) == 0);
+}
+#endif

@@ -109,8 +109,8 @@ TEST_CASE("game projects together compile every game TU exactly once" * doctest:
             ++uiCount;
         }
     }
-    CHECK(uiCount == 788);
-    CHECK(kSeen.size() == 788);
+    CHECK(uiCount == 789);
+    CHECK(kSeen.size() == 789);
 }
 
 TEST_CASE("adler32 links only from unzip.cpp as the one copy in the retail exe" * doctest::test_suite("regression"))

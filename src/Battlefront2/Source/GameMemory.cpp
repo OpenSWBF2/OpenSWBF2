@@ -159,18 +159,20 @@ void GameMemory::BuildHeaps(bool bMission)
         LOG(LogMemory, Inform, "OPENSWBF2 COMMIT state=%s bytes=%Iu", bMission ? "mission" : "shell",
             kCounters.PagefileUsage);
 #ifdef OPENSWBF2_TEST
-        if (bCrt && bArena && bParts)
+        unsigned int uGameVm = 0;
+        const bool bGameVm = bArena && RedVmLedgerCommitted((const void*)uArena, uArenaSize, &uGameVm);
+        if (bCrt && bArena && bParts && bGameVm)
         {
             LOG(LogMemory, Inform,
                 "OPENSWBF2 COMMITPARTS state=%s private=%u gamecrt=%u heaps=%u threads=%u threadcount=%u arena=%u "
-                "crtbusy=%u crtcommitted=%u crtlarge=%u",
+                "crtbusy=%u crtcommitted=%u crtlarge=%u gamevm=%u",
                 bMission ? "mission" : "shell", uPrivate, uGameCrt, uHeapsCommitted, uThreadsCommitted, uThreads,
-                uArenaCommitted, uCrtBusy, uCrtCommitted, uCrtLarge);
+                uArenaCommitted, uCrtBusy, uCrtCommitted, uCrtLarge, uGameVm);
         }
         else
         {
-            LOG(LogMemory, Error, "OPENSWBF2 COMMITPARTS state=%s crt=%d arena=%d parts=%d failed",
-                bMission ? "mission" : "shell", bCrt ? 1 : 0, bArena ? 1 : 0, bParts ? 1 : 0);
+            LOG(LogMemory, Error, "OPENSWBF2 COMMITPARTS state=%s crt=%d arena=%d parts=%d failed gamevm=%d",
+                bMission ? "mission" : "shell", bCrt ? 1 : 0, bArena ? 1 : 0, bParts ? 1 : 0, bGameVm ? 1 : 0);
         }
 #endif
     }

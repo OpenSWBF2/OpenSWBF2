@@ -1607,3 +1607,104 @@ extern "C" void RedResetOffThreadStats()
     _InterlockedExchange(&sOffDropped, 0);
 }
 #endif
+
+#ifdef OPENSWBF2_TEST
+namespace
+{
+const unsigned int kVmLedgerMax = 4096;
+const void* sapVmLedger[kVmLedgerMax];
+unsigned int suVmLedger;
+bool sbVmLedgerLost;
+SRWLOCK skVmLedgerLock = SRWLOCK_INIT;
+
+const void* VmAllocationBase(const void* p)
+{
+    MEMORY_BASIC_INFORMATION kInfo;
+    if (p == 0 || VirtualQuery(p, &kInfo, sizeof(kInfo)) != sizeof(kInfo) || kInfo.State == MEM_FREE)
+    {
+        return 0;
+    }
+    return kInfo.AllocationBase;
+}
+}
+
+extern "C" void RedVmLedgerAdd(const void* p)
+{
+    const void* pBase = VmAllocationBase(p);
+    if (pBase == 0)
+    {
+        return;
+    }
+    AcquireSRWLockExclusive(&skVmLedgerLock);
+    bool bFound = false;
+    for (unsigned int i = 0; i < suVmLedger && !bFound; ++i)
+    {
+        bFound = sapVmLedger[i] == pBase;
+    }
+    if (!bFound && suVmLedger == kVmLedgerMax)
+    {
+        sbVmLedgerLost = true;
+    }
+    else if (!bFound)
+    {
+        sapVmLedger[suVmLedger++] = pBase;
+    }
+    ReleaseSRWLockExclusive(&skVmLedgerLock);
+}
+
+extern "C" void RedVmLedgerRemove(const void* p)
+{
+    const void* pBase = VmAllocationBase(p);
+    if (pBase == 0)
+    {
+        return;
+    }
+    AcquireSRWLockExclusive(&skVmLedgerLock);
+    for (unsigned int i = 0; i < suVmLedger; ++i)
+    {
+        if (sapVmLedger[i] == pBase)
+        {
+            sapVmLedger[i] = sapVmLedger[--suVmLedger];
+            break;
+        }
+    }
+    ReleaseSRWLockExclusive(&skVmLedgerLock);
+}
+
+extern "C" bool RedVmLedgerCommitted(const void* pSkip, size_t uSkipSize, unsigned int* puBytes)
+{
+    if (puBytes == 0)
+    {
+        return false;
+    }
+    const char* pcSkip = (const char*)pSkip;
+    unsigned int uBytes = 0;
+    AcquireSRWLockShared(&skVmLedgerLock);
+    const bool bOk = !sbVmLedgerLost;
+    for (unsigned int i = 0; bOk && i < suVmLedger; ++i)
+    {
+        const char* pcBase = (const char*)sapVmLedger[i];
+        if (pcSkip != 0 && pcBase >= pcSkip && pcBase < pcSkip + uSkipSize)
+        {
+            continue;
+        }
+        const char* pCur = pcBase;
+        MEMORY_BASIC_INFORMATION kInfo;
+        while (VirtualQuery(pCur, &kInfo, sizeof(kInfo)) == sizeof(kInfo) && kInfo.AllocationBase == pcBase)
+        {
+            if (kInfo.State == MEM_COMMIT)
+            {
+                uBytes += (unsigned int)kInfo.RegionSize;
+            }
+            pCur = (const char*)kInfo.BaseAddress + kInfo.RegionSize;
+        }
+    }
+    ReleaseSRWLockShared(&skVmLedgerLock);
+    if (!bOk)
+    {
+        return false;
+    }
+    *puBytes = uBytes;
+    return true;
+}
+#endif

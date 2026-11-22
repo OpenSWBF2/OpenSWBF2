@@ -1,8 +1,11 @@
 #include "LuaSaveItems.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include "LuaFL/include/lauxlib.h"
+#include "PebbleFL/Common/PblUnicode.h"
+#include "RedEngineFL/Util/RedLog.h"
 
 namespace LuaSaveItems
 {
@@ -56,8 +59,8 @@ static int WriteLuaItem(lua_State* L, unsigned char* pOut, const unsigned char* 
     }
     case LUA_TLIGHTUSERDATA:
     {
-        void const* pValue = lua_topointer(L, -1);
-        bOk = WriteBytes(pWrite, pEnd, &pValue, sizeof(pValue));
+        const unsigned int uValue = static_cast<unsigned int>(reinterpret_cast<uintptr_t>(lua_topointer(L, -1)));
+        bOk = WriteBytes(pWrite, pEnd, &uValue, sizeof(uValue));
         break;
     }
     case LUA_TNUMBER:
@@ -139,11 +142,11 @@ static int ReadLuaItem(lua_State* L, const unsigned char* pData, const unsigned 
         lua_pushboolean(L, *pRead++ != 0);
         break;
     case LUA_TLIGHTUSERDATA:
-        if ((size_t)(pEnd - pRead) < sizeof(void*))
+        if ((size_t)(pEnd - pRead) < sizeof(unsigned int))
         {
             return -1;
         }
-        pRead += sizeof(void*);
+        pRead += sizeof(unsigned int);
         lua_pushnil(L);
         break;
     case LUA_TNUMBER:
@@ -268,6 +271,22 @@ int Read(lua_State* L, const unsigned char* pData, unsigned int uSize)
             return 0;
         }
         uRead += iItem;
+    }
+    return iCount;
+}
+
+int Load(lua_State* L, const unsigned char* pData, unsigned int uSize, const char* pcType,
+         const unsigned short* pusName)
+{
+    const int iCount = Read(L, pData, uSize);
+    if (!iCount)
+    {
+        char acName[128] = {};
+        if (pusName)
+        {
+            PblUnicode::ustrncnv(acName, pusName, sizeof(acName) - 1);
+        }
+        LOG(LogLua, Warning, "OPENSWBF2 SAVE rejected %s save \"%s\"", pcType, acName);
     }
     return iCount;
 }

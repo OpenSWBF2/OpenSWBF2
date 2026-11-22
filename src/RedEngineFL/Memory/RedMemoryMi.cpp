@@ -23,6 +23,9 @@ static volatile LONG salMiResBits[kMiResPages / 32];
 static volatile LONG* volatile sapMiResLeaf[kMiResLeaves];
 static void* volatile spMiFirstBase;
 static size_t suMiFirstSize;
+static void* volatile spMiRegion;
+static const uintptr_t kMiMapRange = (uintptr_t)1 << 29;
+static const size_t kMiRegionBytes = 0x10000000;
 static bool sbMiCreateFails;
 #if defined(__SANITIZE_ADDRESS__)
 static const int kMiAreasFirst = 64;
@@ -82,9 +85,15 @@ static volatile LONG* MiResLeaf(uintptr_t uIdx, bool bCreate)
     {
         return 0;
     }
+#ifdef OPENSWBF2_TEST
+    RedVmLedgerAdd(pNew);
+#endif
     void* pOld = InterlockedCompareExchangePointer((void* volatile*)&sapMiResLeaf[uLeaf], pNew, 0);
     if (pOld != 0)
     {
+#ifdef OPENSWBF2_TEST
+        RedVmLedgerRemove(pNew);
+#endif
         VirtualFree(pNew, 0, MEM_RELEASE);
         return (volatile LONG*)pOld;
     }
@@ -500,6 +509,40 @@ static void mi_cdecl MiError(int err, void* arg)
     check(err == 0);
 }
 
+static void MiReserveRegion()
+{
+    if (sizeof(void*) <= 4 || spMiRegion != 0)
+    {
+        return;
+    }
+    for (int iTry = 0; iTry < 4; ++iTry)
+    {
+        void* pProbe = VirtualAlloc(0, kMiMapRange + kMiRegionBytes, MEM_RESERVE, PAGE_NOACCESS);
+        if (pProbe == 0)
+        {
+            return;
+        }
+        void* pWant = (void*)RedMiArenaRegionStart((uintptr_t)pProbe, kMiRegionBytes);
+        VirtualFree(pProbe, 0, MEM_RELEASE);
+        void* pRegion = VirtualAlloc(pWant, kMiRegionBytes, MEM_RESERVE, PAGE_READWRITE);
+        if (pRegion == 0)
+        {
+            continue;
+        }
+        if (!mi_manage_os_memory_ex(pRegion, kMiRegionBytes, false, false, true, -1, false, 0))
+        {
+            VirtualFree(pRegion, 0, MEM_RELEASE);
+            return;
+        }
+        spMiRegion = pRegion;
+        if (InterlockedCompareExchangePointer(&spMiFirstBase, pRegion, 0) == 0)
+        {
+            suMiFirstSize = kMiRegionBytes;
+        }
+        return;
+    }
+}
+
 void RedMiConfigure(long lPurgeMs)
 {
     mi_option_set(mi_option_purge_delay, lPurgeMs);
@@ -510,6 +553,7 @@ void RedMiConfigure(long lPurgeMs)
     mi_option_set(mi_option_show_errors, 1);
     mi_option_set(mi_option_max_errors, -1);
     mi_register_error(MiError, 0);
+    MiReserveRegion();
 }
 
 static void MiLogLine(const char* pcLine, int iLen, void* pArg)
@@ -589,4 +633,20 @@ bool RedMiFirstArena(uintptr_t* puBase, size_t* puSize)
 void RedMiTrim()
 {
     mi_collect(true);
+}
+
+uintptr_t RedMiArenaRegionStart(uintptr_t uProbe, size_t uSize)
+{
+    return (uProbe + uSize - 1) & ~(uintptr_t)(uSize - 1);
+}
+
+bool RedMiArenaRegion(uintptr_t* puBase, size_t* puSize)
+{
+    if (spMiRegion == 0 || puBase == 0 || puSize == 0)
+    {
+        return false;
+    }
+    *puBase = (uintptr_t)spMiRegion;
+    *puSize = kMiRegionBytes;
+    return true;
 }

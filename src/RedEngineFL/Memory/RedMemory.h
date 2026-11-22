@@ -69,6 +69,9 @@ extern "C"
     bool RedRangeCommitted(const void* pStart, unsigned int uSize, unsigned int* puCommitted);
     bool RedCommitParts(unsigned int* puPrivate, unsigned int* puHeaps, unsigned int* puThreads,
                         unsigned int* puThreadCount, void (*pfnBeforeWalk)(void*), void* pArg);
+    void RedVmLedgerAdd(const void* p);
+    void RedVmLedgerRemove(const void* p);
+    bool RedVmLedgerCommitted(const void* pSkip, size_t uSkipSize, unsigned int* puBytes);
 #endif
 
     extern int maxheaps;

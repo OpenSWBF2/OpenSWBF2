@@ -29,6 +29,33 @@ bool FormatLuaSpillLine(int iBin, unsigned int uCount, char* pcOut, unsigned int
 unsigned int GetSpillCount(unsigned int uiBin);
 
 void LogMemReportLines();
+
+const unsigned int kLuaHistMaxBin = 640;
+const unsigned int kLuaHistRows = kLuaHistMaxBin + 2;
+
+unsigned int LuaHistRow(unsigned int uiSize);
+
+bool FormatLuaHistLine(unsigned int uRow, unsigned int uPeak, unsigned int uCalls, char* pcOut, unsigned int uSize);
+
+unsigned int GetHistPeak(unsigned int uRow);
+
+unsigned int GetHistCalls(unsigned int uRow);
+
+void NoteHistAlloc(unsigned int uiNewSize, bool bOldFreed, unsigned int uiOldSize);
+
+void NoteHistFree(unsigned int uiSize);
+
+void LogLuaHistLines();
+
+void ResetTestCounters();
+#else
+inline void NoteHistAlloc(unsigned int, bool, unsigned int)
+{
+}
+
+inline void NoteHistFree(unsigned int)
+{
+}
 #endif
 
 }

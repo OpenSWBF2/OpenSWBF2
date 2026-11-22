@@ -65,8 +65,8 @@ struct DenseList
     unsigned int mCount;
 };
 
-DenseList<StickInfo, RedScriptLimits::kPoolBytesMax / sizeof(StickInfo)> sSticks;
-DenseList<CollisionObject, RedScriptLimits::kPoolBytesMax / sizeof(EntityMine)> sMines;
+DenseList<StickInfo, kStickListCapacity> sSticks;
+DenseList<CollisionObject, kMineListCapacity> sMines;
 
 }
 

@@ -530,7 +530,7 @@ TEST_CASE("lua handle sites route through validation" * doctest::test_suite("reg
         { "src\\Battlefront2\\Source\\FLEffect.cpp", "FLEffectObject::sLuaHandles.Clear();" },
         { "src\\RedEngineFL\\Interface\\RedInterfaceElement.cpp", "sLuaHandles.Remove(this);" },
         { "src\\RedEngineFL\\Interface\\RedInterfaceElement.cpp", "sLuaHandles.Clear();" },
-        { "src\\Battlefront2\\Source\\LuaSaveItems.cpp", "pRead += sizeof(void*);" },
+        { "src\\Battlefront2\\Source\\LuaSaveItems.cpp", "pRead += sizeof(unsigned int);" },
         { "src\\Battlefront2\\Source\\LuaSaveItems.cpp", "if (lua_isnil(L, -2))" },
     };
     for (size_t i = 0; i < sizeof(akLines) / sizeof(akLines[0]); ++i)
@@ -562,7 +562,7 @@ TEST_CASE("lua handle sites route through validation" * doctest::test_suite("reg
     const std::string sLoadSave = ReadSource("src\\Battlefront2\\Source\\LuaCallbacks_LoadSave.cpp");
     CHECK(HandleCountOf(sLoadSave, "lua_pushlightuserdata") == 0);
     CHECK(HandleCountOf(sLoadSave, "LuaSaveItems::Write(") == 1);
-    CHECK(HandleCountOf(sLoadSave, "LuaSaveItems::Read(") == 1);
+    CHECK(HandleCountOf(sLoadSave, "LuaSaveItems::Load(") == 1);
     const std::string sSaveItems = ReadSource("src\\Battlefront2\\Source\\LuaSaveItems.cpp");
     CHECK(HandleCountOf(sSaveItems, "lua_pushlightuserdata") == 0);
 }

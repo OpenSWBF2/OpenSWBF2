@@ -2,6 +2,7 @@
 
 #include <limits.h>
 #include <string.h>
+#include <string>
 
 #include "testutil.h"
 #include "Battlefront2/Source/GameMemory.h"
@@ -41,8 +42,8 @@ TEST_CASE("script clamp bounds negative and huge values" * doctest::test_suite("
     CHECK(capture.Count("SetHeapCap(t1neg): script value -2147483648 clamped to 0") == 1);
     CHECK(ClampScriptSize(kSetMemoryPoolSize, "t1minus", -0x100000000LL, 16) == 0);
     CHECK(capture.Count("SetMemoryPoolSize(t1minus): script value -4294967296 clamped to 0") == 1);
-    CHECK(ClampScriptSize(kSetMemoryPoolSize, "t1huge", 0x7FFFFFFF, 16) == kPoolBytesMax / 16);
-    CHECK(capture.Count("SetMemoryPoolSize(t1huge): script value 2147483647 clamped to 1048576") == 1);
+    CHECK(ClampScriptSize(kSetMemoryPoolSize, "t1huge", 0x7FFFFFFF, 16) == kPoolEntryBytesMax / 16);
+    CHECK(capture.Count((std::string("SetMemoryPoolSize(t1huge): script value 2147483647 clamped to ") + std::to_string(kPoolEntryBytesMax / 16)).c_str()) == 1);
     CHECK(ClampScriptSize(kSetupTempHeap, "t1tmin", 0, 1) == kTempHeapMin);
     CHECK(capture.Count("SetupTempHeap(t1tmin): script value 0 clamped to 4096") == 1);
     CHECK(ClampScriptSize(kSetupTempHeap, "t1tmax", 0x7FFFFFFF, 1) == kTempHeapMax);
@@ -84,6 +85,7 @@ TEST_CASE("script ceilings respect the runtime heap" * doctest::test_suite("regr
     CHECK(IsPowerOfTwo(kPoolBytesMax));
     CHECK(IsPowerOfTwo(kTempHeapMax));
     CHECK(kPoolBytesMax < uRuntime);
+    CHECK(kPoolEntryBytesMax < uRuntime);
     CHECK(kTempHeapMax < uRuntime);
     CHECK(kTempHeapMin < kTempHeapMax);
     CHECK(kArtistStealMax == GameMemory::kArtistHeapSize);
@@ -293,7 +295,7 @@ TEST_CASE("set memory pool size clamps script count" * doctest::test_suite("regr
     {
         LogCapture capture;
         CallSetPoolSize(L, "t1clamp", 2147483647.0f);
-        CHECK(kPool.GetCount() == kPoolBytesMax / 16);
+        CHECK(kPool.GetCount() == kPoolEntryBytesMax / 16);
         CHECK(capture.Count("clamped") == 1);
     }
     {
@@ -313,9 +315,9 @@ TEST_CASE("set memory pool size clamps with the rounded pool size" * doctest::te
     lua_State* L = OpenScriptState();
     LogCapture capture;
     CallSetPoolSize(L, "t1oddsize", 2147483647.0f);
-    CHECK(kPool.GetCount() == kPoolBytesMax / 16);
-    CHECK(PoolBytesOk(kPool.GetCount(), (kPool.GetSize() + 3) & ~3u, kPoolBytesMax));
-    CHECK(capture.Count("SetMemoryPoolSize(t1oddsize): script value 2147483647 clamped to 1048576") == 1);
+    CHECK(kPool.GetCount() == kPoolEntryBytesMax / 16);
+    CHECK(PoolBytesOk(kPool.GetCount(), (kPool.GetSize() + 3) & ~3u, kPoolEntryBytesMax));
+    CHECK(capture.Count((std::string("SetMemoryPoolSize(t1oddsize): script value 2147483647 clamped to ") + std::to_string(kPoolEntryBytesMax / 16)).c_str()) == 1);
     lua_close(L);
 }
 
@@ -337,11 +339,11 @@ TEST_CASE("set memory pool size label abi" * doctest::test_suite("regression"))
         CHECK(kLight.GetCount() == 65);
         CallSetPoolSize3(L, "EntityLight", 5.0f, 7.0f);
         CHECK(kLight.GetCount() == 7);
-        const unsigned int uMax = kPoolBytesMax / 16;
+        const unsigned int uMax = kPoolEntryBytesMax / 16;
         LogCapture capture;
         CallSetPoolSize(L, "EntityLight", (float)(uMax - 10));
         CHECK(kLight.GetCount() == uMax);
-        CHECK(capture.Count("SetMemoryPoolSize(EntityLight): script value 1048626 clamped to 1048576") == 1);
+        CHECK(capture.Count((std::string("SetMemoryPoolSize(EntityLight): script value ") + std::to_string(uMax + 50) + " clamped to " + std::to_string(uMax)).c_str()) == 1);
     }
     {
         MemoryPool kWeapon("t1weapon", 16);
@@ -668,19 +670,17 @@ TEST_CASE("add walker type clamps script counts" * doctest::test_suite("regressi
         LogCapture capture;
         CallAddWalkerType(L, 1.0f, 268435456.0f, &kWalker, &kLegPair, &kBlend, &kBlendUnit, &kDroideka);
         CHECK(capture.Count("clamped") == 4);
-        CHECK(capture.Count("OPENSWBF2 SCRIPTMEM entry=AddWalkerType label=t1walker requested=268435459 "
-                            "applied=1048576 pool=t1walker")
-              == 1);
+        CHECK(capture.Count((std::string("OPENSWBF2 SCRIPTMEM entry=AddWalkerType label=t1walker requested=268435459 applied=") + std::to_string(kPoolEntryBytesMax / 16) + " pool=t1walker").c_str()) == 1);
     }
-    CHECK(kWalker.GetCount() == kPoolBytesMax / 16);
-    CHECK(kLegPair.GetCount() == kPoolBytesMax / 32);
-    CHECK(kBlend.GetCount() == kPoolBytesMax / 64);
-    CHECK(kBlendUnit.GetCount() == kPoolBytesMax / 8);
+    CHECK(kWalker.GetCount() == kPoolEntryBytesMax / 16);
+    CHECK(kLegPair.GetCount() == kPoolEntryBytesMax / 32);
+    CHECK(kBlend.GetCount() == kPoolEntryBytesMax / 64);
+    CHECK(kBlendUnit.GetCount() == kPoolEntryBytesMax / 8);
     CHECK(kDroideka.GetCount() == 0);
     CallAddWalkerType(L, 0.0f, 4.0f, &kWalker, &kLegPair, &kBlend, &kBlendUnit, &kDroideka);
     CHECK(kDroideka.GetCount() == 4);
-    CHECK(kWalker.GetCount() == kPoolBytesMax / 16);
-    CHECK(kBlendUnit.GetCount() == kPoolBytesMax / 8);
+    CHECK(kWalker.GetCount() == kPoolEntryBytesMax / 16);
+    CHECK(kBlendUnit.GetCount() == kPoolEntryBytesMax / 8);
     lua_close(L);
 }
 
