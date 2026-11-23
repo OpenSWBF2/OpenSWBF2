@@ -34,7 +34,7 @@ This builds the tests, then runs each case in its own process and the Standard s
 | `-SmokeConfiguration` | game build used for smoke runs (default `Release`, or `Test`/`Asan` to match `-Configuration`) |
 | `-Soak` | `Short` (default, turn 9300) or `Long` (turn 617300): where `-Smoke All` ends its `TimeOut` missions |
 | `-Jobs N` | parallel smoke workers (default: half the logical processors, at most 8) |
-| `-Movies` | run with the renderer instead of `-norender` |
+| `-Movies` | run with the renderer and `-handsoff` instead of `-norender` |
 | `-HogAddrSpace` | force the first allocator region above 2 GB |
 | `-FactoryLog` | pass `-factorylog` to every smoke case, so each run logs its `OPENSWBF2 FACTORY` counts |
 | `-MiPurge` | pass `-mipurge <ms>` to every smoke case; the expected `OPENSWBF2 MIOPTIONS` line then carries `purge_delay=<ms>` |
@@ -62,7 +62,7 @@ Every case runs in a clean worker folder under `artifacts\smoke-workers\<Platfor
 
 | Group | What it runs |
 |-------|--------------|
-| `Standard` | geo1c_con, `heapcap`, the display-switch cases, the digest cases and `novictory-con`; the display-switch cases that check only start-up lines end at turn 1 (`-soakturns 1`); Test and Asan builds add `repeat-water` (`nab2g_c -repeatmission`, both turn-1500 digests equal); Asan adds `asan-hot1g_con` and `asan-spa3c_ass` |
+| `Standard` | geo1c_con, `heapcap`, the display-switch cases, the digest cases, `novictory-con` and `sound-on` (geo1c_con with sound on to turn 300); Test builds also run `render-sound-on`, the same run rendered; the display-switch cases that check only start-up lines end at turn 1 (`-soakturns 1`); Test and Asan builds add `repeat-water` (`nab2g_c -repeatmission`, both turn-1500 digests equal); Asan adds `asan-hot1g_con` and `asan-spa3c_ass` |
 | `Twice` | the same missions twice with a fixed seed; the results and digest traces must match |
 | `Dedicated` | dedicated-server cases |
 | `Crash` | deliberate faults through `-crashtest <kind>`, including `crash-capexhaust`, `pool-full`, `pool-full-strict`, `crash-stall` (a supervised hang the harness reports and the game dumps), `crash-delayload` and its x64 twin `crash-delayload-x64` (a Steam call with `steam_api.dll` or `steam_api64.dll` absent; the FATAL line names the DLL), `crash-early` and `crash-heapinit` (faults before the command line is parsed and during heap start-up); each must leave the expected exit code, log line and dump; on x64 `crash-nullderef` runs under `-hogaddrspace` and its dump's exception address, module and offset must equal the FATAL line's |
@@ -70,7 +70,7 @@ Every case runs in a clean worker folder under `artifacts\smoke-workers\<Platfor
 | `Perturb` | Test or Asan only: seven digest missions, each as a base run, under `-perturbheap` pad/fill/pool (one seed per mission, 1 and 2 alternating down the list), `-hogaddrspace` and `-repeatmission`; each run is traced for the whole mission (nab2g_c, which never ends, to turn 100000) and every turn must equal its base line for line; writes `perturb.tsv` |
 | `Soak` | `asan-soak`: nab2g_c run to turn 815800 with `-soakturns`, for the long ASan run; no other group holds it |
 | `Vendor` | start-up runs with every vendor DLL present, or with one removed or swapped for one of the wrong bitness; each service turned off must log exactly one `OPENSWBF2 VENDOR <service> off` Warning; Win32 runs pass at turn 1, x64 runs end at the `-crashtest fastfail` carrier right after the probe; `vendor-wan-nogalaxy` starts an online dedicated server without `Galaxy.dll` and must exit 1 with a FATAL line naming `-lan` |
-| `Boot` | headless boot: on both platforms the shell, ended after 300 updates (x64 under `-hogaddrspace`); on x64 also hot1g_con, tat2g_eli and nab2g_c to turn 1500 under `-hogaddrspace` |
+| `Boot` | headless boot: on both platforms the shell, ended after 300 updates, and `boot-sound-on`, geo1c_con with sound on to turn 300 (x64 under `-hogaddrspace`); on x64 also hot1g_con, tat2g_eli and nab2g_c to turn 1500 under `-hogaddrspace` |
 
 A case fails on any Error, Bug or Fatal line in its `run.log` unless a regex in `tests\smoke\expected-errors.txt` covers it. In T1, declare an expected error with `ExpectLog("text")` or `ExpectEnsure("text")`.
 
@@ -98,9 +98,11 @@ When a state has ended and the next one builds its heaps, the game logs `OPENSWB
 
 `-exitonmovieclose` (Test and Asan builds only, with `-exitongameover`) ends the run once the mission is running and a Bink movie has closed (`OPENSWBF2 MOVIE close`). The Test Standard group runs `campaign-movies`, `nab2g_c` with rendering and sound on and this switch, which must log `OPENSWBF2 MOVIE open`, `OPENSWBF2 MOVIE close` and, in the exit report, `OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0`.
 
+`-handsoff` (Test and Asan builds only) keeps a rendered run off the desktop: it never moves or clips the cursor, reads no real input and does not activate its window. It also skips the single-instance check, so rendered runs can run side by side, and it never writes `vidmode.ini`. Every rendered smoke case and `soundon.ps1` pass it and must log neither `OPENSWBF2 CURSOR warp` nor `OPENSWBF2 FOCUS activated`.
+
 `-digestdetail <turn>` (Test and Asan builds only) logs `OPENSWBF2 DETAIL turn=<t> ...` lines for that turn and the next two: the mission time, then each character's, team's, command post's and world object's fields that the sim digest hashes, floats as raw bits. It does not change the digest. The Win32 Test Standard group runs it as `digest-detail` on geo1c_con, which must keep the geo1c_con digest.
 
-Other builds skip `-perturbheap`, its value, `-repeatmission`, `-shellfirst`, `-exitonmovieclose` and `-digestdetail` with its value, and log `-<switch> needs a Test or Asan build, ignored`.
+Other builds skip `-perturbheap`, its value, `-repeatmission`, `-shellfirst`, `-exitonmovieclose`, `-handsoff` and `-digestdetail` with its value, and log `-<switch> needs a Test or Asan build, ignored`.
 
 x86 and x64 builds compute the same headless simulation and log the same digests. The join handshake has no field that identifies the build or its bitness, so a host accepts a peer of the other platform without a check. Mixed x86 and x64 network play is not supported until the protocol carries a build field and a two-peer x86/x64 test exists.
 

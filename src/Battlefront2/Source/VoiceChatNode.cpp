@@ -13,7 +13,7 @@
 #include "GameVoiceChat.h"
 
 #include "GameVoiceChatNode.h"
-#include "RedEngineFL/Memory/RedAlign.h"
+#include "VoiceChatLayout.h"
 
 static_assert(alignof(VoiceChat::Node::ReceiveStream) <= alignof(void*)
                   && sizeof(VoiceChat::Node::ReceiveStream) % alignof(VoiceChat::AudioPacket) == 0,
@@ -103,24 +103,21 @@ bool VoiceChat::Node::OpenStatic(Transport* transport, float fSeconds, float fA,
     VoiceChat::Node::sReadHeader.mSize = uiBitmapBytes;
     VoiceChat::Node::sWriteHeader.mSize = uiBitmapBytes;
 
-    const unsigned int uiMetricsBytes = sizeof(ReceiveMetrics) + sizeof(SendMetrics);
-    const unsigned int uiSize = uiNodes * uiMetricsBytes + ((uiBitmapBytes + 3) >> 2) * 8;
-
-    char* p = (char*)VoiceChat::Alloc(uiSize);
+    char* p = (char*)VoiceChat::Alloc(VoiceChatLayout::NodeStaticBlockSize(uiNodes, uiBitmapBytes));
     VoiceChat::Node::sReadHeader.mBitmap = (unsigned char*)p;
     VoiceChat::Node::sReadHeader.mBits = 0;
     VoiceChat::Node::sWriteHeader.mBits = 0;
 
     if (p)
     {
-        char* pSecond = p + ((VoiceChat::Node::sReadHeader.mSize + 3) >> 2) * 4;
-        VoiceChat::Node::sWriteHeader.mBitmap = (unsigned char*)pSecond;
+        const VoiceChatLayout::NodeStaticCarve kCarve = VoiceChatLayout::CarveNodeStatic(uiNodes, uiBitmapBytes);
+        VoiceChat::Node::sWriteHeader.mBitmap = (unsigned char*)(p + kCarve.uWriteBitmap);
 
-        char* pPerNode = pSecond + ((VoiceChat::Node::sWriteHeader.mSize + 3) >> 2) * 4;
+        char* pPerNode = p + kCarve.uReceiveMetrics;
         VoiceChat::Node::sReceiveMetrics = (ReceiveMetrics*)pPerNode;
-        VoiceChat::Node::sSendMetrics = (SendMetrics*)(pPerNode + uiNodes * sizeof(ReceiveMetrics));
+        VoiceChat::Node::sSendMetrics = (SendMetrics*)(p + kCarve.uSendMetrics);
 
-        memset(VoiceChat::Node::sReadHeader.mBitmap, 0, VoiceChat::Node::sWriteHeader.mSize + uiNodes * uiMetricsBytes + VoiceChat::Node::sReadHeader.mSize);
+        memset(VoiceChat::Node::sReadHeader.mBitmap, 0, kCarve.uiClearBytes);
 
         VoiceChat::Node::sTime = 0;
         VoiceChat::Node::sBufferSizeMs = (1.0f / fSeconds) * 2.0f * 1000.0f;
@@ -216,17 +213,16 @@ bool VoiceChat::Node::Open(unsigned int captureDeviceIndex, unsigned int renderD
 
             const unsigned int uiBytes = mEncoder->GetMaxOutputPacketSizeBytes();
             const unsigned char uiNodes = ((const VoiceChat::Transport*)(VoiceChat::Node::sTransport))->GetNumNodes();
-            const unsigned int uiAlignedBytes = (uiBytes + 3u) & ~3u;
+            const unsigned int uiAlignedBytes = VoiceChatLayout::AlignedBytes(uiBytes);
 
-            const unsigned int uiPacketBytes = sizeof(AudioPacket);
-            const unsigned int uiStreamBytes = sizeof(ReceiveStream);
-            mReceiveStreams = (ReceiveStream*)VoiceChat::Alloc(
-                ((uiAlignedBytes + uiPacketBytes) * uiPackets + uiStreamBytes + 4u) * uiNodes + 0x0Cu);
+            mReceiveStreams = (ReceiveStream*)VoiceChat::Alloc(VoiceChatLayout::NodeBlockSize(uiNodes, uiPackets, uiBytes));
 
             if (mReceiveStreams)
             {
-                AudioPacket* pPackets = (AudioPacket*)(mReceiveStreams + uiNodes);
-                unsigned char* pData = (unsigned char*)RedAlignUp(pPackets + uiPackets * uiNodes, 4u);
+                char* const pBlock = (char*)mReceiveStreams;
+                const VoiceChatLayout::NodeCarve kCarve = VoiceChatLayout::CarveNode(pBlock, uiNodes, uiPackets, uiBytes);
+                AudioPacket* pPackets = (AudioPacket*)(pBlock + kCarve.uPackets);
+                unsigned char* pData = (unsigned char*)(pBlock + kCarve.uData);
 
                 mIsOpen = true;
                 mEncoderPacketSizeSec = fSeconds;
@@ -265,7 +261,7 @@ bool VoiceChat::Node::Open(unsigned int captureDeviceIndex, unsigned int renderD
                     }
                 }
 
-                mAllocatedInputs = (unsigned char*)pData;
+                mAllocatedInputs = (unsigned char*)(pBlock + kCarve.uAllocatedInputs);
                 for (unsigned char b = 0; b < mNumDecoderInputs; ++b)
                 {
                     mAllocatedInputs[b] = (unsigned char)0xFF;

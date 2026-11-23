@@ -66,7 +66,7 @@ int gSaveTestMode;
 int gSaveTestType;
 char gSaveTestName[16];
 static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", "shellfirst", "exitonmovieclose",
-    "digestdetail", "savetest" };
+    "digestdetail", "savetest", "handsoff" };
 // GLOBAL: SWBF2 0x007e6310
 int gBootLaggerPing = 300;
 
@@ -693,6 +693,12 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
         if (_stricmp(apcArgv[i] + 1, "exitonmovieclose") == 0)
         {
             NoteTestOnlyArg(3);
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "handsoff") == 0)
+        {
+            NoteTestOnlyArg(6);
             continue;
         }
 

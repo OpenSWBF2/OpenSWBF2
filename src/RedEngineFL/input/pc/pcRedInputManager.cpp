@@ -178,7 +178,7 @@ RedMouse* GetMouse(unsigned char ucPort)
 static bool RealInputAllowed()
 {
 #ifdef OPENSWBF2_TEST
-    return !pcCrash::ExitOnMovieCloseRequested();
+    return !pcCrash::HandsOffRequested();
 #else
     return true;
 #endif

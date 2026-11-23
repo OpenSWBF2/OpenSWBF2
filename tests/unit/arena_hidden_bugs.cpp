@@ -158,3 +158,57 @@ TEST_CASE("hud item set name after an aliased name keeps the display name valid"
     CHECK(bDisplayRead);
     CHECK(bNameKept);
 }
+
+TEST_CASE("snddsbufferrenderer reset gain copies the target gain (source pin)" * doctest::test_suite("regression"))
+{
+    std::string sSource = ReadRepoTextLf("src\\SoundFL\\source\\win\\snddsbufferrenderer.cpp");
+    const size_t uiStart = sSource.find("void DSBufferRenderer::ResetGain()\n{\n");
+    REQUIRE(uiStart != std::string::npos);
+    const size_t uiEnd = sSource.find("\n}\n", uiStart);
+    REQUIRE(uiEnd != std::string::npos);
+    const std::string sBody = sSource.substr(uiStart, uiEnd - uiStart);
+    CHECK(CountText(sBody, "    for (unsigned int i = 0; i < mNumChannels; ++i)\n"
+                           "    {\n"
+                           "        mGainCurrent[i] = mGainTarget[i];\n"
+                           "    }") == 1);
+    CHECK(CountText(sBody, "[i - ") == 0);
+    CHECK(CountText(sBody, "mGainCurrent[") == 1);
+}
+
+TEST_CASE("voice chat encoder closes its source before freeing its buffers (source pin)" * doctest::test_suite("regression"))
+{
+    std::string sSource = ReadRepoTextLf("src\\Battlefront2\\Source\\GameVoiceChatEncoder.cpp");
+    const size_t uiStart = sSource.find("void GameVoiceChat::Encoder::Close()\n{\n");
+    REQUIRE(uiStart != std::string::npos);
+    const size_t uiEnd = sSource.find("\n}\n", uiStart);
+    REQUIRE(uiEnd != std::string::npos);
+    const std::string sBody = sSource.substr(uiStart, uiEnd - uiStart);
+    CHECK(CountText(sBody, "mSource.Close();") == 1);
+    CHECK(CountText(sBody, "mEncoder.SetPackets(0, 0, 0);") == 1);
+    CHECK(CountText(sBody, "FreeBuffers();") == 1);
+    const size_t uiSourceClose = sBody.find("mSource.Close();");
+    const size_t uiDetach = sBody.find("mEncoder.SetPackets(0, 0, 0);");
+    const size_t uiFree = sBody.find("FreeBuffers();");
+    REQUIRE(uiSourceClose != std::string::npos);
+    REQUIRE(uiDetach != std::string::npos);
+    REQUIRE(uiFree != std::string::npos);
+    CHECK(uiSourceClose < uiFree);
+    CHECK(uiDetach < uiFree);
+}
+
+TEST_CASE("dsound wave format cbSize matches the struct passed (source pin)" * doctest::test_suite("regression"))
+{
+    std::string sSource = ReadRepoTextLf("src\\SoundFL\\source\\win\\snddsbuffer.cpp");
+    const size_t uiStart = sSource.find("DSBuffer::WaveFormat::WaveFormat(");
+    REQUIRE(uiStart != std::string::npos);
+    const size_t uiEnd = sSource.find("\n}\n", uiStart);
+    REQUIRE(uiEnd != std::string::npos);
+    const std::string sBody = sSource.substr(uiStart, uiEnd - uiStart);
+    const size_t uiTag = sBody.find("    Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;\n");
+    REQUIRE(uiTag != std::string::npos);
+    const std::string sExtensible = sBody.substr(uiTag);
+    CHECK(CountText(sExtensible,
+                    "    Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);\n") == 1);
+    CHECK(CountText(sExtensible, "cbSize") == 1);
+    CHECK(CountText(sBody, "cbSize = 40") == 0);
+}

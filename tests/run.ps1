@@ -105,11 +105,13 @@ if ($smokeActive) {
         $smokeCases = @($smokeCases | Where-Object { $_.Name -ceq $Case })
         if ($smokeCases.Count -ne 1) { Write-Host "-Case ${Case}: no such case in -Smoke $Smoke for $SmokeConfiguration on $Platform."; exit 2 }
     }
-    if ($asanSmoke) {
-        $asanRemoved = @($smokeCases | Where-Object { $script:SmokeAsanExcluded -contains $_.Name } | ForEach-Object { $_.Name })
-        $smokeCases = @($smokeCases | Where-Object { $script:SmokeAsanExcluded -notcontains $_.Name })
-        if ($asanRemoved.Count -gt 0) { Write-Host "INFO: ASan excludes: $($asanRemoved -join ', ')" }
+    $excludedNames = @(Get-SmokeExcluded $Platform $SmokeConfiguration)
+    foreach ($e in @(Get-SmokeExcludedEntries $Platform $SmokeConfiguration | Where-Object { @($smokeCases | ForEach-Object { $_.Name }) -ccontains $_.Case })) {
+        Write-Host "INFO: $($e.Case) excluded on $Platform $SmokeConfiguration, cause $($e.Cause)"
     }
+    $asanRemoved = @($smokeCases | Where-Object { $excludedNames -contains $_.Name } | ForEach-Object { $_.Name })
+    $smokeCases = @($smokeCases | Where-Object { $excludedNames -notcontains $_.Name })
+    if ($asanRemoved.Count -gt 0) { Write-Host "INFO: excludes: $($asanRemoved -join ', ')" }
     $workerCount = [Math]::Max(1, [Math]::Min($Jobs, $smokeCases.Count))
     if (-not $Rejudge) {
         try { $workDirs = @(Get-WorkerPaths $root $Platform $SmokeConfiguration 'smoke' $WorkerBase $workerCount) }

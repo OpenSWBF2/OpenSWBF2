@@ -569,7 +569,12 @@ function Invoke-GuardSmokeRow($r) {
         $out.Detail = "class=$($s.Class) dumps=$($s.Dumps)"
         if ($s.SkipReason) { $out.Result = 'SKIP'; $out.Detail = $s.SkipReason }
         elseif ($s.Ok) { $out.Result = 'STILL-GREEN' }
-        elseif ($r.RedRx -and $s.LogText -cnotmatch $r.RedRx) { $out.Result = 'WRONG-RED' }
+        elseif ($r.RedRx -or $r.RedFunction) {
+            $redMap = $(if ($r.RedFunction) { Join-Path $script:Wt "obj\$Platform\$cfg\BattlefrontII.map" } else { '' })
+            $redWhy = Get-GuardSmokeRedMismatch $r $s $redMap
+            if ($redWhy) { $out.Result = 'WRONG-RED'; $out.Detail += " - $redWhy" }
+            else { $out.Result = 'RED' }
+        }
         else { $out.Result = 'RED' }
     }
     if ($o.Result -eq 'SKIP') { Add-GuardSkip $r $o.Detail; return }

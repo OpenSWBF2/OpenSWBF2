@@ -15,6 +15,9 @@
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Memory/RedScriptLimits.h"
 #include "RedEngineFL/Util/RedLog.h"
+#include "SoundFL/source/sndenginebase.h"
+#include "SoundFL/source/win/sndstream.h"
+#include "SoundFL/source/win/sndvoice.h"
 
 namespace
 {
@@ -41,10 +44,10 @@ const EntryReason kPackedPeaks[] = {
     { "Combo::DamageSample", "C-COMBO-BLOCKS" },
 };
 
-const EntryReason kSoundFLOwned[] = {
-    { "Snd::EngineBase::smVoiceStorage", "Phase 50 AV-01" },
-    { "Snd::EngineBase::smStreamStorage", "Phase 50 AV-01" },
-};
+const unsigned int kX86Voices = 32u;
+const unsigned int kX86Streams = 6u;
+const unsigned int kX86VoiceStorageBytes = 0xA800u;
+const unsigned int kX86StreamStorageBytes = 0x1446A68u;
 
 struct RuntimeAllocSource
 {
@@ -450,10 +453,22 @@ TEST_CASE("pool capacities in entries" * doctest::test_suite("regression"))
     {
         CHECK_MESSAGE(kPackedSeen.count(kPackedPeaks[i].pcLabel) == 1, kPackedPeaks[i].pcLabel);
     }
-    for (size_t i = 0; i < sizeof(kSoundFLOwned) / sizeof(kSoundFLOwned[0]); ++i)
+    const unsigned int uVoices = Snd::EngineBase::kNumVoices;
+    const unsigned int uStreams = Snd::EngineBase::kNumStreams;
+    const unsigned int uVoiceBytes = uVoices * (unsigned int)sizeof(Snd::Voice);
+    const unsigned int uStreamBytes = uStreams * (unsigned int)sizeof(Snd::Stream);
+    char acVoices[160];
+    char acStreams[160];
+    snprintf(acVoices, sizeof(acVoices), "Snd::EngineBase::smVoiceStorage entries %u x86 entries %u bytes 0x%X", uVoices,
+             kX86Voices, uVoiceBytes);
+    snprintf(acStreams, sizeof(acStreams), "Snd::EngineBase::smStreamStorage entries %u x86 entries %u bytes 0x%X",
+             uStreams, kX86Streams, uStreamBytes);
+    CHECK_MESSAGE(uVoices >= kX86Voices, acVoices);
+    CHECK_MESSAGE(uStreams >= kX86Streams, acStreams);
+    if (!bX64)
     {
-        CHECK_MESSAGE(strcmp(kSoundFLOwned[i].pcReason, "Phase 50 AV-01") == 0, kSoundFLOwned[i].pcLabel);
-        CHECK_MESSAGE(kSizes.count(kSoundFLOwned[i].pcLabel) == 0, kSoundFLOwned[i].pcLabel);
+        CHECK_MESSAGE(uVoiceBytes == kX86VoiceStorageBytes, acVoices);
+        CHECK_MESSAGE(uStreamBytes == kX86StreamStorageBytes, acStreams);
     }
 
     for (std::map<std::string, std::pair<unsigned int, unsigned int> >::const_iterator it = kSizes.begin();

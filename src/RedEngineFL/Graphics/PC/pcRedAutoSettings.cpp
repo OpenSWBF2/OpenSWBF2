@@ -18,6 +18,8 @@
 #include "RedEngineFL/Memory/engineAlloc.h"
 #include <stdlib.h>
 #include "PebbleFL/Common/PblHashTable.h"
+#include "RedEngineFL/Util/RedLog.h"
+#include "Battlefront2/Source/pcCrash.h"
 
 extern HWND hGlobalWnd;
 extern bool g_bNoRender;
@@ -1101,6 +1103,18 @@ void VidMode_Init(IDirect3D9* pD3D)
         }
     }
 
+#ifdef OPENSWBF2_TEST
+    if (pcCrash::HandsOffRequested())
+    {
+        LOG(LogRender, Inform,
+            "OPENSWBF2 VIDMODE probed vendor=0x%04X device=0x%04X hint=0x%08X kept=%d save=skipped",
+            (unsigned int)identifier.VendorId, (unsigned int)identifier.DeviceId, m_MemoryHint,
+            VidConfig::GetConfig(identifier.VendorId, identifier.DeviceId, m_MemoryHint) == pConfig
+                ? 1
+                : 0);
+        return;
+    }
+#endif
     VidConfig::SaveConfigFile();
 }
 

@@ -2957,6 +2957,9 @@
     <ClInclude Include="src\Battlefront2\Source\VoiceChatNode.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\VoiceChatLayout.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\VoiceChatTransport.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>

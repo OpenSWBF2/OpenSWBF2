@@ -468,6 +468,52 @@ public static class StallStub
     $missing = @($excl | Where-Object { $allNames -notcontains $_ })
     if ($excl.Count -ne 26 -or $missing.Count -gt 0) { $failed++; Write-Host "FAILED ${n}: asan exclusions: count $($excl.Count), unknown '$($missing -join ', ')'" }
     else { Write-Host "OK $n asan exclusions name real smoke cases" }
+    $n++
+    $peJudge = {
+        param($entries, $global)
+        $keepEntries = $script:SmokeExcludedPlatform
+        $keepGlobal = $script:SmokeAsanExcluded
+        $script:SmokeExcludedPlatform = @($entries)
+        $script:SmokeAsanExcluded = @($global)
+        try {
+            if (@($entries).Count -ne 1) { return "holds $(@($entries).Count) platform exclusions" }
+            if ("$(@($entries)[0].Cause)" -cnotlike 'C-DSOUND-LFQUEUE-ASAN: *DSOUND LFQueue 43-bit pointer pack vs ASan heap >16 TB*') { return "cause is '$(@($entries)[0].Cause)'" }
+            foreach ($p in 'Win32', 'x64') {
+                foreach ($cfg in 'Debug', 'Release', 'Test', 'Asan') {
+                    $ex = @(Get-SmokeExcluded $p $cfg)
+                    $want = ($p -ceq 'x64' -and $cfg -ceq 'Asan')
+                    if (($ex -ccontains 'boot-sound-on') -ne $want) { return "boot-sound-on excluded is $(-not $want) on $p $cfg" }
+                    if ($ex -ccontains 'sound-on') { return "sound-on is excluded on $p $cfg" }
+                    $extra = @($ex | Where-Object { $_ -cne 'boot-sound-on' -and $keepGlobal -cnotcontains $_ })
+                    if ($extra.Count -gt 0) { return "$p $cfg also excludes $($extra -join ', ')" }
+                }
+            }
+            return $null
+        }
+        finally {
+            $script:SmokeExcludedPlatform = $keepEntries
+            $script:SmokeAsanExcluded = $keepGlobal
+        }
+    }
+    $peReal = @($script:SmokeExcludedPlatform)
+    $peGlobal = @($script:SmokeAsanExcluded)
+    $peWhy = & $peJudge $peReal $peGlobal
+    if (-not $peWhy -and $peReal.Count -eq 1) {
+        $peOne = $peReal[0]
+        $peMuts = @(
+            @('Win32', @([pscustomobject]@{ Platform = 'Win32'; Config = $peOne.Config; Case = $peOne.Case; Cause = $peOne.Cause }), $peGlobal),
+            @('Win32 too', @($peOne, [pscustomobject]@{ Platform = 'Win32'; Config = $peOne.Config; Case = $peOne.Case; Cause = $peOne.Cause }), $peGlobal),
+            @('Release', @([pscustomobject]@{ Platform = $peOne.Platform; Config = 'Release'; Case = $peOne.Case; Cause = $peOne.Cause }), $peGlobal),
+            @('sound-on', @([pscustomobject]@{ Platform = $peOne.Platform; Config = $peOne.Config; Case = 'sound-on'; Cause = $peOne.Cause }), $peGlobal),
+            @('no cause', @([pscustomobject]@{ Platform = $peOne.Platform; Config = $peOne.Config; Case = $peOne.Case; Cause = '' }), $peGlobal),
+            @('every platform', @($peOne), @($peGlobal + 'boot-sound-on'))
+        )
+        foreach ($m in $peMuts) {
+            if (-not (& $peJudge $m[1] $m[2])) { $peWhy = "the judge accepts an exclusion widened to $($m[0])"; break }
+        }
+    }
+    if ($peWhy) { $failed++; Write-Host "FAILED ${n}: platform smoke exclusion: $peWhy" }
+    else { Write-Host "OK $n boot-sound-on is excluded on x64 Asan only, with cause C-DSOUND-LFQUEUE-ASAN, and sound-on is excluded nowhere" }
 }
 finally {
     Remove-Item -Recurse -Force $smokeTmp -ErrorAction SilentlyContinue
@@ -1586,7 +1632,8 @@ $btWin32 = @(Get-SmokeCases 'Boot' @() $false $null)
 $script:SmokePlatform = 'x64'
 $btCases = @(Get-SmokeCases 'Boot' @() $false $null)
 $script:SmokePlatform = $btPlat
-$btNames = @('boot-shell', 'boot-hot1g_con', 'boot-tat2g_eli', 'boot-nab2g_c')
+$btNames = @('boot-shell', 'boot-sound-on', 'boot-hot1g_con', 'boot-tat2g_eli', 'boot-nab2g_c')
+$btSndRx = @('OPENSWBF2 SOUND open=ok', 'OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 SOAK turns=300\r?$', '(?s)\A(?!.*OPENSWBF2 CURSOR warp)')
 $btGood = @(
     'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
     'OPENSWBF2 ADDRSPACE arena=0x1C5080F0000 arena_end=0x1C50C0F0000 laa=1 steam=1 steam_api=0x1C5074D0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
@@ -1606,9 +1653,11 @@ $btBad = @(
     'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x16E3C350000 GalaxyPeer=0x00000000 binkw32=0x00000000'
 )
 $btShellRx = @('(?m)OPENSWBF2 SOAK shell=300\r?$', 'OPENSWBF2 RUN COMPLETE', '(?s)\A(?!.*OPENSWBF2 MISSION RUNNING)')
-if ((@($btWin32 | ForEach-Object { $_.Name }) -join ',') -cne 'boot-shell') { $why = "Win32 Boot holds $(@($btWin32 | ForEach-Object { $_.Name }) -join ', ')" }
+if ((@($btWin32 | ForEach-Object { $_.Name }) -join ',') -cne 'boot-shell,boot-sound-on') { $why = "Win32 Boot holds $(@($btWin32 | ForEach-Object { $_.Name }) -join ', ')" }
 elseif ($btWin32[0].Args -match '(^| )-hogaddrspace( |$)') { $why = "Win32 boot-shell runs with -hogaddrspace: $($btWin32[0].Args)" }
 elseif ((@($btWin32[0].Expect.LogRx) -join '|') -cne ($btShellRx -join '|')) { $why = "Win32 boot-shell LogRx is $(@($btWin32[0].Expect.LogRx) -join ' | ')" }
+elseif ($btWin32[1].Args -match '(^| )-(hogaddrspace|nosound)( |$)' -or $btWin32[1].Args -notmatch '^geo1c_con .* -soakturns 300$') { $why = "Win32 boot-sound-on args are $($btWin32[1].Args)" }
+elseif ((@($btWin32[1].Expect.LogRx) -join '|') -cne ($btSndRx -join '|')) { $why = "Win32 boot-sound-on LogRx is $(@($btWin32[1].Expect.LogRx) -join ' | ')" }
 elseif ((@($btCases | ForEach-Object { $_.Name }) -join ',') -cne ($btNames -join ',')) { $why = "x64 Boot holds $(@($btCases | ForEach-Object { $_.Name }) -join ', ')" }
 else {
     foreach ($bt in $btCases) {
@@ -1617,6 +1666,10 @@ else {
         elseif ($btRx -cnotcontains $script:SmokeAddrSpaceRxX64) { $why = "$($bt.Name) does not require the x64 ADDRSPACE line" }
         elseif ($bt.Name -eq 'boot-shell') {
             if ((@($btRx | Where-Object { $_ -cne $script:SmokeAddrSpaceRxX64 }) -join '|') -cne ($btShellRx -join '|')) { $why = "x64 boot-shell LogRx is $($btRx -join ' | ')" }
+        }
+        elseif ($bt.Name -eq 'boot-sound-on') {
+            if ($bt.Args -match '(^| )-nosound( |$)' -or $bt.Args -notmatch '^geo1c_con .* -soakturns 300$') { $why = "x64 boot-sound-on args are $($bt.Args)" }
+            elseif ((@($btRx | Where-Object { $_ -cne $script:SmokeAddrSpaceRxX64 }) -join '|') -cne ($btSndRx -join '|')) { $why = "x64 boot-sound-on LogRx is $($btRx -join ' | ')" }
         }
         elseif ($btRx -cnotcontains 'OPENSWBF2 SIM DIGEST turns=1500 ') { $why = "$($bt.Name) does not require the turn-1500 digest line" }
         elseif ($btRx -cnotcontains '(?s)\A(?!.*refused size)') { $why = "$($bt.Name) does not forbid a pool refusal" }
@@ -1627,7 +1680,80 @@ else {
 if (-not $why) { foreach ($btg in $btGood) { if ($btg -cnotmatch $script:SmokeAddrSpaceRxX64) { $why = "the x64 ADDRSPACE pattern rejects $btg"; break } } }
 if (-not $why) { foreach ($btb in $btBad) { if ($btb -cmatch $script:SmokeAddrSpaceRxX64) { $why = "the x64 ADDRSPACE pattern accepts $btb"; break } } }
 if ($why) { $failed++; Write-Host "FAILED ${n}: x64 Boot case: $why" }
-else { Write-Host "OK $n Boot runs the shell to 300 updates without a mission on both platforms (x64 under -hogaddrspace, Win32 without), x64 runs hot1g_con, tat2g_eli and nab2g_c under -hogaddrspace without a pool refusal or cursor warp, and x64 requires an ADDRSPACE line above 4 GB without Galaxy or Bink and steam_api64 not loaded (Steam off) or above the hog limit whether or not Steam initialized" }
+else { Write-Host "OK $n Boot runs the shell to 300 updates without a mission and geo1c_con to 300 turns with sound on and the SOUND open=ok line on both platforms (x64 under -hogaddrspace, Win32 without), x64 runs hot1g_con, tat2g_eli and nab2g_c under -hogaddrspace without a pool refusal or cursor warp, and x64 requires an ADDRSPACE line above 4 GB without Galaxy or Bink and steam_api64 not loaded (Steam off) or above the hog limit whether or not Steam initialized" }
+$n++
+$soJudge = {
+    param($cases, $excl)
+    $so = @($cases | Where-Object { $_.Name -ceq 'sound-on' })
+    if ($so.Count -ne 1) { return "holds $($so.Count) sound-on cases" }
+    if ($so[0].Args -match '(^| )-nosound( |$)') { return "sound-on runs with -nosound: $($so[0].Args)" }
+    if ($so[0].Args -notmatch '^geo1c_con .* -soakturns 300$') { return "sound-on does not run geo1c_con to 300 turns: $($so[0].Args)" }
+    if ($so[0].Expect.Class -ne 'Pass' -or @($so[0].Expect.LogRx) -cnotcontains 'OPENSWBF2 SOUND open=ok') { return 'sound-on does not require Pass with the SOUND open=ok line' }
+    if (@($excl) -ccontains 'sound-on' -or @($excl) -ccontains 'boot-sound-on') { return 'a sound-on case is excluded from ASan' }
+    return $null
+}
+$soWhy = $null
+$soPlat = $script:SmokePlatform
+$soCfg = $script:SmokeDigestConfiguration
+foreach ($p in 'Win32', 'x64') {
+    foreach ($cfg in 'Release', 'Test', 'Asan') {
+        $script:SmokePlatform = $p
+        $script:SmokeDigestConfiguration = $cfg
+        $soCases = @(Get-SmokeCases 'Standard' @() $false $null ($p -eq 'x64'))
+        $w = & $soJudge $soCases $script:SmokeAsanExcluded
+        if ($w) { $soWhy = "$p $cfg $w"; break }
+        $soReal = @($soCases | Where-Object { $_.Name -ceq 'sound-on' })[0]
+        $soMuts = @(
+            @('-nosound', @(New-Object PSObject -Property @{ Name = 'sound-on'; Args = $soReal.Args.Replace(' -fixedrate 30', ' -nosound -fixedrate 30'); Expect = $soReal.Expect; Twice = 0 }), @($script:SmokeAsanExcluded)),
+            @('no SOUND line', @(New-Object PSObject -Property @{ Name = 'sound-on'; Args = $soReal.Args; Expect = @{ Class = 'Pass'; LogRx = @(@($soReal.Expect.LogRx) | Where-Object { $_ -cne 'OPENSWBF2 SOUND open=ok' }) }; Twice = 0 }), @($script:SmokeAsanExcluded)),
+            @('excluded', @($soReal), @(@($script:SmokeAsanExcluded) + 'sound-on'))
+        )
+        foreach ($m in $soMuts) {
+            if (-not (& $soJudge $m[1] $m[2])) { $soWhy = "$p $cfg the judge accepts a sound-on case with $($m[0])"; break }
+        }
+        if ($soWhy) { break }
+    }
+    if ($soWhy) { break }
+}
+$script:SmokePlatform = $soPlat
+$script:SmokeDigestConfiguration = $soCfg
+if ($soWhy) { $failed++; Write-Host "FAILED ${n}: sound-on case: $soWhy" }
+else { Write-Host "OK $n sound-on runs geo1c_con to 300 turns with sound on in every Standard configuration on both platforms, requires the SOUND open=ok line and is not excluded from ASan" }
+$n++
+$sojPath = Join-Path $PSScriptRoot 'baseline\soundon.ps1'
+$sojAst = [Management.Automation.Language.Parser]::ParseFile($sojPath, [ref]$null, [ref]$null)
+$sojFn = $sojAst.Find({ param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst] -and $a.Name -ceq 'Get-SoundOnProblems' }, $true)
+$sojWhy = $null
+if (-not $sojFn) { $sojWhy = 'soundon.ps1 has no Get-SoundOnProblems' }
+elseif (@($sojAst.FindAll({ param($a) $a -is [Management.Automation.Language.CommandAst] -and $a.GetCommandName() -ceq 'Get-SoundOnProblems' }, $true)).Count -ne 1) { $sojWhy = 'soundon.ps1 does not judge each run with Get-SoundOnProblems exactly once' }
+elseif ((Get-Content -LiteralPath $sojPath -Raw) -match 'AudioSes|Get-Process|\.Modules') { $sojWhy = 'soundon.ps1 still reads the game process from outside' }
+else {
+    . ([scriptblock]::Create($sojFn.Extent.Text))
+    $sojSnd = "[t=0.700] [f=0] LogAudio Inform Battlefront2\Source\GameSoundEngine.cpp:199: OPENSWBF2 SOUND open=ok`r`n"
+    $sojOff = "[t=9.000] [f=9000] LogMemory Inform Battlefront2\Source\GameMemory.cpp:1: OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0`r`n"
+    $sojAddr = "[t=0.010] [f=0] LogCore Inform Battlefront2\Source\pcMain.cpp:1: OPENSWBF2 ADDRSPACE arena=0x100000000 arena_end=0x104000000 laa=1 steam=0 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000`r`n"
+    $sojWarp = "[t=1.000] [f=30] LogCore Inform RedEngineFL\input\pc\pcRedMouse.cpp:436: OPENSWBF2 CURSOR warp x=0 y=0`r`n"
+    $sojFocus = "[t=0.900] [f=0] LogCore Inform Battlefront2\Source\pcMain.cpp:315: OPENSWBF2 FOCUS activated`r`n"
+    $sojCases = @(
+        @('a good Win32 sound-on run', ($sojSnd + $sojOff), 'Pass', $true, 'Win32', $null),
+        @('a good x64 sound-on run', ($sojAddr + $sojSnd + $sojOff), 'Pass', $true, 'x64', $null),
+        @('a good -nosound control run', $sojOff, 'Pass', $false, 'Win32', $null),
+        @('a run without SOUND open=ok', $sojOff, 'Pass', $true, 'Win32', 'SOUND open=ok present=0'),
+        @('a run with a CURSOR warp line', ($sojSnd + $sojWarp + $sojOff), 'Pass', $true, 'Win32', 'CURSOR warp'),
+        @('a run with a FOCUS activated line', ($sojSnd + $sojFocus + $sojOff), 'Pass', $true, 'Win32', 'FOCUS activated'),
+        @('a run without the offthread line', $sojSnd, 'Pass', $true, 'Win32', 'no offthread line'),
+        @('an x64 run without the ADDRSPACE line', ($sojSnd + $sojOff), 'Pass', $true, 'x64', 'no ADDRSPACE line'),
+        @('a run that did not pass', ($sojSnd + $sojOff), 'Fatal', $true, 'Win32', 'class=Fatal'),
+        @('a control run with SOUND open=ok', ($sojSnd + $sojOff), 'Pass', $false, 'Win32', 'SOUND open=ok present=1')
+    )
+    foreach ($sc in $sojCases) {
+        $pr = @(Get-SoundOnProblems $sc[1] $sc[2] $sc[3] $sc[4] $script:SmokeAddrSpaceRxX64)
+        if ($sc[5] -and ($pr.Count -ne 1 -or $pr[0] -cne $sc[5])) { $sojWhy = "$($sc[0]) gives '$($pr -join ', ')', expected '$($sc[5])'"; break }
+        if (-not $sc[5] -and $pr.Count -ne 0) { $sojWhy = "$($sc[0]) fails: $($pr -join ', ')"; break }
+    }
+}
+if ($sojWhy) { $failed++; Write-Host "FAILED ${n}: soundon judge: $sojWhy" }
+else { Write-Host "OK $n soundon.ps1 judges each run from the game log only: Pass, SOUND open=ok (absent in the control), the offthread line, the x64 ADDRSPACE line, no CURSOR warp and no FOCUS activated" }
 $n++
 $c = Get-D3dxStagedCheck $dpRoot 'Win32' (Join-Path $dsDir 'c1') $dsPins
 if ($c.Status -ne 'FAIL') { $failed++; Write-Host "FAILED ${n}: vendor:d3dx9-staged on Win32 judged an x64-pinned copy $($c.Status)" }
@@ -1787,16 +1913,15 @@ try {
     $owRes = { param([string]$class, [string]$log) New-Object PSObject -Property @{ Class = $class; Code = [uint32]3; Ms = 1; LogText = $log } }
     $script:SmokePlatform = 'x64'
     $script:SmokeDigestConfiguration = 'Test'
-    $owCase = @(Get-SmokeCases 'Standard' @() $false $null $true | Where-Object { $_.Name -ceq 'campaign-movies' })
     $why = $null
-    if ($owCase.Count -ne 1 -or @($owCase[0].OwnedOn.Keys).Count -ne 1 -or $owCase[0].OwnedOn.x64.Owner -cne 'Phase 50 AV-03' -or $owCase[0].OwnedOn.x64.Function -cne 'Snd::DSBufferRenderer::UpdateObject' -or $owCase[0].OwnedOn.x64.Class -cne 'Fatal') { $why = 'campaign-movies must carry exactly the x64 Phase 50 AV-03 Snd::DSBufferRenderer::UpdateObject Fatal entry' }
-    else {
-        $c = $owCase[0]
+    $c = New-Object PSObject -Property @{ Name = 'x-owned'; Expect = @{ Class = 'Pass' }; OwnedOn = @{ x64 = @{ Owner = 'Phase 50 AV-03'; Function = 'Snd::DSBufferRenderer::UpdateObject'; Class = 'Fatal' } } }
+    try { Assert-SmokeCaseData @($c) } catch { $why = "the synthetic Fatal entry is refused: $($_.Exception.Message)" }
+    if (-not $why) {
         $v = Get-SmokeOwnedVerdict $c (& $owRes 'Fatal' $owFatal) $false $owGood
-        if (-not $v -or $v.Tok -cne 'OWNED' -or $v.Line -cne '[OWNED] smoke:campaign-movies class=Fatal exit=0x00000003 (1 ms) - Phase 50 AV-03 Snd::DSBufferRenderer::UpdateObject') { $why = "matching signature: $($v.Tok) $($v.Line)$($v.Note)" }
+        if (-not $v -or $v.Tok -cne 'OWNED' -or $v.Line -cne '[OWNED] smoke:x-owned class=Fatal exit=0x00000003 (1 ms) - Phase 50 AV-03 Snd::DSBufferRenderer::UpdateObject') { $why = "matching signature: $($v.Tok) $($v.Line)$($v.Note)" }
         if (-not $why) {
             $v = Get-SmokeOwnedVerdict $c (& $owRes 'Pass' 'OPENSWBF2 RUN COMPLETE') $true $owGood
-            if (-not $v -or $v.Tok -cne 'FAIL' -or $v.Line -cne '[FAIL] smoke:campaign-movies - owned failure no longer fails; remove the Phase 50 AV-03 entry') { $why = "a pass: $($v.Tok) $($v.Line)$($v.Note)" }
+            if (-not $v -or $v.Tok -cne 'FAIL' -or $v.Line -cne '[FAIL] smoke:x-owned - owned failure no longer fails; remove the Phase 50 AV-03 entry') { $why = "a pass: $($v.Tok) $($v.Line)$($v.Note)" }
         }
         if (-not $why) {
             $v = Get-SmokeOwnedVerdict $c (& $owRes 'Fatal' $owFatal.Replace('+0x477C25', '+0x478010')) $false $owGood
@@ -1820,6 +1945,99 @@ try {
     if ($why) { $failed++; Write-Host "FAILED ${n}: owned failure entry: $why" }
     else { Write-Host "OK $n owned failure entry: the recorded class and map-resolved function in an x64 map is OWNED, a pass fails naming the entry to remove, another function, map timestamp or class fails as usual, and Win32 ignores the x64 entry" }
     $n++
+    $why = $null
+    $rfReal = @(& {
+        . (Join-Path $PSScriptRoot 'guardrevert\rows.ps1')
+        @($GuardRevertRows | Where-Object { $_.Id -ceq 'RESETGAIN-X64' })
+    })
+    if ($rfReal.Count -ne 1 -or $rfReal[0].RedFunction -cne 'Snd::DSBufferRenderer::UpdateObject' -or -not $rfReal[0].RedRx) { $why = 'RESETGAIN-X64 must carry its RedRx and RedFunction Snd::DSBufferRenderer::UpdateObject' }
+    else {
+        $rfRow = $rfReal[0]
+        $rfRxOnly = @{ RedRx = $rfRow.RedRx }
+        $rfFnOnly = @{ RedFunction = $rfRow.RedFunction }
+        $rfSpecs = @(
+            @('a FATAL in the named function', $rfRow, $owFatal, $owGood, $null),
+            @('a FATAL in another function', $rfRow, $owFatal.Replace('+0x477C25', '+0x478010'), $owGood, 'FATAL at ?Next@@YAXXZ+0x10, recorded Snd::DSBufferRenderer::UpdateObject'),
+            @('a map of another build', $rfRow, $owFatal, $owStale, 'map timestamp mismatch: build 6B011F392279000 map 6B011F3A'),
+            @('a missing map', $rfRow, $owFatal, (Join-Path $owTmp 'none.map'), 'map: *'),
+            @('a FATAL in another module', $rfRow, $owFatal.Replace('(BattlefrontII.exe+', '(VCRUNTIME140.dll+'), $owGood, 'log lacks the RedRx'),
+            @('a function row with no FATAL line', $rfFnOnly, 'OPENSWBF2 RUN COMPLETE', $owGood, 'no FATAL exception line in BattlefrontII.exe'),
+            @('a RedRx-only row with a FATAL anywhere in the exe', $rfRxOnly, $owFatal.Replace('+0x477C25', '+0x478010'), $owGood, $null)
+        )
+        foreach ($s in $rfSpecs) {
+            $got = Get-GuardSmokeRedMismatch $s[1] (& $owRes 'Fatal' $s[2]) $s[3]
+            if ($null -eq $s[4]) { if ($got) { $why = "$($s[0]): $got"; break } }
+            elseif ([string]$got -cnotlike $s[4]) { $why = "$($s[0]): got '$got', expected '$($s[4])'"; break }
+        }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: guard smoke row RED reason: $why" }
+    else { Write-Host "OK $n guard smoke row RED reason: RESETGAIN-X64 names Snd::DSBufferRenderer::UpdateObject, a FATAL there in the reverted build's map is RED, and another function, another build's map, a missing map, another module or no FATAL line is WRONG-RED" }
+    $n++
+    $owLogDir = Join-Path $owTmp 'logcase'
+    New-Item -ItemType Directory -Path $owLogDir | Out-Null
+    $owOff = "[t=0.100] [f=1] LogCore Warning pcRedMoviePlayerNull.cpp:36: OPENSWBF2 MOVIE off: no movie decoder in this build`r`n"
+    $owOpen = "[t=0.100] [f=1] LogCore Inform pcRedMoviePlayer.cpp:1: OPENSWBF2 MOVIE open x.mvs`r`n"
+    $owClose = "[t=2.000] [f=30] LogCore Inform pcRedMoviePlayer.cpp:1: OPENSWBF2 MOVIE close`r`n"
+    $owRun = "[t=3.800] [f=62] LogCore Inform GameLoop.cpp:1: OPENSWBF2 MISSION RUNNING nab2g_c`r`n"
+    $owSoak = "[t=9.000] [f=362] LogSim Inform GameLoop.cpp:1: OPENSWBF2 SOAK turns=300`r`n"
+    $owLogRes = { param([string]$class, [string]$log, [string]$turns) [IO.File]::WriteAllText((Join-Path $owLogDir 'run.log'), $log); New-Object PSObject -Property @{ Class = $class; Code = [uint32]0; Ms = 1; LogText = $log; Stall = 0; Dumps = @(); Turns = $turns; CaseDir = $owLogDir } }
+    $owLogNew = { param($owned) $o = New-Object PSObject -Property @{ Name = 'x-log'; Args = 'nab2g_c -hangtimeout 0'; Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c') }; Twice = 0 }; if ($owned) { $o | Add-Member -NotePropertyName OwnedOn -NotePropertyValue @{ x64 = $owned } }; $o }
+    $owLogEntry = @{ Owner = 'Phase 98 SYN-02'; Class = 'Pass'; LogRx = @('OPENSWBF2 MOVIE off: no movie decoder in this build', 'OPENSWBF2 MISSION RUNNING nab2g_c'); NoLogRx = @('OPENSWBF2 MOVIE open'); SoakTurns = 300 }
+    $why = $null
+    $owLogCase = & $owLogNew $owLogEntry
+    $owLogW32 = & $owLogNew $owLogEntry
+    $owLogNone = & $owLogNew $null
+    Add-SmokeWorkCap @($owLogCase, $owLogNone)
+    $script:SmokePlatform = 'Win32'
+    Add-SmokeWorkCap @($owLogW32)
+    $script:SmokePlatform = 'x64'
+    try { Assert-SmokeCaseData @($owLogCase) } catch { $why = "the synthetic log entry is refused: $($_.Exception.Message)" }
+    if (-not $why -and $owLogCase.Args -cne 'nab2g_c -hangtimeout 0 -soakturns 300') { $why = "the x64 owned case runs $($owLogCase.Args)" }
+    if (-not $why -and $owLogW32.Args -cne "nab2g_c -hangtimeout 0 -soakturns $script:SmokeTurnCap") { $why = "the same case on Win32 runs $($owLogW32.Args)" }
+    if (-not $why -and $owLogNone.Args -cne "nab2g_c -hangtimeout 0 -soakturns $script:SmokeTurnCap") { $why = "an unowned x64 case runs $($owLogNone.Args)" }
+    if (-not $why -and @($owLogCase.Expect.LogRx) -cnotcontains $script:SmokeCapRx) { $why = 'the x64 owned case lost the expectation of its own work-cap run' }
+    $owLogSpecs = @(
+        @('a matching log', 'Pass', ($owOff + $owRun + $owSoak), '300', 'OWNED', '[OWNED] smoke:x-log class=Pass exit=0x00000000 (1 ms) - Phase 98 SYN-02'),
+        @('no MOVIE off line', 'Pass', ($owRun + $owSoak), '300', $null, ' - owned entry Phase 98 SYN-02: log lacks OPENSWBF2 MOVIE off: no movie decoder in this build'),
+        @('no MISSION RUNNING line', 'Pass', ($owOff + $owSoak), '300', $null, ' - owned entry Phase 98 SYN-02: log lacks OPENSWBF2 MISSION RUNNING nab2g_c'),
+        @('a MOVIE open line', 'Pass', ($owOff + $owOpen + $owRun + $owSoak), '300', $null, ' - owned entry Phase 98 SYN-02: log has OPENSWBF2 MOVIE open'),
+        @('no SOAK line', 'Pass', ($owOff + $owRun), '300', $null, ' - owned entry Phase 98 SYN-02: log lacks OPENSWBF2 SOAK turns=300'),
+        @('a SOAK line at another count', 'Pass', ($owOff + $owRun + $owSoak.Replace('turns=300', 'turns=3000')), '3000', $null, ' - owned entry Phase 98 SYN-02: log lacks OPENSWBF2 SOAK turns=300'),
+        @('another class', 'Fatal', ($owOff + $owRun + $owSoak), '300', $null, ' - owned entry Phase 98 SYN-02: class Fatal, recorded Pass'),
+        @('a full pass of the case expectation', 'Pass', ($owOpen + $owClose + $owRun), '100', 'FAIL', '[FAIL] smoke:x-log - owned failure no longer fails; remove the Phase 98 SYN-02 entry')
+    )
+    foreach ($s in $owLogSpecs) {
+        if ($why) { break }
+        $r = & $owLogRes $s[1] $s[2] $s[3]
+        $ok = Test-SmokeExpect $owLogCase $r
+        if ($ok -ne ($s[4] -ceq 'FAIL')) { $why = "$($s[0]): the case expectation gave ok=$ok"; break }
+        $v = Get-SmokeOwnedVerdict $owLogCase $r $ok
+        $got = $(if ($v -and $v.Line) { $v.Line } elseif ($v) { $v.Note } else { '' })
+        if (-not $v -or $v.Tok -cne $s[4] -or $got -cne $s[5]) { $why = "$($s[0]): $($v.Tok) $got" }
+    }
+    if (-not $why) {
+        $script:SmokePlatform = 'Win32'
+        $v = Get-SmokeOwnedVerdict $owLogCase (& $owLogRes 'Pass' ($owOff + $owRun + $owSoak) '300') $false
+        $script:SmokePlatform = 'x64'
+        if ($v) { $why = "the x64 log entry applied on Win32: $($v.Tok) $($v.Line)" }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: owned log entry: $why" }
+    else { Write-Host "OK $n owned log entry: its class, required lines and SOAK line with no forbidden line is OWNED; a missing required or SOAK line, a forbidden line or another class fails as usual naming the part; a pass of the case expectation fails naming the entry to remove; SoakTurns replaces the work cap on the owned platform only; Win32 ignores the x64 entry" }
+    $n++
+    $why = $null
+    $owReal = @(Get-SmokeCases 'Standard' @() $false $null $true | Where-Object { $_.Name -ceq 'campaign-movies' })
+    $owMovieSrc = [IO.File]::ReadAllText((Join-Path (Split-Path $PSScriptRoot -Parent) 'src\RedEngineFL\movie\pc\pcRedMoviePlayerNull.cpp'))
+    if ($owReal.Count -ne 1) { $why = "x64 Test Standard has $($owReal.Count) campaign-movies cases" }
+    else {
+        $o = $owReal[0].OwnedOn
+        if (@($o.Keys).Count -ne 1 -or -not $o.x64) { $why = "campaign-movies owned platforms: $(@($o.Keys) -join ',')" }
+        elseif ($o.x64.Owner -cne 'Phase 51 MOVIE-04' -or $o.x64.Class -cne 'Pass' -or (@($o.x64.LogRx) -join '|') -cne 'OPENSWBF2 MOVIE off: no movie decoder in this build|OPENSWBF2 MISSION RUNNING nab2g_c' -or (@($o.x64.NoLogRx) -join '|') -cne 'OPENSWBF2 MOVIE open|OPENSWBF2 CURSOR warp|OPENSWBF2 FOCUS activated' -or $o.x64.SoakTurns -ne 300 -or $o.x64.Function) { $why = 'campaign-movies must carry exactly the x64 Phase 51 MOVIE-04 Pass entry with the MOVIE off and MISSION RUNNING lines, no MOVIE open, CURSOR warp or FOCUS activated line and SoakTurns 300' }
+        elseif (-not $owReal[0].Args.EndsWith(' -win -exitonmovieclose -soakturns 300') -or [regex]::Matches($owReal[0].Args, ' -soakturns \d+').Count -ne 1) { $why = "x64 campaign-movies runs $($owReal[0].Args)" }
+        elseif ($owMovieSrc -cnotmatch [regex]::Escape('"' + $o.x64.LogRx[0] + '"')) { $why = 'the MOVIE off line is not the text of the null movie player' }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: campaign-movies owned entry: $why" }
+    else { Write-Host "OK $n x64 campaign-movies is owned by Phase 51 MOVIE-04 with the null movie player line, MISSION RUNNING, no MOVIE open, CURSOR warp or FOCUS activated line and a 300-turn run" }
+    $n++
     $owNew = { param([hashtable]$owned, [string]$row) $o = New-Object PSObject -Property @{ Name = 'x-case'; Expect = @{ Class = 'Pass' } }; if ($owned) { $o | Add-Member -NotePropertyName OwnedOn -NotePropertyValue @{ x64 = $owned } }; if ($row) { $o | Add-Member -NotePropertyName DigestRow -NotePropertyValue $row }; $o }
     $owRefused = { param($c) try { Assert-SmokeCaseData @($c); return $false } catch { return $true } }
     $owSpecs = @(
@@ -1829,6 +2047,18 @@ try {
         @('no function', (& $owNew @{ Owner = 'Phase 50 AV-03'; Class = 'Fatal' } $null), $true),
         @('class Pass', (& $owNew @{ Owner = 'Phase 50 AV-03'; Function = 'Snd::DSBufferRenderer::UpdateObject'; Class = 'Pass' } $null), $true),
         @('a full entry', (& $owNew @{ Owner = 'Phase 50 AV-03'; Function = 'Snd::DSBufferRenderer::UpdateObject'; Class = 'Fatal' } $null), $false),
+        @('a Fatal entry with a log field', (& $owNew @{ Owner = 'Phase 50 AV-03'; Function = 'Snd::DSBufferRenderer::UpdateObject'; Class = 'Fatal'; SoakTurns = 300 } $null), $true),
+        @('a log entry with a function', (& $owNew @{ Owner = 'Phase 51 MOVIE-04'; Function = 'A::B'; Class = 'Pass'; LogRx = @('a'); NoLogRx = @('b'); SoakTurns = 300 } $null), $true),
+        @('a log entry without NoLogRx', (& $owNew @{ Owner = 'Phase 51 MOVIE-04'; Class = 'Pass'; LogRx = @('a'); SoakTurns = 300 } $null), $true),
+        @('a log entry with an empty NoLogRx', (& $owNew @{ Owner = 'Phase 51 MOVIE-04'; Class = 'Pass'; LogRx = @('a'); NoLogRx = @(); SoakTurns = 300 } $null), $true),
+        @('a log entry without LogRx', (& $owNew @{ Owner = 'Phase 51 MOVIE-04'; Class = 'Pass'; NoLogRx = @('b'); SoakTurns = 300 } $null), $true),
+        @('a log entry without SoakTurns', (& $owNew @{ Owner = 'Phase 51 MOVIE-04'; Class = 'Pass'; LogRx = @('a'); NoLogRx = @('b') } $null), $true),
+        @('a log entry with SoakTurns 0', (& $owNew @{ Owner = 'Phase 51 MOVIE-04'; Class = 'Pass'; LogRx = @('a'); NoLogRx = @('b'); SoakTurns = 0 } $null), $true),
+        @('a log entry with SoakTurns above 9300', (& $owNew @{ Owner = 'Phase 51 MOVIE-04'; Class = 'Pass'; LogRx = @('a'); NoLogRx = @('b'); SoakTurns = 9301 } $null), $true),
+        @('a log entry with a bad regex', (& $owNew @{ Owner = 'Phase 51 MOVIE-04'; Class = 'Pass'; LogRx = @('('); NoLogRx = @('b'); SoakTurns = 300 } $null), $true),
+        @('a log entry without a class', (& $owNew @{ Owner = 'Phase 51 MOVIE-04'; LogRx = @('a'); NoLogRx = @('b'); SoakTurns = 300 } $null), $true),
+        @('a log entry owner without a requirement', (& $owNew @{ Owner = 'Phase 51'; Class = 'Pass'; LogRx = @('a'); NoLogRx = @('b'); SoakTurns = 300 } $null), $true),
+        @('a full log entry', (& $owNew @{ Owner = 'Phase 51 MOVIE-04'; Class = 'Pass'; LogRx = @('a'); NoLogRx = @('b'); SoakTurns = 9300 } $null), $false),
         @('digest row onto a row with a digest', (& $owNew $null 'cor1c_c'), $true),
         @('digest row onto no row', (& $owNew $null 'zzz-no-such-row'), $true),
         @('digest row onto a none row', (& $owNew $null 'crash-delayload'), $false)
@@ -1849,7 +2079,7 @@ try {
         if (-not $why -and $owMarked -cne 'campaign-movies') { $why = "Win32 cases with a digest row name or an owned entry: $owMarked" }
     }
     if ($why) { $failed++; Write-Host "FAILED ${n}: case data load check: $why" }
-    else { Write-Host "OK $n case data load check refuses an owned entry without a Phase <n> <REQ-NN> owner, function or failing class and a digest row name onto a row with a digest, a missing row or a case of the same run; only crash-delayload-x64 names crash-delayload" }
+    else { Write-Host "OK $n case data load check refuses an owned entry without a Phase <n> <REQ-NN> owner, or that is neither the full Fatal form (function, failing class) nor the full log form (class, LogRx, NoLogRx, SoakTurns 1 to 9300), and a digest row name onto a row with a digest, a missing row or a case of the same run; only crash-delayload-x64 names crash-delayload" }
     $n++
     $owAll = Join-Path $owTmp 'all'
     foreach ($line in [IO.File]::ReadAllLines((Join-Path $PSScriptRoot 'baseline\v143\smoke-all-digests.txt'))) {
@@ -2525,6 +2755,234 @@ try {
     if ($soakWhy) { $failed++; Write-Host "FAILED ${n}: soak cases: $soakWhy" }
     else { Write-Host "OK $n soak cases are Pass, require their SOAK line and asan-soak runs only in Soak" }
     $n++
+    $hoWarp = '(?s)\A(?!.*OPENSWBF2 CURSOR warp)'
+    $hoFocus = '(?s)\A(?!.*OPENSWBF2 FOCUS activated)'
+    $hoJudge = {
+        param($c, [bool]$strict)
+        foreach ($s in @(@($c.Args) + @($c.Then) | Where-Object { $_ })) {
+            if ([string]$s -match '(?:^| )-norender(?: |$)') { continue }
+            if ([string]$s -notmatch '(?:^| )-handsoff(?: |$)') { return "$($c.Name) renders without -handsoff: $s" }
+            if ($strict -and @($c.Expect.LogRx) -cnotcontains $hoWarp) { return "$($c.Name) renders without forbidding a cursor warp" }
+            if ($strict -and @($c.Expect.LogRx) -cnotcontains $hoFocus) { return "$($c.Name) renders without forbidding a focus grab" }
+            if ($strict -and $c.OwnedOn) {
+                foreach ($p in @($c.OwnedOn.Keys)) {
+                    $o = $c.OwnedOn[$p]
+                    if ($o.Function) { continue }
+                    if (@($o.NoLogRx) -cnotcontains 'OPENSWBF2 CURSOR warp') { return "$($c.Name) owned entry on $p renders without forbidding a cursor warp" }
+                    if (@($o.NoLogRx) -cnotcontains 'OPENSWBF2 FOCUS activated') { return "$($c.Name) owned entry on $p renders without forbidding a focus grab" }
+                }
+            }
+        }
+        return $null
+    }
+    $hoWhy = $null
+    $hoSeen = 0
+    $hoNames = @()
+    $hoPlat = $script:SmokePlatform
+    $hoCfg = $script:SmokeDigestConfiguration
+    $hoEnv = $env:OPENSWBF2_DIGEST_EXPECTED
+    $env:OPENSWBF2_DIGEST_EXPECTED = $savedExpected
+    $hoMissions = @(Get-Content (Join-Path $PSScriptRoot 'smoke\missions-all.txt') | Where-Object { $_.Trim() })
+    $hoReal = $null
+    $hoRso = @{}
+    $hoPace = '(?m)OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=0 timer=(hires|period)\r?$'
+    $hoNoNr = '(?s)\A(?!.*OPENSWBF2 GAMMA path=ramp reason=norender)'
+    $hoGood = "OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=0 timer=hires`r`nOPENSWBF2 SOUND open=ok`r`nOPENSWBF2 MISSION RUNNING geo1c_con`r`nOPENSWBF2 SOAK turns=300`r`nOPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0`r`n"
+    $hoHeadless = @($hoGood.Replace('timer=hires', 'timer=none'), ($hoGood + "OPENSWBF2 GAMMA path=ramp reason=norender hr=0x00000000`r`n"))
+    $hoRsoJudge = {
+        param($c)
+        if (-not $c) { return 'no render-sound-on case' }
+        $rx = @($c.Expect.LogRx)
+        if ($c.Expect.Class -cne 'Pass') { return "render-sound-on expects $($c.Expect.Class)" }
+        if ($c.Args -match '(?:^| )-(norender|nosound)(?: |$)' -or $c.Args -notmatch '^geo1c_con .* -win -handsoff -soakturns 300$') { return "render-sound-on runs $($c.Args)" }
+        foreach ($r in @($hoPace, $hoNoNr, 'OPENSWBF2 SOUND open=ok', 'OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 SOAK turns=300\r?$', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $hoWarp, $hoFocus)) {
+            if ($rx -cnotcontains $r) { return "render-sound-on does not require $r" }
+        }
+        foreach ($r in $rx) { if ($hoGood -notmatch $r) { return "render-sound-on rejects a good rendered log on $r" } }
+        foreach ($h in $hoHeadless) {
+            if (@($rx | Where-Object { $h -notmatch $_ }).Count -eq 0) { return 'render-sound-on accepts a headless log' }
+        }
+        return $null
+    }
+    foreach ($p in 'Win32', 'x64') {
+        $script:SmokePlatform = $p
+        foreach ($cfg in 'Release', 'Test', 'Asan') {
+            $script:SmokeDigestConfiguration = $cfg
+            foreach ($g in 'Standard', 'Twice', 'Dedicated', 'Crash', 'All', 'Perturb', 'Soak', 'Vendor', 'Boot') {
+                foreach ($hg in $false, $true) {
+                    foreach ($mv in $false, $true) {
+                        foreach ($c in @(Get-SmokeCases $g $hoMissions $mv $null $hg)) {
+                            $hoSeen++
+                            if ($hoWhy) { continue }
+                            $w = & $hoJudge $c ((-not $mv) -or $cfg -in 'Test', 'Asan')
+                            if ($w) { $hoWhy = "$p $cfg $g hog=$hg movies=$mv $w" }
+                            if (-not $mv -and @(@(@($c.Args) + @($c.Then)) | Where-Object { $_ -and [string]$_ -notmatch '(?:^| )-norender(?: |$)' }).Count -gt 0) { $hoNames += "$p/$cfg/$($c.Name)" }
+                            if (-not $mv -and -not $hg -and $p -eq 'Win32' -and $cfg -eq 'Test' -and $c.Name -ceq 'campaign-movies') { $hoReal = $c }
+                            if (-not $mv -and -not $hg -and $cfg -eq 'Test' -and $c.Name -ceq 'render-sound-on') { $hoRso[$p] = $c }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    $script:SmokePlatform = $hoPlat
+    $script:SmokeDigestConfiguration = $hoCfg
+    $env:OPENSWBF2_DIGEST_EXPECTED = $hoEnv
+    if (-not $hoWhy -and -not $hoReal) { $hoWhy = 'Win32 Test Standard has no campaign-movies case' }
+    if (-not $hoWhy -and ($hoNames | Sort-Object -Unique) -join ',' -cne 'Win32/Test/campaign-movies,Win32/Test/render-sound-on,x64/Test/campaign-movies,x64/Test/render-sound-on') { $hoWhy = "rendered default cases are $(($hoNames | Sort-Object -Unique) -join ','), expected campaign-movies and render-sound-on in Win32 and x64 Test" }
+    foreach ($p in 'Win32', 'x64') {
+        if ($hoWhy) { break }
+        $w = & $hoRsoJudge $hoRso[$p]
+        if ($w) { $hoWhy = "$p Test $w" }
+    }
+    if (-not $hoWhy) {
+        $hoRr = $hoRso['Win32']
+        $hoRsoMuts = @(
+            @('no rendered-only PACING line', @(@($hoRr.Expect.LogRx) | Where-Object { $_ -cne $hoPace }), $hoRr.Args),
+            @('no norender GAMMA check', @(@($hoRr.Expect.LogRx) | Where-Object { $_ -cne $hoNoNr }), $hoRr.Args),
+            @('no SOUND open=ok line', @(@($hoRr.Expect.LogRx) | Where-Object { $_ -cne 'OPENSWBF2 SOUND open=ok' }), $hoRr.Args),
+            @('-norender in its args', @($hoRr.Expect.LogRx), $hoRr.Args.Replace(' -win ', ' -norender -win '))
+        )
+        foreach ($m in $hoRsoMuts) {
+            $mc = New-Object PSObject -Property @{ Name = 'render-sound-on'; Args = $m[2]; Expect = @{ Class = 'Pass'; LogRx = $m[1] }; Twice = 0 }
+            if (-not (& $hoRsoJudge $mc)) { $hoWhy = "the check accepts render-sound-on with $($m[0])"; break }
+        }
+    }
+    if (-not $hoWhy) {
+        $hoPaceReal = $hoPace
+        $hoPace = '(?m)OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=0 timer=\w+\r?$'
+        $mc = New-Object PSObject -Property @{ Name = 'render-sound-on'; Args = $hoRr.Args; Expect = @{ Class = 'Pass'; LogRx = @(@($hoRr.Expect.LogRx) | ForEach-Object { if ($_ -ceq $hoPaceReal) { $hoPace } else { $_ } }) }; Twice = 0 }
+        if ((& $hoRsoJudge $mc) -cne 'render-sound-on accepts a headless log') { $hoWhy = 'the check accepts render-sound-on with a PACING line any timer matches' }
+        $hoPace = $hoPaceReal
+    }
+    if (-not $hoWhy -and -not ($hoReal.OwnedOn -and $hoReal.OwnedOn.x64 -and -not $hoReal.OwnedOn.x64.Function)) { $hoWhy = 'Win32 Test campaign-movies carries no x64 owned log entry to mutate' }
+    if (-not $hoWhy) {
+        $hoOwnedNo = { param([string]$drop) $o = $hoReal.OwnedOn.x64.Clone(); $o.NoLogRx = @(@($o.NoLogRx) | Where-Object { $_ -cne $drop }); $o }
+        $hoMuts = @(
+            @('campaign-movies without -handsoff', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args.Replace(' -handsoff', ''); Expect = $hoReal.Expect; Twice = 0 })),
+            @('campaign-movies without the no-warp LogRx', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args; Expect = @{ Class = 'Pass'; LogRx = @(@($hoReal.Expect.LogRx) | Where-Object { $_ -cne $hoWarp }) }; Twice = 0 })),
+            @('campaign-movies without the no-focus LogRx', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args; Expect = @{ Class = 'Pass'; LogRx = @(@($hoReal.Expect.LogRx) | Where-Object { $_ -cne $hoFocus }) }; Twice = 0 })),
+            @('campaign-movies whose x64 owned entry allows a cursor warp', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args; Expect = $hoReal.Expect; OwnedOn = @{ x64 = (& $hoOwnedNo 'OPENSWBF2 CURSOR warp') }; Twice = 0 })),
+            @('campaign-movies whose x64 owned entry allows a focus grab', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args; Expect = $hoReal.Expect; OwnedOn = @{ x64 = (& $hoOwnedNo 'OPENSWBF2 FOCUS activated') }; Twice = 0 })),
+            @('a synthetic rendered case without -handsoff', (New-Object PSObject -Property @{ Name = 'selftest-rendered'; Args = 'geo1c_con -nosound -fixedrate 30 -nowait -exitongameover -soakturns 300 -hangtimeout 0'; Expect = @{ Class = 'Pass'; LogRx = @($hoWarp, $hoFocus) }; Twice = 0 })),
+            @('a rendered Then step without -handsoff', (New-Object PSObject -Property @{ Name = 'selftest-then'; Args = '-norender -nosound -savetest write'; Then = @('-nosound -savetest load 1 SaveTest'); Expect = @{ Class = 'Pass'; LogRx = @($hoWarp, $hoFocus) }; Twice = 0 }))
+        )
+        foreach ($m in $hoMuts) {
+            if (-not (& $hoJudge $m[1] $true)) { $hoWhy = "the check accepts $($m[0])"; break }
+        }
+    }
+    if ($hoWhy) { $failed++; Write-Host "FAILED ${n}: rendered cases hands-off: $hoWhy" }
+    else { Write-Host "OK $n every rendered smoke case and Then step on both platforms passes -handsoff and forbids the CURSOR warp and FOCUS activated lines (under -Movies in Test and Asan), so does every owned log entry of a rendered case, render-sound-on requires a rendered-only PACING line and no norender GAMMA line, and the check rejects a case missing any of them ($hoSeen cases)" }
+    $n++
+    $spWhy = $null
+    $spRed = @()
+    $spPlat = $script:SmokePlatform
+    $spCfg = $script:SmokeDigestConfiguration
+    $spEnv = $env:OPENSWBF2_DIGEST_EXPECTED
+    try {
+        $env:OPENSWBF2_DIGEST_EXPECTED = $savedExpected
+        $spText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'gate\tiers.ps1'))
+        $spLoad = { param([string]$text) & { . ([scriptblock]::Create($text)); , @($GateSteps) } }
+        $spMissions = @{
+            All = @(Get-Content (Join-Path $PSScriptRoot 'smoke\missions-all.txt') | Where-Object { $_.Trim() })
+            Other = @(Get-Content (Join-Path $PSScriptRoot 'smoke\missions.txt') | Where-Object { $_.Trim() })
+        }
+        $spNames = @('sound-on', 'boot-sound-on', 'render-sound-on')
+        $spTierOrder = @('plan', 'pr', 'branch', 'milestone')
+        $spShared = @('sound-on Release/Standard plan,branch,milestone', 'sound-on Test/Standard pr,milestone', 'boot-sound-on Release/Boot plan,branch,milestone', 'render-sound-on Test/Standard pr,milestone')
+        $spAsan = @{
+            Win32 = @('sound-on Asan/Standard pr,milestone')
+            x64 = @('boot-sound-on Asan/Boot excluded=C-DSOUND-LFQUEUE-ASAN branch,milestone')
+        }
+        $spAsanWhy = 'x64 Asan smoke is the Boot group only (boot-Asan) until Phase 52 HARDX-02 adds x64 Asan Standard, and Win32 has no Asan Boot step'
+        $spWant = @(foreach ($p in 'Win32', 'x64') { foreach ($r in @($spShared + $spAsan[$p])) { "$p $r" } })
+        $spRealCases = {
+            param([string]$p, [string]$cfg, [string]$g, [bool]$hg, [string]$soak)
+            $script:SmokePlatform = $p
+            $script:SmokeDigestConfiguration = $cfg
+            $m = $(if ($g -ceq 'All') { $spMissions.All } else { $spMissions.Other })
+            Get-SmokeCases $g $m $false $null $hg $soak
+        }
+        $spPlace = {
+            param($steps, $caseFn)
+            $tiers = @{}
+            $bad = @()
+            foreach ($s in $steps) {
+                $a = @($s.Args)
+                if ($s.Kind -cne 'run' -or $a -notcontains 'tests\run.ps1') { continue }
+                $g = 'Standard'
+                $c = 'Debug'
+                $sc = $null
+                $soak = 'Short'
+                for ($i = 0; $i -lt $a.Count - 1; $i++) {
+                    if ($a[$i] -ceq '-Smoke') { $g = $a[$i + 1] }
+                    elseif ($a[$i] -ceq '-Configuration') { $c = $a[$i + 1] }
+                    elseif ($a[$i] -ceq '-SmokeConfiguration') { $sc = $a[$i + 1] }
+                    elseif ($a[$i] -ceq '-Soak') { $soak = $a[$i + 1] }
+                }
+                if ($a -contains '-Asan') { $c = 'Asan' }
+                if ($g -ceq 'None') { continue }
+                if (-not $sc) { $sc = $(if ($c -in 'Test', 'Asan') { $c } else { 'Release' }) }
+                $plats = $(if ($s.Platform) { @($s.Platform) } else { @('Win32', 'x64') })
+                foreach ($p in $plats) {
+                    $hg = [bool]($s.PlatformArgs -and @($s.PlatformArgs[$p]) -contains '-HogAddrSpace')
+                    $ex = @(Get-SmokeExcludedEntries $p $sc)
+                    foreach ($k in @(& $caseFn $p $sc $g $hg $soak)) {
+                        if ($spNames -cnotcontains $k.Name) { continue }
+                        if ($k.Name -ceq 'boot-sound-on') {
+                            $hogArg = ($k.Args -match '(^| )-hogaddrspace( |$)')
+                            $hogRx = (@($k.Expect.LogRx) -ccontains $script:SmokeAddrSpaceRxX64)
+                            if ($hogArg -ne ($p -eq 'x64') -or $hogRx -ne ($p -eq 'x64')) { $bad += "$p $sc boot-sound-on has -hogaddrspace=$hogArg and the x64 ADDRSPACE line=$hogRx" }
+                        }
+                        $key = "$p $($k.Name) $sc/$g"
+                        $e = @($ex | Where-Object { $_.Case -ceq $k.Name })
+                        if ($e.Count) { $key += ' excluded=' + ($e[0].Cause -split ':')[0] }
+                        elseif ($sc -ceq 'Asan' -and @($script:SmokeAsanExcluded) -ccontains $k.Name) { $key += ' excluded=asan' }
+                        if (-not $tiers.ContainsKey($key)) { $tiers[$key] = @() }
+                        $tiers[$key] += @($s.Tiers)
+                    }
+                }
+            }
+            $rows = @($tiers.Keys | ForEach-Object { $t = $tiers[$_]; "$_ " + (@($spTierOrder | Where-Object { $t -contains $_ }) -join ',') } | Sort-Object)
+            return @{ Rows = $rows; Bad = $bad }
+        }
+        $spCheck = {
+            param($steps, $caseFn)
+            $r = & $spPlace $steps $caseFn
+            if ($r.Bad.Count) { return $r.Bad[0] }
+            $miss = @($spWant | Where-Object { $r.Rows -cnotcontains $_ })
+            $extra = @($r.Rows | Where-Object { $spWant -cnotcontains $_ })
+            if ($miss.Count -or $extra.Count) { return "placement differs: missing [$($miss -join '; ')] extra [$($extra -join '; ')]" }
+            return $null
+        }
+        $spSteps = & $spLoad $spText
+        $spWhy = & $spCheck $spSteps $spRealCases
+        $spAnchor = "Name = 'standard-Test'; Tiers = @('pr', 'milestone')"
+        if (-not $spWhy -and ([regex]::Matches($spText, [regex]::Escape($spAnchor))).Count -ne 1) { $spWhy = 'standard-Test anchor not found once in tiers.ps1' }
+        if (-not $spWhy) {
+            $spNoRso = { param($p, $cfg, $g, $hg, $soak) & $spRealCases $p $cfg $g $hg $soak | Where-Object { -not ($p -eq 'x64' -and $_.Name -ceq 'render-sound-on') } }
+            $spHogW = { param($p, $cfg, $g, $hg, $soak) & $spRealCases $p $cfg $g $hg $soak | ForEach-Object { if ($p -eq 'Win32' -and $_.Name -ceq 'boot-sound-on') { New-Object PSObject -Property @{ Name = $_.Name; Args = $_.Args.Replace(' -soakturns 300', ' -hogaddrspace -soakturns 300'); Expect = $_.Expect; Twice = 0 } } else { $_ } } }
+            $spMuts = @(
+                @('x64 standard-Test without pr', (& $spLoad $spText.Replace($spAnchor, "Name = 'standard-Test'; Tiers = @('milestone')")), $spRealCases),
+                @('no render-sound-on on x64', $spSteps, $spNoRso),
+                @('Win32 boot-sound-on with -hogaddrspace', $spSteps, $spHogW)
+            )
+            foreach ($m in $spMuts) {
+                $w = & $spCheck $m[1] $m[2]
+                if (-not $w) { $spWhy = "mutant survived: $($m[0])"; break }
+                $spRed += "$($m[0]) -> $w"
+            }
+        }
+    }
+    catch { $spWhy = "threw: $_" }
+    finally {
+        $script:SmokePlatform = $spPlat
+        $script:SmokeDigestConfiguration = $spCfg
+        $env:OPENSWBF2_DIGEST_EXPECTED = $spEnv
+    }
+    if ($spWhy) { $failed++; Write-Host "FAILED ${n}: sound and render placement: $spWhy" }
+    else { Write-Host "OK $n sound-on, boot-sound-on and render-sound-on run at the same tiers on Win32 and x64 ($($spShared -join '; ')), the Asan group differs only as recorded (Win32 $($spAsan.Win32 -join '; '); x64 $($spAsan.x64 -join '; '); $spAsanWhy), boot-sound-on carries -hogaddrspace and the ADDRSPACE line on x64 only, and the check fails on: $($spRed -join ' | ')" }
+    $n++
     $capWhy = $null
     $capCfg = $script:SmokeDigestConfiguration
     $capEnv = $env:OPENSWBF2_DIGEST_EXPECTED
@@ -2541,13 +2999,13 @@ try {
                     foreach ($c in @(Get-SmokeCases $g $capMissions $false $null $hg $sk)) {
                         $capSeen++
                         if ($capWhy) { continue }
-                        $req = @(@($c.Expect.LogRx) | Where-Object { $_ -ceq 'OPENSWBF2 SOAK turns=' -or $_ -ceq '(?m)OPENSWBF2 SOAK turns=1\r?$' -or $_ -ceq '(?m)OPENSWBF2 SOAK shell=300\r?$' }).Count -gt 0
+                        $req = @(@($c.Expect.LogRx) | Where-Object { $_ -ceq 'OPENSWBF2 SOAK turns=' -or $_ -ceq '(?m)OPENSWBF2 SOAK turns=1\r?$' -or $_ -ceq '(?m)OPENSWBF2 SOAK turns=300\r?$' -or $_ -ceq '(?m)OPENSWBF2 SOAK shell=300\r?$' }).Count -gt 0
                         $forbid = @($c.Expect.LogRx) -contains $script:SmokeCapRx
                         if ($req) { $capReq++ }
                         if ($c.Expect.Class -eq 'TimeOut') { $capWhy = "$cfg $g $sk $($c.Name) expects TimeOut" }
                         elseif ([regex]::Matches($c.Args, ' -soakturns \d+').Count -ne 1) { $capWhy = "$cfg $g $sk $($c.Name) does not carry exactly one -soakturns: $($c.Args)" }
                         elseif ($req -eq $forbid) { $capWhy = "$cfg $g $sk $($c.Name) requires=$req forbids=$forbid the SOAK line" }
-                        elseif ($forbid -and -not $c.Args.EndsWith(" -soakturns $script:SmokeTurnCap")) { $capWhy = "$cfg $g $sk $($c.Name) forbids the SOAK line but does not end at the work cap: $($c.Args)" }
+                        elseif ($forbid -and -not $c.Args.EndsWith(" -soakturns $(if ($c.OwnedOn -and $c.OwnedOn[$script:SmokePlatform] -and $c.OwnedOn[$script:SmokePlatform].SoakTurns) { $c.OwnedOn[$script:SmokePlatform].SoakTurns } else { $script:SmokeTurnCap })")) { $capWhy = "$cfg $g $sk $($c.Name) forbids the SOAK line but does not end at the work cap: $($c.Args)" }
                         elseif ((@($c.PSObject.Properties.Name | Where-Object { $_ -notin 'Omit', 'Swap', 'NeedsFile', 'SkipReason', 'DigestRow', 'OwnedOn', 'Then' } | Sort-Object) -join ',') -cne 'Args,Expect,Name,Twice') { $capWhy = "$cfg $g $sk $($c.Name) carries fields other than Name, Args, Expect, Twice, the worker file fields, the Then steps and the digest row and owned entry fields: $(@($c.PSObject.Properties.Name) -join ',')" }
                         elseif (@($c.Then | Where-Object { $_ } | Where-Object { [regex]::Matches([string]$_, ' -soakturns \d+').Count -ne 1 -or -not ([string]$_).EndsWith(" -soakturns $script:SmokeTurnCap") -or [regex]::Matches([string]$_, '(?:^| )-hangtimeout 0(?: |$)').Count -ne 1 }).Count -gt 0) { $capWhy = "$cfg $g $sk $($c.Name) has a Then step without one -soakturns at the work cap and one -hangtimeout 0: $(@($c.Then) -join ' | ')" }
                         elseif (($c.Args -replace '^.*(?:^| )-hangtimeout (\S+)(?: .*)?$', '$1') -cne $(if ($c.Name -eq 'crash-hang') { '5' } else { '0' }) -or [regex]::Matches($c.Args, '(?:^| )-hangtimeout ').Count -ne 1) { $capWhy = "$cfg $g $sk $($c.Name) does not carry exactly one -hangtimeout 0 (crash-hang: 5): $($c.Args)" }

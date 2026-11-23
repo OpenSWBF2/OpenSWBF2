@@ -148,9 +148,11 @@
 - Peaks that differ: `Combo::DamageSample` has a lower x64 peak in 6 missions (tat2g_eli 2843
   against 2561). That is C-COMBO-BLOCKS: a 28-byte element packs into 32-byte x64 blocks, so the
   same arrays hold fewer blocks. It never grew and its count is equal.
-- Not asserted here: the Lua bin pools (`LuaN`), whose bin set is per platform (49-08), and the
-  SoundFL voice and stream storage, owned by Phase 50 AV-01; neither SoundFL array is a
-  `MemoryPool` row of these tables.
+- Not asserted here: the Lua bin pools (`LuaN`), whose bin set is per platform (49-08).
+- SoundFL voice and stream storage are not `MemoryPool` rows of these tables. The same T1 counts
+  them in entries from `Snd::EngineBase::kNumVoices` and `kNumStreams`: at least 32 voices and 6
+  streams on both platforms, and on x86 exactly 0xA800 and 0x1446A68 bytes. Guard rows
+  `SNDPOOL-VOICES-X64`, `SNDPOOL-STREAMS-X64`.
 - Tests: T1 `pool capacities in entries` (every label and row of both pinned tables: block sizes,
   configured count, replayed capacity, peaks, the growth and packed lists with stale checks, and
   on the running platform the exact entry ceiling of Create, growth and both script clamps,
@@ -344,12 +346,44 @@
   `-` as on x86). The only row that differs from the x86 headless section is the case name
   `crash-delayload-x64` for `crash-delayload`, a separate x64 Crash case by design (its digest
   row maps to the shared `crash-delayload`); no new off-thread source exists on x64.
-- No `## sound-on` section: it needs an x64 sound-on run (`soundon.ps1`), owned by Phase 50
-  AV-03. The reader stops at `## sound-on` on both platforms, so nothing in this phase reads that
-  section; Phase 50 adds it. Reader `tables:offthread-x64`.
+- No `## sound-on` section in 49-13: it needed an x64 sound-on run (`soundon.ps1`), which crashed
+  until Phase 50 AV-03. 50-13 added it (C-X64-TABLES-SOUNDON). The reader stops at `## sound-on`
+  on both platforms. Reader `tables:offthread-x64`.
 - Falsifier: wrong if a fresh x64 hog capture at the same game code differs below `# commit`, or
   if a Win32 table under `tests\baseline\v143` changes.
 - Status: pinned, 49-13, 2026-11-21.
+
+### C-X64-TABLES-SOUNDON
+
+- No digest row moved. No x86 table moved. In this folder only `offthread.txt` changed: its
+  `# commit` line and a new `## sound-on` section. Every row between them is unchanged.
+- Contents: in the C-X64-TABLES family, the x64 `## sound-on` section of `offthread.txt`. It has the
+  same shape as the x86 section: `geo1c_xl`, `hot1g_xl` and `kas2c_xl` with `sound=opened`, then
+  one off-thread row per mission, each `0 0 0` (count, sources, dropped). The values are the same
+  as in the x86 section, so there is no off-thread source on x64 with sound and the renderer on.
+- Why it was missing: x64 sound-on crashed in `Snd::DSBufferRenderer::UpdateObject` until the
+  AV-03 `DSBufferRenderer::ResetGain` fix of Phase 50 (guard row `RESETGAIN-X64`), so 49-13 pinned
+  the headless section only (the 49-13 note in C-X64-TABLES `offthread.txt`).
+- Runs, x64 Test, hog, Steam running, exe from 8b9e9406:
+  - headless section: `run.ps1 -Platform x64 -Configuration Test -Smoke All -HogAddrSpace`,
+    `artifacts\tests\20261122-163427`. All 163 cases pass, and `tables:offthread-x64` passes
+    against the 49-13 pin.
+  - sound-on: `soundon.ps1 -Platform x64`, run twice, into `artifacts\gate50\p13\sound1` and
+    `sound2`. Both runs pass for all four lines: three missions with `sound=opened offthread=1` and
+    a `-nosound` control with `sound=not opened`. Each mission log has `OPENSWBF2 SOUND open=ok` and
+    `OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0`.
+  - captures: `capture-vs2013.ps1 -Platform x64 -Configuration Test -NoBuild -Tables -Baseline
+    v143-x64 -OffThreadDir <run> -OffThreadSoundDir <sound1|sound2>`, into
+    `artifacts\gate50\p13\cap1` and `cap2`. The two `offthread.txt` are byte-identical, the
+    `# commit` line included.
+  - Everything between `# commit` and `## sound-on` is byte-identical to the 49-13 pin.
+  - The 50-12 folder `artifacts\gate50\p12\soundon-x64` was not used: it ran an older exe, and the
+    capture refuses it (`map timestamp mismatch`).
+- Recorded, not compared: `compare-tables.ps1` and `repin.ps1` stop at `## sound-on`, as on x86, so
+  no verdict reads the section.
+- Falsifier: wrong if a fresh `soundon.ps1 -Platform x64` capture at the same game code differs below
+  `# commit`, or if any x64 sound-on run logs a non-zero off-thread count.
+- Status: pinned, 50-13, 2026-11-22.
 
 ### C-HEAPCAP-X64-Lua-RETUNE
 

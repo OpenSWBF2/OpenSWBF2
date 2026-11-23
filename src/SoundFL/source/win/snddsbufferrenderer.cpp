@@ -195,7 +195,7 @@ void DSBufferRenderer::ResetGain()
 
     for (unsigned int i = 0; i < mNumChannels; ++i)
     {
-        mGainCurrent[i] = mGainCurrent[i - 2];
+        mGainCurrent[i] = mGainTarget[i];
     }
 }
 
