@@ -68,7 +68,7 @@ TEST_CASE("command line keeps -perturbheap and -repeatmission out of the mission
 
 TEST_CASE("command line reports test-only switches it ignores" * doctest::test_suite("regression"))
 {
-    Parse("-perturbheap 1:pad -repeatmission 2 -shellfirst -exitonmovieclose -digestdetail 4 -savetest write geo1c_con");
+    Parse("-perturbheap 1:pad -repeatmission 2 -shellfirst -exitonmovieclose -digestdetail 4 -savetest write -handsoff geo1c_con");
     std::string ignored;
     const char* pcName = 0;
     int iCount = 0;
@@ -81,12 +81,12 @@ TEST_CASE("command line reports test-only switches it ignores" * doctest::test_s
             ignored += " ";
         }
     }
-    CHECK(iCount == 6);
+    CHECK(iCount == 7);
     CHECK(Mission() == "geo1c_con");
 #ifdef OPENSWBF2_TEST
     CHECK(ignored == "");
 #else
-    CHECK(ignored == "perturbheap repeatmission shellfirst exitonmovieclose digestdetail savetest ");
+    CHECK(ignored == "perturbheap repeatmission shellfirst exitonmovieclose digestdetail savetest handsoff ");
 #endif
 
     Parse("geo1c_con");

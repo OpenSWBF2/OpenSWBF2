@@ -3328,6 +3328,52 @@ the P42 runs already print it.
 - Reader: `compare-tables.ps1 -Collect`; both files are in `KeyComparedTables`.
 - Status: pinned, 49-16, 2026-11-21.
 
+### C-WAVEFORMAT-CBSIZE
+
+- No digest row moved. No table in this directory changed.
+- Defect: `DSBuffer::WaveFormat::WaveFormat` (`snddsbuffer.cpp`, 0x00743bb0) set `cbSize = 40`
+  for `WAVE_FORMAT_EXTENSIBLE`. DirectSound copies `sizeof(WAVEFORMATEX) + cbSize` = 58 bytes,
+  but the struct is a 40-byte `WAVEFORMATEXTENSIBLE` on the stack of `DSBuffer::Create`, so 18
+  bytes past it were read. x64 ASan reported it as `stack-buffer-overflow READ of size 58` in
+  `DSBuffer::Create` via `DSOUND.dll` (D-16).
+- Retail: the retail exe (GOG XPLAY Release, 2017-10-23, SHA-256
+  `3bfdb0931885de776126957aa4883b691fc391b58126ff639e36592309d75e90`) stores `mov edx,28h` (40) at 0x00743c24, so the over-read is retail behaviour. The PCM
+  branch stores 14 (0x0E); DirectSound ignores `cbSize` for PCM and 18 + 14 fits in the struct,
+  so it is unchanged.
+- Fix (phase 50, plan 50-04): `cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)`
+  (22), the documented value.
+- x86 change: one function, the `WaveFormat` constructor. In the Win32 Release and Test
+  `snddsbuffer.obj` the only difference is the immediate at +0x77, `mov ecx,28h` to
+  `mov ecx,16h`; coffcmp reports one section of the same size, and nothing else moved.
+- Guards: rows CBSIZE-PIN and CBSIZE-PIN-X64 restore `cbSize = 40` and turn the T1
+  `dsound wave format cbSize matches the struct passed (source pin)` RED.
+- Status: fixed, 50-04, 2026-11-22.
+
+### C-DSOUND-LFQUEUE-ASAN
+
+- No digest row moved. No table in this directory changed.
+- Defect (Windows, not the game): `dsound.dll` 10.0.26100.1 (x64, SHA-256
+  `5aa7fa9e6017b88d19a4d9e99b9e9ecd12cb2bb83e02e137e88bc672909588c0`) keeps its lock-free queues
+  (`LFQueuePut`, `LFQueueGet`, the `CGraphManager` command queue) as tagged words
+  `(node << 21) + ((seq + 1) & 0xFFFFFF)` and decodes `(hdr >> 21) & 0x7FFFFFFFFF8`, so a node
+  pointer keeps 43 bits. The nodes come from `_aligned_malloc` (`CMFRTFifo<Command*>::MemoryAlloc`).
+- Under MSVC x64 ASan that call is intercepted. The shadow is `[off, off + 2^44)` and the ASan
+  heap lies above it, so every node is at or above 2^44. Its decoded value `node mod 2^43` falls
+  in the shadow, which reads as zero. `CGraphManager::ThreadProc` (`DSOUND.dll+0x1466d`) then reads
+  a null command and faults on DSOUND's own thread, created in the first `IDirectSoundBuffer::Play`.
+- Proof (50-05): a standalone DirectSound `Play` program faults at `DSOUND.dll+0x1466d` 3 of 3 with
+  `/fsanitize=address` and exits 0 3 of 3 without it. Under cdb, every node is at or above 2^43 and
+  every decode lands in the shadow with ASan. Without ASan, every node is below 2^43 and every
+  decode equals the pushed node.
+- No ASan runtime option (`help=1`, 14.44), `/HIGHENTROPYVA:NO` or `/MT` keeps the nodes below
+  2^43. x86 pointers are 32 bits and are not affected.
+- Effect: `boot-sound-on` is excluded from x64 Asan only (`$script:SmokeExcludedPlatform` in
+  `tests/smoke/cases.ps1`). Win32 Asan still runs `sound-on`; x64 Release and Test still run
+  `boot-sound-on` and `sound-on`.
+- Owner: replacing the DirectSound output (BACKLOG Tier 5: audio, XAudio2 or WASAPI). Phase 52
+  HARDX-02 (x64 Asan Standard) is also affected.
+- Status: carried, 50-05, 2026-11-22.
+
 ## Policy
 
 The v143 files in `tests/corpus/` and this directory are the reference from now on. The digest

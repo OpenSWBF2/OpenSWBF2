@@ -1,4 +1,4 @@
-# commit 9d3e9374720c0f8f3215dc61cf7611ae0149f85c
+# commit 8b9e9406775289f8d923d822cb0faf73725427e0
 case	count	sources	dropped
 case	tid	heap	size	count	frame0..frame7
 cor1c_c	0	0	0
@@ -164,3 +164,10 @@ yav1c_con	0	0	0
 yav1g_1flag	0	0	0
 yav1g_c	0	0	0
 yav1g_con	0	0	0
+## sound-on
+geo1c_xl	sound=opened
+hot1g_xl	sound=opened
+kas2c_xl	sound=opened
+geo1c_xl	0	0	0
+hot1g_xl	0	0	0
+kas2c_xl	0	0	0

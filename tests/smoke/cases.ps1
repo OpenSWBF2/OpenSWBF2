@@ -6,6 +6,7 @@ $script:PerturbSoakTurns = 100000
 $script:SmokeCapRx = '(?s)\A(?!.*OPENSWBF2 SOAK turns=)'
 $script:SteamIfaceRx = @('OPENSWBF2 STEAM iface=SteamClient ok', 'OPENSWBF2 STEAM iface=SteamUser ok', 'OPENSWBF2 STEAM iface=SteamFriends ok', 'OPENSWBF2 STEAM iface=SteamUtils ok')
 $script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-delayload', 'crash-delayload-x64', 'crash-early', 'crash-heapinit', 'crash-check', 'crash-hang', 'crash-stall', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat', 'crash-capexhaust', 'vendor-x64-none', 'vendor-x64-steam-wrongbits', 'vendor-x64-galaxy-wrongbits', 'vendor-x64-steam-on')
+$script:SmokeExcludedPlatform = @([pscustomobject]@{ Platform = 'x64'; Config = 'Asan'; Case = 'boot-sound-on'; Cause = 'C-DSOUND-LFQUEUE-ASAN: DSOUND LFQueue 43-bit pointer pack vs ASan heap >16 TB' })
 $script:SmokeAddrSpaceRx = 'OPENSWBF2 ADDRSPACE arena=0x[89A-F][0-9A-F]{7} arena_end=0x[0-9A-F]{8} laa=1 steam=[01] steam_api=0x(?!0{8})[0-9A-F]{8} Galaxy=0x(?!0{8})[0-9A-F]{8} GalaxyPeer=0x[0-9A-F]{8} binkw32=0x(?!0{8})[0-9A-F]{8}'
 $script:SmokeAddrSpaceRxX64 = 'OPENSWBF2 ADDRSPACE arena=0x[1-9A-F][0-9A-F]{8,15} arena_end=0x[1-9A-F][0-9A-F]{8,15} laa=1 steam=(?:0 steam_api=0x0{8}|[01] steam_api=0x[1-9A-F][0-9A-F]{8,15}) Galaxy=0x0{8} GalaxyPeer=0x0{8} binkw32=0x0{8}'
 $script:ImportStaticAllow = @{
@@ -100,9 +101,9 @@ $script:SpacerAllow = @(
     'src\Battlefront2\Source\FLInputManager.h|mReservedBeforeMissingPort|[3]|x64:safe:unread pad bytes between named members; the compiler aligns the next member on each platform',
     'src\Battlefront2\Source\gamespyStatsManager.cpp|sStatsMatchData|[0x40]|x64:safe:byte buffer used with sizeof or a byte count; it holds bytes and no pointers',
     'src\Battlefront2\Source\gamespyStatsManager.cpp|sStatsMatchData|[0x40]|x64:safe:byte buffer used with sizeof or a byte count; it holds bytes and no pointers',
-    'src\Battlefront2\Source\GameVoiceChat.cpp|_gDecoderStorage|[sizeof(Decoder)+alignof(void*)]|x64:fixed:45-09 sizes the storage as sizeof(T) + alignof and aligns the object through RedAlignUp',
-    'src\Battlefront2\Source\GameVoiceChat.cpp|_gNodeStorage|[sizeof(Node)+alignof(Node)]|x64:fixed:45-09 sizes the storage as sizeof(T) + alignof and aligns the object through RedAlignUp',
-    'src\Battlefront2\Source\GameVoiceChat.cpp|_gEncoderStorage|[sizeof(Encoder)+alignof(Encoder)]|x64:fixed:45-09 sizes the storage as sizeof(T) + alignof and aligns the object through RedAlignUp',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gDecoderStorage|[VoiceChatLayout::StorageBytes<Decoder>()]|x64:fixed:sized and aligned by VoiceChatLayout::StorageBytes and StorageSlot from sizeof and alignof; the T1 voice chat node carving fits and aligns proves the aligned object fits on both platforms',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gNodeStorage|[VoiceChatLayout::StorageBytes<Node>()]|x64:fixed:sized and aligned by VoiceChatLayout::StorageBytes and StorageSlot from sizeof and alignof; the T1 voice chat node carving fits and aligns proves the aligned object fits on both platforms',
+    'src\Battlefront2\Source\GameVoiceChat.cpp|_gEncoderStorage|[VoiceChatLayout::StorageBytes<Encoder>()]|x64:fixed:sized and aligned by VoiceChatLayout::StorageBytes and StorageSlot from sizeof and alignof; the T1 voice chat node carving fits and aligns proves the aligned object fits on both platforms',
     'src\Battlefront2\Source\GameVoiceChat.cpp|pad|[3]|x64:safe:unread pad bytes between named members; the compiler aligns the next member on each platform',
     'src\Battlefront2\Source\HUDEvent.cpp|acName|[0x400]|x64:safe:char buffer bounded by sizeof or a fixed char count; no pointer-sized element',
     'src\Battlefront2\Source\HUDManager.cpp|acName|[0x400]|x64:safe:char buffer bounded by sizeof or a fixed char count; no pointer-sized element',
@@ -157,12 +158,27 @@ $script:SpacerAllow = @(
 )
 $script:OffsetAllow = @(
     'src\Battlefront2\Source\CollisionTree.cpp|(unsigned short*)(memblock + iBytes - 2 * iIndices)|x64:safe:index pool at the end of one new char[iBytes] block; 2 is sizeof(unsigned short) and the 12-byte node records hold no pointer since WIDTH-02',
-    'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(VoiceChat::AudioPacket*)(mEncoderPackets + 1)|x64:safe:typed or sizeof-based offset inside one block whose size 45-09 builds from sizeof',
+    'src\Battlefront2\Source\GameVoiceChatDecoder.cpp|(Snd::StreamPacket*)(pBlock + kCarve.uProducerPackets)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatDecoder.cpp|(Snd::StreamGSMDecoder*)(pBlock + kCarve.uDecoders)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatDecoder.cpp|(unsigned char*)(pBlock + kCarve.uDecoderBuffer)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatDecoder.cpp|(Snd::StreamPacket*)(pBlock + kCarve.uDecoderPackets)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatDecoder.cpp|(Snd::StreamNodeConnection*)(pBlock + kCarve.uMixerConnections)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatDecoder.cpp|(Snd::StreamPacketIO*)(pBlock + kCarve.uMixerPacketIO)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatDecoder.cpp|(unsigned int*)(pBlock + kCarve.uMixerBufferOffsets)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatDecoder.cpp|(int*)(pBlock + kCarve.uMixerAccBuffer)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatDecoder.cpp|(Snd::StreamPacket*)(pBlock + kCarve.uMixerPackets)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatDecoder.cpp|(short*)(pBlock + kCarve.uMixerOutBuffer)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(Snd::StreamPacket*)(pCursor + kCarve.uCapturePackets)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(Snd::StreamPacket*)(pCursor + kCarve.uEncoderPackets)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\GameVoiceChatEncoder.cpp|(VoiceChat::AudioPacket*)(pCursor + kCarve.uAudioPacket)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat decoder and encoder carving fits and aligns proves alignment, order and containment on both platforms',
     'src\Battlefront2\Source\HUDManager.cpp|(char*)HUD::gEditHeapMem + 0xFFFFF|x64:safe:last byte of the same 0x100000-byte allocation',
     'src\Battlefront2\Source\NetSetup.cpp|(char*)(fileNames + iCount)|x64:safe:strings follow iCount char* slots in a buffer sized iCount * sizeof(char*) plus the string bytes',
     'src\Battlefront2\Source\pcMain.cpp|(char*)p + 0x300000|x64:safe:3 MB byte budget handed to RedCreateHeap; no pointer-sized element',
-    'src\Battlefront2\Source\VoiceChatNode.cpp|(SendMetrics*)(pPerNode + uiNodes * sizeof(ReceiveMetrics))|x64:safe:typed or sizeof-based offset inside one block whose size 45-09 builds from sizeof',
-    'src\Battlefront2\Source\VoiceChatNode.cpp|(AudioPacket*)(mReceiveStreams + uiNodes)|x64:safe:typed or sizeof-based offset inside one block whose size 45-09 builds from sizeof',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(unsigned char*)(p + kCarve.uWriteBitmap)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat node carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(SendMetrics*)(p + kCarve.uSendMetrics)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat node carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(AudioPacket*)(pBlock + kCarve.uPackets)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat node carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(unsigned char*)(pBlock + kCarve.uData)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat node carving fits and aligns proves alignment, order and containment on both platforms',
+    'src\Battlefront2\Source\VoiceChatNode.cpp|(unsigned char*)(pBlock + kCarve.uAllocatedInputs)|x64:fixed:offset from VoiceChatLayout inside the one block it sizes from sizeof; the T1 voice chat node carving fits and aligns proves alignment, order and containment on both platforms',
     'src\Battlefront2\Source\VoiceChatNode.cpp|(char*)mBitmap + 1|x64:safe:typed or sizeof-based offset inside one block whose size 45-09 builds from sizeof',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)|x64:safe:byte offset from the vertex declaration inside one float vertex record',
     'src\RedEngineFL\Graphics\PC\pcRedSegment.cpp|(PblVector3*)(vertex + normalOffset)|x64:safe:byte offset from the vertex declaration inside one float vertex record',
@@ -245,6 +261,17 @@ function Get-SmokeAddrSpaceRx {
     return $script:SmokeAddrSpaceRx
 }
 
+function Get-SmokeExcludedEntries([string]$Platform, [string]$Config) {
+    return @($script:SmokeExcludedPlatform | Where-Object { $_.Platform -ceq $Platform -and $_.Config -ceq $Config })
+}
+
+function Get-SmokeExcluded([string]$Platform, [string]$Config) {
+    $names = @()
+    if ($Config -ceq 'Asan') { $names += @($script:SmokeAsanExcluded) }
+    $names += @(Get-SmokeExcludedEntries $Platform $Config | ForEach-Object { $_.Case })
+    return $names
+}
+
 function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $false, $soak = 'Short') {
     $soakTurns = $null
     if ($soak -eq 'Short') { $soakTurns = $script:SoakShortTurns }
@@ -252,12 +279,13 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
     else { throw "unknown soak '$soak'" }
     $standard = $script:SmokeStandardMission
     $render = '-norender'
-    if ($movies) { $render = '' }
+    if ($movies) { $render = '-handsoff' }
     $tail = (("$render -nosound -fixedrate 30 -nowait -logfinalscore -DecompCONMinutes 5 -seed 1 -exitongameover -nofocuspause -log ""{CASEDIR}\run.log"" -hangtimeout 0") -replace '^\s+', '')
     $htail = $tail
     $pass = @{ Class = 'Pass' }
     $hrx = @()
     $noWarpRx = '(?s)\A(?!.*OPENSWBF2 CURSOR warp)'
+    $noFocusRx = '(?s)\A(?!.*OPENSWBF2 FOCUS activated)'
     if ($hog) {
         $htail = "$tail -hogaddrspace"
         $hrx = @(Get-SmokeAddrSpaceRx)
@@ -296,6 +324,10 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         $memRx += @('OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=0 timer=none', 'OPENSWBF2 DPI awareness=(pmv2|pm|system|none) dpi=\d+', 'OPENSWBF2 GAMMA path=ramp reason=norender', '(?s)\A(?!.*OPENSWBF2 GAMMA FAKE)', '(?s)\A(?!.*OPENSWBF2 GAMMA path=pass)', 'OPENSWBF2 CURSOR mode=hw image=skipped')
         $cases += New-Object PSObject -Property @{ Name = $standard; Args = "$standard $htail"; Expect = @{ Class = 'Pass'; LogRx = ($memRx + $hrx) }; Twice = 0 }
         $cases += New-Object PSObject -Property @{ Name = 'heapcap'; Args = "$standard $htail -heapcap Runtime=1M -heapcap Runtime=96M -heapcap Bogus=1M -heapcap Runtime=12x"; Expect = @{ Class = 'Pass'; SameRunAs = $standard; LogRx = (@('OPENSWBF2 MEMREPORT heap=Runtime cap=100663296 ', '-heapcap needs <Name>=<bytes>\[K\|M\], ignored: Bogus=1M', '-heapcap needs <Name>=<bytes>\[K\|M\], ignored: Runtime=12x') + $hrx) }; Twice = 0 }
+        $sndTail = ($htail -replace '(^| )-nosound(?= )', '') -replace '^\s+', ''
+        $sndRx = @('OPENSWBF2 SOUND open=ok', 'OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 SOAK turns=300\r?$', $noWarpRx)
+        if ($script:SmokeDigestConfiguration -in 'Test', 'Asan') { $sndRx += 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0' }
+        $cases += New-Object PSObject -Property @{ Name = 'sound-on'; Args = "$standard $sndTail -soakturns 300"; Expect = @{ Class = 'Pass'; LogRx = ($sndRx + $hrx) }; Twice = 0 }
     }
     if ($which -eq 'Standard') {
         $t1rx = '(?m)OPENSWBF2 SOAK turns=1\r?$'
@@ -326,7 +358,7 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             $cases += New-Object PSObject -Property @{ Name = 'shell-first'; Args = "$standard $htail -shellfirst"; Expect = @{ Class = 'Pass'; SameDigests = 1; LogRx = (@('OPENSWBF2 SHELLFIRST to_mission mission=' + $standard) + $scanRx + $hrx) }; Twice = 0 }
             $cases += New-Object PSObject -Property @{ Name = 'commit-flat'; Args = "$standard $htail -repeatmission 16"; Expect = @{ Class = 'Pass'; SameDigests = 17; CommitFlat = 0; CommitCycles = 16; CommitSettled = 8; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $hrx) }; Twice = 0 }
             if ($script:SmokeDigestConfiguration -eq 'Test') {
-                $mvTail = (($htail -replace '(^| )-norender(?= )', '') -replace '(^| )-nosound(?= )', '') -replace '^\s+', ''
+                $mvTail = ((($htail -replace '(^| )-norender(?= )', '') -replace '(^| )-handsoff(?= )', '') -replace '(^| )-nosound(?= )', '') -replace '^\s+', ''
                 if ($script:SmokePlatform -eq 'Win32') {
                     $ddPinned = Get-DigestExpected $standard
                     $ddDigestRx = $(if ($ddPinned) { '(?m)' + [regex]::Escape($ddPinned) + '\r?$' } else { '(?!)' })
@@ -340,7 +372,8 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
                     '(?s)\A(?!.*OPENSWBF2 SAVE (rejected|profile CRC mismatch))'
                 )
                 $cases += New-Object PSObject -Property @{ Name = 'save-roundtrip'; Args = "$htail -savetest write"; Then = @("$htail -savetest load 1 SaveTest", "$htail -savetest load 3 SaveTest"); Expect = @{ Class = 'Pass'; LogRx = ($saveRx + $hrx) }; Twice = 0 }
-                $cases += New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = "nab2g_c $mvTail -win -exitonmovieclose"; OwnedOn = @{ x64 = @{ Owner = 'Phase 50 AV-03'; Function = 'Snd::DSBufferRenderer::UpdateObject'; Class = 'Fatal' } }; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', 'OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0') + $hrx) }; Twice = 0 }
+                $cases += New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = "nab2g_c $mvTail -handsoff -win -exitonmovieclose"; OwnedOn = @{ x64 = @{ Owner = 'Phase 51 MOVIE-04'; Class = 'Pass'; LogRx = @('OPENSWBF2 MOVIE off: no movie decoder in this build', 'OPENSWBF2 MISSION RUNNING nab2g_c'); NoLogRx = @('OPENSWBF2 MOVIE open', 'OPENSWBF2 CURSOR warp', 'OPENSWBF2 FOCUS activated'); SoakTurns = 300 } }; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', 'OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
+                $cases += New-Object PSObject -Property @{ Name = 'render-sound-on'; Args = "$standard $mvTail -win -handsoff -soakturns 300"; Expect = @{ Class = 'Pass'; LogRx = (@('(?m)OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=0 timer=(hires|period)\r?$', '(?s)\A(?!.*OPENSWBF2 GAMMA path=ramp reason=norender)', 'OPENSWBF2 SOUND open=ok', 'OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 SOAK turns=300\r?$', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
             }
             $cases += New-Object PSObject -Property @{ Name = 'repeat-water'; Args = "nab2g_c $htail -repeatmission -soakturns 1501"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 REPEAT to_shell mission=nab2g_c\r?$', '(?m)OPENSWBF2 REPEAT to_mission mission=nab2g_c\r?$', 'OPENSWBF2 SIM DIGEST turns=', 'OPENSWBF2 SOAK turns=', $noWarpRx) + $hrx) }; Twice = 0 }
             $cases += New-Object PSObject -Property @{ Name = 'repeat-digest'; Args = "$standard $htail -repeatmission"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 REPEAT to_shell', 'OPENSWBF2 REPEAT to_mission') + $scanRx + $hrx) }; Twice = 0 }
@@ -404,6 +437,14 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
             $shellArgs = "$tail -hogaddrspace -soakturns 300"
         }
         $cases += New-Object PSObject -Property @{ Name = 'boot-shell'; Args = $shellArgs; Expect = @{ Class = 'Pass'; LogRx = $shellRx }; Twice = 0 }
+        $bootSndTail = ($tail -replace '(^| )-nosound(?= )', '') -replace '^\s+', ''
+        $bootSndRx = @('OPENSWBF2 SOUND open=ok', 'OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 SOAK turns=300\r?$', $noWarpRx)
+        $bootSndArgs = "$standard $bootSndTail -soakturns 300"
+        if ($script:SmokePlatform -eq 'x64') {
+            $bootSndRx += $script:SmokeAddrSpaceRxX64
+            $bootSndArgs = "$standard $bootSndTail -hogaddrspace -soakturns 300"
+        }
+        $cases += New-Object PSObject -Property @{ Name = 'boot-sound-on'; Args = $bootSndArgs; Expect = @{ Class = 'Pass'; LogRx = $bootSndRx }; Twice = 0 }
     }
     if ($which -eq 'Boot' -and $script:SmokePlatform -eq 'x64') {
         foreach ($m in 'hot1g_con', 'tat2g_eli', 'nab2g_c') {
@@ -803,14 +844,26 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
         $x.LogRx = @(@($x.LogRx) | Where-Object { $_ }) + @(100, 1500 | ForEach-Object { "(?m)OPENSWBF2 DIGEST TRACE turn=$_ state=0x[0-9A-F]{8} rand=\d+/\d+\r?$" })
         $c.Expect = $x
     }
+    if ($movies -and $script:SmokeDigestConfiguration -in 'Test', 'Asan') {
+        foreach ($c in $cases) {
+            $x = $c.Expect.Clone()
+            $x.LogRx = @(@($x.LogRx) | Where-Object { $_ -and $_ -cne $noWarpRx -and $_ -cne $noFocusRx }) + @($noWarpRx, $noFocusRx)
+            $c.Expect = $x
+        }
+    }
+    Add-SmokeWorkCap $cases
+    Assert-SmokeCaseData $cases
+    return $cases
+}
+
+function Add-SmokeWorkCap($cases) {
     foreach ($c in $cases) {
         if ($c.Then) { $c.Then = @($c.Then | ForEach-Object { if ($_ -match '(^| )-soakturns ') { $_ } else { "$_ -soakturns $script:SmokeTurnCap" } }) }
         if ($c.Args -match '(^| )-soakturns ') { continue }
-        $c.Args += " -soakturns $script:SmokeTurnCap"
+        $ownSoak = $(if ($c.OwnedOn -and $c.OwnedOn[$script:SmokePlatform]) { $c.OwnedOn[$script:SmokePlatform].SoakTurns })
+        $c.Args += " -soakturns $(if ($ownSoak) { $ownSoak } else { $script:SmokeTurnCap })"
         $x = $c.Expect.Clone()
         $x.LogRx = @(@($x.LogRx) | Where-Object { $_ }) + $script:SmokeCapRx
         $c.Expect = $x
     }
-    Assert-SmokeCaseData $cases
-    return $cases
 }

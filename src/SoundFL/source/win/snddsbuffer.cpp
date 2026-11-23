@@ -160,7 +160,7 @@ DSBuffer::WaveFormat::WaveFormat(SampleInfo::Format eFormat,
     SubFormat = kSubFormatPcm;
     Samples.wValidBitsPerSample = usBitsPerSample;
 
-    Format.cbSize = 40;
+    Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
 
     if (ulChannelMask != 0)
     {

@@ -35,5 +35,6 @@ namespace pcCrash
     bool ShellFirstRequested();
     bool TakeShellFirst();
     bool ExitOnMovieCloseRequested();
+    bool HandsOffRequested();
 #endif
 }

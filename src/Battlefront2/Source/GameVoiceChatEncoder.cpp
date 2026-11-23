@@ -15,7 +15,7 @@
 #include "GameVoiceChatTransport.h"
 
 #include "SoundFL/source/sndstreamcodec.h"
-#include "RedEngineFL/Memory/RedAlign.h"
+#include "VoiceChatLayout.h"
 
 static_assert(alignof(Snd::StreamPacket) <= alignof(void*) && sizeof(Snd::StreamPacket) % alignof(void*) == 0,
               "encoder packets keep the audio packet after them pointer aligned");
@@ -58,13 +58,10 @@ bool GameVoiceChat::Encoder::Open(unsigned int captureDeviceIndex, float fMaxPac
 
     const unsigned int uiSamples = GameVoiceChat::CalculatePlayCaptureBufferSizeSamples(fMs);
     const unsigned int uiFrameBytes = uiSamples * 2u;
-    const unsigned int uiAlignedFrame = (uiFrameBytes + 3u) & ~3u;
+    const unsigned int uiAlignedFrame = VoiceChatLayout::AlignedBytes(uiFrameBytes);
     const unsigned int uiEncodedBytes = GameVoiceChat::CalculateEncodedPacketSize(uiSamples);
-    const unsigned int uiAlignedEncoded = (uiEncodedBytes + 3u) & ~3u;
 
-    const unsigned int uiAlign = alignof(void*);
-    const unsigned int uiPacketBytes = sizeof(Snd::StreamPacket) * 3u + sizeof(VoiceChat::AudioPacket);
-    mCaptureBuffer = (unsigned char*)VoiceChat::Alloc(uiAlignedEncoded + uiAlignedFrame * 2u + uiPacketBytes + uiAlign);
+    mCaptureBuffer = (unsigned char*)VoiceChat::Alloc(VoiceChatLayout::EncoderBlockSize(uiSamples, uiEncodedBytes));
 
     if (!mCaptureBuffer)
     {
@@ -72,10 +69,11 @@ bool GameVoiceChat::Encoder::Open(unsigned int captureDeviceIndex, float fMaxPac
     }
 
     unsigned char* pCursor = mCaptureBuffer;
-    mEncoderBuffer = pCursor + uiAlignedFrame * 2u;
-    mCapturePackets = (Snd::StreamPacket*)RedAlignUp(mEncoderBuffer + uiAlignedEncoded, uiAlign);
-    mEncoderPackets = mCapturePackets + 2;
-    mAudioPacket = (VoiceChat::AudioPacket*)(mEncoderPackets + 1);
+    const VoiceChatLayout::EncoderCarve kCarve = VoiceChatLayout::CarveEncoder((const char*)pCursor, uiSamples, uiEncodedBytes);
+    mEncoderBuffer = pCursor + kCarve.uEncoderBuffer;
+    mCapturePackets = (Snd::StreamPacket*)(pCursor + kCarve.uCapturePackets);
+    mEncoderPackets = (Snd::StreamPacket*)(pCursor + kCarve.uEncoderPackets);
+    mAudioPacket = (VoiceChat::AudioPacket*)(pCursor + kCarve.uAudioPacket);
 
     unsigned int i = 0;
     do
@@ -149,6 +147,9 @@ void GameVoiceChat::Encoder::Close()
         FreeAudioPacket(mAudioPacket);
     }
 
+    mSource.Close();
+    mEncoder.SetPackets(0, 0, 0);
+
     FreeBuffers();
 
     mPacketSizeMs = 0.0f;
@@ -158,8 +159,6 @@ void GameVoiceChat::Encoder::Close()
     mSourceGain = 0.0f;
     mAppData = 0;
     mNumBuffers = 0;
-
-    mSource.Close();
 }
 
 // FUNCTION: SWBF2 0x0053d850

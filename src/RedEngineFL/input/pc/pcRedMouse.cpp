@@ -414,7 +414,7 @@ void RedMouse::SetCursorPos(int iX, int iY)
     FLRenderer::SetCursorPos((float)m_X, (float)m_Y);
 
 #ifdef OPENSWBF2_TEST
-    if (pcCrash::ExitOnMovieCloseRequested())
+    if (pcCrash::HandsOffRequested())
     {
         return;
     }
@@ -505,6 +505,9 @@ static void ReconcileCursor(RedMouse& kMouse)
     }
 
     if (kPlan.bClip
+#ifdef OPENSWBF2_TEST
+        && !pcCrash::HandsOffRequested()
+#endif
         && DisplayLogic::OwnsSystemCursor(gAppActive, hGlobalWnd != 0,
                                           hGlobalWnd != 0 && GetForegroundWindow() == hGlobalWnd))
     {

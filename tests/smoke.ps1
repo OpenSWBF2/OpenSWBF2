@@ -789,10 +789,26 @@ function Assert-SmokeCaseData($cases) {
             foreach ($p in @($c.OwnedOn.Keys)) {
                 $o = $c.OwnedOn[$p]
                 if ($p -cnotin 'Win32', 'x64') { throw "$($c.Name) owned entry has unknown platform '$p'" }
+                if ($o -isnot [hashtable]) { throw "$($c.Name) owned entry on $p is not a table" }
                 if ([string]$o.Owner -cnotmatch '^Phase \d+ [A-Z][A-Z0-9]*-\d+$') { throw "$($c.Name) owned entry on $p needs an Owner naming a later phase and a requirement (Phase <n> <REQ-NN>), got '$($o.Owner)'" }
-                if ([string]$o.Function -cnotmatch '^[A-Za-z_]\w*(::[A-Za-z_]\w*)*$') { throw "$($c.Name) owned entry on $p needs a Function, got '$($o.Function)'" }
-                if ($o.Class -cne 'Fatal') { throw "$($c.Name) owned entry on $p needs Class Fatal, got '$($o.Class)'" }
-                if ($c.Expect.Class -ceq $o.Class) { throw "$($c.Name) owned entry on $p records the class the case expects" }
+                $keys = (@($o.Keys | ForEach-Object { [string]$_ } | Sort-Object) -join ',')
+                if ($o.Class -ceq 'Fatal') {
+                    if ($keys -cne 'Class,Function,Owner') { throw "$($c.Name) owned entry on $p with Class Fatal takes exactly Owner, Function and Class, got $keys" }
+                    if ([string]$o.Function -cnotmatch '^[A-Za-z_]\w*(::[A-Za-z_]\w*)*$') { throw "$($c.Name) owned entry on $p needs a Function, got '$($o.Function)'" }
+                    if ($c.Expect.Class -ceq $o.Class) { throw "$($c.Name) owned entry on $p records the class the case expects" }
+                    continue
+                }
+                if ([string]$o.Class -cnotmatch '^[A-Z][A-Za-z]+$') { throw "$($c.Name) owned entry on $p needs a Class, got '$($o.Class)'" }
+                if ($keys -cne 'Class,LogRx,NoLogRx,Owner,SoakTurns') { throw "$($c.Name) owned entry on $p is neither the Fatal form (Owner, Function, Class Fatal) nor the log form (Owner, Class, LogRx, NoLogRx, SoakTurns), got $keys" }
+                foreach ($f in 'LogRx', 'NoLogRx') {
+                    $rxs = @($o[$f])
+                    if ($rxs.Count -lt 1) { throw "$($c.Name) owned entry on $p needs at least one $f" }
+                    foreach ($rx in $rxs) {
+                        if ($rx -isnot [string] -or -not $rx) { throw "$($c.Name) owned entry on $p has an empty $f" }
+                        try { [void][regex]::new($rx) } catch { throw "$($c.Name) owned entry on $p has a bad $f '$rx'" }
+                    }
+                }
+                if ($o.SoakTurns -isnot [int] -or $o.SoakTurns -lt 1 -or $o.SoakTurns -gt 9300) { throw "$($c.Name) owned entry on $p needs SoakTurns from 1 to 9300, got '$($o.SoakTurns)'" }
             }
         }
         if ($c.DigestRow) {
@@ -807,7 +823,24 @@ function Assert-SmokeCaseData($cases) {
 
 function Get-OwnedMismatch($owned, $res, [string]$mapFile) {
     if ($res.Class -cne $owned.Class) { return "class $($res.Class), recorded $($owned.Class)" }
-    $f = [regex]::Match([string]$res.LogText, 'FATAL: exception 0x[0-9A-F]{8} at 0x[0-9A-F]{1,16} \(BattlefrontII\.exe\+0x([0-9A-F]{1,16})\) build ([0-9A-F]{8,})')
+    if (-not $owned.Function) {
+        $log = [string]$res.LogText
+        foreach ($rx in @($owned.LogRx)) { if ($log -cnotmatch $rx) { return "log lacks $rx" } }
+        if ($log -cnotmatch "(?m)OPENSWBF2 SOAK turns=$($owned.SoakTurns)\r?$") { return "log lacks OPENSWBF2 SOAK turns=$($owned.SoakTurns)" }
+        foreach ($rx in @($owned.NoLogRx)) { if ($log -cmatch $rx) { return "log has $rx" } }
+        return $null
+    }
+    return Get-FatalFunctionMismatch ([string]$res.LogText) ([string]$owned.Function) $mapFile
+}
+
+function Get-GuardSmokeRedMismatch($row, $res, [string]$mapFile) {
+    if ($row.RedRx -and [string]$res.LogText -cnotmatch $row.RedRx) { return 'log lacks the RedRx' }
+    if ($row.RedFunction) { return Get-FatalFunctionMismatch ([string]$res.LogText) ([string]$row.RedFunction) $mapFile }
+    return $null
+}
+
+function Get-FatalFunctionMismatch([string]$logText, [string]$function, [string]$mapFile) {
+    $f = [regex]::Match($logText, 'FATAL: exception 0x[0-9A-F]{8} at 0x[0-9A-F]{1,16} \(BattlefrontII\.exe\+0x([0-9A-F]{1,16})\) build ([0-9A-F]{8,})')
     if (-not $f.Success) { return 'no FATAL exception line in BattlefrontII.exe' }
     try {
         $sym = Read-MapSymbols $mapFile
@@ -815,11 +848,11 @@ function Get-OwnedMismatch($owned, $res, [string]$mapFile) {
         $hit = Find-MapSymbol $sym ('BattlefrontII.exe+0x' + $f.Groups[1].Value)
     }
     catch { return "map: $($_.Exception.Message)" }
-    $parts = @($owned.Function -split '::')
+    $parts = @($function -split '::')
     [array]::Reverse($parts)
     $prefix = '?' + ($parts -join '@') + '@@'
     $at = ('{0}+0x{1:X}' -f $hit[0], $hit[1])
-    if (-not $hit[0].StartsWith($prefix, [StringComparison]::Ordinal)) { return "FATAL at $at, recorded $($owned.Function)" }
+    if (-not $hit[0].StartsWith($prefix, [StringComparison]::Ordinal)) { return "FATAL at $at, recorded $function" }
     return $null
 }
 
@@ -829,8 +862,9 @@ function Get-SmokeOwnedVerdict($case, $res, [bool]$ok, [string]$mapFile = (Get-S
     if (-not $owned) { return $null }
     if ($ok) { return @{ Tok = 'FAIL'; Line = "[FAIL] smoke:$($case.Name) - owned failure no longer fails; remove the $($owned.Owner) entry" } }
     $why = Get-OwnedMismatch $owned $res $mapFile
-    if ($why) { return @{ Tok = $null; Note = " - owned entry $($owned.Owner) $($owned.Function): $why" } }
-    return @{ Tok = 'OWNED'; Line = ('[OWNED] smoke:{0} class={1} exit=0x{2:X8} ({3} ms) - {4} {5}' -f $case.Name, $res.Class, $res.Code, $res.Ms, $owned.Owner, $owned.Function) }
+    $sig = $(if ($owned.Function) { "$($owned.Owner) $($owned.Function)" } else { [string]$owned.Owner })
+    if ($why) { return @{ Tok = $null; Note = " - owned entry ${sig}: $why" } }
+    return @{ Tok = 'OWNED'; Line = ('[OWNED] smoke:{0} class={1} exit=0x{2:X8} ({3} ms) - {4}' -f $case.Name, $res.Class, $res.Code, $res.Ms, $sig) }
 }
 
 function Test-SmokeExpect($case, $res) {

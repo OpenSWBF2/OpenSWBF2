@@ -3891,7 +3891,11 @@ void RedRenderer::Init()
     if (!bMinimized && !g_bNoRender)
     {
         ApplyCurrentMode(bMinimized);
+#ifdef OPENSWBF2_TEST
+        ShowWindow(hGlobalWnd, pcCrash::HandsOffRequested() ? SW_SHOWNOACTIVATE : SW_SHOWNORMAL);
+#else
         ShowWindow(hGlobalWnd, SW_SHOWNORMAL);
+#endif
     }
 
     if (!g_bNoRender)

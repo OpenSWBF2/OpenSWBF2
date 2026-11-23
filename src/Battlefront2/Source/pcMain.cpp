@@ -309,6 +309,12 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 
     case WM_ACTIVATEAPP:
         gAppActive = wParam != 0;
+#ifdef OPENSWBF2_TEST
+        if (wParam != 0)
+        {
+            LOG(LogCore, Inform, "OPENSWBF2 FOCUS activated");
+        }
+#endif
         return 0;
 
     case kWmDpiChanged:
@@ -488,7 +494,13 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
     DisplayCfg::Init();
     PcWindow::InitDpi(DisplayCfg::gDisplay.bNoDpi);
 
-    if (!bDedicated && !g_bNoRender)
+#ifdef OPENSWBF2_TEST
+    const bool bHandsOff = pcCrash::HandsOffRequested();
+#else
+    const bool bHandsOff = false;
+#endif
+
+    if (!bDedicated && !g_bNoRender && !bHandsOff)
     {
         if (!AcquireMutex())
         {
@@ -511,7 +523,7 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         srand(gSeed);
     }
 
-    if (!g_bNoRender)
+    if (!g_bNoRender && !bHandsOff)
     {
         HWND hRunning = FindWindowA(appName, 0);
         if (hRunning)

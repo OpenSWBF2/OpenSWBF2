@@ -1030,6 +1030,7 @@
     <ClInclude Include="src\Battlefront2\Source\VisionManager.h" />
     <ClInclude Include="src\Battlefront2\Source\VisionManagerDist.h" />
     <ClInclude Include="src\Battlefront2\Source\VoiceChatNode.h" />
+    <ClInclude Include="src\Battlefront2\Source\VoiceChatLayout.h" />
     <ClInclude Include="src\Battlefront2\Source\VoiceChatTransport.h" />
     <ClInclude Include="src\Battlefront2\Source\VoiceChatUtil.h" />
     <ClInclude Include="src\Battlefront2\Source\VoiceOverManager.h" />

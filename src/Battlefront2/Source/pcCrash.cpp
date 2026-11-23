@@ -1813,4 +1813,15 @@ static void SaveTestFrame()
     siSaveTestStep = kSaveTestDone;
     GameLoop::PostRunComplete();
 }
+
+bool pcCrash::HandsOffRequested()
+{
+    static int siHandsOff = -1;
+    if (siHandsOff < 0)
+    {
+        int iLen = 0;
+        siHandsOff = FindArg(GetCommandLineA(), "-handsoff", &iLen) != 0 ? 1 : 0;
+    }
+    return siHandsOff == 1;
+}
 #endif

@@ -192,6 +192,14 @@ bool __cdecl UseKmixer()
 namespace GameSoundEngine
 {
 
+static __declspec(noinline) void LogSoundOpen(bool bSoundWorking)
+{
+    if (!g_bNoSound)
+    {
+        LOG(LogAudio, Inform, "OPENSWBF2 SOUND open=%s", (gSoundIsOpen && bSoundWorking) ? "ok" : "failed");
+    }
+}
+
 // FUNCTION: SWBF2 0x00538850
 bool Init(unsigned int uiFlags, bool bEnable)
 {
@@ -262,6 +270,8 @@ bool Init(unsigned int uiFlags, bool bEnable)
     }
 
     bool bSoundWorking = (Snd::Engine::GetMixConfig() != Snd::Engine::mixConfig_Disabled);
+
+    LogSoundOpen(bSoundWorking);
 
     if (gSoundIsOpen)
     {

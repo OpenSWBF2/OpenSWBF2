@@ -184,11 +184,15 @@ TEST_CASE("window mode source pins" * doctest::test_suite("unit"))
     std::string sInput;
     std::string sProfile;
     std::string sWindow;
+    std::string sRenderer;
+    std::string sAutoRaw;
     if (!ReadSource("../src/Battlefront2/Source/pcMain.cpp", sMain) ||
         !ReadSource("../src/RedEngineFL/input/pc/pcRedInputManager.cpp", sInput) ||
         !ReadSource("../src/RedEngineFL/input/pc/pcRedMouse.cpp", sMouse) ||
         !ReadSource("../src/Battlefront2/Source/PlayerProfile.cpp", sProfile) ||
-        !ReadSource("../src/RedEngineFL/Application/pc/pcWindow.cpp", sWindow))
+        !ReadSource("../src/RedEngineFL/Application/pc/pcWindow.cpp", sWindow) ||
+        !ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRenderer) ||
+        !ReadSource("../src/RedEngineFL/Graphics/PC/pcRedAutoSettings.cpp", sAutoRaw))
     {
         SkipCase("source files not found");
     }
@@ -218,11 +222,42 @@ TEST_CASE("window mode source pins" * doctest::test_suite("unit"))
     CHECK(uiDpi < uiClass);
 
     CHECK(sMouse.find("gAppActive") != std::string::npos);
-    CHECK(sMouse.find("if (pcCrash::ExitOnMovieCloseRequested())") != std::string::npos);
-    CHECK(sInput.find("return !pcCrash::ExitOnMovieCloseRequested();") != std::string::npos);
+    size_t uiNoWarp = sMouse.find("if (pcCrash::HandsOffRequested())");
+    CHECK(uiNoWarp != std::string::npos);
+    CHECK(sMouse.find("&& !pcCrash::HandsOffRequested()") != std::string::npos);
+    CHECK(sInput.find("return !pcCrash::HandsOffRequested();") != std::string::npos);
+    CHECK(sRenderer.find("ShowWindow(hGlobalWnd, pcCrash::HandsOffRequested() ? SW_SHOWNOACTIVATE : SW_SHOWNORMAL);") !=
+          std::string::npos);
+    std::string sMainLf = StripCr(sMain);
+    std::string sAuto = StripCr(sAutoRaw);
+    size_t uiHandsOff = sMainLf.find("#ifdef OPENSWBF2_TEST\n    const bool bHandsOff = pcCrash::HandsOffRequested();\n#else\n    const bool bHandsOff = false;\n#endif\n");
+    size_t uiNoMutex = sMainLf.find("    if (!bDedicated && !g_bNoRender && !bHandsOff)\n    {\n        if (!AcquireMutex())\n");
+    size_t uiNoFind = sMainLf.find("    if (!g_bNoRender && !bHandsOff)\n    {\n        HWND hRunning = FindWindowA(appName, 0);\n");
+    CHECK(uiHandsOff != std::string::npos);
+    CHECK(uiNoMutex != std::string::npos);
+    CHECK(uiNoFind != std::string::npos);
+    CHECK(uiHandsOff < uiNoMutex);
+    CHECK(uiNoMutex < uiNoFind);
+    CHECK(sMainLf.find("AcquireMutex())") > uiNoMutex);
+    CHECK(sMainLf.find("FindWindowA(") > uiNoFind);
+    size_t uiVidInit = sAuto.find("void VidMode_Init(IDirect3D9* pD3D)");
+    size_t uiNoSave = sAuto.find("#ifdef OPENSWBF2_TEST\n    if (pcCrash::HandsOffRequested())\n    {\n", uiVidInit);
+    size_t uiSkip = sAuto.find("save=skipped", uiVidInit);
+    size_t uiSave = sAuto.find("    VidConfig::SaveConfigFile();\n}");
+    CHECK(uiVidInit != std::string::npos);
+    CHECK(uiNoSave != std::string::npos);
+    CHECK(uiSave != std::string::npos);
+    CHECK(uiVidInit < uiNoSave);
+    CHECK(uiNoSave < uiSkip);
+    CHECK(uiSkip < uiSave);
+    CHECK(sAuto.find("        return;\n    }\n#endif\n    VidConfig::SaveConfigFile();\n}") != std::string::npos);
+    CHECK(sAuto.find("SaveConfigFile();") > uiNoSave);
+    CHECK(sMouse.find("ExitOnMovieCloseRequested") == std::string::npos);
+    CHECK(sInput.find("ExitOnMovieCloseRequested") == std::string::npos);
     size_t uiMap = sMouse.find("MapBackBufferToClient(m_X, m_Y,");
     size_t uiToScreen = sMouse.find("ClientToScreen(hGlobalWnd, &pt);");
     size_t uiWarp = sMouse.find("::SetCursorPos(pt.x, pt.y);");
+    CHECK(uiNoWarp < uiMap);
     CHECK(uiMap != std::string::npos);
     CHECK(uiToScreen != std::string::npos);
     CHECK(uiWarp != std::string::npos);
