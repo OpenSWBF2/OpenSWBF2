@@ -47,6 +47,9 @@ HCURSOR Current();
 bool Shown();
 bool Software();
 void ReleaseClip();
+#ifdef OPENSWBF2_TEST
+const char* BuiltImage();
+#endif
 
 }
 

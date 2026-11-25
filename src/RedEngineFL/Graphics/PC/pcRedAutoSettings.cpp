@@ -1107,7 +1107,7 @@ void VidMode_Init(IDirect3D9* pD3D)
     if (pcCrash::HandsOffRequested())
     {
         LOG(LogRender, Inform,
-            "OPENSWBF2 VIDMODE probed vendor=0x%04X device=0x%04X hint=0x%08X kept=%d save=skipped",
+            "Video mode probed vendor=0x%04X device=0x%04X hint=0x%08X kept=%d save=skipped",
             (unsigned int)identifier.VendorId, (unsigned int)identifier.DeviceId, m_MemoryHint,
             VidConfig::GetConfig(identifier.VendorId, identifier.DeviceId, m_MemoryHint) == pConfig
                 ? 1

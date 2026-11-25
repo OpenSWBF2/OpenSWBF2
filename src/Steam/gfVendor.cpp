@@ -179,12 +179,12 @@ void gf::vendor::WriteLog()
     {
         if (!sServices[i].bOn)
         {
-            LOG(LogCore, Warning, "OPENSWBF2 VENDOR %s off: %s %s", apcServices[i],
+            LOG(LogCore, Warning, "Vendor %s off: %s %s", apcServices[i],
                 sServices[i].pcDll ? sServices[i].pcDll : "none", sServices[i].acReason);
         }
     }
     char acD3dx[kPathChars];
-    LOG(LogCore, Inform, "OPENSWBF2 VENDOR steam=%s galaxy=%s d3dx9=%s msvcr120=%d msvcp120=%d",
+    LOG(LogCore, Inform, "Vendor steam=%s galaxy=%s d3dx9=%s msvcr120=%d msvcp120=%d",
         sServices[SERVICE_STEAM].bOn ? "on" : "off", sServices[SERVICE_GALAXY].bOn ? "on" : "off",
         LoadedPath(L"d3dx9_43.dll", acD3dx, (int)sizeof(acD3dx)), GetModuleHandleW(L"msvcr120.dll") != 0 ? 1 : 0,
         GetModuleHandleW(L"msvcp120.dll") != 0 ? 1 : 0);
@@ -192,7 +192,7 @@ void gf::vendor::WriteLog()
     {
         if (suSteamInterfaces & (1u << i))
         {
-            LOG(LogCore, Inform, "OPENSWBF2 STEAM iface=%s ok", CSteamAPIContext::InterfaceName(i));
+            LOG(LogCore, Inform, "Steam iface=%s ok", CSteamAPIContext::InterfaceName(i));
         }
     }
 }

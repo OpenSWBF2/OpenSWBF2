@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -62,7 +63,7 @@ public:
 
 }
 
-TEST_CASE("snd memory bitmap keeps a high start address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSoundWidthTest1, "Unit::SoundWidth::snd memory bitmap keeps a high start address", "[EngineFilter]")
 {
     const uintptr_t uHigh = (uintptr_t)1 << (sizeof(void*) * 8 - 4);
     const uintptr_t uStart = uHigh + 0x80;
@@ -95,7 +96,7 @@ TEST_CASE("snd memory bitmap keeps a high start address" * doctest::test_suite("
     CHECK((uSecond >= uFirst + uiSize || uFirst >= uSecond + uiSize));
 }
 
-TEST_CASE("snd free list carves aligned blocks above 4 GB" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSoundWidthTest2, "Unit::SoundWidth::snd free list carves aligned blocks above 4 GB", "[EngineFilter]")
 {
     const unsigned int uiEntry = 96;
     const unsigned int uiAlign = 32;
@@ -138,7 +139,7 @@ TEST_CASE("snd free list carves aligned blocks above 4 GB" * doctest::test_suite
     CHECK(spFreed == (void*)pcAlloc);
 }
 
-TEST_CASE("snd segment offset round-trips at full width" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSoundWidthTest3, "Unit::SoundWidth::snd segment offset round-trips at full width", "[EngineFilter]")
 {
     const unsigned int auiOffsets[] = { 0u, 0x7FFFFFFFu, 0x80000000u, 0xFFFFFFF0u };
     SegmentProbe kSegment;
@@ -151,7 +152,7 @@ TEST_CASE("snd segment offset round-trips at full width" * doctest::test_suite("
     }
 }
 
-TEST_CASE("snd engine hands the sample RAM to the allocator at full width (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSoundWidthTest4, "Unit::SoundWidth::snd engine hands the sample RAM to the allocator at full width (source pin)", "[EngineFilter]")
 {
     std::string sRaw;
     REQUIRE(ReadRepoText("src\\SoundFL\\source\\win\\sndengine.cpp", sRaw));

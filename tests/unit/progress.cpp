@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <string.h>
@@ -6,7 +7,7 @@
 #include "Battlefront2/Platform/Pc/pcProgress.h"
 #include "testutil.h"
 
-TEST_CASE("progress section counts turns and steps and reports a stall request" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FProgressTest1, "Unit::Progress::progress section counts turns and steps and reports a stall request", "[SmokeFilter]")
 {
     char acName[64];
     pcProgress::FormatName(acName, sizeof(acName), 1234);

@@ -10,6 +10,7 @@
 #include "LoadDisplay.h"
 #include "LuaHelper.h"
 #include "LuaFL/include/lauxlib.h"
+#include "pcCrash.h"
 
 // GLOBAL: SWBF2 0x007ebb7c
 LuaScriptFactory::List LuaScriptFactory::_GlobalList;
@@ -20,7 +21,8 @@ int LuaScriptFactory::sScriptMemUsage;
 // FUNCTION: SWBF2 0x005a18b0
 void __cdecl LuaScript_CallWARNINGF(char const* pcMessage)
 {
-    LOG(LogLua, Warning, "OPENSWBF2 LUA error: %.240s", pcMessage ? pcMessage : "(null)");
+    LOG(LogLua, Warning, "Lua error: %.240s", pcMessage ? pcMessage : "(null)");
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioLuaError));
 }
 
 // FUNCTION: SWBF2 0x005a18c0

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <new>
@@ -76,7 +77,7 @@ unsigned int Failed(int iHeap)
 
 }
 
-TEST_CASE("heap purge drops the handles owned by the heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapBackendTest1, "Unit::HeapBackend::heap purge drops the handles owned by the heap", "[EngineFilter]")
 {
     PurgeProbe* pKeep = BuildProbe(0);
     const unsigned int uKeepId = pKeep->GetHandleId();
@@ -107,7 +108,7 @@ TEST_CASE("heap purge drops the handles owned by the heap" * doctest::test_suite
     RedFreeToHeap(0, pKeep, 0);
 }
 
-TEST_CASE("heap visit reports every live block" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapBackendTest2, "Unit::HeapBackend::heap visit reports every live block", "[EngineFilter]")
 {
     static const unsigned int kauSizes[5] = { 1, 13, 16, 100, 0x3FF };
     BoundHeap kScratch(sacBackendVisit, sacBackendVisit + sizeof(sacBackendVisit), 0x10,
@@ -156,7 +157,7 @@ TEST_CASE("heap visit reports every live block" * doctest::test_suite("regressio
     }
 }
 
-TEST_CASE("heap move end gives the same result" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapBackendTest3, "Unit::HeapBackend::heap move end gives the same result", "[EngineFilter]")
 {
     static const int kaiDelta[15] = {
         0, 16, 17, 32, 33, 48, 0x100, 0x1FD0, 0x1FE0, 0x1FE1, 0x1FF0, 0x1FFF, 0x2000, 0x2010, 0x3000,
@@ -200,7 +201,7 @@ TEST_CASE("heap move end gives the same result" * doctest::test_suite("regressio
 
 alignas(16) static char sacBackendFailCreate[0x4000];
 
-TEST_CASE("failed heap create returns -1 and leaves its slot free" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapBackendTest4, "Unit::HeapBackend::failed heap create returns -1 and leaves its slot free", "[EngineFilter]")
 {
     int iFree = -1;
     for (int i = 0; i < kRedHeapSlots; ++i)

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <algorithm>
 #include <vector>
@@ -26,7 +27,7 @@ static void Drain(int iType)
     }
 }
 
-TEST_CASE("recvgroup rejects fragment idx ge count" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionRecvgroupTest1, "Net::RegressionRecvgroup::recvgroup rejects fragment idx ge count", "[EngineFilter]")
 {
     NetTestReset();
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 5, 1, 0);
@@ -37,7 +38,7 @@ TEST_CASE("recvgroup rejects fragment idx ge count" * doctest::test_suite("regre
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("recvgroup rejects classic gap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionRecvgroupTest2, "Net::RegressionRecvgroup::recvgroup rejects classic gap", "[EngineFilter]")
 {
     NetTestReset();
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 2, 0);
@@ -49,7 +50,7 @@ TEST_CASE("recvgroup rejects classic gap" * doctest::test_suite("regression"))
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("recvgroup rejects count zero" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionRecvgroupTest3, "Net::RegressionRecvgroup::recvgroup rejects count zero", "[EngineFilter]")
 {
     NetTestReset();
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 0, 0);
@@ -61,7 +62,7 @@ TEST_CASE("recvgroup rejects count zero" * doctest::test_suite("regression"))
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("recvgroup rejects count over max" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionRecvgroupTest4, "Net::RegressionRecvgroup::recvgroup rejects count over max", "[EngineFilter]")
 {
     NetTestReset();
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 65, 0);
@@ -73,7 +74,7 @@ TEST_CASE("recvgroup rejects count over max" * doctest::test_suite("regression")
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("recvgroup count mismatch frees partial and packet" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionRecvgroupTest5, "Net::RegressionRecvgroup::recvgroup count mismatch frees partial and packet", "[EngineFilter]")
 {
     NetTestReset();
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 3, 0);
@@ -85,7 +86,7 @@ TEST_CASE("recvgroup count mismatch frees partial and packet" * doctest::test_su
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("recvgroup duplicate fragment keeps accounting" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionRecvgroupTest6, "Net::RegressionRecvgroup::recvgroup duplicate fragment keeps accounting", "[EngineFilter]")
 {
     NetTestReset();
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 2, 0);
@@ -96,7 +97,7 @@ TEST_CASE("recvgroup duplicate fragment keeps accounting" * doctest::test_suite(
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("recvgroup evicts oldest partial at per-source cap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionRecvgroupTest7, "Net::RegressionRecvgroup::recvgroup evicts oldest partial at per-source cap", "[EngineFilter]")
 {
     NetTestReset();
     for (int i = 0; i < 9; ++i)
@@ -168,21 +169,21 @@ static void RoundTrip(int iFragments, bool bShuffle)
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("recvgroup round trip in order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionRecvgroupTest8, "Net::RegressionRecvgroup::recvgroup round trip in order", "[EngineFilter]")
 {
     RoundTrip(2, false);
     RoundTrip(63, false);
     RoundTrip(64, false);
 }
 
-TEST_CASE("recvgroup round trip shuffled" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionRecvgroupTest9, "Net::RegressionRecvgroup::recvgroup round trip shuffled", "[EngineFilter]")
 {
     RoundTrip(2, true);
     RoundTrip(63, true);
     RoundTrip(64, true);
 }
 
-TEST_CASE("recvgroup single fragment passes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionRecvgroupTest10, "Net::RegressionRecvgroup::recvgroup single fragment passes", "[EngineFilter]")
 {
     NetTestReset();
     NetStampAndQueue(MakeOne(77), 9, PKT_GAME_MOVE, 3, 0, 1, 0);
@@ -193,7 +194,7 @@ TEST_CASE("recvgroup single fragment passes" * doctest::test_suite("regression")
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("recvgroup rejects 65 fragments" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionRecvgroupTest11, "Net::RegressionRecvgroup::recvgroup rejects 65 fragments", "[EngineFilter]")
 {
     NetTestReset();
     for (int i = 0; i < 65; ++i)

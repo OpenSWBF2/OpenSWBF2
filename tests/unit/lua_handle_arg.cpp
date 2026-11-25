@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <malloc.h>
@@ -35,7 +36,7 @@ int HandleTestCFunction(lua_State*)
 
 }
 
-TEST_CASE("lua handle argument accepts only light userdata" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaHandleArgTest1, "Unit::LuaHandleArg::lua handle argument accepts only light userdata", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L != (lua_State*)0);
@@ -124,7 +125,7 @@ const void* FakeAddress(unsigned int uIndex)
 
 }
 
-TEST_CASE("pbl ptr set tracks membership by address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaHandleArgTest2, "Unit::LuaHandleArg::pbl ptr set tracks membership by address", "[EngineFilter]")
 {
     sTestPtrSet.Clear();
     CHECK(sTestPtrSet.GetCount() == 0);
@@ -201,7 +202,7 @@ PblHashTable<int, 8> sTestHashTable;
 
 }
 
-TEST_CASE("pbl hash table finds values by address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaHandleArgTest3, "Unit::LuaHandleArg::pbl hash table finds values by address", "[EngineFilter]")
 {
     sTestHashTable.Clear();
     int iA = 1;
@@ -229,7 +230,7 @@ TEST_CASE("pbl hash table finds values by address" * doctest::test_suite("regres
     sTestHashTable.Clear();
 }
 
-TEST_CASE("pbl region list membership by address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaHandleArgTest4, "Unit::LuaHandleArg::pbl region list membership by address", "[EngineFilter]")
 {
     PblRegion kRegion;
     void* pBlock = _aligned_malloc(sizeof(PblRegion), 16);
@@ -280,7 +281,7 @@ public:
 
 }
 
-TEST_CASE("factory list membership by address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaHandleArgTest5, "Unit::LuaHandleArg::factory list membership by address", "[EngineFilter]")
 {
     TestClass* pA = new TestClass(0x11u);
     TestClass* pB = new TestClass(0x22u);
@@ -300,7 +301,7 @@ TEST_CASE("factory list membership by address" * doctest::test_suite("regression
     delete pB;
 }
 
-TEST_CASE("event node tree membership" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaHandleArgTest6, "Unit::LuaHandleArg::event node tree membership", "[EngineFilter]")
 {
     EventManager::Node kRoot;
     EventManager::Node kFilter;
@@ -408,7 +409,7 @@ std::string ReadSource(const char* pcRel)
 
 }
 
-TEST_CASE("lua handle sites route through validation" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaHandleArgTest7, "Unit::LuaHandleArg::lua handle sites route through validation", "[EngineFilter]")
 {
     const std::string sRel = "src\\Battlefront2\\Source\\";
     std::vector<std::string> vFiles;

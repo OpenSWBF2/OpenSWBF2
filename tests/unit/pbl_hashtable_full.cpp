@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -162,7 +163,7 @@ void CheckFullTable(const unsigned int* puiKeys, unsigned int uiAbsent)
 
 }
 
-TEST_CASE("hash table full table probes terminate" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPblHashtableFullTest1, "Unit::PblHashtableFull::hash table full table probes terminate", "[EngineFilter]")
 {
     const unsigned int auiSmall[4] = { 1, 5, 2, 3 };
     CheckFullTable<4>(auiSmall, 9);
@@ -182,7 +183,7 @@ TEST_CASE("hash table full table probes terminate" * doctest::test_suite("regres
     CheckFullTable<64>(auiLarge, 0x77777);
 }
 
-TEST_CASE("hash table non-full probes match retail layout" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPblHashtableFullTest2, "Unit::PblHashtableFull::hash table non-full probes match retail layout", "[EngineFilter]")
 {
     uintptr_t auiTable[32];
     memset(auiTable, 0, sizeof(auiTable));
@@ -234,7 +235,7 @@ TEST_CASE("hash table non-full probes match retail layout" * doctest::test_suite
     }
 }
 
-TEST_CASE("pbl hashtable keeps values above 4 GB" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPblHashtableFullTest3, "Unit::PblHashtableFull::pbl hashtable keeps values above 4 GB", "[EngineFilter]")
 {
     const uintptr_t uHigh = (uintptr_t)1 << (sizeof(void*) * 8 - 4);
     const unsigned int auiKeys[4] = { 0x11, 0x21, 0x06, 0x13 };
@@ -302,7 +303,7 @@ void CheckIterationOrder(const PblHashTable<int, SLOTS>& kTable, const unsigned 
 
 }
 
-TEST_CASE("pbl hashtable iteration order is pinned" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPblHashtableFullTest4, "Unit::PblHashtableFull::pbl hashtable iteration order is pinned", "[EngineFilter]")
 {
     const unsigned int auiKeys[6] = { 0x11, 0x21, 0x31, 0x06, 0x0E, 0x13 };
     PblHashTable<int, 8> kTable;

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -66,7 +67,7 @@ HogChildRun RunHogChild()
 
 }
 
-TEST_CASE("hog reserves every region below the platform limit" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHogReserveTest1, "Unit::HogReserve::hog reserves every region below the platform limit", "[EngineFilter]")
 {
     const HogChildRun kRun = RunHogChild();
     INFO("hog child exit=" << kRun.uCode << " output: " << kRun.sOut);

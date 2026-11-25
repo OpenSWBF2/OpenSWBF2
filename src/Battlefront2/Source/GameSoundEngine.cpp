@@ -196,7 +196,11 @@ static __declspec(noinline) void LogSoundOpen(bool bSoundWorking)
 {
     if (!g_bNoSound)
     {
-        LOG(LogAudio, Inform, "OPENSWBF2 SOUND open=%s", (gSoundIsOpen && bSoundWorking) ? "ok" : "failed");
+        if (!gSoundIsOpen || !bSoundWorking)
+        {
+            LOG(LogAudio, Error, "sound was requested but the sound engine did not open");
+        }
+        LOG(LogAudio, Inform, "Sound open=%s", (gSoundIsOpen && bSoundWorking) ? "ok" : "failed");
     }
 }
 

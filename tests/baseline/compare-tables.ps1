@@ -4,7 +4,6 @@ param(
     [switch]$LuaBins,
     [switch]$LuaHist,
     [switch]$OffThread,
-    [switch]$Hardening,
     [switch]$Collect,
     [switch]$Map,
     [switch]$DebugDigests,
@@ -31,19 +30,18 @@ else {
 $script:BaselineReaders = @(
     @{ File = 'cloth-headroom.txt'; Reader = 'Tables'; Label = 'tables:cloth'; KeyCols = 1 }
     @{ File = 'cloth-headroom.txt'; Folder = 'v143-x64'; Reader = 'Tables'; Label = 'tables:cloth-x64'; KeyCols = 1 }
-    @{ File = 'mem-peaks.txt'; Reader = 'Tables'; Label = 'tables:mem-peaks'; KeyCols = 4 }
-    @{ File = 'mem-peaks.txt'; Folder = 'v143-x64'; Reader = 'MemPeaksX64'; Label = 'tables:mem-peaks-x64'; Pair = 'mem-peaks.txt'; Bins = 'lua-bins.txt' }
-    @{ File = 'commit.txt'; Folder = 'v143-x64'; Reader = 'Commit'; Label = 'tables:commit' }
+    @{ File = 'mem-peaks.txt'; Reader = 'Tables'; Label = 'tables:mem-peaks'; KeyCols = 4; Cpp = 'tests\game\crash.cpp' }
+    @{ File = 'mem-peaks.txt'; Folder = 'v143-x64'; Reader = 'MemPeaksX64'; Label = 'tables:mem-peaks-x64'; Pair = 'mem-peaks.txt'; Bins = 'lua-bins.txt'; Cpp = 'tests\game\crash.cpp' }
+    @{ File = 'commit.txt'; Folder = 'v143-x64'; Reader = 'Commit'; Label = 'tables:commit'; Cpp = 'tests\game\standard.cpp' }
     @{ File = 'pool-sizes.txt'; Reader = 'Tables'; Label = 'tables:pool-sizes'; KeyCols = 1 }
     @{ File = 'pool-sizes.txt'; Folder = 'v143-x64'; Reader = 'Tables'; Label = 'tables:pool-sizes-x64'; KeyCols = 1 }
-    @{ File = 'smoke-all-digests.txt'; Reader = 'Tables'; Label = 'tables:digests'; KeyCols = 1; Skip = @('dedicated') }
+    @{ File = 'smoke-all-digests.txt'; Reader = 'Tables'; Label = 'tables:digests'; KeyCols = 1; SkipRx = '^(crash-.+|fatal-init|pool-full|pool-full-strict|dedicated)$'; Cpp = 'tests\game\standard_case.cpp' }
     @{ File = 'lua-bins.txt'; Reader = 'LuaBins'; Label = 'tables:lua-bins'; KeyCols = 3 }
     @{ File = 'lua-bins.txt'; Folder = 'v143-x64'; Reader = 'LuaBins'; Label = 'tables:lua-bins-x64'; KeyCols = 3 }
     @{ File = 'lua-hist.txt'; Reader = 'LuaHist'; Label = 'tables:lua-hist'; KeyCols = 2 }
     @{ File = 'lua-hist.txt'; Folder = 'v143-x64'; Reader = 'LuaHist'; Label = 'tables:lua-hist-x64'; KeyCols = 2 }
-    @{ File = 'offthread.txt'; Reader = 'OffThread'; Label = 'tables:offthread'; KeyCols = 1; OffThread = $true }
-    @{ File = 'offthread.txt'; Folder = 'v143-x64'; Reader = 'OffThread'; Label = 'tables:offthread-x64'; KeyCols = 1; OffThread = $true }
-    @{ File = 'hardening.txt'; Reader = 'Hardening'; Label = 'tables:hardening'; KeyCols = 1; KeyPattern = '^\[[A-Z]+\] hardening:(\S+)' }
+    @{ File = 'offthread.txt'; Reader = 'OffThread'; Label = 'tables:offthread'; KeyCols = 1; OffThread = $true; SkipRx = '^(crash-.+|fatal-init|pool-full|pool-full-strict|dedicated)$'; Cpp = 'tests\game\standard_case.cpp' }
+    @{ File = 'offthread.txt'; Folder = 'v143-x64'; Reader = 'OffThread'; Label = 'tables:offthread-x64'; KeyCols = 1; OffThread = $true; SkipRx = '^(crash-.+|fatal-init|pool-full|pool-full-strict|dedicated)$'; Cpp = 'tests\game\standard_case.cpp' }
     @{ File = 'digests.txt'; Reader = 'Collect'; Label = 'collect:digests' }
     @{ File = 'digests-hog.txt'; Reader = 'Collect'; Label = 'collect:digests-hog' }
     @{ File = 'digest-trace-geo1c_con.txt'; Reader = 'Collect'; Label = 'collect:digest-trace-geo1c_con' }
@@ -74,7 +72,7 @@ function Get-BaselineDir([string]$name) {
     return $script:BaseX86
 }
 
-function Read-Keyed([string]$dir, [string]$name, [int]$keyCols, [string[]]$skip, [bool]$offThread, [string]$keyPattern) {
+function Read-Keyed([string]$dir, [string]$name, [int]$keyCols, [string[]]$skip, [bool]$offThread, [string]$skipRx) {
     $path = Join-Path $dir $name
     if (-not (Test-Path -LiteralPath $path)) { throw "$name not found in $dir" }
     $rows = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal)
@@ -88,13 +86,8 @@ function Read-Keyed([string]$dir, [string]$name, [int]$keyCols, [string[]]$skip,
         }
         if (-not $line -or $line.StartsWith('#') -or $line.StartsWith("mission`t")) { continue }
         $count++
-        if ($keyPattern) {
-            $km = [regex]::Match($line, $keyPattern)
-            if (-not $km.Success) { throw "$name in $dir has a line without a key: $line" }
-            $key = $km.Groups[1].Value
-        }
-        else { $key = (@($line -split "`t")[0..($keyCols - 1)]) -join "`t" }
-        if ($skip -ccontains $key) { continue }
+        $key = (@($line -split "`t")[0..($keyCols - 1)]) -join "`t"
+        if ($skip -ccontains $key -or ($skipRx -and $key -cmatch $skipRx)) { continue }
         if ($rows.ContainsKey($key)) { $rows[$key] = @($rows[$key]) + @($line) }
         else { $rows[$key] = @($line) }
     }
@@ -102,9 +95,9 @@ function Read-Keyed([string]$dir, [string]$name, [int]$keyCols, [string[]]$skip,
     return $rows
 }
 
-function Compare-Table([string]$label, [string]$name, [int]$keyCols, [string[]]$skip, [bool]$offThread = $false, [string]$keyPattern = '') {
-    $base = Read-Keyed (Get-BaselineDir $name) $name $keyCols $skip $offThread $keyPattern
-    $new = Read-Keyed $Tables $name $keyCols $skip $offThread $keyPattern
+function Compare-Table([string]$label, [string]$name, [int]$keyCols, [string[]]$skip, [bool]$offThread = $false, [string]$skipRx = '') {
+    $base = Read-Keyed (Get-BaselineDir $name) $name $keyCols $skip $offThread $skipRx
+    $new = Read-Keyed $Tables $name $keyCols $skip $offThread $skipRx
     $bad = @()
     if ($base.Count -eq 0) { $bad += 'no baseline rows to compare' }
     foreach ($k in ($base.Keys | Sort-Object)) {
@@ -222,7 +215,7 @@ function Compare-HeapCapsX64([string]$label, [string]$name, [string]$pair, [stri
         if (-not (Test-Path -LiteralPath $runLog)) { $bad += "$runLog not found" }
         else {
             $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
-            $ms = [regex]::Matches([IO.File]::ReadAllText($runLog), 'OPENSWBF2 MEMREPORT heap=(\S+) cap=(\d+) ')
+            $ms = [regex]::Matches([IO.File]::ReadAllText($runLog), 'Memory report heap=(\S+) cap=(\d+) ')
             if ($ms.Count -eq 0) { $bad += "$runLog has no MEMREPORT heap lines" }
             foreach ($m in $ms) {
                 $h = $m.Groups[1].Value
@@ -269,7 +262,7 @@ function Compare-CommitRows([string]$label, [string]$name) {
     if ($Settled -lt 1) { $bad += '-Settled must be 1 or more' }
     if (-not $RunLog -or -not (Test-Path -LiteralPath $RunLog -PathType Leaf)) { $bad += "run log '$RunLog' not found" }
     if ($bad.Count -eq 0) {
-        $parts = @([regex]::Matches([IO.File]::ReadAllText($RunLog), 'OPENSWBF2 COMMITPARTS state=(\w+) private=\d+ gamecrt=(\d+) heaps=\d+ threads=\d+ threadcount=\d+ arena=(\d+) crtbusy=\d+ crtcommitted=\d+ crtlarge=\d+ gamevm=(\d+)') | ForEach-Object { ,@($_.Groups[1].Value, [long]$_.Groups[3].Value, ([long]$_.Groups[4].Value + [long]$_.Groups[2].Value)) })
+        $parts = @([regex]::Matches([IO.File]::ReadAllText($RunLog), 'Commit parts state=(\w+) private=\d+ gamecrt=(\d+) heaps=\d+ threads=\d+ threadcount=\d+ arena=(\d+) crtbusy=\d+ crtcommitted=\d+ crtlarge=\d+ gamevm=(\d+)') | ForEach-Object { ,@($_.Groups[1].Value, [long]$_.Groups[3].Value, ([long]$_.Groups[4].Value + [long]$_.Groups[2].Value)) })
         foreach ($s in 'mission', 'shell') {
             $k = "steam=$Steam hog=$Hog state=$s"
             if (-not $rows.ContainsKey($k)) { $bad += "no commit row for $k"; continue }
@@ -359,7 +352,7 @@ foreach ($e in $entries) {
     elseif ($e.KeyCols) {
         $skip = @()
         if ($e.Skip) { $skip = @($e.Skip) }
-        $fail += Compare-Table $e.Label $e.File $e.KeyCols $skip ([bool]$e.OffThread) ([string]$e.KeyPattern)
+        $fail += Compare-Table $e.Label $e.File $e.KeyCols $skip ([bool]$e.OffThread) ([string]$e.SkipRx)
     }
     else { $fail += Compare-Bytes $e.Label $e.File }
 }

@@ -1,4 +1,5 @@
 #include "ProfileCRC.h"
+#include "LuaSaveItems.h"
 
 #include <stddef.h>
 
@@ -19,6 +20,9 @@ bool PlayerProfile::CheckLoadedCRC(const tProfile& kProfile, const unsigned shor
     {
         PblUnicode::ustrncnv(acName, pusName, sizeof(acName) - 1);
     }
-    LOG(LogLoad, Warning, "OPENSWBF2 SAVE profile CRC mismatch \"%s.profile\"", acName);
+    LOG(LogLoad, Warning, "Save data profile CRC mismatch \"%s.profile\"", acName);
+#ifdef OPENSWBF2_TEST
+    SaveRejects::Note();
+#endif
     return false;
 }

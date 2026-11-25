@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -64,7 +65,7 @@ size_t ReadText(char* pcOut, size_t uiSize)
 
 }
 
-TEST_CASE("display settings parse uint is strict" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest1, "Unit::DisplaySettings::display settings parse uint is strict", "[SmokeFilter]")
 {
     unsigned int uiOut = 77;
     CHECK(ParseUInt("12", 0, 15, uiOut));
@@ -82,7 +83,7 @@ TEST_CASE("display settings parse uint is strict" * doctest::test_suite("unit"))
     CHECK(uiOut == 77);
 }
 
-TEST_CASE("display settings parse bool and vsync" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest2, "Unit::DisplaySettings::display settings parse bool and vsync", "[SmokeFilter]")
 {
     bool bOut = false;
     CHECK(ParseBool("ON", bOut));
@@ -99,7 +100,7 @@ TEST_CASE("display settings parse bool and vsync" * doctest::test_suite("unit"))
     CHECK(!ParseVsync("3", uiOut));
 }
 
-TEST_CASE("display settings defaults" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest3, "Unit::DisplaySettings::display settings defaults", "[SmokeFilter]")
 {
     DisplaySettings kSettings;
     SetDefaults(kSettings);
@@ -112,7 +113,7 @@ TEST_CASE("display settings defaults" * doctest::test_suite("unit"))
     CHECK(kSettings.uiSet == 0);
 }
 
-TEST_CASE("display settings default lets frames queue" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest4, "Unit::DisplaySettings::display settings default lets frames queue", "[SmokeFilter]")
 {
     DisplaySettings kSettings;
     SetDefaults(kSettings);
@@ -156,7 +157,7 @@ TEST_CASE("display settings default lets frames queue" * doctest::test_suite("un
     Cleanup();
 }
 
-TEST_CASE("display settings bad value keeps default and logs once" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest5, "Unit::DisplaySettings::display settings bad value keeps default and logs once", "[SmokeFilter]")
 {
     DisplaySettings kSettings;
     SetDefaults(kSettings);
@@ -172,7 +173,7 @@ TEST_CASE("display settings bad value keeps default and logs once" * doctest::te
     CHECK((kSettings.uiSet & kFps) != 0);
 }
 
-TEST_CASE("display settings missing ini is silent" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest6, "Unit::DisplaySettings::display settings missing ini is silent", "[SmokeFilter]")
 {
     Cleanup();
     DisplaySettings kSettings;
@@ -184,7 +185,7 @@ TEST_CASE("display settings missing ini is silent" * doctest::test_suite("unit")
     CHECK(kSettings.uiFps == 80);
 }
 
-TEST_CASE("display settings ini loads values" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest7, "Unit::DisplaySettings::display settings ini loads values", "[SmokeFilter]")
 {
     WriteText("[Display]\r\nRefresh=60\r\nVsync=half\r\nAdapterName=\\\\.\\DISPLAY2\r\nBorderless=1\r\nSoftwareCursor=1\r\n");
     DisplaySettings kSettings;
@@ -199,7 +200,7 @@ TEST_CASE("display settings ini loads values" * doctest::test_suite("unit"))
     CHECK((kSettings.uiSet & kSoftwareCursor) != 0);
 }
 
-TEST_CASE("display settings garbage ini loads nothing" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest8, "Unit::DisplaySettings::display settings garbage ini loads nothing", "[SmokeFilter]")
 {
     char acGarbage[5120];
     unsigned int uiSeed = 12345;
@@ -221,7 +222,7 @@ TEST_CASE("display settings garbage ini loads nothing" * doctest::test_suite("un
     CHECK(kSettings.uiFps == 80);
 }
 
-TEST_CASE("display settings bad ini keys warn and keep defaults" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest9, "Unit::DisplaySettings::display settings bad ini keys warn and keep defaults", "[SmokeFilter]")
 {
     char acBig[6000];
     strcpy(acBig, "[Display]\r\nRefresh=");
@@ -241,7 +242,7 @@ TEST_CASE("display settings bad ini keys warn and keep defaults" * doctest::test
     CHECK(kSettings.uiFps == 80);
 }
 
-TEST_CASE("display settings merge precedence" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest10, "Unit::DisplaySettings::display settings merge precedence", "[SmokeFilter]")
 {
     DisplaySettings kIni;
     SetDefaults(kIni);
@@ -263,7 +264,7 @@ TEST_CASE("display settings merge precedence" * doctest::test_suite("unit"))
     CHECK((kFinal.uiCliMask & kSoftwareCursor) != 0);
 }
 
-TEST_CASE("display settings save gate refuses without a good frame" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest11, "Unit::DisplaySettings::display settings save gate refuses without a good frame", "[SmokeFilter]")
 {
     Cleanup();
     DisplaySettings kSettings;
@@ -273,7 +274,7 @@ TEST_CASE("display settings save gate refuses without a good frame" * doctest::t
     CHECK(!Exists(IniPath()));
 }
 
-TEST_CASE("display settings save round trips and leaves no temp" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest12, "Unit::DisplaySettings::display settings save round trips and leaves no temp", "[SmokeFilter]")
 {
     Cleanup();
     DisplaySettings kSettings;
@@ -297,7 +298,7 @@ TEST_CASE("display settings save round trips and leaves no temp" * doctest::test
     CHECK(kLoaded.uiFps == 80);
 }
 
-TEST_CASE("display settings save skips command line values" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest13, "Unit::DisplaySettings::display settings save skips command line values", "[SmokeFilter]")
 {
     WriteText("[Display]\r\nRefresh=60\r\nFps=100\r\n");
     DisplaySettings kIni;
@@ -323,7 +324,7 @@ TEST_CASE("display settings save skips command line values" * doctest::test_suit
     CHECK(!kLoaded.bSoftwareCursor);
 }
 
-TEST_CASE("display settings save never writes unset keys" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest14, "Unit::DisplaySettings::display settings save never writes unset keys", "[SmokeFilter]")
 {
     Cleanup();
     DisplaySettings kSettings;
@@ -341,7 +342,7 @@ TEST_CASE("display settings save never writes unset keys" * doctest::test_suite(
     CHECK((kLoaded.uiSet & kSoftwareCursor) == 0);
 }
 
-TEST_CASE("display settings init merges defaults ini and command line" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest15, "Unit::DisplaySettings::display settings init merges defaults ini and command line", "[SmokeFilter]")
 {
     WriteText("[Display]\r\nRefresh=60\r\nFps=100\r\n");
     SetDefaults(gCliDisplay);
@@ -355,7 +356,7 @@ TEST_CASE("display settings init merges defaults ini and command line" * doctest
     SetDefaults(gCliDisplay);
 }
 
-TEST_CASE("display settings save adapter round trips" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest16, "Unit::DisplaySettings::display settings save adapter round trips", "[SmokeFilter]")
 {
     Cleanup();
     WriteText("[Display]\r\nRefresh=60\r\n");
@@ -391,7 +392,7 @@ TEST_CASE("display settings save adapter round trips" * doctest::test_suite("uni
     SetDefaults(gIniDisplay);
 }
 
-TEST_CASE("display settings save adapter writes only the adapter keys" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest17, "Unit::DisplaySettings::display settings save adapter writes only the adapter keys", "[SmokeFilter]")
 {
     Cleanup();
     WriteText("[Display]\r\nRefresh=60\r\nVsync=1\r\nFps=80\r\n");
@@ -418,7 +419,7 @@ TEST_CASE("display settings save adapter writes only the adapter keys" * doctest
     SetDefaults(gDisplay);
 }
 
-TEST_CASE("display settings save adapter keeps memory when the save fails" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest18, "Unit::DisplaySettings::display settings save adapter keeps memory when the save fails", "[SmokeFilter]")
 {
     Cleanup();
     SetDefaults(gCliDisplay);
@@ -432,7 +433,7 @@ TEST_CASE("display settings save adapter keeps memory when the save fails" * doc
     SetDefaults(gIniDisplay);
 }
 
-TEST_CASE("display settings save adapter skips an unchanged file" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest19, "Unit::DisplaySettings::display settings save adapter skips an unchanged file", "[SmokeFilter]")
 {
     Cleanup();
     WriteText("[Display]\r\nAdapter=1\r\nAdapterName=\\\\.\\DISPLAY2\r\nRefresh=60\r\n");
@@ -457,7 +458,7 @@ TEST_CASE("display settings save adapter skips an unchanged file" * doctest::tes
     SetDefaults(gIniDisplay);
 }
 
-TEST_CASE("display settings save adapter ignores cli mask" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest20, "Unit::DisplaySettings::display settings save adapter ignores cli mask", "[SmokeFilter]")
 {
     Cleanup();
     WriteText("[Display]\r\nAdapter=0\r\nAdapterName=\\\\.\\DISPLAY1\r\n");
@@ -478,7 +479,7 @@ TEST_CASE("display settings save adapter ignores cli mask" * doctest::test_suite
     SetDefaults(gDisplay);
 }
 
-TEST_CASE("display settings pending adapter" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest21, "Unit::DisplaySettings::display settings pending adapter", "[SmokeFilter]")
 {
     Cleanup();
     SetDefaults(gCliDisplay);
@@ -529,7 +530,7 @@ TEST_CASE("display settings pending adapter" * doctest::test_suite("unit"))
     SetDefaults(gDisplay);
 }
 
-TEST_CASE("display settings validate menu fields" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest22, "Unit::DisplaySettings::display settings validate menu fields", "[SmokeFilter]")
 {
     MenuFields kLow = {0, 0, 0, 0, true};
     CHECK(ValidateMenu(kLow));
@@ -561,7 +562,7 @@ TEST_CASE("display settings validate menu fields" * doctest::test_suite("unit"))
     CHECK(SetFromText(kSettings, kFps, "1000", "test"));
 }
 
-TEST_CASE("display settings save menu writes only changed keys" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplaySettingsTest23, "Unit::DisplaySettings::display settings save menu writes only changed keys", "[SmokeFilter]")
 {
     Cleanup();
     SetDefaults(gCliDisplay);

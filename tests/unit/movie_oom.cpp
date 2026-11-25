@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 
@@ -426,15 +427,13 @@ bool RetailShellCut(unsigned int uFrames, std::vector<unsigned char>& v, unsigne
 
 }
 
-TEST_CASE("movie decoder survives every failed allocation of a synthetic stream without a leak" *
-          doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieOomTest1, "Unit::MovieOom::movie decoder survives every failed allocation of a synthetic stream without a leak", "[SmokeFilter]")
 {
     const std::vector<unsigned char> v = BuildSyntheticMovie(SyntheticSpec(), 0);
     SweepEveryAllocation(v, (unsigned int)v.size(), 0, false);
 }
 
-TEST_CASE("movie decoder survives every failed allocation of eight shell frames with the same output" *
-          doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieOomTest2, "Unit::MovieOom::movie decoder survives every failed allocation of eight shell frames with the same output", "[SmokeFilter]")
 {
     std::vector<unsigned char> v;
     unsigned int uSegmentLength = 0;
@@ -442,8 +441,7 @@ TEST_CASE("movie decoder survives every failed allocation of eight shell frames 
     SweepEveryAllocation(v, uSegmentLength, 8, true);
 }
 
-TEST_CASE("movie decoder rejects a heap that runs out mid-open without the failure handler" *
-          doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieOomTest3, "Unit::MovieOom::movie decoder rejects a heap that runs out mid-open without the failure handler", "[SmokeFilter]")
 {
     const std::vector<unsigned char> v = BuildSyntheticMovie(SyntheticSpec(), 0);
     unsigned int uRejects = 0;
@@ -490,8 +488,7 @@ TEST_CASE("movie decoder rejects a heap that runs out mid-open without the failu
     CHECK(uFailures == 0);
 }
 
-TEST_CASE("movie decoder fails a frame when the heap runs out mid-decode without the failure handler" *
-          doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieOomTest4, "Unit::MovieOom::movie decoder fails a frame when the heap runs out mid-decode without the failure handler", "[SmokeFilter]")
 {
     std::vector<unsigned char> v;
     unsigned int uSegmentLength = 0;
@@ -558,7 +555,7 @@ TEST_CASE("movie decoder fails a frame when the heap runs out mid-decode without
     CHECK(kHeap.Used() == uBefore);
 }
 
-TEST_CASE("movie open rejected for memory is remembered until the next open and then plays" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieOomTest5, "Unit::MovieOom::movie open rejected for memory is remembered until the next open and then plays", "[SmokeFilter]")
 {
     std::vector<unsigned char> v;
     unsigned int uSegmentLength = 0;

@@ -9,6 +9,14 @@
 #include "RedEngineFL/Util/RedLog.h"
 
 static const unsigned int kPoolBlockAlign = (unsigned int)sizeof(void*);
+#ifdef OPENSWBF2_TEST
+static unsigned int suRefusedSizes;
+
+unsigned int MemoryPool::RefusedSizes()
+{
+    return suRefusedSizes;
+}
+#endif
 
 static bool RefusesSize(const char* pcLabel, unsigned int uiSize, unsigned int uiBlock)
 {
@@ -17,6 +25,9 @@ static bool RefusesSize(const char* pcLabel, unsigned int uiSize, unsigned int u
         return false;
     }
     LOG(LogMemory, Warning, "Memory pool \"%s\" refused size %u block %u", pcLabel, uiSize, uiBlock);
+#ifdef OPENSWBF2_TEST
+    ++suRefusedSizes;
+#endif
     return true;
 }
 

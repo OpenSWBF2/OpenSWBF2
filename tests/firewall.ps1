@@ -1,6 +1,6 @@
 param([switch]$List, [string[]]$Root)
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'smoke.ps1')
+. (Join-Path $PSScriptRoot 'hardening.ps1')
 if (-not $Root) { $Root = @(Split-Path $PSScriptRoot -Parent) }
 $Root = @($Root | ForEach-Object { $_ -split ',' } | Where-Object { $_.Trim() } | ForEach-Object { [IO.Path]::GetFullPath($_.Trim()).TrimEnd('\') } | Sort-Object -Unique)
 
@@ -13,7 +13,7 @@ foreach ($r in $Root) {
     $desired = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
     foreach ($p in (Get-FirewallRulePaths $r)) { [void]$desired.Add($p) }
     $workerPrefix = Join-Path $r 'artifacts\smoke-workers\'
-    $stalePrefixes = @('artifacts\tests\', 'artifacts\guard-revert\', 'artifacts\laa-compare\', 'artifacts\spike32\work\') | ForEach-Object { Join-Path $r $_ }
+    $stalePrefixes = @('artifacts\tests\', 'artifacts\laa-compare\', 'artifacts\spike32\work\') | ForEach-Object { Join-Path $r $_ }
     $add = @($desired | Where-Object { -not $existing.Contains($_) } | Sort-Object)
     $remove = @()
     foreach ($f in $filters) {

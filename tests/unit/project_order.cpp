@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string>
 
@@ -18,7 +19,7 @@ size_t ItemAt(const std::string& sText, const char* pcInclude)
 
 }
 
-TEST_CASE("identity matrix initializer runs before every game initializer" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FProjectOrderTest1, "Unit::ProjectOrder::identity matrix initializer runs before every game initializer", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("BattlefrontII.vcxproj", sText));
@@ -29,7 +30,7 @@ TEST_CASE("identity matrix initializer runs before every game initializer" * doc
     CHECK(uiMatrix < ItemAt(sText, "src\\Battlefront2\\Source\\NetGame.cpp"));
 }
 
-TEST_CASE("deprecated winsock calls are allowed only in nonport" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FProjectOrderTest2, "Unit::ProjectOrder::deprecated winsock calls are allowed only in nonport", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("BattlefrontII.vcxproj", sText));

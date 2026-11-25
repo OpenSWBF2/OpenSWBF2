@@ -1,3 +1,3 @@
-twice-digest-1	OPENSWBF2 SIM DIGEST turns=1500 time=52.033 rand=4044781267/614621143 snd=49.923 state=0xE93085A2
-digest-hot1g_con	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=4199272687/2471852467 snd=49.923 state=0x94E6C26F
-digest-spa3c_ass	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=3484366039/3962772463 snd=49.923 state=0xF44AC841
+twice-digest-1	Sim digest turns=1500 time=52.033 rand=4044781267/614621143 snd=49.923 state=0xE93085A2
+digest-hot1g_con	Sim digest turns=1500 time=50.000 rand=4199272687/2471852467 snd=49.923 state=0x94E6C26F
+digest-spa3c_ass	Sim digest turns=1500 time=50.000 rand=3484366039/3962772463 snd=49.923 state=0xF44AC841

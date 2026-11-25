@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "Battlefront2/Source/GameVoiceChatSlots.h"
 #include <stdio.h>
@@ -29,7 +30,7 @@ bool ReadSource(const char* pcPath, std::string& sOut)
 
 }
 
-TEST_CASE("voice chat mixer clear touches one connection" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FVoiceChatSlotsTest1, "Unit::VoiceChatSlots::voice chat mixer clear touches one connection", "[EngineFilter]")
 {
     const unsigned int uiConnBytes = sizeof(Snd::StreamNodeConnection);
     unsigned int auBuffer[(4 * 2 * sizeof(Snd::StreamNodeConnection) + 16) / sizeof(unsigned int)];
@@ -65,7 +66,7 @@ TEST_CASE("voice chat mixer clear touches one connection" * doctest::test_suite(
     }
 }
 
-TEST_CASE("voice chat decoder clears through the helper" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FVoiceChatSlotsTest2, "Unit::VoiceChatSlots::voice chat decoder clears through the helper", "[EngineFilter]")
 {
     std::string sDecoder;
     if (!ReadSource("../src/Battlefront2/Source/GameVoiceChatDecoder.cpp", sDecoder))

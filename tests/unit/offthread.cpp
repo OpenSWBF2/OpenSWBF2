@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <malloc.h>
@@ -128,7 +129,7 @@ bool FindSourceByTid(unsigned int uTid, RedOffThreadSource* pOut)
 
 }
 
-TEST_CASE("off-thread allocation is counted with tid heap and size" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FOffthreadTest1, "Unit::Offthread::off-thread allocation is counted with tid heap and size", "[SmokeFilter]")
 {
     RedResetOffThreadStats();
     unsigned int uBefore = 0;
@@ -158,7 +159,7 @@ TEST_CASE("off-thread allocation is counted with tid heap and size" * doctest::t
     CHECK(uMain == uAfter);
 }
 
-TEST_CASE("off-thread sources are keyed by tid heap and full stack" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FOffthreadTest2, "Unit::Offthread::off-thread sources are keyed by tid heap and full stack", "[SmokeFilter]")
 {
     RedResetOffThreadStats();
     HANDLE hThread = CreateThread(0, 0, OffThreadKeyProc, 0, 0, 0);
@@ -195,7 +196,7 @@ TEST_CASE("off-thread sources are keyed by tid heap and full stack" * doctest::t
     CHECK(uLarge == 1);
 }
 
-TEST_CASE("off-thread source table caps at sixteen and counts dropped" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FOffthreadTest3, "Unit::Offthread::off-thread source table caps at sixteen and counts dropped", "[SmokeFilter]")
 {
     RedResetOffThreadStats();
     InitializeCriticalSection(&gCapLock);
@@ -246,11 +247,11 @@ TEST_CASE("off-thread source table caps at sixteen and counts dropped" * doctest
     CHECK(uDropped == 1);
 }
 
-TEST_CASE("report formats off-thread total and source lines" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FOffthreadTest4, "Unit::Offthread::report formats off-thread total and source lines", "[EngineFilter]")
 {
     char acLine[256];
     REQUIRE(RedMemoryReport::FormatOffThreadTotal(5, 2, 1, acLine, sizeof(acLine)));
-    CHECK(strcmp(acLine, "OPENSWBF2 MEMREPORT offthread count=5 sources=2 dropped=1") == 0);
+    CHECK(strcmp(acLine, "Memory report offthread count=5 sources=2 dropped=1") == 0);
 
     RedOffThreadSource kSource;
     memset(&kSource, 0, sizeof(kSource));
@@ -267,18 +268,18 @@ TEST_CASE("report formats off-thread total and source lines" * doctest::test_sui
     kSource.auOffset[1] = 0x20;
     char acSource[768];
     REQUIRE(RedMemoryReport::FormatOffThreadSource(kSource, acSource, sizeof(acSource)));
-    CHECK(strcmp(acSource, "OPENSWBF2 MEMREPORT offthread tid=7 heap=T1 size=24 count=3 "
+    CHECK(strcmp(acSource, "Memory report offthread tid=7 heap=T1 size=24 count=3 "
                            "stack=OpenSWBF2Tests.exe+0x10,OpenSWBF2Tests.exe+0x20") == 0);
 
     kSource.auStamp[1] = kSource.auStamp[0] + 1;
     REQUIRE(RedMemoryReport::FormatOffThreadSource(kSource, acSource, sizeof(acSource)));
-    CHECK(strcmp(acSource, "OPENSWBF2 MEMREPORT offthread tid=7 heap=T1 size=24 count=3 "
+    CHECK(strcmp(acSource, "Memory report offthread tid=7 heap=T1 size=24 count=3 "
                            "stack=OpenSWBF2Tests.exe+0x10,stale+0x20") == 0);
     kSource.apModule[1] = 0;
     REQUIRE(RedMemoryReport::FormatOffThreadSource(kSource, acSource, sizeof(acSource)));
-    CHECK(strcmp(acSource, "OPENSWBF2 MEMREPORT offthread tid=7 heap=T1 size=24 count=3 "
+    CHECK(strcmp(acSource, "Memory report offthread tid=7 heap=T1 size=24 count=3 "
                            "stack=OpenSWBF2Tests.exe+0x10,abs+0x20") == 0);
-    const char* pcFirst = "OPENSWBF2 MEMREPORT offthread tid=7 heap=T1 size=24 count=3 "
+    const char* pcFirst = "Memory report offthread tid=7 heap=T1 size=24 count=3 "
                           "stack=OpenSWBF2Tests.exe+0x10";
     REQUIRE(RedMemoryReport::FormatOffThreadSource(kSource, acSource, (unsigned int)strlen(pcFirst) + 5));
     CHECK(strcmp(acSource, pcFirst) == 0);
@@ -287,7 +288,7 @@ TEST_CASE("report formats off-thread total and source lines" * doctest::test_sui
 
     kSource.uFrames = 0;
     REQUIRE(RedMemoryReport::FormatOffThreadSource(kSource, acSource, sizeof(acSource)));
-    CHECK(strcmp(acSource, "OPENSWBF2 MEMREPORT offthread tid=7 heap=T1 size=24 count=3 stack=-") == 0);
+    CHECK(strcmp(acSource, "Memory report offthread tid=7 heap=T1 size=24 count=3 stack=-") == 0);
 
     kSource.uFrames = 2;
     char acSmall[16];
@@ -303,10 +304,10 @@ TEST_CASE("report formats off-thread total and source lines" * doctest::test_sui
 
     LogCapture capture;
     RedMemoryReport::LogMemReport("exit");
-    CHECK(capture.Contains("OPENSWBF2 MEMREPORT offthread count="));
+    CHECK(capture.Contains("Memory report offthread count="));
 }
 
-TEST_CASE("process heap usage counts large blocks apart from the segment figures" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FOffthreadTest5, "Unit::Offthread::process heap usage counts large blocks apart from the segment figures", "[EngineFilter]")
 {
     HANDLE hHeap = HeapCreate(0, 0, 0);
     REQUIRE(hHeap);
@@ -353,7 +354,7 @@ TEST_CASE("process heap usage counts large blocks apart from the segment figures
     CHECK(!RedProcessHeapUsage(GetProcessHeap(), 0, &uCommitted, &uLarge));
 }
 
-TEST_CASE("range committed counts only the committed pages inside the range" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FOffthreadTest6, "Unit::Offthread::range committed counts only the committed pages inside the range", "[EngineFilter]")
 {
     const unsigned int kPage = 4096;
     char* pBase = (char*)VirtualAlloc(0, 64 * kPage, MEM_RESERVE, PAGE_NOACCESS);
@@ -372,7 +373,7 @@ TEST_CASE("range committed counts only the committed pages inside the range" * d
     VirtualFree(pBase, 0, MEM_RELEASE);
 }
 
-TEST_CASE("game crt counter tracks blocks through the crt wrappers" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FOffthreadTest7, "Unit::Offthread::game crt counter tracks blocks through the crt wrappers", "[EngineFilter]")
 {
     const unsigned int uLive0 = PblCrtLiveBytes();
     void* p = PblCrtAlloc(1000);
@@ -428,7 +429,7 @@ DWORD WINAPI MovedStackBaseProc(void* pArg)
 }
 }
 
-TEST_CASE("thread commit counts the stack and teb pages of a live thread" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FOffthreadTest8, "Unit::Offthread::thread commit counts the stack and teb pages of a live thread", "[EngineFilter]")
 {
     const unsigned int kStackCommit = 512 * 1024;
     CommitParts k0;
@@ -450,7 +451,7 @@ TEST_CASE("thread commit counts the stack and teb pages of a live thread" * doct
     CHECK(k.uThreads < k0.uThreads + kStackCommit);
 }
 
-TEST_CASE("thread commit counts the thread's own stack and not the block at its stack base" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FOffthreadTest9, "Unit::Offthread::thread commit counts the thread's own stack and not the block at its stack base", "[EngineFilter]")
 {
     const unsigned int kStackCommit = 512 * 1024;
     const unsigned int kDecoy = 8 * 1024 * 1024;
@@ -479,7 +480,7 @@ TEST_CASE("thread commit counts the thread's own stack and not the block at its 
     VirtualFree(pDecoy, 0, MEM_RELEASE);
 }
 
-TEST_CASE("heaps committed counts the segments and large blocks of every process heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FOffthreadTest10, "Unit::Offthread::heaps committed counts the segments and large blocks of every process heap", "[EngineFilter]")
 {
     const unsigned int kInitial = 1024 * 1024;
     CommitParts k0;
@@ -503,7 +504,7 @@ TEST_CASE("heaps committed counts the segments and large blocks of every process
     CHECK(k.uHeaps < k0.uHeaps + kInitial);
 }
 
-TEST_CASE("private committed counts committed private pages" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FOffthreadTest11, "Unit::Offthread::private committed counts committed private pages", "[EngineFilter]")
 {
     const unsigned int kPage = 4096;
     char* pBase = (char*)VirtualAlloc(0, 64 * kPage, MEM_RESERVE, PAGE_NOACCESS);
@@ -520,7 +521,7 @@ TEST_CASE("private committed counts committed private pages" * doctest::test_sui
     CHECK(kReleased.uPrivate + 5 * kPage <= k.uPrivate);
 }
 
-TEST_CASE("commit parts count a thread and a heap made during the walk as thread and heap memory" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FOffthreadTest12, "Unit::Offthread::commit parts count a thread and a heap made during the walk as thread and heap memory", "[EngineFilter]")
 {
     unsigned int uPrivate0 = 0;
     unsigned int uHeaps0 = 0;
@@ -563,7 +564,7 @@ TEST_CASE("commit parts count a thread and a heap made during the walk as thread
 #if defined(__SANITIZE_ADDRESS__)
 #include <sanitizer/asan_interface.h>
 
-TEST_CASE("commit parts make their whole region buffer resident before the walk" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FOffthreadTest13, "Unit::Offthread::commit parts make their whole region buffer resident before the walk", "[EngineFilter]")
 {
     unsigned int uPrivate = 0;
     unsigned int uHeaps = 0;

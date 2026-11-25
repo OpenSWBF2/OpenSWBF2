@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string>
 
@@ -106,7 +107,7 @@ bool HoldsShort(const ComboShort* pArray, unsigned int uCount, unsigned short uT
 
 }
 
-TEST_CASE("combo array packs elements across pool blocks" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FComboArrayTest1, "Unit::ComboArray::combo array packs elements across pool blocks", "[EngineFilter]")
 {
     MemoryPool kPool("t1combopack", sizeof(ComboShort));
     kPool.Create(16, sizeof(ComboShort), 0);
@@ -140,7 +141,7 @@ void CheckComboPoolBlock(const char* pcLabel)
     }
 }
 
-TEST_CASE("combo pools give each combo type a block equal to its size on x86" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FComboArrayTest2, "Unit::ComboArray::combo pools give each combo type a block equal to its size on x86", "[EngineFilter]")
 {
     CheckComboPoolBlock<Combo::State>("Combo::State");
     CheckComboPoolBlock<Combo::Transition>("Combo::Transition");
@@ -155,7 +156,7 @@ TEST_CASE("combo pools give each combo type a block equal to its size on x86" * 
     CHECK(CountComboText(sCombo, "MemoryPool Combo::DamageSample::sMemoryPool(\"Combo::DamageSample\", sizeof(Combo::DamageSample));") == 1);
 }
 
-TEST_CASE("combo array keeps packed elements across a run move" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FComboArrayTest3, "Unit::ComboArray::combo array keeps packed elements across a run move", "[EngineFilter]")
 {
     MemoryPool kPool("t1combomove", sizeof(ComboShort));
     kPool.Create(16, sizeof(ComboShort), 0);
@@ -180,7 +181,7 @@ TEST_CASE("combo array keeps packed elements across a run move" * doctest::test_
     kPool.Destroy();
 }
 
-TEST_CASE("combo array keeps the retail block order in a fresh pool" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FComboArrayTest4, "Unit::ComboArray::combo array keeps the retail block order in a fresh pool", "[EngineFilter]")
 {
     MemoryPool kPool("t1comboorder", sizeof(ComboProbe));
     kPool.Create(8, sizeof(ComboProbe), 0);
@@ -205,7 +206,7 @@ TEST_CASE("combo array keeps the retail block order in a fresh pool" * doctest::
     kPool.Destroy();
 }
 
-TEST_CASE("combo arrays stay contiguous when another array takes the next pool block" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FComboArrayTest5, "Unit::ComboArray::combo arrays stay contiguous when another array takes the next pool block", "[EngineFilter]")
 {
     MemoryPool kPool("t1combomix", sizeof(ComboProbe));
     kPool.Create(24, sizeof(ComboProbe), 0);
@@ -225,7 +226,7 @@ TEST_CASE("combo arrays stay contiguous when another array takes the next pool b
     kPool.Destroy();
 }
 
-TEST_CASE("combo array refuses a block it cannot place contiguously" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FComboArrayTest6, "Unit::ComboArray::combo array refuses a block it cannot place contiguously", "[EngineFilter]")
 {
     MemoryPool kPool("t1combofull", sizeof(ComboProbe));
     kPool.Create(3, sizeof(ComboProbe), 0);
@@ -245,7 +246,7 @@ TEST_CASE("combo array refuses a block it cannot place contiguously" * doctest::
 }
 
 #ifdef OPENSWBF2_TEST
-TEST_CASE("combo array ignores a shuffled pool hand-out order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FComboArrayTest7, "Unit::ComboArray::combo array ignores a shuffled pool hand-out order", "[EngineFilter]")
 {
     RedPerturbSet(1, kRedPerturbPool);
     MemoryPool kPool("t1comboshuffle", sizeof(ComboProbe));
@@ -263,7 +264,7 @@ TEST_CASE("combo array ignores a shuffled pool hand-out order" * doctest::test_s
 }
 #endif
 
-TEST_CASE("combo array relocation picks the lowest run after a reverse free" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FComboArrayTest8, "Unit::ComboArray::combo array relocation picks the lowest run after a reverse free", "[EngineFilter]")
 {
     MemoryPool kPool("t1comboreverse", sizeof(ComboProbe));
     kPool.Create(12, sizeof(ComboProbe), 0);
@@ -292,7 +293,7 @@ TEST_CASE("combo array relocation picks the lowest run after a reverse free" * d
     kPool.Destroy();
 }
 
-TEST_CASE("combo arrays route every pool array through ComboArrayAdd (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FComboArrayTest9, "Unit::ComboArray::combo arrays route every pool array through ComboArrayAdd (source pin)", "[EngineFilter]")
 {
     std::string sCombo = ReadComboText("src\\Battlefront2\\Source\\Combo.cpp");
     CHECK(CountComboText(sCombo, "ComboArrayAdd(") == 6);

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -15,7 +16,7 @@ GameObject* FakeObject(uintptr_t uAddress)
 
 }
 
-TEST_CASE("send scopes merge each object once in scope order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetSendScopesTest1, "Unit::NetSendScopes::send scopes merge each object once in scope order", "[EngineFilter]")
 {
     GameObject* aapScopes[2][64];
     memset(aapScopes, 0, sizeof(aapScopes));
@@ -38,7 +39,7 @@ TEST_CASE("send scopes merge each object once in scope order" * doctest::test_su
     CHECK(apSends[3] == nullptr);
 }
 
-TEST_CASE("send scopes stop at 64 objects" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetSendScopesTest2, "Unit::NetSendScopes::send scopes stop at 64 objects", "[EngineFilter]")
 {
     GameObject* aapScopes[2][64];
     for (int i = 0; i < 64; ++i)
@@ -56,7 +57,7 @@ TEST_CASE("send scopes stop at 64 objects" * doctest::test_suite("regression"))
     }
 }
 
-TEST_CASE("send scopes keep objects whose low address bits match" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetSendScopesTest3, "Unit::NetSendScopes::send scopes keep objects whose low address bits match", "[EngineFilter]")
 {
     GameObject* aapScopes[2][64];
     memset(aapScopes, 0, sizeof(aapScopes));

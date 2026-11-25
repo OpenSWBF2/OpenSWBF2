@@ -12,6 +12,7 @@ namespace RedLog
 
 Observer gObserver = 0;
 int gFrame = 0;
+bool gNoLogTimes = false;
 
 namespace
 {
@@ -27,9 +28,6 @@ CRITICAL_SECTION sLock;
 volatile LONG sLockState = 0;
 int sVerbosity[CategoryCount] = { Inform, Inform, Inform, Inform, Inform, Inform, Inform, Inform, Inform };
 char sDeferred[256];
-LARGE_INTEGER sBase;
-LARGE_INTEGER sFreq;
-bool sBaseSet = false;
 Site sSites[64];
 unsigned int sSiteCount = 0;
 unsigned int sFailures = 0;
@@ -68,11 +66,6 @@ void __cdecl TraceSink(char const* pcText)
     Write(LogCore, Verbose, "PblTrace.cpp", 0, "%s", pcText);
 }
 
-bool IsSep(char c)
-{
-    return c == '\\' || c == '/';
-}
-
 }
 
 char const* CategoryName(int iCategory)
@@ -85,19 +78,6 @@ char const* SeverityName(int iSeverity)
     return (iSeverity >= Verbose && iSeverity <= Fatal) ? sSeverityNames[iSeverity] : "?";
 }
 
-char const* TrimPath(char const* pcPath)
-{
-    char const* pcResult = pcPath;
-    for (char const* pc = pcPath; *pc; ++pc)
-    {
-        if (pc[0] == 's' && pc[1] == 'r' && pc[2] == 'c' && IsSep(pc[3]) && (pc == pcPath || IsSep(pc[-1])))
-        {
-            pcResult = pc + 4;
-        }
-    }
-    return pcResult;
-}
-
 void __cdecl Write(Category eCategory, Severity eSeverity, char const* pcFile, int iLine,
                    char const* pcFormat, ...)
 {
@@ -106,23 +86,25 @@ void __cdecl Write(Category eCategory, Severity eSeverity, char const* pcFile, i
         return;
     }
 
+    (void)pcFile;
+    (void)iLine;
+
     Lock();
 
-    if (!sBaseSet)
-    {
-        QueryPerformanceFrequency(&sFreq);
-        QueryPerformanceCounter(&sBase);
-        sBaseSet = true;
-    }
-
-    LARGE_INTEGER now;
-    QueryPerformanceCounter(&now);
-    unsigned __int64 u64Ms = (unsigned __int64)(now.QuadPart - sBase.QuadPart) * 1000 / (unsigned __int64)sFreq.QuadPart;
-
     char acLine[1024];
-    int iPrefix = _snprintf(acLine, sizeof(acLine) - 2, "[t=%u.%03u] [f=%d] %s %s %s:%d: ",
-                            (unsigned int)(u64Ms / 1000), (unsigned int)(u64Ms % 1000), gFrame,
-                            CategoryName(eCategory), SeverityName(eSeverity), TrimPath(pcFile), iLine);
+    int iPrefix = 0;
+    if (gNoLogTimes)
+    {
+        iPrefix = _snprintf(acLine, sizeof(acLine) - 2, "%s: %s: ", CategoryName(eCategory), SeverityName(eSeverity));
+    }
+    else
+    {
+        SYSTEMTIME st;
+        GetSystemTime(&st);
+        iPrefix = _snprintf(acLine, sizeof(acLine) - 2, "[%04u.%02u.%02u-%02u.%02u.%02u:%03u][%3u]%s: %s: ",
+                            st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds,
+                            (unsigned int)gFrame % 1000u, CategoryName(eCategory), SeverityName(eSeverity));
+    }
     if (iPrefix < 0)
     {
         iPrefix = (int)sizeof(acLine) - 2;
@@ -363,6 +345,7 @@ void ResetForTest()
     }
     sDeferred[0] = 0;
     gFrame = 0;
+    gNoLogTimes = false;
     Unlock();
 }
 

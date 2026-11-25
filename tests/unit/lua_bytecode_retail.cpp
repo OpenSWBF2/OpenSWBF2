@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <cstdio>
@@ -548,7 +549,7 @@ bool RunLuaFuzz(unsigned int uSeed, unsigned int uCount, unsigned int* puSum = 0
 
 }
 
-TEST_CASE("lua retail scripts pass the verifier" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLuaBytecodeRetailTest1, "Unit::LuaBytecodeRetail::lua retail scripts pass the verifier", "[SmokeFilter]")
 {
     const std::string sRoot = RetailRepoRoot();
     SKIP_IF(sRoot.empty(), "data/scripts not found");
@@ -587,7 +588,7 @@ TEST_CASE("lua retail scripts pass the verifier" * doctest::test_suite("unit"))
     }
 }
 
-TEST_CASE("lua retail lvl chunks pass the verifier" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLuaBytecodeRetailTest2, "Unit::LuaBytecodeRetail::lua retail lvl chunks pass the verifier", "[SmokeFilter]")
 {
     REQUIRE_GAMEDATA();
     const std::string sRoot = RetailRepoRoot();
@@ -626,7 +627,7 @@ TEST_CASE("lua retail lvl chunks pass the verifier" * doctest::test_suite("unit"
     }
 }
 
-TEST_CASE("lua bytecode fuzz default seeds" * doctest::test_suite("fuzz"))
+TEST_CASE_NAMED(FLuaBytecodeRetailTest3, "Unit::LuaBytecodeRetail::lua bytecode fuzz default seeds", "[StressFilter]")
 {
     const unsigned int auSeeds[4] = {1, 2, 3, 0xC0FFEE};
     unsigned int auSums[4] = {0, 0, 0, 0};
@@ -639,7 +640,7 @@ TEST_CASE("lua bytecode fuzz default seeds" * doctest::test_suite("fuzz"))
     CHECK(uAgain == auSums[0]);
 }
 
-TEST_CASE("lua bytecode fuzz soak" * doctest::test_suite("stress"))
+TEST_CASE_NAMED(FLuaBytecodeRetailTest4, "Unit::LuaBytecodeRetail::lua bytecode fuzz soak", "[StressFilter][OnRequest]")
 {
     if (gFuzzDump)
     {

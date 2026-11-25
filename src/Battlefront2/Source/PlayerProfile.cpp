@@ -539,7 +539,7 @@ static void ComputeTargetMode(const PlayerProfile::tPCOpt& rOpt, bool bQuiet, Ta
     {
         if (!bQuiet)
         {
-            LOG(LogRender, Warning, "OPENSWBF2 DISPLAY profile size %ux%u out of bounds, using default",
+            LOG(LogRender, Warning, "Display profile size %ux%u out of bounds, using default",
                 uiResX, uiResY);
         }
         uiResX = 0;
@@ -561,7 +561,7 @@ static void ComputeTargetMode(const PlayerProfile::tPCOpt& rOpt, bool bQuiet, Ta
 
     if (kSize.bWarnIgnoredSize && !bQuiet)
     {
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY borderless ignores requested %ux%u, using monitor %ux%u",
+        LOG(LogRender, Warning, "Display borderless ignores requested %ux%u, using monitor %ux%u",
             bCli ? (unsigned int)pcWidth : rOpt.mResolutionX,
             bCli ? (unsigned int)pcHeight : rOpt.mResolutionY, uiDeskW, uiDeskH);
     }
@@ -571,7 +571,7 @@ static void ComputeTargetMode(const PlayerProfile::tPCOpt& rOpt, bool bQuiet, Ta
     {
         if (!bQuiet)
         {
-            LOG(LogRender, Warning, "OPENSWBF2 DISPLAY multisample ms=%d q=%u unsupported, off",
+            LOG(LogRender, Warning, "Display multisample ms=%d q=%u unsupported, off",
                 (int)msType, (unsigned int)ulMSQuality);
         }
         msType = (D3DMULTISAMPLE_TYPE)0;
@@ -649,7 +649,7 @@ static void ComputeTargetMode(const PlayerProfile::tPCOpt& rOpt, bool bQuiet, Ta
 
     if (kSize.bWarnNoMonitor && !g_bNoRender && !bQuiet)
     {
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY borderless monitor size unknown, using %ux%u",
+        LOG(LogRender, Warning, "Display borderless monitor size unknown, using %ux%u",
             uiWidth, uiHeight);
     }
 
@@ -691,7 +691,7 @@ void PlayerProfile::ApplyLiveDisplay()
     tPCOpt& rPC = pProfile->mPCOptions;
     if (!ProfileSizeUsable(rPC.mResolutionX, rPC.mResolutionY))
     {
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY live size %ux%u out of bounds, ignored",
+        LOG(LogRender, Warning, "Display live size %ux%u out of bounds, ignored",
             (unsigned int)rPC.mResolutionX, (unsigned int)rPC.mResolutionY);
         return;
     }
@@ -777,7 +777,8 @@ static unsigned int WriteMenuIni()
     char acPath[MAX_PATH];
     if (!DisplayCfg::DisplayIniPath(acPath, sizeof(acPath)))
     {
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY menu save failed path");
+        LOG(LogRender, Warning, "Display menu save failed path");
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuSaveFailed, 1));
         return DisplayCfg::kSaveFailed;
     }
 
@@ -805,13 +806,14 @@ static unsigned int WriteMenuIni()
         if ((uiWritten & akKeys[i].uiKey) && (rDisplay.uiCliMask & akKeys[i].uiKey))
         {
             LOG(LogRender, Inform,
-                "OPENSWBF2 DISPLAY %s=%u saved from menu, -%s switch still wins next start",
+                "Display %s=%u saved from menu, -%s switch still wins next start",
                 akKeys[i].pcKey, akKeys[i].uiValue, akKeys[i].pcSwitch);
         }
     }
     if (uiWritten != 0)
     {
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menu saved keys=0x%x", uiWritten);
+        LOG(LogRender, Inform, "Display menu saved keys=0x%x", uiWritten);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuSaved, uiWritten));
     }
 
     if (eResult == DisplayCfg::kSaveOk)
@@ -826,11 +828,13 @@ static unsigned int WriteMenuIni()
             sDeferBase = sMarkDisplay;
             sSaveDeferred = true;
         }
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menu save deferred until the confirm ends");
+        LOG(LogRender, Inform, "Display menu save deferred until the confirm ends");
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuSaveDeferred));
     }
     else
     {
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY menu save failed");
+        LOG(LogRender, Warning, "Display menu save failed");
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuSaveFailed, 0));
     }
     return (unsigned int)eResult;
 }
@@ -854,7 +858,7 @@ static unsigned int SavePendingAdapter()
     const unsigned int uiIndex = rPending.uiIndex;
     if (!DisplayCfg::SaveAdapter(uiIndex, rPending.acName))
     {
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY adapter save failed");
+        LOG(LogRender, Warning, "Display adapter save failed");
         return DisplayCfg::kSaveFailed;
     }
 
@@ -863,19 +867,21 @@ static unsigned int SavePendingAdapter()
         if (DisplayCfg::gDisplay.uiCliMask & DisplayCfg::kAdapter)
         {
             LOG(LogRender, Inform,
-                "OPENSWBF2 DISPLAY adapter=%u saved, restart required, -adapter switch still wins next start",
+                "Display adapter=%u saved, restart required, -adapter switch still wins next start",
                 uiIndex);
         }
         else
         {
-            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adapter=%u saved, restart required", uiIndex);
+            LOG(LogRender, Inform, "Display adapter=%u saved, restart required", uiIndex);
         }
     }
     else
     {
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adapter=%u saved, running adapter unchanged",
+        LOG(LogRender, Inform, "Display adapter=%u saved, running adapter unchanged",
             uiIndex);
     }
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioAdapterSaved, uiIndex,
+                                            uiIndex == RedRenderer::pcGetRunningAdapter() ? 1u : 0u));
     DisplayCfg::ClearPendingAdapter();
     return DisplayCfg::kSaveOk;
 }
@@ -906,9 +912,12 @@ static void RevertConfirm(const char* pcWhy)
                        sConfirmRevert.bVsyncSet, sConfirmPrevFps, sConfirmPrevNoWait);
     pProfile->UpdateProfCRC();
     LOG(LogRender, Warning,
-        "OPENSWBF2 DISPLAY confirm %s, reverting to %ux%u mode=%s fps=%u waitquery=%d", pcWhy,
+        "Display confirm %s, reverting to %ux%u mode=%s fps=%u waitquery=%d", pcWhy,
         (unsigned int)sConfirmRevert.resX, (unsigned int)sConfirmRevert.resY,
         ConfirmModeName(sConfirmRevert), sConfirmPrevFps, sConfirmPrevNoWait ? 0 : 1);
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioConfirmRevert, (unsigned int)sConfirmRevert.resX,
+                                            (unsigned int)sConfirmRevert.resY, sConfirmPrevFps,
+                                            sConfirmPrevNoWait ? 0u : 1u, 0, 0, 0, pcWhy));
     ClearConfirmTarget();
     RedRenderer::pcClearStageArm();
     PlayerProfile::ApplyLiveDisplay();
@@ -922,12 +931,14 @@ static void RunConfirmAction(DisplayLogic::ConfirmAction eAct, const char* pcWhy
     {
     case DisplayLogic::kConfirmActStart:
         sConfirmStart = ConfirmClock();
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY confirm pending 15s");
+        LOG(LogRender, Inform, "Display confirm pending 15s");
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioConfirmPending));
         break;
     case DisplayLogic::kConfirmActKeep:
         sConfirmResult = 1;
         ClearConfirmTarget();
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY confirm kept");
+        LOG(LogRender, Inform, "Display confirm kept");
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioConfirmKept));
         FinishDeferredSave();
         break;
     case DisplayLogic::kConfirmActClear:
@@ -973,7 +984,7 @@ static void ConfirmOnApplied(const DisplayRequestTag& kTag)
         sConfirmHaveTarget = sAppliedPC.bValid;
         if (!sConfirmHaveTarget)
         {
-            LOG(LogRender, Warning, "OPENSWBF2 DISPLAY confirm has no previous mode, kept");
+            LOG(LogRender, Warning, "Display confirm has no previous mode, kept");
             kStep.ePhase = DisplayLogic::kConfirmNone;
             kStep.eAction = DisplayLogic::kConfirmActClear;
         }
@@ -1024,10 +1035,14 @@ void PlayerProfile::PollApplyNotice()
                                bArmedFail ? sConfirmPrevNoWait : DisplayCfg::gDisplay.bNoWaitQuery);
             pProfile->UpdateProfCRC();
             LOG(LogRender, Warning,
-                "OPENSWBF2 DISPLAY profile restored %ux%u windowed=%d vsync=%d fps=%u waitquery=%d",
+                "Display profile restored %ux%u windowed=%d vsync=%d fps=%u waitquery=%d",
                 (unsigned int)sAppliedPC.resX, (unsigned int)sAppliedPC.resY,
                 (int)sAppliedPC.windowed, (int)sAppliedPC.vsync, DisplayCfg::gDisplay.uiFps,
                 DisplayCfg::gDisplay.bNoWaitQuery ? 0 : 1);
+            PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioProfileRestored, (unsigned int)sAppliedPC.resX,
+                                                    (unsigned int)sAppliedPC.resY, (unsigned int)sAppliedPC.windowed,
+                                                    (unsigned int)sAppliedPC.vsync, DisplayCfg::gDisplay.uiFps,
+                                                    DisplayCfg::gDisplay.bNoWaitQuery ? 0u : 1u));
         }
 
         StepConfirm(DisplayLogic::kConfirmEvApplyFailed, "timeout");
@@ -1072,7 +1087,7 @@ bool PlayerProfile::ApplyMenuDisplay(const DisplayCfg::MenuFields& kFields)
     if (!DisplayCfg::ValidateMenu(kFields))
     {
         LOG(LogRender, Warning,
-            "OPENSWBF2 DISPLAY menu options rejected mode=%u refresh=%u vsync=%u fps=%u",
+            "Display menu options rejected mode=%u refresh=%u vsync=%u fps=%u",
             kFields.uiMode, kFields.uiRefresh, kFields.uiVsync, kFields.uiFps);
         return false;
     }
@@ -1110,7 +1125,7 @@ bool PlayerProfile::ApplyMenuDisplay(const DisplayCfg::MenuFields& kFields)
         sConfirmCliPrev = true;
         sConfirmCliCleared = true;
         pcWindowed = false;
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY -win switch overridden for this session");
+        LOG(LogRender, Inform, "Display -win switch overridden for this session");
     }
 
     if (kFields.uiFps != rDisplay.uiFps)
@@ -1162,7 +1177,8 @@ void PlayerProfile::RestoreDisplay()
 
     RedRenderer::pcClearStageArm();
     ApplyLiveDisplay();
-    LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menu cancel restored");
+    LOG(LogRender, Inform, "Display menu cancel restored");
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuCancelRestored));
 }
 
 unsigned int PlayerProfile::SaveDisplay()

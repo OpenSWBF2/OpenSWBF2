@@ -177,9 +177,13 @@ void RedMoviePlayer::DestroyMovieDecoder(bool bForce)
         mPlayback = 0;
 #ifdef OPENSWBF2_TEST
         ++gRedMovieCloses;
-        LOG(LogCore, Inform, "OPENSWBF2 MOVIE close");
-        LOG(LogCore, Inform, "OPENSWBF2 MOVIE heap blocks=%u", gRedMovieLiveBlocks);
-        LOG(LogCore, Inform, "OPENSWBF2 MOVIE playback shown=%u waits=%u", uShown, uWaits);
+        LOG(LogCore, Inform, "Movie close");
+        if (gRedMovieLiveBlocks != 0)
+        {
+            LOG(LogCore, Error, "movie heap holds %u blocks after the movie closed", gRedMovieLiveBlocks);
+        }
+        LOG(LogCore, Inform, "Movie heap blocks=%u", gRedMovieLiveBlocks);
+        LOG(LogCore, Inform, "Movie playback shown=%u waits=%u", uShown, uWaits);
 #endif
         DestroyTextures(bForce, 3);
     }
@@ -278,6 +282,14 @@ static bool sOpeningMovieDecoder;
 
 #ifdef OPENSWBF2_TEST
 unsigned int gRedMovieCloses;
+RedMovieTestRecord gRedMovieTestRecord;
+
+static void RedMovieTestReject(const char* pcReason)
+{
+    ++gRedMovieTestRecord.uRejects;
+    strncpy(gRedMovieTestRecord.acReject, pcReason ? pcReason : "", sizeof(gRedMovieTestRecord.acReject) - 1);
+    gRedMovieTestRecord.acReject[sizeof(gRedMovieTestRecord.acReject) - 1] = 0;
+}
 #endif
 
 // FUNCTION: SWBF2 0x006f4950
@@ -386,7 +398,10 @@ void RedMoviePlayer::Update()
                 {
                     if (iResult != kMovieFrameEnd)
                     {
-                        LOG(LogCore, Warning, "OPENSWBF2 MOVIE reject reason=frame");
+                        LOG(LogCore, Warning, "Movie reject reason=frame");
+#ifdef OPENSWBF2_TEST
+                        RedMovieTestReject("frame");
+#endif
                     }
                     mFlags |= mPlayback->mDecoder.EndState() == kMovieSourceDiscontinuity ? 4 : 2;
 #ifdef OPENSWBF2_TEST
@@ -398,6 +413,7 @@ void RedMoviePlayer::Update()
             else
             {
                 ++mPlayback->muWaits;
+                ++gRedMovieTestRecord.uWaits;
             }
 #endif
         }
@@ -446,7 +462,10 @@ void RedMoviePlayer::Update()
         {
             if (!bRejected)
             {
-                LOG(LogCore, Warning, "OPENSWBF2 MOVIE reject reason=%s", pcReason);
+                LOG(LogCore, Warning, "Movie reject reason=%s", pcReason);
+#ifdef OPENSWBF2_TEST
+                RedMovieTestReject(pcReason);
+#endif
             }
             mFlags |= 2;
         }
@@ -468,14 +487,20 @@ void RedMoviePlayer::Update()
         {
             if (!CreateMovieDecoder())
             {
-                LOG(LogCore, Warning, "OPENSWBF2 MOVIE reject reason=texture");
+                LOG(LogCore, Warning, "Movie reject reason=texture");
                 sRejected.Remember(GetCurrentSegment());
+#ifdef OPENSWBF2_TEST
+                RedMovieTestReject("texture");
+#endif
                 DestroyMovieDecoder(false);
                 mFlags = (unsigned char)((mFlags & ~1) | 2);
             }
             else
             {
-                LOG(LogCore, Inform, "OPENSWBF2 MOVIE open");
+                LOG(LogCore, Inform, "Movie open");
+#ifdef OPENSWBF2_TEST
+                ++gRedMovieTestRecord.uOpens;
+#endif
             }
         }
     }
@@ -594,7 +619,13 @@ void RedMovieTestFrame(const MoviePlayback* pPlayback, const void* pBits, int iP
                 }
             }
         }
-        LOG(LogCore, Inform, "OPENSWBF2 MOVIE frame seg=0x%08X n=%u fnv=%016llX", suMovieSegment, n, uHash);
+        LOG(LogCore, Inform, "Movie frame seg=0x%08X n=%u fnv=%016llX", suMovieSegment, n, uHash);
+        ++gRedMovieTestRecord.uHashed;
+        if (n == 300)
+        {
+            gRedMovieTestRecord.uFrame300Segment = suMovieSegment;
+            gRedMovieTestRecord.ullFrame300 = uHash;
+        }
     }
     if (bTest)
     {
@@ -608,8 +639,19 @@ void RedMovieTestFrame(const MoviePlayback* pPlayback, const void* pBits, int iP
 
 void RedMovieTestEnd(const MoviePlayback* pPlayback)
 {
-    LOG(LogCore, Inform, "OPENSWBF2 MOVIE end seg=0x%08X frames=%u shown=%u header=%u waits=%u",
+    LOG(LogCore, Inform, "Movie end seg=0x%08X frames=%u shown=%u header=%u waits=%u",
         suMovieSegment, pPlayback->muFrameNum, pPlayback->muShown, pPlayback->mHeader.uFrames, pPlayback->muWaits);
+    RedMovieTestRecord& rRecord = gRedMovieTestRecord;
+    ++rRecord.uEnds;
+    rRecord.uEndSegment = suMovieSegment;
+    rRecord.uEndFrames = pPlayback->muFrameNum;
+    rRecord.uEndShown = pPlayback->muShown;
+    rRecord.uEndHeader = pPlayback->mHeader.uFrames;
+    rRecord.uEndWaits = pPlayback->muWaits;
+    if (pPlayback->muFrameNum != pPlayback->muShown || pPlayback->muFrameNum != pPlayback->mHeader.uFrames)
+    {
+        ++rRecord.uEndMismatches;
+    }
 }
 
 #endif

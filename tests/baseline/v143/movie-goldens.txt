@@ -2999,4 +2999,4 @@ source=binkw32.dll MMX X8R8G8B8 blitter: pmulhw by 0x4A89 (Y<<6) and 0x6810 (U<<
 
 ## binkw32 ingame digest
 
-ingame-movie-digest	OPENSWBF2 SIM DIGEST turns=1500 time=95.900 rand=4105912183/4190259702 snd=49.923 state=0xEA62A3E2
+ingame-movie-digest	Sim digest turns=1500 time=95.900 rand=4105912183/4190259702 snd=49.923 state=0xEA62A3E2

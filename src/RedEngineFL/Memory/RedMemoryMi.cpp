@@ -230,7 +230,7 @@ void RedMiDestroy(int i)
     }
     if (siMiAreasLost != 0)
     {
-        LOG(LogMemory, Warning, "OPENSWBF2 MIPOISON heap=%d lost=%d", i, siMiAreasLost);
+        LOG(LogMemory, Warning, "Mimalloc poison heap=%d lost=%d", i, siMiAreasLost);
     }
     siMiAreas = 0;
 #endif
@@ -353,7 +353,7 @@ size_t RedMiFree(void* block)
     {
         mi_free(pBase);
     }
-    LOG(LogMemory, Error, "OPENSWBF2 MIERROR kind=badprefix");
+    LOG(LogMemory, Error, "Mimalloc error kind=badprefix");
     check(eKind == kRedMiValid);
     return 0;
 }
@@ -502,10 +502,10 @@ static void mi_cdecl MiError(int err, void* arg)
     (void)arg;
     if (!RedMiTakeErrorFatal(err))
     {
-        LOG(LogMemory, Warning, "OPENSWBF2 MIERROR err=%d", err);
+        LOG(LogMemory, Warning, "Mimalloc error err=%d", err);
         return;
     }
-    LOG(LogMemory, Error, "OPENSWBF2 MIERROR err=%d", err);
+    LOG(LogMemory, Error, "Mimalloc error err=%d", err);
     check(err == 0);
 }
 
@@ -581,7 +581,7 @@ bool RedMiFormatOptions(char* pcOut, unsigned int uSize)
         return false;
     }
     const int iLen = _snprintf(pcOut, uSize,
-                               "OPENSWBF2 MIOPTIONS purge_delay=%ld retry_on_oom=%ld arena_reserve=%u "
+                               "Mimalloc options purge_delay=%ld retry_on_oom=%ld arena_reserve=%u "
                                "arena_eager_commit=%ld reserve_os_memory=%u page_full_retain=%ld",
                                mi_option_get(mi_option_purge_delay), mi_option_get(mi_option_retry_on_oom),
                                (unsigned int)mi_option_get_size(mi_option_arena_reserve),

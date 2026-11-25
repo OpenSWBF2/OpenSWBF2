@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 
@@ -490,7 +491,7 @@ bool DumpInput(const std::vector<unsigned char>& v)
 
 }
 
-TEST_CASE("movie header fuzz default seeds" * doctest::test_suite("fuzz"))
+TEST_CASE_NAMED(FMovieFuzzTest1, "Unit::MovieFuzz::movie header fuzz default seeds", "[StressFilter]")
 {
     const unsigned int auSeeds[4] = {1, 2, 3, 0xC0FFEE};
     unsigned int auSums[4] = {0, 0, 0, 0};
@@ -503,7 +504,7 @@ TEST_CASE("movie header fuzz default seeds" * doctest::test_suite("fuzz"))
     CHECK(uAgain == auSums[0]);
 }
 
-TEST_CASE("movie decoder fuzz default seeds" * doctest::test_suite("fuzz"))
+TEST_CASE_NAMED(FMovieFuzzTest2, "Unit::MovieFuzz::movie decoder fuzz default seeds", "[StressFilter]")
 {
     const unsigned int auSeeds[4] = {1, 2, 3, 0xC0FFEE};
     unsigned int auSums[4] = {0, 0, 0, 0};
@@ -516,7 +517,7 @@ TEST_CASE("movie decoder fuzz default seeds" * doctest::test_suite("fuzz"))
     CHECK(uAgain == auSums[0]);
 }
 
-TEST_CASE("movie header fuzz soak" * doctest::test_suite("stress"))
+TEST_CASE_NAMED(FMovieFuzzTest3, "Unit::MovieFuzz::movie header fuzz soak", "[StressFilter][OnRequest]")
 {
     if (gFuzzDump)
     {
@@ -527,7 +528,7 @@ TEST_CASE("movie header fuzz soak" * doctest::test_suite("stress"))
     CHECK(RunHeaderFuzz(gFuzzSeed, gFuzzCount ? gFuzzCount : 1000000));
 }
 
-TEST_CASE("movie decoder fuzz soak" * doctest::test_suite("stress"))
+TEST_CASE_NAMED(FMovieFuzzTest4, "Unit::MovieFuzz::movie decoder fuzz soak", "[StressFilter][OnRequest]")
 {
     if (gFuzzDump)
     {

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -177,7 +178,7 @@ size_t CountOf(const std::string& sText, const char* pcNeedle)
 
 }
 
-TEST_CASE("window mode source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest1, "Unit::WindowPins::window mode source pins", "[SmokeFilter]")
 {
     std::string sMain;
     std::string sMouse;
@@ -224,7 +225,7 @@ TEST_CASE("window mode source pins" * doctest::test_suite("unit"))
     CHECK(sMouse.find("gAppActive") != std::string::npos);
     size_t uiNoWarp = sMouse.find("if (pcCrash::HandsOffRequested())");
     CHECK(uiNoWarp != std::string::npos);
-    CHECK(sMouse.find("&& !pcCrash::HandsOffRequested()") != std::string::npos);
+    CHECK(sMouse.find("if (bClip && pcCrash::HandsOffRequested())") != std::string::npos);
     CHECK(sInput.find("return !pcCrash::HandsOffRequested();") != std::string::npos);
     CHECK(sRenderer.find("ShowWindow(hGlobalWnd, pcCrash::HandsOffRequested() ? SW_SHOWNOACTIVATE : SW_SHOWNORMAL);") !=
           std::string::npos);
@@ -270,7 +271,7 @@ TEST_CASE("window mode source pins" * doctest::test_suite("unit"))
     CHECK(sProfile.find("ResolveMode(") != std::string::npos);
 }
 
-TEST_CASE("runtime reset restyle source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest2, "Unit::WindowPins::runtime reset restyle source pins", "[SmokeFilter]")
 {
     std::string sRenderer;
     if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRenderer))
@@ -290,7 +291,7 @@ TEST_CASE("runtime reset restyle source pins" * doctest::test_suite("unit"))
     CHECK(sBody.find("ApplyCurrentMode(", uiRevert) != std::string::npos);
 }
 
-TEST_CASE("shadow quad reset source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest3, "Unit::WindowPins::shadow quad reset source pins", "[SmokeFilter]")
 {
     std::string sQuadRaw;
     std::string sTextureRaw;
@@ -337,7 +338,7 @@ TEST_CASE("shadow quad reset source pins" * doctest::test_suite("unit"))
     CHECK(uiCreateLoop < uiSkip);
 }
 
-TEST_CASE("display apply target failure source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest4, "Unit::WindowPins::display apply target failure source pins", "[SmokeFilter]")
 {
     std::string sTextureRaw;
     std::string sProfileRaw;
@@ -386,7 +387,7 @@ TEST_CASE("display apply target failure source pins" * doctest::test_suite("unit
     CHECK(uiLiveCheck < uiApply);
 }
 
-TEST_CASE("display apply snapshot source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest5, "Unit::WindowPins::display apply snapshot source pins", "[SmokeFilter]")
 {
     std::string sRendererRaw;
     std::string sProfileRaw;
@@ -442,7 +443,7 @@ TEST_CASE("display apply snapshot source pins" * doctest::test_suite("unit"))
     CHECK(Has(sNote, "if (bApplied && sStagedTag.bValid)"));
 }
 
-TEST_CASE("display apply cleanup source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest6, "Unit::WindowPins::display apply cleanup source pins", "[SmokeFilter]")
 {
     std::string sRendererRaw;
     std::string sStateRaw;
@@ -470,7 +471,7 @@ TEST_CASE("display apply cleanup source pins" * doctest::test_suite("unit"))
     CHECK(sUpdate.find("PlayerProfile::PollApplyNotice();", uiPoll + 1) == std::string::npos);
 }
 
-TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest7, "Unit::WindowPins::display apply source pins", "[SmokeFilter]")
 {
     std::string sRendererRaw;
     std::string sLuaRaw;
@@ -537,7 +538,7 @@ TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
     CHECK(Has(sArgs, "return kLegacyVideoGetValues;"));
     const std::string sWarn = FunctionBody(sScript, "void __cdecl LuaScript_CallWARNINGF(");
     REQUIRE(!sWarn.empty());
-    CHECK(Has(sWarn, "OPENSWBF2 LUA error"));
+    CHECK(Has(sWarn, "Lua error"));
 
     const std::string sBegin = FunctionBody(sRenderer, "bool RedRenderer::BeginFrame()");
     REQUIRE(!sBegin.empty());
@@ -566,7 +567,7 @@ TEST_CASE("display apply source pins" * doctest::test_suite("unit"))
     CHECK(!Has(sApply, "delete m_buffers"));
 }
 
-TEST_CASE("display menu lua source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest8, "Unit::WindowPins::display menu lua source pins", "[SmokeFilter]")
 {
     std::string sFormRaw;
     std::string sTabRaw;
@@ -669,7 +670,7 @@ TEST_CASE("display menu lua source pins" * doctest::test_suite("unit"))
     CHECK(CountOf(sVideo, "ifs_opt_pcvideo_fnSaveDisplay(") == 4);
 }
 
-TEST_CASE("display menu lua save failure waits" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest9, "Unit::WindowPins::display menu lua save failure waits", "[SmokeFilter]")
 {
     std::string sRaw;
     REQUIRE(ReadSource("../data/scripts/common/ifs_opt_pcvideo.lua", sRaw));
@@ -771,7 +772,7 @@ TEST_CASE("display menu lua save failure waits" * doctest::test_suite("unit"))
     lua_close(L);
 }
 
-TEST_CASE("display menu lua confirm mark" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest10, "Unit::WindowPins::display menu lua confirm mark", "[SmokeFilter]")
 {
     std::string sRaw;
     REQUIRE(ReadSource("../data/scripts/common/ifs_opt_pcvideo.lua", sRaw));
@@ -840,7 +841,7 @@ TEST_CASE("display menu lua confirm mark" * doctest::test_suite("unit"))
     lua_close(L);
 }
 
-TEST_CASE("display menu source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest11, "Unit::WindowPins::display menu source pins", "[SmokeFilter]")
 {
     std::string sLuaRaw;
     std::string sProfileRaw;
@@ -943,7 +944,7 @@ TEST_CASE("display menu source pins" * doctest::test_suite("unit"))
     CHECK(CountOf(sProfile, "pcSetWaitForFrameQuery(") == 2);
 }
 
-TEST_CASE("gamma pass source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest12, "Unit::WindowPins::gamma pass source pins", "[SmokeFilter]")
 {
     std::string sRendererRaw;
     std::string sPassRaw;
@@ -1029,7 +1030,7 @@ TEST_CASE("gamma pass source pins" * doctest::test_suite("unit"))
     CHECK(uiBright < uiLoad);
 }
 
-TEST_CASE("shell stretch source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest13, "Unit::WindowPins::shell stretch source pins", "[SmokeFilter]")
 {
     std::string sRendererRaw;
     if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
@@ -1060,7 +1061,7 @@ TEST_CASE("shell stretch source pins" * doctest::test_suite("unit"))
     CHECK(Has(sRenderer, "pcRegisterResetFunction(&ShellStretchReset)"));
 }
 
-TEST_CASE("display menu label format pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest14, "Unit::WindowPins::display menu label format pins", "[SmokeFilter]")
 {
     std::string sLuaRaw;
     if (!ReadSource("../src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw))
@@ -1101,7 +1102,7 @@ TEST_CASE("display menu label format pins" * doctest::test_suite("unit"))
     CHECK(uiCalls >= 4);
 }
 
-TEST_CASE("unicode usnprintf integer labels" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest15, "Unit::WindowPins::unicode usnprintf integer labels", "[SmokeFilter]")
 {
     unsigned short ausBuf[256];
     PblUnicode::usnprintf(ausBuf, 255, "%d Hz", 60);
@@ -1115,7 +1116,7 @@ TEST_CASE("unicode usnprintf integer labels" * doctest::test_suite("unit"))
     CHECK(memcmp(ausBuf, ausCap, sizeof(ausCap)) == 0);
 }
 
-TEST_CASE("display msaa single query pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest16, "Unit::WindowPins::display msaa single query pins", "[SmokeFilter]")
 {
     std::string sRendererRaw;
     std::string sLuaRaw;
@@ -1156,7 +1157,7 @@ TEST_CASE("display msaa single query pins" * doctest::test_suite("unit"))
     CHECK(Has(sFill, "msaa list truncated wanted="));
 }
 
-TEST_CASE("present watch wiring pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest17, "Unit::WindowPins::present watch wiring pins", "[SmokeFilter]")
 {
     std::string sRendererRaw;
     if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
@@ -1184,7 +1185,7 @@ TEST_CASE("present watch wiring pins" * doctest::test_suite("unit"))
     CHECK(CountOf(sRenderer, "ResetPresentWatch();") >= 3);
 }
 
-TEST_CASE("desktop mode source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest18, "Unit::WindowPins::desktop mode source pins", "[SmokeFilter]")
 {
     std::string sRendererRaw;
     if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
@@ -1230,7 +1231,7 @@ TEST_CASE("desktop mode source pins" * doctest::test_suite("unit"))
     CHECK(Has(sSet, "uiDesktopHz)"));
 }
 
-TEST_CASE("frame cap vsync source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest19, "Unit::WindowPins::frame cap vsync source pins", "[SmokeFilter]")
 {
     std::string sStateRaw;
     if (!ReadSource("../src/Battlefront2/Source/GameState.cpp", sStateRaw))
@@ -1245,11 +1246,11 @@ TEST_CASE("frame cap vsync source pins" * doctest::test_suite("unit"))
     CHECK(Has(sTime, "BindReal(ops, plan, DisplayLogic::EffectiveFpsCap(DisplayCfg::gDisplay.uiFps, bThrottled));"));
     CHECK(!Has(sTime, "BindReal(ops, plan, DisplayCfg::gDisplay.uiFps)"));
     CHECK(CountOf(sTime, "BindReal(") == 1);
-    CHECK(Has(sTime, "OPENSWBF2 PACING vsync on, fps cap %u not applied"));
-    CHECK(Has(sTime, "OPENSWBF2 PACING fps cap %u applied"));
+    CHECK(Has(sTime, "Pacing vsync on, fps cap %u not applied"));
+    CHECK(Has(sTime, "Pacing fps cap %u applied"));
 }
 
-TEST_CASE("hardware cursor source pins" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FWindowPinsTest20, "Unit::WindowPins::hardware cursor source pins", "[SmokeFilter]")
 {
     std::string sMouseRaw;
     std::string sMainRaw;
@@ -1332,7 +1333,7 @@ TEST_CASE("hardware cursor source pins" * doctest::test_suite("unit"))
     const std::string sBuild = FunctionBody(sMouse, "void HwCursor::Build(");
     REQUIRE(!sBuild.empty());
     CHECK(Has(sBuild, "g_bNoRender"));
-    CHECK(Has(sBuild, "OPENSWBF2 CURSOR mode=%s image=skipped"));
+    CHECK(Has(sBuild, "Cursor mode=%s image=skipped"));
     CHECK(Has(sMouse, "D3DPOOL_SCRATCH"));
     CHECK(Has(sMouse, "kCursorSrcMax"));
     CHECK(Has(sMouse, "xHotspot = 0"));
@@ -1360,7 +1361,7 @@ TEST_CASE("hardware cursor source pins" * doctest::test_suite("unit"))
     CHECK(CountOf(sMain, "HwCursor::ReleaseClip();") == 3);
     const size_t uiClose = sMain.find("case WM_CLOSE:");
     REQUIRE(uiClose != std::string::npos);
-    const size_t uiExit = sMain.find("pcCrash::Exit(0);", uiClose);
+    const size_t uiExit = sMain.find("pcCrash::Exit(GameLoop::EndRun());", uiClose);
     REQUIRE(uiExit != std::string::npos);
     const std::string sClose = sMain.substr(uiClose, uiExit - uiClose);
     CHECK(Has(sClose, "HwCursor::ReleaseClip();"));

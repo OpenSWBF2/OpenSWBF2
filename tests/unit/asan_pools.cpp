@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "testutil.h"
 #include "nettest.h"
@@ -63,7 +64,7 @@ int StackHeavy()
 
 }
 
-TEST_CASE("red heap in bounds cycle is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest1, "Unit::AsanPools::red heap in bounds cycle is clean", "[EngineFilter]")
 {
     const unsigned int uiSize = 13;
     char* p = (char*)RedAllocFromHeap(0, uiSize, 0);
@@ -87,7 +88,7 @@ TEST_CASE("red heap in bounds cycle is clean" * doctest::test_suite("regression"
 #endif
 }
 
-TEST_CASE("memory pool in bounds cycle is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest2, "Unit::AsanPools::memory pool in bounds cycle is clean", "[EngineFilter]")
 {
     const unsigned int uiSize = 13;
     MemoryPool pool("inbounds", 16);
@@ -111,7 +112,7 @@ TEST_CASE("memory pool in bounds cycle is clean" * doctest::test_suite("regressi
 #endif
 }
 
-TEST_CASE("memory pool grown chunk cycle is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest3, "Unit::AsanPools::memory pool grown chunk cycle is clean", "[EngineFilter]")
 {
     const unsigned int uiSize = 13;
     MemoryPool pool("grownchunk", 16);
@@ -142,7 +143,7 @@ TEST_CASE("memory pool grown chunk cycle is clean" * doctest::test_suite("regres
     pool.Destroy();
 }
 
-TEST_CASE("lua bin in bounds cycle is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest4, "Unit::AsanPools::lua bin in bounds cycle is clean", "[EngineFilter]")
 {
     const unsigned int uiSize = 13;
     LuaMemory::CreatePools(true);
@@ -167,7 +168,7 @@ TEST_CASE("lua bin in bounds cycle is clean" * doctest::test_suite("regression")
     LuaMemory::Reset();
 }
 
-TEST_CASE("net packet in bounds cycle is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest5, "Unit::AsanPools::net packet in bounds cycle is clean", "[EngineFilter]")
 {
     NetTestReset();
     NetPacket* pPacket = NetPacket::Alloc(false);
@@ -191,7 +192,7 @@ TEST_CASE("net packet in bounds cycle is clean" * doctest::test_suite("regressio
     NetTestReset();
 }
 
-TEST_CASE("lua error from deep c frames is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest6, "Unit::AsanPools::lua error from deep c frames is clean", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -200,7 +201,7 @@ TEST_CASE("lua error from deep c frames is clean" * doctest::test_suite("regress
     lua_close(L);
 }
 
-TEST_CASE("red stack in bounds cycle is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest7, "Unit::AsanPools::red stack in bounds cycle is clean", "[EngineFilter]")
 {
     const int iSize = 13;
     const int iBase = RedStack::sMemIdx;
@@ -228,7 +229,7 @@ TEST_CASE("red stack in bounds cycle is clean" * doctest::test_suite("regression
 #endif
 }
 
-TEST_CASE("stack allocator in bounds cycle is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest8, "Unit::AsanPools::stack allocator in bounds cycle is clean", "[EngineFilter]")
 {
     const unsigned int uiSize = 13;
     void* pBlock = RedAllocFromHeap(0, 256, 0);
@@ -270,7 +271,7 @@ TEST_CASE("stack allocator in bounds cycle is clean" * doctest::test_suite("regr
     RedFreeToHeap(0, pBlock, 0);
 }
 
-TEST_CASE("sub allocator in bounds cycle is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest9, "Unit::AsanPools::sub allocator in bounds cycle is clean", "[EngineFilter]")
 {
     const unsigned int uiSize = 13;
     util::StaticSubAlloc<PoolElem> alloc;
@@ -311,7 +312,7 @@ TEST_CASE("sub allocator in bounds cycle is clean" * doctest::test_suite("regres
     alloc.Deallocate(again);
 }
 
-TEST_CASE("list allocator in bounds cycle is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest10, "Unit::AsanPools::list allocator in bounds cycle is clean", "[EngineFilter]")
 {
     const unsigned int uiSize = 13;
     util::ListAllocator* pAlloc = util::ListAllocator::Create(0x2000, 0x10000);
@@ -372,7 +373,7 @@ TEST_CASE("list allocator in bounds cycle is clean" * doctest::test_suite("regre
     delete pAlloc;
 }
 
-TEST_CASE("snd free list in bounds cycle is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest11, "Unit::AsanPools::snd free list in bounds cycle is clean", "[EngineFilter]")
 {
     const unsigned int uiSize = 16;
     Snd::FreeList list(uiSize, 1, true, 8);
@@ -410,7 +411,7 @@ TEST_CASE("snd free list in bounds cycle is clean" * doctest::test_suite("regres
     CHECK(list.mBlockList.IsEmpty());
 }
 
-TEST_CASE("glyph memory in bounds cycle is clean" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanPoolsTest12, "Unit::AsanPools::glyph memory in bounds cycle is clean", "[EngineFilter]")
 {
     const unsigned int uiBlockSize = sizeof(RedGlyphMemoryManager::VertexBlock);
     RedGlyphMemoryManager* pManager = new RedGlyphMemoryManager(24);

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -119,7 +120,7 @@ unsigned int LinearProbeTotal(const void* const* ppKeys, unsigned int uCount, un
 
 }
 
-TEST_CASE("handle registry resolves a freed and overwritten block to null" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHandleRegistryTest1, "Unit::HandleRegistry::handle registry resolves a freed and overwritten block to null", "[EngineFilter]")
 {
     ProbeBuffer kBuf(1);
     RegistryProbe* p = kBuf.Build(0);
@@ -141,7 +142,7 @@ TEST_CASE("handle registry resolves a freed and overwritten block to null" * doc
     CHECK(h.GetHandleId() == 0);
 }
 
-TEST_CASE("handle ids follow the stored create destroy rewind sequence" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHandleRegistryTest2, "Unit::HandleRegistry::handle ids follow the stored create destroy rewind sequence", "[EngineFilter]")
 {
     const unsigned int uSaved = PblHandled::SetNextHandleId(1000);
     ProbeBuffer kBuf(5);
@@ -180,7 +181,7 @@ TEST_CASE("handle ids follow the stored create destroy rewind sequence" * doctes
     PblHandled::SetNextHandleId(uSaved);
 }
 
-TEST_CASE("handle registry keeps one entry per address through copies and re-construction" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHandleRegistryTest3, "Unit::HandleRegistry::handle registry keeps one entry per address through copies and re-construction", "[EngineFilter]")
 {
     const unsigned int uStart = PblHandleRegistry::GetCount();
     ProbeBuffer kBuf(3);
@@ -217,7 +218,7 @@ TEST_CASE("handle registry keeps one entry per address through copies and re-con
     CHECK(PblHandleRegistry::GetCount() == uStart);
 }
 
-TEST_CASE("handle registry purge removes exactly the entries in a destroyed range" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHandleRegistryTest4, "Unit::HandleRegistry::handle registry purge removes exactly the entries in a destroyed range", "[EngineFilter]")
 {
     const unsigned int uStart = PblHandleRegistry::GetCount();
     const unsigned int kMany = 5000;
@@ -273,7 +274,7 @@ TEST_CASE("handle registry purge removes exactly the entries in a destroyed rang
     delete[] pHandles;
 }
 
-TEST_CASE("handle registry purge keeps a cluster that wraps past the last slot" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHandleRegistryTest5, "Unit::HandleRegistry::handle registry purge keeps a cluster that wraps past the last slot", "[EngineFilter]")
 {
     ProbeBuffer kInit(1);
     RegistryProbe* pInit = kInit.Build(0);
@@ -351,7 +352,7 @@ TEST_CASE("handle registry purge keeps a cluster that wraps past the last slot" 
 }
 
 #ifdef OPENSWBF2_TEST
-TEST_CASE("handle registry growth failure warns once and a full table refuses inserts" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHandleRegistryTest6, "Unit::HandleRegistry::handle registry growth failure warns once and a full table refuses inserts", "[EngineFilter]")
 {
     ProbeBuffer kInit(1);
     RegistryProbe* pInit = kInit.Build(0);
@@ -364,14 +365,14 @@ TEST_CASE("handle registry growth failure warns once and a full table refuses in
     PblHandleRegistry::FailAllocForTest(true);
     {
         LogCapture kLog;
-        ExpectLog kFull("OPENSWBF2 HANDLEREG full");
+        AddExpectedError("Handle registry full");
         for (unsigned int i = 0; i < kFill; ++i)
         {
             kBuf.Build(i);
         }
         CHECK(PblHandleRegistry::GetCapacity() == uCapacity);
         CHECK(PblHandleRegistry::GetCount() == uCapacity - 1);
-        CHECK(kLog.Count("OPENSWBF2 HANDLEREG grow") == 1);
+        CHECK(kLog.Count("Handle registry grow") == 1);
         const int iChecks = gCheckCalls;
         RegistryProbe* pLast = kBuf.Build(kFill);
         CHECK(gCheckCalls == iChecks + 1);
@@ -403,7 +404,7 @@ TEST_CASE("handle registry growth failure warns once and a full table refuses in
 }
 #endif
 
-TEST_CASE("handle registry resolves a handle whose PblHandled base is at an offset" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHandleRegistryTest7, "Unit::HandleRegistry::handle registry resolves a handle whose PblHandled base is at an offset", "[EngineFilter]")
 {
     void* pBytes = calloc(1, sizeof(OffsetProbe));
     REQUIRE(pBytes);
@@ -422,13 +423,13 @@ TEST_CASE("handle registry resolves a handle whose PblHandled base is at an offs
     free(pBytes);
 }
 
-TEST_CASE("handle registry and handle layout pins hold" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHandleRegistryTest8, "Unit::HandleRegistry::handle registry and handle layout pins hold", "[EngineFilter]")
 {
     CHECK(sizeof(PblHandle<OffsetProbe>) == 2 * sizeof(void*));
     CHECK(offsetof(PblHandle<OffsetProbe>, mObject) == 0);
 }
 
-TEST_CASE("handle registry lookups resolve every live key" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHandleRegistryTest9, "Unit::HandleRegistry::handle registry lookups resolve every live key", "[EngineFilter]")
 {
     const unsigned int kLive = 2048;
     const unsigned int kLookups = 1000000;
@@ -471,7 +472,7 @@ TEST_CASE("handle registry lookups resolve every live key" * doctest::test_suite
     free(ppKeys);
 }
 
-TEST_CASE("handle registry lookups probe a bounded number of slots" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHandleRegistryTest10, "Unit::HandleRegistry::handle registry lookups probe a bounded number of slots", "[EngineFilter]")
 {
     const unsigned int kLive = 3000;
     ProbeBuffer kBuf(kLive);

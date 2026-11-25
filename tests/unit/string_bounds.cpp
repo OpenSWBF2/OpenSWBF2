@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <string>
@@ -24,7 +25,7 @@ std::vector<unsigned short> BoundsWide(const char* pcText)
 
 }
 
-TEST_CASE("medal key stays inside key[68]" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStringBoundsTest1, "Unit::StringBounds::medal key stays inside key[68]", "[EngineFilter]")
 {
     char acBlock[68 + 8];
     memset(acBlock, 0xCD, sizeof(acBlock));
@@ -55,7 +56,7 @@ TEST_CASE("medal key stays inside key[68]" * doctest::test_suite("regression"))
     CHECK(sText.find("strncat(key, sMedalPoints_condition[iType].name, 64);") == std::string::npos);
 }
 
-TEST_CASE("team random name clears the whole buffer" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStringBoundsTest2, "Unit::StringBounds::team random name clears the whole buffer", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\Team.cpp", sText));
@@ -63,7 +64,7 @@ TEST_CASE("team random name clears the whole buffer" * doctest::test_suite("regr
     CHECK(sText.find("memset(pName, 0, 64);") == std::string::npos);
 }
 
-TEST_CASE("key name copy honours the element count" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStringBoundsTest3, "Unit::StringBounds::key name copy honours the element count", "[EngineFilter]")
 {
     wchar_t awName[260];
     for (unsigned int i = 0; i < 259; ++i)
@@ -91,7 +92,7 @@ TEST_CASE("key name copy honours the element count" * doctest::test_suite("regre
     CHECK(sText.find("(void)uiSize;") == std::string::npos);
 }
 
-TEST_CASE("localized format never reads past the passed args" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStringBoundsTest4, "Unit::StringBounds::localized format never reads past the passed args", "[EngineFilter]")
 {
     struct Case
     {

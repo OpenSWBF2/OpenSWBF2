@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 
@@ -349,7 +350,7 @@ RedHeapStats MovieScratchHeap::Stats()
     return kStats;
 }
 
-TEST_CASE("movie decoder rejects a capped header before ffmpeg reads or allocates" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieDecoderTest1, "Unit::MovieDecoder::movie decoder rejects a capped header before ffmpeg reads or allocates", "[SmokeFilter]")
 {
     SyntheticMovieSpec kWidth = SyntheticSpec();
     kWidth.uWidth = kMovieMaxWidth + 1;
@@ -372,7 +373,7 @@ TEST_CASE("movie decoder rejects a capped header before ffmpeg reads or allocate
     }
 }
 
-TEST_CASE("movie decoder rejects a stream that ends inside its header with size" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieDecoderTest2, "Unit::MovieDecoder::movie decoder rejects a stream that ends inside its header with size", "[SmokeFilter]")
 {
     const std::vector<unsigned char> v = BuildSyntheticMovie(SyntheticSpec(), 0);
     MemoryMovieSource kSource(v.data(), 40, 0x10000, 7);
@@ -388,7 +389,7 @@ TEST_CASE("movie decoder rejects a stream that ends inside its header with size"
     CHECK(kHeap.Stats().uAllocs == kBefore.uAllocs);
 }
 
-TEST_CASE("movie decoder opens a garbage stream unprobed and fails or ends cleanly" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieDecoderTest3, "Unit::MovieDecoder::movie decoder opens a garbage stream unprobed and fails or ends cleanly", "[SmokeFilter]")
 {
     SyntheticMovieSpec kSpec = SyntheticSpec();
     for (unsigned int uSeed = 1; uSeed <= 4; ++uSeed)
@@ -428,7 +429,7 @@ TEST_CASE("movie decoder opens a garbage stream unprobed and fails or ends clean
     }
 }
 
-TEST_CASE("movie decoder streams 30 shell frames through 7 byte reads unprobed" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieDecoderTest4, "Unit::MovieDecoder::movie decoder streams 30 shell frames through 7 byte reads unprobed", "[SmokeFilter]")
 {
     RetailSegment kSeg;
     SKIP_IF(!FirstSegment("shell.mvs", &kSeg), "GameData movies not found");
@@ -490,7 +491,7 @@ TEST_CASE("movie decoder streams 30 shell frames through 7 byte reads unprobed" 
     CHECK(kHeap.Stats().uUsed == kBefore.uUsed);
 }
 
-TEST_CASE("movie decoder decodes every frame of the shortest shell segment" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieDecoderTest5, "Unit::MovieDecoder::movie decoder decodes every frame of the shortest shell segment", "[SmokeFilter]")
 {
     RetailSegment kSeg;
     SKIP_IF(!ShortestSegment("shell.mvs", &kSeg), "GameData movies not found");
@@ -522,7 +523,7 @@ TEST_CASE("movie decoder decodes every frame of the shortest shell segment" * do
     CHECK(uFrames == kInfo.uFrames);
 }
 
-TEST_CASE("movie decoder keeps its blocks on the heap it opened on" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieDecoderTest6, "Unit::MovieDecoder::movie decoder keeps its blocks on the heap it opened on", "[SmokeFilter]")
 {
     const std::vector<unsigned char> v = BuildSyntheticMovie(SyntheticSpec(), 0);
     MovieScratchHeap kOpenHeap;
@@ -661,7 +662,7 @@ AudioBlocksRun DecodeAudioBlocks(unsigned int uBlocks)
 
 }
 
-TEST_CASE("movie decoder hands every decoded audio frame to the player without growing a buffer" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieDecoderTest7, "Unit::MovieDecoder::movie decoder hands every decoded audio frame to the player without growing a buffer", "[SmokeFilter]")
 {
     const AudioBlocksRun kSmall = DecodeAudioBlocks(10);
     const AudioBlocksRun kLarge = DecodeAudioBlocks(66);
@@ -674,7 +675,7 @@ TEST_CASE("movie decoder hands every decoded audio frame to the player without g
     CHECK(kLarge.uUsedAfter == kLarge.uUsedBefore);
 }
 
-TEST_CASE("movie header caps fit the x86 runtime heap budget" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieDecoderTest8, "Unit::MovieDecoder::movie header caps fit the x86 runtime heap budget", "[SmokeFilter]")
 {
     const unsigned long long ullHeadroom = 12902464ull;
     const unsigned long long ullPixels = (unsigned long long)kMovieMaxWidth * kMovieMaxHeight;
@@ -695,7 +696,7 @@ TEST_CASE("movie header caps fit the x86 runtime heap budget" * doctest::test_su
     CHECK(kMovieHeaderMaxBytes <= 0x20000u);
 }
 
-TEST_CASE("movie reject memo skips its segment until cleared" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieDecoderTest9, "Unit::MovieDecoder::movie reject memo skips its segment until cleared", "[SmokeFilter]")
 {
     MovieRejectMemo kMemo = {0};
     int aiSegment[2] = {0, 0};
@@ -709,7 +710,7 @@ TEST_CASE("movie reject memo skips its segment until cleared" * doctest::test_su
     CHECK_FALSE(kMemo.Skips(&aiSegment[0]));
 }
 
-TEST_CASE("movie player remembers every open reject until the next open or close" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieDecoderTest10, "Unit::MovieDecoder::movie player remembers every open reject until the next open or close", "[SmokeFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src/RedEngineFL/movie/pc/pcRedMoviePlayer.cpp", sText));
@@ -729,6 +730,6 @@ TEST_CASE("movie player remembers every open reject until the next open or close
     CHECK(sFlat.substr(uClose, sFlat.find("\n}", uClose) - uClose).find("sRejected.Clear();") != std::string::npos);
     CHECK(sFlat.find("const bool bRejected = sRejected.Skips(pSegment);") != std::string::npos);
     CHECK(sFlat.find("mPlayback = 0;\n                sRejected.Remember(pSegment);\n") != std::string::npos);
-    CHECK(sFlat.find("\"OPENSWBF2 MOVIE reject reason=texture\");\n                sRejected.Remember(GetCurrentSegment());\n") !=
+    CHECK(sFlat.find("\"Movie reject reason=texture\");\n                sRejected.Remember(GetCurrentSegment());\n") !=
           std::string::npos);
 }

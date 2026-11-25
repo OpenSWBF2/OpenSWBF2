@@ -70,6 +70,40 @@ unsigned int gMovieOpenFailures;
 
 #ifdef OPENSWBF2_TEST
 static bool sbMovieTestOwner;
+static const int kTestPlayRequests = 16;
+static GameMovie::TestPlayRequest sakTestPlayRequests[kTestPlayRequests];
+static int siTestPlayRequests;
+static unsigned int suTestSkipFrame;
+
+int GameMovie::TestPlayRequests()
+{
+    return siTestPlayRequests;
+}
+
+const GameMovie::TestPlayRequest& GameMovie::GetTestPlayRequest(int i)
+{
+    return sakTestPlayRequests[i];
+}
+
+unsigned int GameMovie::TestSkipFrame()
+{
+    return suTestSkipFrame;
+}
+
+static GameMovie::TestPlayRequest* NoteTestPlayRequest(const char* pcProperties, bool bLoop)
+{
+    if (siTestPlayRequests >= kTestPlayRequests)
+    {
+        return 0;
+    }
+    GameMovie::TestPlayRequest& rRequest = sakTestPlayRequests[siTestPlayRequests++];
+    strncpy(rRequest.acName, pcProperties ? pcProperties : "", sizeof(rRequest.acName) - 1);
+    rRequest.acName[sizeof(rRequest.acName) - 1] = 0;
+    rRequest.bLoop = bLoop;
+    rRequest.bBlocked = false;
+    rRequest.bFound = false;
+    return &rRequest;
+}
 
 static bool MovieTestBlocks()
 {
@@ -369,11 +403,11 @@ static void MovieTestStart()
     }
     sbMovieTestStarted = true;
     MovieTestOpen(gMovieTestFile);
-    LOG(LogCore, Inform, "OPENSWBF2 MOVIETEST play file=%s seg=0x%08X frames=%d open=%d", gMovieTestFile,
+    LOG(LogCore, Inform, "Movie test play file=%s seg=0x%08X frames=%d open=%d", gMovieTestFile,
         gMovieTestSegment, gMovieTestFrames, GameMovie::sRedMovie->IsOpen() ? 1 : 0);
     if (!GameMovie::sRedMovie->IsOpen() || !GameMovie::sRedMovie->GetInfo()->FindSegmentByHashID(gMovieTestSegment))
     {
-        LOG(LogCore, Warning, "OPENSWBF2 MOVIETEST no segment 0x%08X in %s", gMovieTestSegment, gMovieTestFile);
+        LOG(LogCore, Warning, "Movie test no segment 0x%08X in %s", gMovieTestSegment, gMovieTestFile);
         gRedMovieTestEnd = true;
         return;
     }
@@ -405,7 +439,7 @@ static void MovieLoopsStart()
         GameMovie::sRedMovie->Play(pProperties, false);
         GameMovie::sRedMovie->SetLooping(true);
     }
-    LOG(LogCore, Inform, "OPENSWBF2 MOVIE loops start properties=0xB4A21ED9 found=%d open=%d playing=%d",
+    LOG(LogCore, Inform, "Movie loops start properties=0xB4A21ED9 found=%d open=%d playing=%d",
         pProperties ? 1 : 0, GameMovie::sRedMovie->IsOpen() ? 1 : 0, GameMovie::sRedMovie->IsPlaying() ? 1 : 0);
 }
 
@@ -417,7 +451,8 @@ static void MovieSkipUpdate()
         return;
     }
     sbSkipped = true;
-    LOG(LogCore, Inform, "OPENSWBF2 MOVIE skip frame=%u", gRedMovieTestFrameNum);
+    LOG(LogCore, Inform, "Movie skip frame=%u", gRedMovieTestFrameNum);
+    suTestSkipFrame = gRedMovieTestFrameNum;
     StopInGameMoviePlay();
 }
 
@@ -440,13 +475,13 @@ static void MovieTestUpdate()
     if (gMovieTestFile[0] && (gRedMovieTestEnd || gRedMovieNotifyEnds != 0))
     {
         sbPosted = true;
-        LOG(LogCore, Inform, "OPENSWBF2 MOVIETEST done frames=%u", gRedMovieTestFrames);
+        LOG(LogCore, Inform, "Movie test done frames=%u", gRedMovieTestFrames);
         GameLoop::PostRunComplete();
     }
     else if (gMovieLoops > 0 && gRedMovieNotifyEnds >= (unsigned int)gMovieLoops)
     {
         sbPosted = true;
-        LOG(LogCore, Inform, "OPENSWBF2 MOVIE loops=%d", gMovieLoops);
+        LOG(LogCore, Inform, "Movie loops=%d", gMovieLoops);
         GameLoop::PostRunComplete();
     }
 }
@@ -457,16 +492,29 @@ void GameMovie::Play(const char* const pcProperties, const char* const pcPropert
                      unsigned int uiY, unsigned int uiX, unsigned int uiWidth,
                      unsigned int uiHeight, bool bLoop)
 {
+#ifdef OPENSWBF2_TEST
+    GameMovie::TestPlayRequest* pTestRequest = NoteTestPlayRequest(pcProperties, bLoop);
+#endif
     if (GameMovie::sUseMovies && sRedMovie && sRedMovie->IsOpen())
     {
 #ifdef OPENSWBF2_TEST
         if (MovieTestBlocks())
         {
+            if (pTestRequest)
+            {
+                pTestRequest->bBlocked = true;
+            }
             return;
         }
 #endif
         const RedMovie::Properties* pProperties =
             RedMovie::Properties::FindByHashID(PblHash(pcProperties));
+#ifdef OPENSWBF2_TEST
+        if (pTestRequest)
+        {
+            pTestRequest->bFound = pProperties != 0;
+        }
+#endif
         const RedMovie::Properties* pPropertiesAtEnd =
             (pcPropertiesAtEnd && strlen(pcPropertiesAtEnd))
                 ? RedMovie::Properties::FindByHashID(PblHash(pcPropertiesAtEnd))

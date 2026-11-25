@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <string>
@@ -336,7 +337,7 @@ const char* const kWideFormatFull[] = { "abcdefghij", "ab42cd", "-12345", "xstry
 
 }
 
-TEST_CASE("pblunicode bound: ustrlcpy" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FWideStringCountsTest1, "Unit::WideStringCounts::pblunicode bound: ustrlcpy", "[EngineFilter]")
 {
     for (size_t s = 0; s < sizeof(kBoundSizes) / sizeof(kBoundSizes[0]); ++s)
     {
@@ -354,7 +355,7 @@ TEST_CASE("pblunicode bound: ustrlcpy" * doctest::test_suite("regression"))
     }
 }
 
-TEST_CASE("pblunicode bound: ustrlcat" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FWideStringCountsTest2, "Unit::WideStringCounts::pblunicode bound: ustrlcat", "[EngineFilter]")
 {
     for (size_t s = 0; s < sizeof(kBoundSizes) / sizeof(kBoundSizes[0]); ++s)
     {
@@ -411,7 +412,7 @@ TEST_CASE("pblunicode bound: ustrlcat" * doctest::test_suite("regression"))
     CHECK(memcmp(ausDest, &abcd[0], 5 * sizeof(unsigned short)) == 0);
 }
 
-TEST_CASE("pblunicode bound: ustrncpy" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FWideStringCountsTest3, "Unit::WideStringCounts::pblunicode bound: ustrncpy", "[EngineFilter]")
 {
     for (size_t s = 0; s < sizeof(kBoundSizes) / sizeof(kBoundSizes[0]); ++s)
     {
@@ -429,7 +430,7 @@ TEST_CASE("pblunicode bound: ustrncpy" * doctest::test_suite("regression"))
     }
 }
 
-TEST_CASE("pblunicode bound: ustrncnv wide to char" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FWideStringCountsTest4, "Unit::WideStringCounts::pblunicode bound: ustrncnv wide to char", "[EngineFilter]")
 {
     for (size_t s = 0; s < sizeof(kBoundSizes) / sizeof(kBoundSizes[0]); ++s)
     {
@@ -453,7 +454,7 @@ TEST_CASE("pblunicode bound: ustrncnv wide to char" * doctest::test_suite("regre
     CHECK(strcmp(acDest, "abcd") == 0);
 }
 
-TEST_CASE("pblunicode bound: ConvertUnicodeSkippingWide" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FWideStringCountsTest5, "Unit::WideStringCounts::pblunicode bound: ConvertUnicodeSkippingWide", "[EngineFilter]")
 {
     for (size_t s = 0; s < sizeof(kBoundSizes) / sizeof(kBoundSizes[0]); ++s)
     {
@@ -477,7 +478,7 @@ TEST_CASE("pblunicode bound: ConvertUnicodeSkippingWide" * doctest::test_suite("
     CHECK(strcmp(acDest, "a\x80" "bc") == 0);
 }
 
-TEST_CASE("pblunicode bound: ustrncnv char to wide" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FWideStringCountsTest6, "Unit::WideStringCounts::pblunicode bound: ustrncnv char to wide", "[EngineFilter]")
 {
     for (size_t s = 0; s < sizeof(kBoundSizes) / sizeof(kBoundSizes[0]); ++s)
     {
@@ -502,7 +503,7 @@ TEST_CASE("pblunicode bound: ustrncnv char to wide" * doctest::test_suite("regre
     CHECK(ausDest[2] == 0);
 }
 
-TEST_CASE("pblunicode bound: ustrncnv bytes to wide" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FWideStringCountsTest7, "Unit::WideStringCounts::pblunicode bound: ustrncnv bytes to wide", "[EngineFilter]")
 {
     for (size_t s = 0; s < sizeof(kBoundSizes) / sizeof(kBoundSizes[0]); ++s)
     {
@@ -527,7 +528,7 @@ TEST_CASE("pblunicode bound: ustrncnv bytes to wide" * doctest::test_suite("regr
     CHECK(ausDest[2] == 0);
 }
 
-TEST_CASE("pblunicode bound: char uvsnprintf" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FWideStringCountsTest8, "Unit::WideStringCounts::pblunicode bound: char uvsnprintf", "[EngineFilter]")
 {
     for (size_t s = 0; s < sizeof(kBoundSizes) / sizeof(kBoundSizes[0]); ++s)
     {
@@ -557,7 +558,7 @@ TEST_CASE("pblunicode bound: char uvsnprintf" * doctest::test_suite("regression"
     CHECK(ausDest[2] == 0);
 }
 
-TEST_CASE("pblunicode bound: wide uvsnprintf" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FWideStringCountsTest9, "Unit::WideStringCounts::pblunicode bound: wide uvsnprintf", "[EngineFilter]")
 {
     const std::vector<unsigned short> longArg = WideText(399, 'A');
     for (size_t s = 0; s < sizeof(kBoundSizes) / sizeof(kBoundSizes[0]); ++s)
@@ -589,7 +590,7 @@ TEST_CASE("pblunicode bound: wide uvsnprintf" * doctest::test_suite("regression"
     }
 }
 
-TEST_CASE("wide string call sites pass element counts" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FWideStringCountsTest10, "Unit::WideStringCounts::wide string call sites pass element counts", "[EngineFilter]")
 {
     for (size_t i = 0; i < sizeof(kPins) / sizeof(kPins[0]); ++i)
     {

@@ -1,4 +1,4 @@
-geo1c_con	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=234993775/2651921600 snd=49.923 state=0x65CD7716
-nab2g_c	OPENSWBF2 SIM DIGEST turns=1500 time=52.033 rand=1364591897/822169274 snd=49.923 state=0x112D7CE2
-hot1g_con	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=6704969/2285451412 snd=49.923 state=0x82584D2E
-spa3c_ass	OPENSWBF2 SIM DIGEST turns=1500 time=50.000 rand=723220111/3966278132 snd=49.923 state=0x7758D69F
+geo1c_con	Sim digest turns=1500 time=50.000 rand=234993775/2651921600 snd=49.923 state=0x65CD7716
+nab2g_c	Sim digest turns=1500 time=52.033 rand=1364591897/822169274 snd=49.923 state=0x112D7CE2
+hot1g_con	Sim digest turns=1500 time=50.000 rand=6704969/2285451412 snd=49.923 state=0x82584D2E
+spa3c_ass	Sim digest turns=1500 time=50.000 rand=723220111/3966278132 snd=49.923 state=0x7758D69F

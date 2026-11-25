@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <stdint.h>
@@ -58,7 +59,7 @@ bool mi_cdecl CollectFirstBlock(const mi_heap_t*, const mi_heap_area_t* pArea, v
 }
 }
 
-TEST_CASE("commit parts count only game-owned bytes" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FCommitPartsTest1, "Unit::CommitParts::commit parts count only game-owned bytes", "[SmokeFilter]")
 {
     const size_t kPage = 4096;
     const size_t kMiB = 1024 * 1024;
@@ -113,7 +114,7 @@ TEST_CASE("commit parts count only game-owned bytes" * doctest::test_suite("unit
     CHECK(!RedVmLedgerCommitted(0, 0, 0));
 }
 
-TEST_CASE("mimalloc pages start their first block at an address-independent offset" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FCommitPartsTest2, "Unit::CommitParts::mimalloc pages start their first block at an address-independent offset", "[SmokeFilter]")
 {
     static const size_t kauSizes[] = {320, 384, 448, 640, 768, 896, 1280, 1792};
     const size_t uSlice = sizeof(void*) * 8192;
@@ -136,7 +137,7 @@ TEST_CASE("mimalloc pages start their first block at an address-independent offs
     CHECK(kArgs.uMismatch == 0u);
 }
 
-TEST_CASE("mimalloc arena region stays inside one page-map range" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FCommitPartsTest3, "Unit::CommitParts::mimalloc arena region stays inside one page-map range", "[SmokeFilter]")
 {
     const uintptr_t kRegion = 0x10000000;
     CHECK(RedMiArenaRegionStart(0x2C830000, kRegion) == 0x30000000);

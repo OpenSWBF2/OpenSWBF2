@@ -136,7 +136,7 @@ void HandleCheckThread(bool bLatch)
     }
     if (uThread != sOwnerThread)
     {
-        LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG thread=%lu owner=%lu", uThread, sOwnerThread);
+        LOG(LogMemory, Error, "Handle registry thread=%lu owner=%lu", uThread, sOwnerThread);
         check(uThread == sOwnerThread);
     }
 #else
@@ -158,7 +158,7 @@ void PblHandleRegistry::Insert(const PblHandled* pKey, unsigned int uId)
         sSlots = HandleAllocSlots(kHandleSlotsInitial);
         if (!sSlots)
         {
-            LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG alloc slots=%u failed", kHandleSlotsInitial);
+            LOG(LogMemory, Error, "Handle registry alloc slots=%u failed", kHandleSlotsInitial);
             check(sSlots != 0);
             return;
         }
@@ -179,12 +179,12 @@ void PblHandleRegistry::Insert(const PblHandled* pKey, unsigned int uId)
         else
         {
             sGrowFailed = true;
-            LOG(LogMemory, Warning, "OPENSWBF2 HANDLEREG grow slots=%u failed", (sMask + 1) * 2);
+            LOG(LogMemory, Warning, "Handle registry grow slots=%u failed", (sMask + 1) * 2);
         }
     }
     if (sCount >= sMask)
     {
-        LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG full count=%u slots=%u", sCount, sMask + 1);
+        LOG(LogMemory, Error, "Handle registry full count=%u slots=%u", sCount, sMask + 1);
         check(sCount < sMask);
         return;
     }

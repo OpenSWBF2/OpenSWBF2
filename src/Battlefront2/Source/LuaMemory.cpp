@@ -107,7 +107,7 @@ bool LuaMemory::FormatLuaSpillLine(int iBin, unsigned int uCount, char* pcOut, u
     {
         return false;
     }
-    int iLen = _snprintf(pcOut, uSize, "OPENSWBF2 MEMREPORT luaspill pool=Lua%d count=%u", iBin, uCount);
+    int iLen = _snprintf(pcOut, uSize, "Memory report luaspill pool=Lua%d count=%u", iBin, uCount);
     pcOut[uSize - 1] = 0;
     return iLen >= 0 && (unsigned int)iLen < uSize;
 }
@@ -343,8 +343,8 @@ bool LuaMemory::FormatLuaHistLine(unsigned int uRow, unsigned int uPeak, unsigne
         return false;
     }
     int iLen = uRow > kLuaHistMaxBin
-                   ? _snprintf(pcOut, uSize, "OPENSWBF2 MEMREPORT luahist bin=over peak=%u calls=%u", uPeak, uCalls)
-                   : _snprintf(pcOut, uSize, "OPENSWBF2 MEMREPORT luahist bin=%u peak=%u calls=%u", uRow, uPeak,
+                   ? _snprintf(pcOut, uSize, "Memory report luahist bin=over peak=%u calls=%u", uPeak, uCalls)
+                   : _snprintf(pcOut, uSize, "Memory report luahist bin=%u peak=%u calls=%u", uRow, uPeak,
                                uCalls);
     pcOut[uSize - 1] = 0;
     return iLen >= 0 && (unsigned int)iLen < uSize;

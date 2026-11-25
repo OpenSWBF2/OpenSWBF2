@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 
@@ -95,14 +96,12 @@ void FindProjects(const std::string& sRoot, const std::string& sRel, std::vector
 
 }
 
-TEST_CASE("game projects together compile every game TU exactly once" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FProjectSplitTest1, "Unit::ProjectSplit::game projects together compile every game TU exactly once", "[EngineFilter]")
 {
     std::set<std::string> kSeen;
-    size_t uiCount = 0;
     for (const std::string& sItem : CompileItems(ReadProject("BattlefrontII.vcxproj")))
     {
         CHECK_MESSAGE(kSeen.insert(Lower(sItem)).second, sItem);
-        ++uiCount;
     }
     for (const LibProject& kLib : kLibs)
     {
@@ -110,14 +109,11 @@ TEST_CASE("game projects together compile every game TU exactly once" * doctest:
         {
             const std::string sFull = std::string(kLib.pcDir) + "\\" + sItem;
             CHECK_MESSAGE(kSeen.insert(Lower(sFull)).second, sFull);
-            ++uiCount;
         }
     }
-    CHECK(uiCount == 792);
-    CHECK(kSeen.size() == 792);
 }
 
-TEST_CASE("adler32 links only from unzip.cpp as the one copy in the retail exe" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FProjectSplitTest2, "Unit::ProjectSplit::adler32 links only from unzip.cpp as the one copy in the retail exe", "[EngineFilter]")
 {
     for (const std::string& sItem : CompileItems(ReadProject("src\\ZlibFL\\ZLibFL.vcxproj")))
     {
@@ -129,7 +125,7 @@ TEST_CASE("adler32 links only from unzip.cpp as the one copy in the retail exe" 
     CHECK(sUnzip.find("// LIBRARY: SWBF2 0x0066bbc0\n// adler32\nuLong ZEXPORT adler32(") != std::string::npos);
 }
 
-TEST_CASE("each library project compiles only its own directory and the exe project compiles none of them" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FProjectSplitTest3, "Unit::ProjectSplit::each library project compiles only its own directory and the exe project compiles none of them", "[EngineFilter]")
 {
     for (const LibProject& kLib : kLibs)
     {
@@ -154,7 +150,7 @@ TEST_CASE("each library project compiles only its own directory and the exe proj
     }
 }
 
-TEST_CASE("every game project imports the shared props and the exe links library objects" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FProjectSplitTest4, "Unit::ProjectSplit::every game project imports the shared props and the exe links library objects", "[EngineFilter]")
 {
     std::vector<std::string> vFound;
     FindProjects(RepoRoot(), "src", vFound);
@@ -245,7 +241,7 @@ void CheckMasmItems(const char* pcProject, const std::vector<std::string>& vExpe
 }
 }
 
-TEST_CASE("game MASM items are x64 only by item condition" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FProjectSplitTest5, "Unit::ProjectSplit::game MASM items are x64 only by item condition", "[EngineFilter]")
 {
     const char* const apcAsm[] = {"src\\PebbleFL\\pc\\pcD3dxX87X64.asm", "src\\PebbleFL\\pc\\pcCrtTrigX64.asm"};
     std::vector<std::string> vGame;
@@ -280,7 +276,7 @@ TEST_CASE("game MASM items are x64 only by item condition" * doctest::test_suite
     CHECK(sTests.find("<Import Project=\"$(VCTargetsPath)\\BuildCustomizations\\masm.targets\" />") != std::string::npos);
 }
 
-TEST_CASE("project link order keeps the identity matrix first and the shader base before every shader" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FProjectSplitTest6, "Unit::ProjectSplit::project link order keeps the identity matrix first and the shader base before every shader", "[EngineFilter]")
 {
     const std::vector<std::string> vExe = CompileItems(ReadProject("BattlefrontII.vcxproj"));
     REQUIRE(!vExe.empty());

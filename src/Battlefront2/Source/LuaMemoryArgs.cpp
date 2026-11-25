@@ -37,7 +37,7 @@ static unsigned int PoolUnit(const MemoryPool* pPool)
 
 static void LogWalker(MemoryPool* pPool, unsigned int uRequested)
 {
-    LOG(LogMemory, Verbose, "OPENSWBF2 SCRIPTMEM entry=AddWalkerType label=%s requested=%u applied=%u pool=%s",
+    LOG(LogMemory, Verbose, "Script memory entry=AddWalkerType label=%s requested=%u applied=%u pool=%s",
         pPool->mLabel, uRequested, pPool->GetCount(), pPool->mLabel);
 }
 
@@ -48,7 +48,7 @@ static void RaiseToWeapon(MemoryPool* pPool, MemoryPool* pWeapon)
         pPool->SetCount(RedScriptLimits::ClampScriptSize(RedScriptLimits::kSetMemoryPoolSize, pPool->mLabel,
                                                          (int)pWeapon->GetCount(), PoolUnit(pPool)));
         LOG(LogMemory, Verbose,
-            "OPENSWBF2 SCRIPTMEM entry=SetMemoryPoolSize label=%s requested=%u applied=%u pool=%s", pPool->mLabel,
+            "Script memory entry=SetMemoryPoolSize label=%s requested=%u applied=%u pool=%s", pPool->mLabel,
             pWeapon->GetCount(), pPool->GetCount(), pPool->mLabel);
     }
 }
@@ -74,7 +74,7 @@ void SetMemoryPoolSize(lua_State* L, MemoryPool* pWeapon, MemoryPool* pAmmo, Mem
         unsigned int uApplied = RedScriptLimits::ClampScriptSize(RedScriptLimits::kSetMemoryPoolSize, pcName, iCount, PoolUnit(pPool));
         pPool->SetCount(uApplied);
     }
-    LOG(LogMemory, Verbose, "OPENSWBF2 SCRIPTMEM entry=SetMemoryPoolSize label=%s requested=%d applied=%u pool=%s",
+    LOG(LogMemory, Verbose, "Script memory entry=SetMemoryPoolSize label=%s requested=%d applied=%u pool=%s",
         pcName, iRequested, pPool ? pPool->GetCount() : 0, pPool ? pPool->mLabel : "none");
     if (pPool != 0 && pPool == pWeapon)
     {
@@ -139,7 +139,7 @@ void SetupTempHeap(lua_State* L, int iRuntimeHeap, int& riTempHeap)
     int iSize = ReadScriptInt(L, 1);
     unsigned int uSize = RedScriptLimits::ClampScriptSize(RedScriptLimits::kSetupTempHeap, 0, iSize, 1);
     unsigned int uApplied = CreateTempHeap(iRuntimeHeap, riTempHeap, uSize);
-    LOG(LogMemory, Verbose, "OPENSWBF2 SCRIPTMEM entry=SetupTempHeap label=- requested=%d applied=%u pool=-", iSize,
+    LOG(LogMemory, Verbose, "Script memory entry=SetupTempHeap label=- requested=%d applied=%u pool=-", iSize,
         uApplied);
 }
 
@@ -157,7 +157,7 @@ void StealArtistHeap(lua_State* L, int iArtistHeap)
             uApplied = uBefore - RedGetHeapSize(iArtistHeap);
         }
     }
-    LOG(LogMemory, Verbose, "OPENSWBF2 SCRIPTMEM entry=StealArtistHeap label=- requested=%d applied=%u pool=-", iSize,
+    LOG(LogMemory, Verbose, "Script memory entry=StealArtistHeap label=- requested=%d applied=%u pool=-", iSize,
         uApplied);
 }
 

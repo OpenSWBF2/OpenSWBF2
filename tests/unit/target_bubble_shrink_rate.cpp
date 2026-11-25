@@ -1,10 +1,11 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string>
 
 #include "testutil.h"
 
-TEST_CASE("ai difficulty compiles with fp strict" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FTargetBubbleShrinkRateTest1, "Unit::TargetBubbleShrinkRate::ai difficulty compiles with fp strict", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("BattlefrontII.vcxproj", sText));

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "testutil.h"
 #include "nettest.h"
@@ -6,7 +7,7 @@
 
 extern NetPktGroup inQueue;
 
-TEST_CASE("log capture sees LogMessage" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FHarnessSmokeTest1, "Unit::HarnessSmoke::log capture sees LogMessage", "[SmokeFilter]")
 {
     LogCapture log;
     RedWarning::SetLogData(RedWarning::RED_SEVERITY_WARNING, "Source\\Smoke.cpp", 1, "Jan  1 2000", "00:00:00");
@@ -14,7 +15,7 @@ TEST_CASE("log capture sees LogMessage" * doctest::test_suite("unit"))
     CHECK(log.Contains("smoke marker 42"));
 }
 
-TEST_CASE("log capture restores callback" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FHarnessSmokeTest2, "Unit::HarnessSmoke::log capture restores callback", "[SmokeFilter]")
 {
     void(__cdecl* pBefore)(char const*, ...) = RedWarning::g_fnLogCallback;
     RedWarning::RED_ERROR_SEVERITY eBefore = RedWarning::GetSeverityToDestination(RED_LOG_DESTINATION_INDEX_CALLBACK);
@@ -26,7 +27,7 @@ TEST_CASE("log capture restores callback" * doctest::test_suite("unit"))
     CHECK(RedWarning::GetSeverityToDestination(RED_LOG_DESTINATION_INDEX_CALLBACK) == eBefore);
 }
 
-TEST_CASE("net fixture pool is 512" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FHarnessSmokeTest3, "Unit::HarnessSmoke::net fixture pool is 512", "[SmokeFilter]")
 {
     NetTestReset();
     CHECK(NetCountPackets(0) == 512);
@@ -34,7 +35,7 @@ TEST_CASE("net fixture pool is 512" * doctest::test_suite("unit"))
     CHECK(freeSmallPackets.pktCount == 256);
 }
 
-TEST_CASE("net fixture single packet round trip" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FHarnessSmokeTest4, "Unit::HarnessSmoke::net fixture single packet round trip", "[SmokeFilter]")
 {
     NetTestReset();
     NetPktGroup g;

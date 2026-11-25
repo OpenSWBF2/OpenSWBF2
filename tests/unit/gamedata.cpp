@@ -1,11 +1,12 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdio.h>
 #include <string>
 
 #include "testutil.h"
 
-TEST_CASE("gamedata core lvl header" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FGamedataTest1, "Unit::Gamedata::gamedata core lvl header", "[SmokeFilter]")
 {
     REQUIRE_GAMEDATA();
     std::string sPath = std::string(FindGameDataRoot()) + "\\data\\_lvl_pc\\core.lvl";

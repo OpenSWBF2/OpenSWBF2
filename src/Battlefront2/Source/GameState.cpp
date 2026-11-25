@@ -571,12 +571,12 @@ void GameState::UpdateTime()
             sbCapSuppressed = bSuppressed;
             if (bSuppressed)
             {
-                LOG(LogRender, Inform, "OPENSWBF2 PACING vsync on, fps cap %u not applied",
+                LOG(LogRender, Inform, "Pacing vsync on, fps cap %u not applied",
                     DisplayCfg::gDisplay.uiFps);
             }
             else
             {
-                LOG(LogRender, Inform, "OPENSWBF2 PACING fps cap %u applied",
+                LOG(LogRender, Inform, "Pacing fps cap %u applied",
                     DisplayCfg::gDisplay.uiFps);
             }
         }
@@ -1255,12 +1255,12 @@ void GameState::ShellState::Update(float fDeltaTime, float)
 #ifdef OPENSWBF2_TEST
     if (GameLoop::TakeRepeatPending())
     {
-        LOG(LogSim, Inform, "OPENSWBF2 REPEAT to_mission mission=%s", GameLoop::mMissionScript);
+        LOG(LogSim, Inform, "Repeat to_mission mission=%s", GameLoop::mMissionScript);
         GameState::SetState(0x8FF60339);
     }
     else if (GameLoop::mMissionScript[0] && pcCrash::TakeShellFirst())
     {
-        LOG(LogSim, Inform, "OPENSWBF2 SHELLFIRST to_mission mission=%s", GameLoop::mMissionScript);
+        LOG(LogSim, Inform, "Shell first to_mission mission=%s", GameLoop::mMissionScript);
         GameState::SetState(0x8FF60339);
     }
 #endif
@@ -1269,7 +1269,7 @@ void GameState::ShellState::Update(float fDeltaTime, float)
     {
         if (++suShellSoakUpdates == (unsigned int)gSoakTurns)
         {
-            LOG(LogSim, Inform, "OPENSWBF2 SOAK shell=%u", suShellSoakUpdates);
+            LOG(LogSim, Inform, "Soak shell=%u", suShellSoakUpdates);
             GameLoop::PostRunComplete();
         }
     }
@@ -1331,7 +1331,7 @@ void GameState::MissionState::Enter()
 {
     RestoreMissionEntryState();
 #ifdef OPENSWBF2_TEST
-    LOG(LogSim, Inform, "OPENSWBF2 MISSIONENTER rand=%u/%u snd=%.3f handle=%u even=%d luagc=%d",
+    LOG(LogSim, Inform, "Mission enter rand=%u/%u snd=%.3f handle=%u even=%d luagc=%d",
         PblRandom::_Global._uiSeed, PblRandom::_Sim._uiSeed, gSoundClockTime, PblHandled::GetNextHandleId(),
         (int)gThreadIsEven, Lua_Callbacks::GetPeriodicLuaGCCount());
 #endif
@@ -1556,7 +1556,7 @@ static PBL_ASAN_NO_SANITIZE void ScanHandleRange(HandleScan& rScan, const uintpt
             }
             if (rScan.uLive + rScan.uDead < 16)
             {
-                LOG(LogSim, Warning, "OPENSWBF2 HANDLESCAN %s at=%s+0x%IX object=0x%08IX id=%u", bLive ? "live" : "dead",
+                LOG(LogSim, Warning, "Handle scan %s at=%s+0x%IX object=0x%08IX id=%u", bLive ? "live" : "dead",
                     pcWhere, (size_t)((const char*)pu - (const char*)puBase), uObject, uId);
             }
             if (bLive)
@@ -1623,7 +1623,7 @@ static void ScanStaleHandles(bool bMission)
             MEMORY_BASIC_INFORMATION kInfo;
             if (VirtualQuery(puAt, &kInfo, sizeof(kInfo)) != sizeof(kInfo))
             {
-                LOG(LogSim, Error, "OPENSWBF2 HANDLESCAN query-failed section=%.8s", (const char*)pSection->Name);
+                LOG(LogSim, Error, "Handle scan query-failed section=%.8s", (const char*)pSection->Name);
                 break;
             }
             const uintptr_t* puRegionEnd = (const uintptr_t*)kInfo.BaseAddress + kInfo.RegionSize / sizeof(uintptr_t);
@@ -1653,7 +1653,12 @@ static void ScanStaleHandles(bool bMission)
         kBlock.pcWhere = RedGetHeapName(iHeap);
         RedVisitHeap(iHeap, ScanHandleBlock, &kBlock);
     }
-    LOG(LogSim, Inform, "OPENSWBF2 HANDLESCAN state=%s live=%u dead=%u", bMission ? "mission" : "shell", kScan.uLive,
+    if (kScan.uLive != 0 || kScan.uDead != 0)
+    {
+        LOG(LogSim, Error, "stale handles after the %s state: %u live, %u dead", bMission ? "mission" : "shell",
+            kScan.uLive, kScan.uDead);
+    }
+    LOG(LogSim, Inform, "Handle scan state=%s live=%u dead=%u", bMission ? "mission" : "shell", kScan.uLive,
         kScan.uDead);
 }
 #endif

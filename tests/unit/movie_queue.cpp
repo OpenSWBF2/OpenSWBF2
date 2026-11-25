@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "Battlefront2/Source/GameMovie.h"
 #include "PebbleFL/Common/PblHashTable.h"
@@ -55,7 +56,7 @@ struct MovieQueueFixture
 };
 }
 
-TEST_CASE("queued in-game movies are drained without Play when no movie exists" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMovieQueueTest1, "Unit::MovieQueue::queued in-game movies are drained without Play when no movie exists", "[EngineFilter]")
 {
     MovieQueueFixture f;
     GameMovie::sRedMovie = 0;
@@ -71,7 +72,7 @@ TEST_CASE("queued in-game movies are drained without Play when no movie exists" 
     CHECK(g_InGameMoviePlayerFrame == 5);
 }
 
-TEST_CASE("queued in-game movies are drained without Play when the movie failed to open" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMovieQueueTest2, "Unit::MovieQueue::queued in-game movies are drained without Play when the movie failed to open", "[EngineFilter]")
 {
     MovieQueueFixture f;
     GameMovie::sRedMovie = reinterpret_cast<RedMovie*>(f.acMovie);
@@ -85,7 +86,7 @@ TEST_CASE("queued in-game movies are drained without Play when the movie failed 
     CHECK(g_InGameMoviePlayerState == 3);
 }
 
-TEST_CASE("queued in-game movies play once per known name when the movie is open" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMovieQueueTest3, "Unit::MovieQueue::queued in-game movies play once per known name when the movie is open", "[EngineFilter]")
 {
     MovieQueueFixture f;
     GameMovie::sRedMovie = reinterpret_cast<RedMovie*>(f.acMovie);
@@ -101,7 +102,7 @@ TEST_CASE("queued in-game movies play once per known name when the movie is open
     CHECK(g_InGameMoviePlayerState == 3);
 }
 
-TEST_CASE("the in-game movie queue drain waits for frame 4" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMovieQueueTest4, "Unit::MovieQueue::the in-game movie queue drain waits for frame 4", "[EngineFilter]")
 {
     MovieQueueFixture f;
     GameMovie::sRedMovie = reinterpret_cast<RedMovie*>(f.acMovie);

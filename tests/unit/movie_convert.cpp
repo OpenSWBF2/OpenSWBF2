@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 
@@ -37,14 +38,14 @@ void CheckPixel(int iY, int iU, int iV, bool bFullRange, int iB, int iG, int iR)
 
 }
 
-TEST_CASE("movie convert maps mpeg range black and white to the bink literals" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieConvertTest1, "Unit::MovieConvert::movie convert maps mpeg range black and white to the bink literals", "[SmokeFilter]")
 {
     CheckPixel(16, 128, 128, false, 0, 1, 0);
     CheckPixel(235, 128, 128, false, 254, 255, 254);
     CheckPixel(180, 128, 128, false, 190, 192, 190);
 }
 
-TEST_CASE("movie convert maps mpeg range primaries and bars to the bink literals" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieConvertTest2, "Unit::MovieConvert::movie convert maps mpeg range primaries and bars to the bink literals", "[SmokeFilter]")
 {
     CheckPixel(81, 90, 240, false, 0, 1, 255);
     CheckPixel(145, 54, 34, false, 0, 255, 0);
@@ -57,13 +58,13 @@ TEST_CASE("movie convert maps mpeg range primaries and bars to the bink literals
     CheckPixel(35, 212, 114, false, 192, 0, 0);
 }
 
-TEST_CASE("movie convert clamps mpeg range extremes" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieConvertTest3, "Unit::MovieConvert::movie convert clamps mpeg range extremes", "[SmokeFilter]")
 {
     CheckPixel(0, 0, 0, false, 0, 138, 0);
     CheckPixel(255, 255, 255, false, 255, 124, 255);
 }
 
-TEST_CASE("movie convert maps full range black and white and rounds" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieConvertTest4, "Unit::MovieConvert::movie convert maps full range black and white and rounds", "[SmokeFilter]")
 {
     CheckPixel(0, 128, 128, true, 0, 0, 0);
     CheckPixel(255, 128, 128, true, 255, 255, 255);
@@ -73,7 +74,7 @@ TEST_CASE("movie convert maps full range black and white and rounds" * doctest::
     CheckPixel(255, 255, 255, true, 255, 121, 255);
 }
 
-TEST_CASE("movie convert takes nearest chroma on an odd size image" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieConvertTest5, "Unit::MovieConvert::movie convert takes nearest chroma on an odd size image", "[SmokeFilter]")
 {
     const unsigned char acY[9] = {128, 128, 128, 128, 128, 128, 128, 128, 128};
     const unsigned char acU[4] = {100, 130, 145, 160};
@@ -93,7 +94,7 @@ TEST_CASE("movie convert takes nearest chroma on an odd size image" * doctest::t
     }
 }
 
-TEST_CASE("movie convert keeps the destination pitch padding" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieConvertTest6, "Unit::MovieConvert::movie convert keeps the destination pitch padding", "[SmokeFilter]")
 {
     const int iWidth = 4;
     const int iHeight = 4;
@@ -124,7 +125,7 @@ TEST_CASE("movie convert keeps the destination pitch padding" * doctest::test_su
     }
 }
 
-TEST_CASE("movie convert turns float audio into clamped rounded s16" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieConvertTest7, "Unit::MovieConvert::movie convert turns float audio into clamped rounded s16", "[SmokeFilter]")
 {
     const float afIn[7] = {0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.5f, -0.5f};
     const short asWant[7] = {0, 32767, -32767, 32767, -32768, 16384, -16384};
@@ -139,7 +140,7 @@ TEST_CASE("movie convert turns float audio into clamped rounded s16" * doctest::
     }
 }
 
-TEST_CASE("movie convert gives the same s16 from planar and interleaved audio" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieConvertTest8, "Unit::MovieConvert::movie convert gives the same s16 from planar and interleaved audio", "[SmokeFilter]")
 {
     const float afLeft[3] = {0.25f, -2.0f, 0.75f};
     const float afRight[3] = {-0.25f, 3.0f, 0.0f};

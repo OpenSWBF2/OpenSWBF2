@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 
@@ -21,7 +22,7 @@ __declspec(noinline) void PoisonStack()
 
 }
 
-TEST_CASE("net header read of a short packet leaves zeroed fields" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionIngressTest1, "Net::RegressionIngress::net header read of a short packet leaves zeroed fields", "[EngineFilter]")
 {
     const unsigned char acData[3] = {PKT_GAME_MOVE, 0x34, 0x12};
     const unsigned int auLength[3] = {0, 1, 3};
@@ -54,7 +55,7 @@ TEST_CASE("net header read of a short packet leaves zeroed fields" * doctest::te
     }
 }
 
-TEST_CASE("empty datagram is dropped" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionIngressTest2, "Net::RegressionIngress::empty datagram is dropped", "[EngineFilter]")
 {
     NetTestReset();
     unsigned char acByte = 0;
@@ -65,7 +66,7 @@ TEST_CASE("empty datagram is dropped" * doctest::test_suite("regression"))
     CHECK(freeSmallPackets.pktCount == 256);
 }
 
-TEST_CASE("short datagram with a low type is dropped" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionIngressTest3, "Net::RegressionIngress::short datagram with a low type is dropped", "[EngineFilter]")
 {
     NetTestReset();
     const unsigned char acData[3] = {0x0b, 0x07, 0x00};
@@ -74,7 +75,7 @@ TEST_CASE("short datagram with a low type is dropped" * doctest::test_suite("reg
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("short datagram with a pre-auth type is accepted by framing" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionIngressTest4, "Net::RegressionIngress::short datagram with a pre-auth type is accepted by framing", "[EngineFilter]")
 {
     NetTestReset();
     const unsigned char acData[3] = {0xfe, 0x01, 0x02};
@@ -83,7 +84,7 @@ TEST_CASE("short datagram with a pre-auth type is accepted by framing" * doctest
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("oversize datagram is dropped and counted" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionIngressTest5, "Net::RegressionIngress::oversize datagram is dropped and counted", "[EngineFilter]")
 {
     NetTestReset();
     unsigned char acData[1100];
@@ -109,7 +110,7 @@ static void Flood(unsigned int uSize, int iReserve, const NetPktGroup& pool)
     CHECK(netRejectCounts[NET_REJECT_POOL_EXHAUSTED] > 0);
 }
 
-TEST_CASE("big datagram flood leaves the send path alive" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionIngressTest6, "Net::RegressionIngress::big datagram flood leaves the send path alive", "[EngineFilter]")
 {
     NetTestReset();
     Flood(200, kRecvReserveBig, freeBigPackets);
@@ -119,7 +120,7 @@ TEST_CASE("big datagram flood leaves the send path alive" * doctest::test_suite(
     CHECK(NetCountPackets(1) == 512);
 }
 
-TEST_CASE("small datagram flood leaves the send path alive" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionIngressTest7, "Net::RegressionIngress::small datagram flood leaves the send path alive", "[EngineFilter]")
 {
     NetTestReset();
     Flood(50, kRecvReserveSmall, freeSmallPackets);

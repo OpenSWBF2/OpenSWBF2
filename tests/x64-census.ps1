@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $testsDir = $PSScriptRoot
 $root = Split-Path $testsDir -Parent
-. (Join-Path $testsDir 'smoke.ps1')
+. (Join-Path $testsDir 'hardening.ps1')
 $script:SmokePlatform = 'x64'
 
 function Resolve-RootPath([string]$p) {
@@ -14,7 +14,7 @@ function Resolve-RootPath([string]$p) {
     return [IO.Path]::GetFullPath($p).TrimEnd('\')
 }
 
-if (-not $OutDir) { $OutDir = Join-Path $testsDir 'baseline\census' }
+if (-not $OutDir) { $OutDir = Join-Path $root 'artifacts\census' }
 $OutDir = Resolve-RootPath $OutDir
 $logDir = Join-Path $root "artifacts\x64-census\$Name"
 

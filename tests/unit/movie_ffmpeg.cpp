@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -120,14 +121,14 @@ bool Matches(const void* p, size_t uSize, unsigned char ucSeed)
 
 }
 
-TEST_CASE("movie ffmpeg libraries report the lgpl 2.1 or later licence" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieFfmpegTest1, "Unit::MovieFfmpeg::movie ffmpeg libraries report the lgpl 2.1 or later licence", "[SmokeFilter]")
 {
     CHECK(strcmp(avutil_license(), "LGPL version 2.1 or later") == 0);
     CHECK(strcmp(avcodec_license(), "LGPL version 2.1 or later") == 0);
     CHECK(strcmp(avformat_license(), "LGPL version 2.1 or later") == 0);
 }
 
-TEST_CASE("movie ffmpeg allocation fails closed without a registered allocator" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieFfmpegTest2, "Unit::MovieFfmpeg::movie ffmpeg allocation fails closed without a registered allocator", "[SmokeFilter]")
 {
     MovieHeapScope kScope;
     const RedHeapStats kBefore = MovieStats(kScope.miHeap);
@@ -143,7 +144,7 @@ TEST_CASE("movie ffmpeg allocation fails closed without a registered allocator" 
     kScope.Free(p);
 }
 
-TEST_CASE("movie ffmpeg av_malloc lands on the current red heap with a 16 byte size header" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieFfmpegTest3, "Unit::MovieFfmpeg::movie ffmpeg av_malloc lands on the current red heap with a 16 byte size header", "[SmokeFilter]")
 {
     MovieHeapScope kScope;
     const size_t auSizes[6] = {1, 15, 16, 17, 4095, 65536};
@@ -169,7 +170,7 @@ TEST_CASE("movie ffmpeg av_malloc lands on the current red heap with a 16 byte s
     }
 }
 
-TEST_CASE("movie ffmpeg av_realloc keeps the leading bytes when it grows and shrinks" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieFfmpegTest4, "Unit::MovieFfmpeg::movie ffmpeg av_realloc keeps the leading bytes when it grows and shrinks", "[SmokeFilter]")
 {
     MovieHeapScope kScope;
     const unsigned int uStart = MovieStats(kScope.miHeap).uUsed;
@@ -191,7 +192,7 @@ TEST_CASE("movie ffmpeg av_realloc keeps the leading bytes when it grows and shr
     CHECK(MovieStats(kScope.miHeap).uUsed == uStart);
 }
 
-TEST_CASE("movie ffmpeg av_malloc refuses one byte past the bundle cap" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieFfmpegTest5, "Unit::MovieFfmpeg::movie ffmpeg av_malloc refuses one byte past the bundle cap", "[SmokeFilter]")
 {
     MovieHeapScope kScope;
     const RedHeapStats kBefore = MovieStats(kScope.miHeap);
@@ -206,7 +207,7 @@ TEST_CASE("movie ffmpeg av_malloc refuses one byte past the bundle cap" * doctes
 }
 
 #if defined(__SANITIZE_ADDRESS__)
-TEST_CASE("movie ffmpeg blocks keep their 16 byte size header poisoned under asan" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieFfmpegTest6, "Unit::MovieFfmpeg::movie ffmpeg blocks keep their 16 byte size header poisoned under asan", "[SmokeFilter]")
 {
     MovieHeapScope kScope;
     const size_t auSizes[4] = {1, 16, 4095, 65536};

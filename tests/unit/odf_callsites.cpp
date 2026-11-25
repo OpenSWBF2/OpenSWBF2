@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -83,7 +84,7 @@ int GuardedSetPropertyCount(const std::string& sText, const std::string& sGuard)
 
 }
 
-TEST_CASE("odf value guard covers every property call site" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FOdfCallsitesTest1, "Unit::OdfCallsites::odf value guard covers every property call site", "[SmokeFilter]")
 {
     const std::string sRoot = RepoRoot() + "\\src\\Battlefront2\\Source\\";
     const std::string sGuard = "OdfValue::Sanitize(uProperty, pcValue);";

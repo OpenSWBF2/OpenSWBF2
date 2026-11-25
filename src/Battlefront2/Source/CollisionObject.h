@@ -193,7 +193,11 @@ public:
 
     static void LogSerialTies(bool bReset)
     {
-        LOG(LogSim, Inform, "OPENSWBF2 COLLISION serialties=%u", sCollisionSerialTies);
+        if (sCollisionSerialTies != 0)
+        {
+            LOG(LogSim, Error, "%u collision serial ties: two collision objects shared a serial", sCollisionSerialTies);
+        }
+        LOG(LogSim, Inform, "Collision serialties=%u", sCollisionSerialTies);
         if (bReset)
         {
             sCollisionSerialTies = 0;

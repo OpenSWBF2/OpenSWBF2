@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "unit/crt_trig.h"
 
@@ -521,7 +522,7 @@ bool CrtTrigReadFile(const std::string& sPath, CrtTrigReference& kRef, std::stri
     return bOk;
 }
 
-TEST_CASE("crt trig fallback equals the x86 crt" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FCrtTrigTest1, "Unit::CrtTrig::crt trig fallback equals the x86 crt", "[ProductFilter]")
 {
     WatchdogArm("crt trig corpus");
     const char* const kPrefix = "crt reference child";
@@ -725,7 +726,7 @@ bool ReadPinLines(const char* pcPath, std::vector<std::string>& vLines)
 }
 }
 
-TEST_CASE("sim math corpus" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FCrtTrigTest2, "Unit::CrtTrig::sim math corpus", "[ProductFilter]")
 {
     WatchdogArm("sim math corpus pins");
     const char* const pcPins = "corpus\\simmath\\crt.txt";
@@ -852,7 +853,7 @@ TEST_CASE("sim math corpus" * doctest::test_suite("corpus"))
     CHECK(uCompared == 7);
 }
 
-TEST_CASE("crt trig sets errno like the x86 crt" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCrtTrigTest3, "Unit::CrtTrig::crt trig sets errno like the x86 crt", "[EngineFilter]")
 {
     struct ErrnoCase
     {

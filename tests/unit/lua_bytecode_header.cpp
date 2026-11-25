@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <cstdio>
 #include <cstring>
@@ -37,7 +38,7 @@ std::string DumpSample(lua_State* L)
 
 }
 
-TEST_CASE("lua bytecode header matches retail" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLuaBytecodeHeaderTest1, "Unit::LuaBytecodeHeader::lua bytecode header matches retail", "[SmokeFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -50,7 +51,7 @@ TEST_CASE("lua bytecode header matches retail" * doctest::test_suite("unit"))
     lua_close(L);
 }
 
-TEST_CASE("lua bytecode round trip" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLuaBytecodeHeaderTest2, "Unit::LuaBytecodeHeader::lua bytecode round trip", "[SmokeFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -62,7 +63,7 @@ TEST_CASE("lua bytecode round trip" * doctest::test_suite("unit"))
     lua_close(L);
 }
 
-TEST_CASE("lua bytecode rejects 8-byte size_t" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLuaBytecodeHeaderTest3, "Unit::LuaBytecodeHeader::lua bytecode rejects 8-byte size_t", "[SmokeFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -76,7 +77,7 @@ TEST_CASE("lua bytecode rejects 8-byte size_t" * doctest::test_suite("unit"))
     lua_close(L);
 }
 
-TEST_CASE("lua bytecode loads retail shell chunk" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLuaBytecodeHeaderTest4, "Unit::LuaBytecodeHeader::lua bytecode loads retail shell chunk", "[SmokeFilter]")
 {
     REQUIRE_GAMEDATA();
     std::string sPath = std::string(FindGameDataRoot()) + "\\data\\_lvl_pc\\shell.lvl";

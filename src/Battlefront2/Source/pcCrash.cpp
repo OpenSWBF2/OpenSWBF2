@@ -14,6 +14,7 @@
 #include "LuaHelper.h"
 #include "GameState.h"
 #include "RedEngineFL/Memory/RedMemory.h"
+#include "RedEngineFL/Memory/RedMemoryMi.h"
 #include "RedEngineFL/Memory/RedMemoryPool.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
@@ -31,6 +32,7 @@
 #include "FLEffect.h"
 #include "ParticleEmitter.h"
 #include "SoundFL/source/sndvoicevirtual.h"
+#include "Steam/gfSteamAuth.h"
 #include "Steam/gfVendor.h"
 #include "Steam/steamworks.h"
 
@@ -199,7 +201,7 @@ static void WriteOffThreadTotal()
     unsigned int uiDropped = 0;
     RedGetOffThreadTotals(&uiCount, &uiSources, &uiDropped);
     char acOffLine[96];
-    wsprintfA(acOffLine, "OPENSWBF2 MEMREPORT offthread count=%u sources=%u dropped=%u\r\n", uiCount, uiSources,
+    wsprintfA(acOffLine, "Memory report offthread count=%u sources=%u dropped=%u\r\n", uiCount, uiSources,
               uiDropped);
     AppendLog(acOffLine);
 }
@@ -746,7 +748,7 @@ void pcCrash::LogPerturbState()
     {
         char acModes[32];
         RedPerturbFormatModes(RedPerturbModes(), acModes, sizeof(acModes));
-        LOG(LogCore, Inform, "OPENSWBF2 PERTURB seed=%u modes=%s", RedPerturbSeed(), acModes);
+        LOG(LogCore, Inform, "Perturb seed=%u modes=%s", RedPerturbSeed(), acModes);
     }
     else if (sbPerturbPresent)
     {
@@ -787,15 +789,21 @@ bool pcCrash::ShellFirstRequested()
     return siShellFirst == 1;
 }
 
+static bool sbShellFirstTaken;
+
 bool pcCrash::TakeShellFirst()
 {
-    static bool sbTaken;
-    if (sbTaken || !ShellFirstRequested())
+    if (sbShellFirstTaken || !ShellFirstRequested())
     {
         return false;
     }
-    sbTaken = true;
+    sbShellFirstTaken = true;
     return true;
+}
+
+bool pcCrash::ShellFirstTaken()
+{
+    return sbShellFirstTaken;
 }
 
 bool pcCrash::ExitOnMovieCloseRequested()
@@ -907,7 +915,7 @@ static void MenuConfirmFrame(MenuTest eTest, bool& rbRan)
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
         if (!pProfile)
         {
-            LOG(LogRender, Warning, "OPENSWBF2 DISPLAY menutest no profile");
+            LOG(LogRender, Warning, "Display menutest no profile");
             rbRan = true;
             return;
         }
@@ -915,15 +923,19 @@ static void MenuConfirmFrame(MenuTest eTest, bool& rbRan)
         PlayerProfile::tPCOpt& rPC = pProfile->mPCOptions;
         const unsigned int uiBaseW = rPC.mResolutionX;
         const unsigned int uiBaseH = rPC.mResolutionY;
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest base %ux%u fps=%u waitquery=%d", uiBaseW,
+        LOG(LogRender, Inform, "Display menutest base %ux%u fps=%u waitquery=%d", uiBaseW,
             uiBaseH, DisplayCfg::gDisplay.uiFps, DisplayCfg::gDisplay.bNoWaitQuery ? 0 : 1);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuTestBase, uiBaseW, uiBaseH,
+                                                DisplayCfg::gDisplay.uiFps, DisplayCfg::gDisplay.bNoWaitQuery ? 0u : 1u));
         const DisplayLogic::DisplayMode eBase =
             DisplayLogic::ResolveMode(DisplayCfg::gDisplay.bBorderless, pcWindowed, rPC.mWindowed);
         const unsigned int uiAcceptFps = DisplayCfg::gDisplay.uiFps == 30 ? 60 : 30;
         if (eTest == kMenuRevertSave || eTest == kMenuApplyFail)
         {
-            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest prior vsync=%u fps=%u accept=%u",
+            LOG(LogRender, Inform, "Display menutest prior vsync=%u fps=%u accept=%u",
                 MenuTestVsync(rPC), DisplayCfg::gDisplay.uiFps, uiAcceptFps);
+            PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuTestPrior, MenuTestVsync(rPC),
+                                                    DisplayCfg::gDisplay.uiFps, uiAcceptFps));
             DisplayCfg::MenuFields kPlain;
             kPlain.uiMode = eBase;
             kPlain.uiRefresh = DisplayCfg::gDisplay.uiRefresh;
@@ -963,13 +975,15 @@ static void MenuConfirmFrame(MenuTest eTest, bool& rbRan)
         suiMode = kFields.uiMode;
         if (eTest == kMenuOrder)
         {
-            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest order=legacy-menu");
+            LOG(LogRender, Inform, "Display menutest order=legacy-menu");
+            PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuTestOrder, 1));
             PlayerProfile::ApplyLiveDisplay();
             PlayerProfile::ApplyMenuDisplay(kFields);
         }
         else if (eTest == kMenuOrderRev)
         {
-            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest order=menu-legacy");
+            LOG(LogRender, Inform, "Display menutest order=menu-legacy");
+            PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuTestOrder, 0));
             PlayerProfile::ApplyMenuDisplay(kFields);
             PlayerProfile::ApplyLiveDisplay();
         }
@@ -983,7 +997,9 @@ static void MenuConfirmFrame(MenuTest eTest, bool& rbRan)
             {
                 RedRenderer::pcRequestAdapter(0);
             }
-            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest save=%u", PlayerProfile::SaveDisplay());
+            const unsigned int uiSave = PlayerProfile::SaveDisplay();
+            LOG(LogRender, Inform, "Display menutest save=%u", uiSave);
+            PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuTestSave, uiSave));
             PlayerProfile::MarkDisplay();
         }
         sbArmed = true;
@@ -998,7 +1014,7 @@ static void MenuConfirmFrame(MenuTest eTest, bool& rbRan)
     PlayerProfile::PollDisplayConfirm(uiState, uiLeft, uiResult, uiKeepSave);
     if (suiFrame - suiArmedAt >= 600)
     {
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY menutest no confirm state=%u", uiState);
+        LOG(LogRender, Warning, "Display menutest no confirm state=%u", uiState);
         rbRan = true;
         return;
     }
@@ -1039,7 +1055,8 @@ static void MenuConfirmFrame(MenuTest eTest, bool& rbRan)
             kFields.uiVsync = (pProfile && MenuTestVsync(pProfile->mPCOptions) == 0) ? 1 : 0;
             kFields.uiFps = DisplayCfg::gDisplay.uiFps;
             kFields.bWaitQuery = !DisplayCfg::gDisplay.bNoWaitQuery;
-            LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest plain vsync=%u", kFields.uiVsync);
+            LOG(LogRender, Inform, "Display menutest plain vsync=%u", kFields.uiVsync);
+            PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuTestPlain, kFields.uiVsync));
             PlayerProfile::ApplyMenuDisplay(kFields);
         }
         return;
@@ -1061,12 +1078,17 @@ static void MenuConfirmFrame(MenuTest eTest, bool& rbRan)
     {
         PlayerProfile::RestoreDisplay();
         PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest restored vsync=%u fps=%u",
+        LOG(LogRender, Inform, "Display menutest restored vsync=%u fps=%u",
             pProfile ? MenuTestVsync(pProfile->mPCOptions) : 0u, DisplayCfg::gDisplay.uiFps);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuTestRestored,
+                                                pProfile ? MenuTestVsync(pProfile->mPCOptions) : 0u,
+                                                DisplayCfg::gDisplay.uiFps));
     }
     if (eTest == kMenuSaveFail)
     {
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menutest save=%u", PlayerProfile::SaveDisplay());
+        const unsigned int uiSave = PlayerProfile::SaveDisplay();
+        LOG(LogRender, Inform, "Display menutest save=%u", uiSave);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuTestSave, uiSave));
         char acPath[MAX_PATH];
         if (DisplayCfg::DisplayIniPath(acPath, sizeof(acPath)))
         {
@@ -1074,8 +1096,10 @@ static void MenuConfirmFrame(MenuTest eTest, bool& rbRan)
         }
     }
     LOG(LogRender, Inform,
-        "OPENSWBF2 DISPLAY menutest done result=%u fps=%u waitquery=%d keepsave=%u", uiResult,
+        "Display menutest done result=%u fps=%u waitquery=%d keepsave=%u", uiResult,
         DisplayCfg::gDisplay.uiFps, DisplayCfg::gDisplay.bNoWaitQuery ? 0 : 1, uiKeepSave);
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuTestDone, uiResult, DisplayCfg::gDisplay.uiFps,
+                                            DisplayCfg::gDisplay.bNoWaitQuery ? 0u : 1u, uiKeepSave));
     rbRan = true;
 }
 
@@ -1089,7 +1113,9 @@ static void AdapterCancelFrame(bool& rbRan)
     PlayerProfile::MarkDisplay();
     RedRenderer::pcRequestAdapter(0);
     PlayerProfile::RestoreDisplay();
-    LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adaptertest save=%u", PlayerProfile::SaveDisplay());
+    const unsigned int uiSave = PlayerProfile::SaveDisplay();
+    LOG(LogRender, Inform, "Display adaptertest save=%u", uiSave);
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioAdapterTestSave, uiSave));
     rbRan = true;
 }
 
@@ -1168,14 +1194,14 @@ static void StickDeleteTest()
     EntityClass* pMineClass = FindEntityClassOfRtti(EntityMineClass::rttiHashEntityMineClass, 0);
     if (!pPropClass || !pMineClass)
     {
-        LOG(LogCore, Warning, "OPENSWBF2 STICKDELETE no class prop=%d mine=%d", pPropClass != 0, pMineClass != 0);
+        LOG(LogCore, Warning, "Stick delete no class prop=%d mine=%d", pPropClass != 0, pMineClass != 0);
         return;
     }
     Entity* pPropEntity = BuildEntity(pPropClass);
     Entity* pMineEntity = BuildEntity(pMineClass);
     if (!pPropEntity || !pMineEntity)
     {
-        LOG(LogCore, Warning, "OPENSWBF2 STICKDELETE build failed prop=%d mine=%d", pPropEntity != 0, pMineEntity != 0);
+        LOG(LogCore, Warning, "Stick delete build failed prop=%d mine=%d", pPropEntity != 0, pMineEntity != 0);
         return;
     }
     EntityGeometry* pProp = static_cast<EntityGeometry*>(pPropEntity);
@@ -1200,8 +1226,10 @@ static void StickDeleteTest()
     pMine->Update(1.0f / 30.0f);
     const bool bFell = pMine->mStickInfo == 0;
     LuaDeleteEntity(pMineEntity);
-    LOG(LogCore, Inform, "OPENSWBF2 STICKDELETE prop=%d gameobject=%d stuck=%d cleared=%d fell=%d", bPropClass,
+    LOG(LogCore, Inform, "Stick delete prop=%d gameobject=%d stuck=%d cleared=%d fell=%d", bPropClass,
         bGameObject, bStuck, bCleared, bFell);
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioStickDelete, bPropClass, bGameObject, bStuck, bCleared,
+                                            bFell));
 }
 
 static ParticleEmitter* StartParticleSound(const ParticleEmitterClass* pClass)
@@ -1251,21 +1279,22 @@ static void ParticleSoundTest()
     }
     if (!pEmitter)
     {
-        LOG(LogCore, Warning, "OPENSWBF2 PARTICLESOUND no emitter class plays an ambient sound");
+        LOG(LogCore, Warning, "Particle sound no emitter class plays an ambient sound");
         return;
     }
     delete pEmitter;
     ParticleEmitter* pReset = StartParticleSound(pClass);
     if (!pReset)
     {
-        LOG(LogCore, Warning, "OPENSWBF2 PARTICLESOUND restart failed");
+        LOG(LogCore, Warning, "Particle sound restart failed");
         return;
     }
     pReset->Reset(pClass);
     const int iVoiceAfterReset = pReset->mAmbientSound.GetVoiceVirtual() != 0;
     delete pReset;
-    LOG(LogCore, Inform, "OPENSWBF2 PARTICLESOUND class=0x%08X deleted=1 reset=1 voice_after_reset=%d",
+    LOG(LogCore, Inform, "Particle sound class=0x%08X deleted=1 reset=1 voice_after_reset=%d",
         pClass->m_uiClassName, iVoiceAfterReset);
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioParticleSound, (unsigned int)iVoiceAfterReset));
 }
 
 static ParticleEmitter* StartParticleBurst(const ParticleEmitterClass* pClass, bool& bPlaying, bool& bReleased,
@@ -1324,12 +1353,13 @@ static void ParticleBurstTest()
             delete pEmitter;
             continue;
         }
-        LOG(LogCore, Inform, "OPENSWBF2 PARTICLEBURST class=0x%08X playing=%d released=%d voice_on_next=%d",
+        LOG(LogCore, Inform, "Particle burst class=0x%08X playing=%d released=%d voice_on_next=%d",
             pClass->m_uiClassName, bPlaying, bReleased, bVoiceOnNext);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioParticleBurst, bPlaying, bReleased, bVoiceOnNext));
         delete pEmitter;
         return;
     }
-    LOG(LogCore, Warning, "OPENSWBF2 PARTICLEBURST no emitter class bursts with a playing ambient sound");
+    LOG(LogCore, Warning, "Particle burst no emitter class bursts with a playing ambient sound");
 }
 
 void pcCrash::RunMissionCrashTest()
@@ -1586,6 +1616,12 @@ static bool sbSaveTestPending;
 static bool sbSaveTestSuccess;
 static unsigned int suSaveTestFields;
 static char sacSaveTestFile[128];
+static pcCrash::SaveTestRecord skSaveTestRecord;
+
+const pcCrash::SaveTestRecord& pcCrash::GetSaveTestRecord()
+{
+    return skSaveTestRecord;
+}
 
 static bool SaveTestRun(const char* pcPrefix, const char* pcChunk, unsigned int* puDigest, int* piCount)
 {
@@ -1598,7 +1634,8 @@ static bool SaveTestRun(const char* pcPrefix, const char* pcChunk, unsigned int*
     if (!bOk)
     {
         const char* pcErr = lua_tostring(L, -1);
-        LOG(LogCore, Warning, "OPENSWBF2 SAVETEST lua error: %s", pcErr ? pcErr : "?");
+        LOG(LogCore, Warning, "Save test lua error: %s", pcErr ? pcErr : "?");
+        ++skSaveTestRecord.uProblems;
     }
     else if (puDigest)
     {
@@ -1620,7 +1657,8 @@ static void SaveTestCall(const char* pcFunc, const unsigned short* pusArg)
     if (lua_pcall(L, 1, 0, 0) != 0)
     {
         const char* pcErr = lua_tostring(L, -1);
-        LOG(LogCore, Warning, "OPENSWBF2 SAVETEST lua error: %s", pcErr ? pcErr : "?");
+        LOG(LogCore, Warning, "Save test lua error: %s", pcErr ? pcErr : "?");
+        ++skSaveTestRecord.uProblems;
     }
     lua_settop(L, iTop);
 }
@@ -1660,7 +1698,8 @@ static bool SaveTestFindCampaign(const char* pcName)
     }
     if (iFound != 1)
     {
-        LOG(LogCore, Warning, "OPENSWBF2 SAVETEST found %d campaign saves named %s", iFound, pcName);
+        LOG(LogCore, Warning, "Save test found %d campaign saves named %s", iFound, pcName);
+        ++skSaveTestRecord.uProblems;
         strcpy(sacSaveTestFile, pcName);
     }
     return iFound == 1;
@@ -1686,8 +1725,15 @@ static void SaveTestLogWrite(int iType, const char* pcName, const char* pcExt)
         fclose(pFile);
     }
     const unsigned int uCrc = aucCrc[0] | (aucCrc[1] << 8) | (aucCrc[2] << 16) | ((unsigned int)aucCrc[3] << 24);
-    LOG(LogCore, Inform, "OPENSWBF2 SAVETEST write type=%d name=%s bytes=%ld crc=0x%08X fields=0x%08X result=%s", iType,
+    LOG(LogCore, Inform, "Save test write type=%d name=%s bytes=%ld crc=0x%08X fields=0x%08X result=%s", iType,
         pcName, lBytes, uCrc, suSaveTestFields, sbSaveTestSuccess && bFile ? "ok" : "fail");
+    pcCrash::SaveTestWrite& rWrite = skSaveTestRecord.akWrites[iType == 1 ? 0 : 1];
+    rWrite.bWritten = true;
+    rWrite.bOk = sbSaveTestSuccess && bFile;
+    rWrite.lBytes = lBytes;
+    rWrite.uFields = suSaveTestFields;
+    strncpy(rWrite.acName, pcName, sizeof(rWrite.acName) - 1);
+    rWrite.acName[sizeof(rWrite.acName) - 1] = 0;
 }
 
 static void SaveTestStartLoad()
@@ -1723,14 +1769,20 @@ static void SaveTestLogLoad()
         SaveTestRun(kSaveTestCanon, kSaveTestLoadCampaign, &uFields, &iItems);
         bOk = bOk && iItems > 0;
     }
+    skSaveTestRecord.bLoaded = true;
+    skSaveTestRecord.bLoadOk = bOk;
+    skSaveTestRecord.iLoadType = gSaveTestType;
+    skSaveTestRecord.uLoadFields = bOk ? uFields : 0;
+    strncpy(skSaveTestRecord.acLoadName, sacSaveTestFile, sizeof(skSaveTestRecord.acLoadName) - 1);
+    skSaveTestRecord.acLoadName[sizeof(skSaveTestRecord.acLoadName) - 1] = 0;
     if (bOk)
     {
-        LOG(LogCore, Inform, "OPENSWBF2 SAVETEST load type=%d name=%s result=ok fields=0x%08X", gSaveTestType,
+        LOG(LogCore, Inform, "Save test load type=%d name=%s result=ok fields=0x%08X", gSaveTestType,
             sacSaveTestFile, uFields);
     }
     else
     {
-        LOG(LogCore, Inform, "OPENSWBF2 SAVETEST load type=%d name=%s result=reject fields=none", gSaveTestType,
+        LOG(LogCore, Inform, "Save test load type=%d name=%s result=reject fields=none", gSaveTestType,
             sacSaveTestFile);
     }
 }
@@ -1752,7 +1804,8 @@ static void SaveTestFrame()
                 _snprintf(acAnswer, sizeof(acAnswer) - 1, "ScriptCB_LoadSavePopupResult(%u)",
                           (unsigned int)rFsm.mBtnDefault);
                 acAnswer[sizeof(acAnswer) - 1] = 0;
-                LOG(LogCore, Inform, "OPENSWBF2 SAVETEST popup answer=%u", (unsigned int)rFsm.mBtnDefault);
+                LOG(LogCore, Inform, "Save test popup answer=%u", (unsigned int)rFsm.mBtnDefault);
+                ++skSaveTestRecord.uProblems;
                 SaveTestRun("", acAnswer, 0, 0);
             }
             return;
@@ -1776,7 +1829,8 @@ static void SaveTestFrame()
     case kSaveTestPreOp:
         if (!sbSaveTestSuccess)
         {
-            LOG(LogCore, Warning, "OPENSWBF2 SAVETEST preop failed");
+            LOG(LogCore, Warning, "Save test preop failed");
+            ++skSaveTestRecord.uProblems;
         }
         if (gSaveTestMode == 2)
         {
@@ -1825,3 +1879,132 @@ bool pcCrash::HandsOffRequested()
     return siHandsOff == 1;
 }
 #endif
+
+#ifdef OPENSWBF2_TEST
+static pcCrash::ScenarioEvent sakScenarioEvents[512];
+static unsigned int suScenarioEvents;
+static bool sbScenarioDropped;
+
+static pcCrash::ScenarioEvent* NextScenarioEvent(int iKind)
+{
+    if (suScenarioEvents >= sizeof(sakScenarioEvents) / sizeof(sakScenarioEvents[0]))
+    {
+        sbScenarioDropped = true;
+        return 0;
+    }
+    pcCrash::ScenarioEvent* pEvent = &sakScenarioEvents[suScenarioEvents++];
+    memset(pEvent, 0, sizeof(*pEvent));
+    pEvent->iKind = iKind;
+    return pEvent;
+}
+
+void pcCrash::NoteScenario(int iKind, unsigned int u0, unsigned int u1, unsigned int u2, unsigned int u3,
+                           unsigned int u4, unsigned int u5, unsigned int u6, char const* pcText)
+{
+    ScenarioEvent* pEvent = NextScenarioEvent(iKind);
+    if (!pEvent)
+    {
+        return;
+    }
+    const unsigned int auValues[7] = {u0, u1, u2, u3, u4, u5, u6};
+    memcpy(pEvent->au, auValues, sizeof(auValues));
+    if (pcText)
+    {
+        lstrcpynA(pEvent->acText, pcText, sizeof(pEvent->acText));
+    }
+}
+
+void pcCrash::NoteRelayout(unsigned int uScreenW, unsigned int uScreenH, unsigned int uViewW, unsigned int uViewH,
+                           int iHudW, int iHudH, float fAspect, float fCamera)
+{
+    ScenarioEvent* pEvent = NextScenarioEvent(kScenarioRelayout);
+    if (!pEvent)
+    {
+        return;
+    }
+    pEvent->au[0] = uScreenW;
+    pEvent->au[1] = uScreenH;
+    pEvent->au[2] = uViewW;
+    pEvent->au[3] = uViewH;
+    pEvent->au[4] = (unsigned int)iHudW;
+    pEvent->au[5] = (unsigned int)iHudH;
+    pEvent->af[0] = fAspect;
+    pEvent->af[1] = fCamera;
+}
+
+unsigned int pcCrash::ScenarioEventCount()
+{
+    return suScenarioEvents;
+}
+
+pcCrash::ScenarioEvent const& pcCrash::GetScenarioEvent(unsigned int uIndex)
+{
+    return sakScenarioEvents[uIndex < suScenarioEvents ? uIndex : 0];
+}
+
+bool pcCrash::ScenarioEventsDropped()
+{
+    return sbScenarioDropped;
+}
+#endif
+
+char const* pcCrash::HogLayoutFault()
+{
+    const bool b64 = sizeof(void*) == 8;
+    const uintptr_t uLimit = b64 ? (uintptr_t)0x100000000ull : (uintptr_t)0x80000000u;
+    uintptr_t uArena = 0;
+    size_t uArenaSize = 0;
+    if (!RedMiFirstArena(&uArena, &uArenaSize))
+    {
+        return "the first mimalloc arena does not exist";
+    }
+    if (uArena < uLimit)
+    {
+        return "the first mimalloc arena starts below the hogged address space";
+    }
+    if (b64 && uArena + uArenaSize < uLimit)
+    {
+        return "the first mimalloc arena ends below the hogged address space";
+    }
+    if (!IsLargeAddressAware())
+    {
+        return "the exe is not large address aware";
+    }
+    const uintptr_t uSteam = (uintptr_t)GetModuleHandleA(gf::vendor::DllName("steam_api.dll", "steam_api64.dll"));
+    const uintptr_t uGalaxy = (uintptr_t)GetModuleHandleA(gf::vendor::DllName("Galaxy.dll", "Galaxy64.dll"));
+    const uintptr_t uGalaxyPeer = (uintptr_t)GetModuleHandleA(gf::vendor::DllName("GalaxyPeer.dll", "GalaxyPeer64.dll"));
+    const uintptr_t uFfmpeg = (uintptr_t)GetModuleHandleA("openswbf2-ffmpeg.dll");
+    if (b64)
+    {
+        if (!((!gf::_sap()->IsInitialized() && uSteam == 0) || uSteam >= uLimit))
+        {
+            return "steam_api64.dll is loaded below the hogged address space, or is missing with Steam on";
+        }
+        if (uGalaxy != 0)
+        {
+            return "Galaxy64.dll is loaded";
+        }
+        if (uGalaxyPeer != 0)
+        {
+            return "GalaxyPeer64.dll is loaded";
+        }
+        if (uFfmpeg < uLimit)
+        {
+            return "openswbf2-ffmpeg.dll is not loaded above the hogged address space";
+        }
+        return 0;
+    }
+    if (uSteam == 0)
+    {
+        return "steam_api.dll is not loaded";
+    }
+    if (uGalaxy == 0)
+    {
+        return "Galaxy.dll is not loaded";
+    }
+    if (uFfmpeg == 0)
+    {
+        return "openswbf2-ffmpeg.dll is not loaded";
+    }
+    return 0;
+}

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 
@@ -592,7 +593,7 @@ int DecodeFrameHashes(const std::string& sPath, const MvsSpan& kSpan, std::vecto
 
 }
 
-TEST_CASE("movie frame hashes match the pinned FFmpeg path" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieRetailTest1, "Unit::MovieRetail::movie frame hashes match the pinned FFmpeg path", "[SmokeFilter]")
 {
     const std::string sDir = MovieDataDir();
     SKIP_IF(sDir.empty(), "GameData movies not found");
@@ -656,7 +657,7 @@ TEST_CASE("movie frame hashes match the pinned FFmpeg path" * doctest::test_suit
     CHECK(uGoldenMiss == 0);
 }
 
-TEST_CASE("movie retail layout matches the measured set" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieRetailTest2, "Unit::MovieRetail::movie retail layout matches the measured set", "[SmokeFilter]")
 {
     const char* pcRoot = FindGameDataRoot();
     SKIP_IF(pcRoot == 0, "GameData not found");

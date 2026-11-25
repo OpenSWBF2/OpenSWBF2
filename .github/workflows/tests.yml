@@ -18,70 +18,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, windows, v143]
-    timeout-minutes: 7200
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-          clean: true
-      - name: Build and run tests
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test
-      - name: Build Debug for the self-test
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\tests\vstools.ps1; $m = Find-MSBuild; foreach ($p in 'BattlefrontII.vcxproj', 'tests\OpenSWBF2Tests.vcxproj') { & $m $p /p:Configuration=Debug /p:Platform=Win32 /p:SWBF2_NOSTAGE=true /m /v:minimal /nologo; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }"
-      - name: Runner self-test
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\selftest.ps1 -Configuration Test
-      - name: Clean staged output
-        if: always()
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test -Clean
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: failure() || cancelled()
-        with:
-          name: test-artifacts
-          path: artifacts/
-          if-no-files-found: ignore
-          retention-days: 7
-
-  x64:
-    name: x64
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, windows, v143]
-    timeout-minutes: 7200
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-          clean: true
-      - name: Build x64 Test
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\tests\vstools.ps1; $m = Find-MSBuild; foreach ($p in 'BattlefrontII.vcxproj', 'tests\OpenSWBF2Tests.vcxproj') { & $m $p /p:Configuration=Test /p:Platform=x64 /p:SWBF2_NOSTAGE=true /m /v:minimal /nologo; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }"
-      - name: Build LuaCompiler Test for Win32 and x64
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\tests\vstools.ps1; $m = Find-MSBuild; foreach ($p in 'Win32', 'x64') { & $m LuaCompiler.vcxproj /p:Configuration=Test /p:Platform=$p /p:SWBF2_NOSTAGE=true /m /v:minimal /nologo; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }"
-      - name: Build Win32 Test tests exe for the x86 reference child
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\tests\vstools.ps1; $m = Find-MSBuild; & $m tests\OpenSWBF2Tests.vcxproj /p:Configuration=Test /p:Platform=Win32 /p:SWBF2_NOSTAGE=true /m /v:minimal /nologo; exit $LASTEXITCODE"
-      - name: x64 T1 and tlog hardening
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Platform x64 -Configuration Test -Smoke None -NoBuild -Hardening
-      - name: LuaCompiler x86 and x64 byte compare
-        if: ${{ !cancelled() }}
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\luac-compare.ps1 -Configuration Test -Platform x64
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: failure() || cancelled()
-        with:
-          name: x64-artifacts
-          path: artifacts/
-          if-no-files-found: ignore
-          retention-days: 7
-
   asan:
     name: asan
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
@@ -92,21 +28,9 @@ jobs:
         with:
           persist-credentials: false
           clean: true
-      - name: ASan T1, hardening and Standard smoke
+      - name: ASan T1, corpus, Standard and Dedicated smoke
         shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Asan
-      - name: ASan Dedicated smoke
-        if: ${{ !cancelled() }}
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Asan -Smoke Dedicated
-      - name: Build Debug for the self-test
-        if: ${{ !cancelled() }}
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\tests\vstools.ps1; $m = Find-MSBuild; foreach ($p in 'BattlefrontII.vcxproj', 'tests\OpenSWBF2Tests.vcxproj') { & $m $p /p:Configuration=Debug /p:Platform=Win32 /p:SWBF2_NOSTAGE=true /m /v:minimal /nologo; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }"
-      - name: ASan canary self-test
-        if: ${{ !cancelled() }}
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\selftest.ps1 -Configuration Asan
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\gate.ps1 -Tier phase -Platform Win32 -Step t1-Asan,standard-Asan,dedicated-Asan,corpus-Asan
       - name: Clean staged output
         if: always()
         shell: cmd
@@ -143,10 +67,6 @@ jobs:
         if: ${{ !cancelled() }}
         shell: cmd
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\run.ps1 -Configuration Test -Smoke All -Soak Short
-      - name: Full guard revert
-        if: ${{ !cancelled() }}
-        shell: cmd
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\guard-revert.ps1 -Full -ProvenFile artifacts\proven-ci.tsv
       - name: ASan T1, hardening and Standard smoke
         if: ${{ !cancelled() }}
         shell: cmd

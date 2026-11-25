@@ -9,3 +9,4 @@ ipch/
 *.user
 reports/
 BattlefrontII_Steam.exe
+tests/baseline/census/

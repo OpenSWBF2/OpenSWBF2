@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <new>
 #include <stdint.h>
@@ -6,7 +7,7 @@
 
 #include "RedEngineFL/movie/pc/pcRedMovieLayout.h"
 
-TEST_CASE("movie layout holds every pointer array" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMovieLayoutTest1, "Unit::MovieLayout::movie layout holds every pointer array", "[EngineFilter]")
 {
     const unsigned int uiBufferSize = 0x23;
     const unsigned int uiNumTextures = 3;

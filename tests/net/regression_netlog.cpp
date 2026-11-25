@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "testutil.h"
 #include "nettest.h"
@@ -10,7 +11,7 @@ static float TestClock()
     return sTestClock;
 }
 
-TEST_CASE("reject flood logs once per second with a suppressed count" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetlogTest1, "Net::RegressionNetlog::reject flood logs once per second with a suppressed count", "[EngineFilter]")
 {
     NetTestReset();
     sTestClock = 10.0f;
@@ -37,7 +38,7 @@ TEST_CASE("reject flood logs once per second with a suppressed count" * doctest:
     NetRejectReset();
 }
 
-TEST_CASE("reject logger logs again after the clock goes backwards" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetlogTest2, "Net::RegressionNetlog::reject logger logs again after the clock goes backwards", "[EngineFilter]")
 {
     NetTestReset();
     sTestClock = 3600.0f;
@@ -66,7 +67,7 @@ TEST_CASE("reject logger logs again after the clock goes backwards" * doctest::t
     NetRejectReset();
 }
 
-TEST_CASE("reject reasons rate limit independently" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetlogTest3, "Net::RegressionNetlog::reject reasons rate limit independently", "[EngineFilter]")
 {
     NetTestReset();
     sTestClock = 5.0f;

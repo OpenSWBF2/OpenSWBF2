@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -44,7 +45,7 @@ void LogOne(const std::string& sPath, const char* pcMessage)
 
 }
 
-TEST_CASE("file log writes percent text literally" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedwarningLogTest1, "Unit::RedwarningLog::file log writes percent text literally", "[EngineFilter]")
 {
     std::string sPath = TempDir() + "owb2_pct.log";
     DeleteFileA(sPath.c_str());
@@ -54,7 +55,7 @@ TEST_CASE("file log writes percent text literally" * doctest::test_suite("regres
     DeleteFileA(sPath.c_str());
 }
 
-TEST_CASE("log file name accepts a long path" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedwarningLogTest2, "Unit::RedwarningLog::log file name accepts a long path", "[EngineFilter]")
 {
     std::string sDir = TempDir() + "owb2_long_directory_name_one";
     std::string sDir2 = sDir + "\\owb2_long_directory_name_two_padding_padding";
@@ -74,7 +75,7 @@ TEST_CASE("log file name accepts a long path" * doctest::test_suite("regression"
     RemoveDirectoryA(sDir.c_str());
 }
 
-TEST_CASE("log file is truncated at open" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedwarningLogTest3, "Unit::RedwarningLog::log file is truncated at open", "[EngineFilter]")
 {
     std::string sPath = TempDir() + "owb2_trunc.log";
     FILE* pFile = fopen(sPath.c_str(), "wb");
@@ -88,7 +89,7 @@ TEST_CASE("log file is truncated at open" * doctest::test_suite("regression"))
     DeleteFileA(sPath.c_str());
 }
 
-TEST_CASE("ten existing log files fall back to BFront2.log" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedwarningLogTest4, "Unit::RedwarningLog::ten existing log files fall back to BFront2.log", "[EngineFilter]")
 {
     char acOldDir[MAX_PATH];
     GetCurrentDirectoryA(MAX_PATH, acOldDir);

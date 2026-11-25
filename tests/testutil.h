@@ -32,6 +32,8 @@ void HarnessError(const char* pcReason);
 #include <string>
 #include <vector>
 
+#include "harness/expect.h"
+
 namespace RedWarning
 {
 extern void(__cdecl* g_fnLogCallback)(char const*, ...);
@@ -51,30 +53,6 @@ private:
     void(__cdecl* mpOldCallback)(char const*, ...);
     int meOldSeverity;
 };
-
-class ExpectLog
-{
-public:
-    explicit ExpectLog(const char* pcSubstring);
-    ~ExpectLog();
-
-private:
-    ExpectLog(const ExpectLog&);
-    ExpectLog& operator=(const ExpectLog&);
-    std::string mText;
-};
-
-class ExpectEnsure
-{
-public:
-    explicit ExpectEnsure(const char* pcName);
-
-private:
-    ExpectLog mLog;
-};
-
-void __cdecl TestLogObserver(int iSeverity, int iCategory, char const* pcLine);
-int TestStrictnessReport(const char* pcCase);
 
 std::string RepoRoot();
 bool ReadRepoText(const char* pcRelPath, std::string& sOut);

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 
@@ -148,7 +149,7 @@ private:
 
 }
 
-TEST_CASE("lua save items round trip and drop light userdata" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSaveItemsTest1, "Unit::LuaSaveItems::lua save items round trip and drop light userdata", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L != (lua_State*)0);
@@ -216,7 +217,7 @@ TEST_CASE("lua save items round trip and drop light userdata" * doctest::test_su
     lua_close(L);
 }
 
-TEST_CASE("lua save items write stays inside its buffer" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSaveItemsTest2, "Unit::LuaSaveItems::lua save items write stays inside its buffer", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L != (lua_State*)0);
@@ -271,7 +272,7 @@ TEST_CASE("lua save items write stays inside its buffer" * doctest::test_suite("
     lua_close(L);
 }
 
-TEST_CASE("lua save items read rejects malformed buffers" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSaveItemsTest3, "Unit::LuaSaveItems::lua save items read rejects malformed buffers", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L != (lua_State*)0);
@@ -348,7 +349,7 @@ TEST_CASE("lua save items read rejects malformed buffers" * doctest::test_suite(
     lua_close(L);
 }
 
-TEST_CASE("lua save items match pinned x86 bytes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSaveItemsTest4, "Unit::LuaSaveItems::lua save items match pinned x86 bytes", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L != (lua_State*)0);
@@ -404,17 +405,17 @@ TEST_CASE("lua save items match pinned x86 bytes" * doctest::test_suite("regress
     lua_close(L);
 }
 
-TEST_CASE("lua save items load logs one line per rejected save" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSaveItemsTest5, "Unit::LuaSaveItems::lua save items load logs one line per rejected save", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L != (lua_State*)0);
     const unsigned short ausName[] = { 'R', 'e', 'b', 'e', 'l', '1', 0 };
-    const char acLine[] = "OPENSWBF2 SAVE rejected metagame save \"Rebel1\"";
+    const char acLine[] = "Save data rejected metagame save \"Rebel1\"";
 
     {
         LogCapture kCapture;
         CHECK(LuaSaveItems::Load(L, kPinnedItems, sizeof(kPinnedItems), "metagame", ausName) == 5);
-        CHECK(kCapture.Count("OPENSWBF2 SAVE") == 0);
+        CHECK(kCapture.Count("Save data") == 0);
     }
     lua_settop(L, 0);
 
@@ -423,13 +424,13 @@ TEST_CASE("lua save items load logs one line per rejected save" * doctest::test_
         CHECK(LuaSaveItems::Load(L, kPinnedItems, sizeof(kPinnedItems) - 2, "metagame", ausName) == 0);
         CHECK(lua_gettop(L) == 0);
         CHECK(kCapture.Count(acLine) == 1);
-        CHECK(kCapture.Count("OPENSWBF2 SAVE") == 1);
+        CHECK(kCapture.Count("Save data") == 1);
     }
 
     {
         LogCapture kCapture;
         CHECK(LuaSaveItems::Load(L, kPinnedItems, 0, "mission setup", 0) == 0);
-        CHECK(kCapture.Count("OPENSWBF2 SAVE rejected mission setup save \"\"") == 1);
+        CHECK(kCapture.Count("Save data rejected mission setup save \"\"") == 1);
     }
 
     lua_close(L);

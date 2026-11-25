@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 
@@ -183,7 +184,7 @@ void SetSizeField(Built& k, unsigned int uField)
 
 }
 
-TEST_CASE("movie header accepts retail shaped streams" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest1, "Unit::MovieHeader::movie header accepts retail shaped streams", "[SmokeFilter]")
 {
     const unsigned int auRates[2] = {48000, 44100};
     for (int r = 0; r < 2; ++r)
@@ -212,7 +213,7 @@ TEST_CASE("movie header accepts retail shaped streams" * doctest::test_suite("un
     }
 }
 
-TEST_CASE("movie header accepts every field at its cap" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest2, "Unit::MovieHeader::movie header accepts every field at its cap", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.uWidth = 1024;
@@ -286,7 +287,7 @@ TEST_CASE("movie header accepts every field at its cap" * doctest::test_suite("u
     CHECK(kInfo.uFileSize == 29316 + 7314 * 10000 + 1);
 }
 
-TEST_CASE("movie header rejects a bad magic with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest3, "Unit::MovieHeader::movie header rejects a bad magic with its reason", "[SmokeFilter]")
 {
     const char* apcMagic[4] = {"KB2i", "SMUS", "BIJi", "bIKi"};
     for (int i = 0; i < 4; ++i)
@@ -297,7 +298,7 @@ TEST_CASE("movie header rejects a bad magic with its reason" * doctest::test_sui
     }
 }
 
-TEST_CASE("movie header rejects a revision outside the demuxer set with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest4, "Unit::MovieHeader::movie header rejects a revision outside the demuxer set with its reason", "[SmokeFilter]")
 {
     const char acRevisions[5] = {'a', 'c', 'e', 'j', 'l'};
     for (int i = 0; i < 5; ++i)
@@ -308,7 +309,7 @@ TEST_CASE("movie header rejects a revision outside the demuxer set with its reas
     }
 }
 
-TEST_CASE("movie header rejects a file size past its segment with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest5, "Unit::MovieHeader::movie header rejects a file size past its segment with its reason", "[SmokeFilter]")
 {
     RequireRejectSegment(RetailSpec(48000), -1, "size");
     Built k = Build(RetailSpec(48000));
@@ -319,7 +320,7 @@ TEST_CASE("movie header rejects a file size past its segment with its reason" * 
     CHECK(sReason == "size");
 }
 
-TEST_CASE("movie header rejects a frame count past its cap with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest6, "Unit::MovieHeader::movie header rejects a frame count past its cap with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.uFrames = 16001;
@@ -335,7 +336,7 @@ TEST_CASE("movie header rejects a frame count past its cap with its reason" * do
     CHECK(sReason == "frames");
 }
 
-TEST_CASE("movie header rejects a largest frame past its cap with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest7, "Unit::MovieHeader::movie header rejects a largest frame past its cap with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.uLargest = 262145;
@@ -344,7 +345,7 @@ TEST_CASE("movie header rejects a largest frame past its cap with its reason" * 
     RequireReject(k, "largest");
 }
 
-TEST_CASE("movie header rejects a width past its cap with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest8, "Unit::MovieHeader::movie header rejects a width past its cap with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.uWidth = 1025;
@@ -353,7 +354,7 @@ TEST_CASE("movie header rejects a width past its cap with its reason" * doctest:
     RequireReject(k, "width");
 }
 
-TEST_CASE("movie header rejects a height past its cap with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest9, "Unit::MovieHeader::movie header rejects a height past its cap with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.uHeight = 769;
@@ -362,7 +363,7 @@ TEST_CASE("movie header rejects a height past its cap with its reason" * doctest
     RequireReject(k, "height");
 }
 
-TEST_CASE("movie header rejects a zero frame rate with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest10, "Unit::MovieHeader::movie header rejects a zero frame rate with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.uFpsNum = 0;
@@ -374,7 +375,7 @@ TEST_CASE("movie header rejects a zero frame rate with its reason" * doctest::te
     RequireReject(k, "fps");
 }
 
-TEST_CASE("movie header accepts the three retail frame rates" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest11, "Unit::MovieHeader::movie header accepts the three retail frame rates", "[SmokeFilter]")
 {
     const unsigned int auNum[3] = {10000000, 5000000, 10000000};
     const unsigned int auDen[3] = {333333, 166833, 333667};
@@ -387,7 +388,7 @@ TEST_CASE("movie header accepts the three retail frame rates" * doctest::test_su
     }
 }
 
-TEST_CASE("movie header rejects a frame rate below 1 fps with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest12, "Unit::MovieHeader::movie header rejects a frame rate below 1 fps with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.uFpsNum = 0xFFFFFFFFu;
@@ -403,7 +404,7 @@ TEST_CASE("movie header rejects a frame rate below 1 fps with its reason" * doct
     RequireReject(k, "fps");
 }
 
-TEST_CASE("movie header rejects a frame rate above 120 fps with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest13, "Unit::MovieHeader::movie header rejects a frame rate above 120 fps with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.uFpsNum = 4294967280u;
@@ -419,7 +420,7 @@ TEST_CASE("movie header rejects a frame rate above 120 fps with its reason" * do
     RequireReject(k, "fps");
 }
 
-TEST_CASE("movie header rejects a largest frame past the file size with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest14, "Unit::MovieHeader::movie header rejects a largest frame past the file size with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.uFrames = 1;
@@ -432,7 +433,7 @@ TEST_CASE("movie header rejects a largest frame past the file size with its reas
     RequireReject(k, "largest");
 }
 
-TEST_CASE("movie header rejects a frame shorter than its audio sizes with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest15, "Unit::MovieHeader::movie header rejects a frame shorter than its audio sizes with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.uTracks = 2;
@@ -457,14 +458,14 @@ TEST_CASE("movie header rejects a frame shorter than its audio sizes with its re
     RequireReject(k, "order");
 }
 
-TEST_CASE("movie header rejects a track count past its cap with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest16, "Unit::MovieHeader::movie header rejects a track count past its cap with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.uTracks = 7;
     RequireReject(k, "tracks");
 }
 
-TEST_CASE("movie header rejects a sample rate outside its range with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest17, "Unit::MovieHeader::movie header rejects a sample rate outside its range with its reason", "[SmokeFilter]")
 {
     RequireReject(RetailSpec(7999), "rate");
     RequireReject(RetailSpec(48001), "rate");
@@ -474,7 +475,7 @@ TEST_CASE("movie header rejects a sample rate outside its range with its reason"
     RequireReject(k, "rate");
 }
 
-TEST_CASE("movie header rejects an audio flag outside the bink set with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest18, "Unit::MovieHeader::movie header rejects an audio flag outside the bink set with its reason", "[SmokeFilter]")
 {
     const unsigned int auFlags[4] = {0x7800, 0x8000, 0x0001, 0xFFFF};
     for (int i = 0; i < 4; ++i)
@@ -489,7 +490,7 @@ TEST_CASE("movie header rejects an audio flag outside the bink set with its reas
     RequireReject(k, "aflags");
 }
 
-TEST_CASE("movie header rejects a first index off the header end with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest19, "Unit::MovieHeader::movie header rejects a first index off the header end with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.iIndex0Shift = 2;
@@ -498,7 +499,7 @@ TEST_CASE("movie header rejects a first index off the header end with its reason
     RequireReject(k, "index");
 }
 
-TEST_CASE("movie header rejects an index out of order with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest20, "Unit::MovieHeader::movie header rejects an index out of order with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.iSwapFrame = 100;
@@ -518,7 +519,7 @@ TEST_CASE("movie header rejects an index out of order with its reason" * doctest
     RequireReject(k, "order");
 }
 
-TEST_CASE("movie header rejects a last index off the file end with its reason" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest21, "Unit::MovieHeader::movie header rejects a last index off the file end with its reason", "[SmokeFilter]")
 {
     StreamSpec k = RetailSpec(48000);
     k.iLastShift = -2;
@@ -533,8 +534,7 @@ TEST_CASE("movie header rejects a last index off the file end with its reason" *
     CHECK(sReason == "range");
 }
 
-TEST_CASE("movie header asks for more bytes at every truncation point without reading past them" *
-          doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieHeaderTest22, "Unit::MovieHeader::movie header asks for more bytes at every truncation point without reading past them", "[SmokeFilter]")
 {
     SYSTEM_INFO kSys;
     GetSystemInfo(&kSys);

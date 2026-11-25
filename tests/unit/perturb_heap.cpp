@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <string.h>
@@ -123,7 +124,7 @@ DWORD WINAPI CreatePoolProc(void* pv)
 
 }
 
-TEST_CASE("perturb heap parses the seed and mode list" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPerturbHeapTest1, "Unit::PerturbHeap::perturb heap parses the seed and mode list", "[EngineFilter]")
 {
     unsigned int uSeed = 99;
     unsigned int uModes = 99;
@@ -157,7 +158,7 @@ TEST_CASE("perturb heap parses the seed and mode list" * doctest::test_suite("re
     CHECK(std::string(acModes) == "pad,fill,pool");
 }
 
-TEST_CASE("perturb heap absent keeps zeroed blocks and the plain charge" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPerturbHeapTest2, "Unit::PerturbHeap::perturb heap absent keeps zeroed blocks and the plain charge", "[EngineFilter]")
 {
     PerturbGuard kGuard(0, 0);
     CHECK(RedPerturbModes() == 0);
@@ -168,7 +169,7 @@ TEST_CASE("perturb heap absent keeps zeroed blocks and the plain charge" * docte
     RedDestroyHeap(iHeap);
 }
 
-TEST_CASE("perturb heap pad adds the drawn bytes to the charge" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPerturbHeapTest3, "Unit::PerturbHeap::perturb heap pad adds the drawn bytes to the charge", "[EngineFilter]")
 {
     PerturbGuard kGuard(kPerturbPadSeed, kRedPerturbPad);
     CHECK(RedPerturbSeed() == kPerturbPadSeed);
@@ -190,7 +191,7 @@ TEST_CASE("perturb heap pad adds the drawn bytes to the charge" * doctest::test_
     RedDestroyHeap(iHeap);
 }
 
-TEST_CASE("perturb heap fill writes 0xA5 over blocks" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPerturbHeapTest4, "Unit::PerturbHeap::perturb heap fill writes 0xA5 over blocks", "[EngineFilter]")
 {
     PerturbGuard kGuard(1, kRedPerturbFill);
     const int iHeap = CreatePerturbHeap();
@@ -203,7 +204,7 @@ TEST_CASE("perturb heap fill writes 0xA5 over blocks" * doctest::test_suite("reg
     RedDestroyHeap(iHeap);
 }
 
-TEST_CASE("perturb heap absent sequence repeats after the guard resets" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPerturbHeapTest5, "Unit::PerturbHeap::perturb heap absent sequence repeats after the guard resets", "[EngineFilter]")
 {
     char* apcBefore[4];
     {
@@ -228,7 +229,7 @@ TEST_CASE("perturb heap absent sequence repeats after the guard resets" * doctes
     CheckAbsentSequence(iHeap, apcAfter);
     RedDestroyHeap(iHeap);
 }
-TEST_CASE("perturb heap pool absent keeps address order and frees to the front" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPerturbHeapTest6, "Unit::PerturbHeap::perturb heap pool absent keeps address order and frees to the front", "[EngineFilter]")
 {
     PerturbGuard kGuard(0, 0);
     MemoryPool kPool("t1perturb", 16);
@@ -252,7 +253,7 @@ TEST_CASE("perturb heap pool absent keeps address order and frees to the front" 
     kPool.Destroy();
 }
 
-TEST_CASE("perturb heap pool shuffles the free list and reuses every freed block" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPerturbHeapTest7, "Unit::PerturbHeap::perturb heap pool shuffles the free list and reuses every freed block", "[EngineFilter]")
 {
     PerturbGuard kGuard(kPerturbPoolSeed, kRedPerturbPool);
     MemoryPool kPool("t1perturb", 16);
@@ -308,7 +309,7 @@ static void ReuseOrder(int aiOrder[8])
     kPool.Destroy();
 }
 
-TEST_CASE("perturb heap pool shuffles reuse order of freed blocks" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPerturbHeapTest8, "Unit::PerturbHeap::perturb heap pool shuffles reuse order of freed blocks", "[EngineFilter]")
 {
     int aiAbsent[8];
     {
@@ -339,7 +340,7 @@ TEST_CASE("perturb heap pool shuffles reuse order of freed blocks" * doctest::te
     CHECK_FALSE(bLifo);
 }
 
-TEST_CASE("perturb heap pool shuffles growth chunks" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPerturbHeapTest9, "Unit::PerturbHeap::perturb heap pool shuffles growth chunks", "[EngineFilter]")
 {
     PerturbGuard kGuard(kPerturbPoolSeed, kRedPerturbPool);
     MemoryPool kPool("t1perturbgrow", 16);
@@ -369,7 +370,7 @@ TEST_CASE("perturb heap pool shuffles growth chunks" * doctest::test_suite("regr
     kPool.Destroy();
 }
 
-TEST_CASE("perturb heap pool order repeats and ignores pools built off the main thread" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPerturbHeapTest10, "Unit::PerturbHeap::perturb heap pool order repeats and ignores pools built off the main thread", "[EngineFilter]")
 {
     int aiFirst[8];
     int aiSecond[8];
@@ -398,7 +399,7 @@ TEST_CASE("perturb heap pool order repeats and ignores pools built off the main 
     CHECK_FALSE(bIdentity);
 }
 
-TEST_CASE("perturb heap pool fill writes 0xA5 over every allocated block" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPerturbHeapTest11, "Unit::PerturbHeap::perturb heap pool fill writes 0xA5 over every allocated block", "[EngineFilter]")
 {
     PerturbGuard kGuard(1, kRedPerturbFill);
     MemoryPool kPool("t1perturbfill", 16);

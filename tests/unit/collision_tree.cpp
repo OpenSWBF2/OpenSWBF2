@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -104,7 +105,7 @@ void CheckTree(const BuiltTree& kTree)
 
 }
 
-TEST_CASE("collision tree offsets resolve above 4 GB" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCollisionTreeTest1, "Unit::CollisionTree::collision tree offsets resolve above 4 GB", "[EngineFilter]")
 {
     TreeStatics kSaved;
     const SIZE_T uSize = 0x10000;
@@ -127,7 +128,7 @@ TEST_CASE("collision tree offsets resolve above 4 GB" * doctest::test_suite("reg
     CHECK(VirtualFree(pcBlock, 0, MEM_RELEASE));
 }
 
-TEST_CASE("collision tree offsets survive a second mesh" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCollisionTreeTest2, "Unit::CollisionTree::collision tree offsets survive a second mesh", "[EngineFilter]")
 {
     TreeStatics kSaved;
 
@@ -153,7 +154,7 @@ extern int gStubChunkIdsLeft;
 extern const unsigned char* gStubFileBytes;
 extern int gStubFileBytesLeft;
 
-TEST_CASE("collision tree reader builds nodes and leaves from the chunk" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCollisionTreeTest3, "Unit::CollisionTree::collision tree reader builds nodes and leaves from the chunk", "[EngineFilter]")
 {
     TreeStatics kSaved;
     const unsigned int auIds[] = {CHUNK_ID('N', 'O', 'D', 'E'), CHUNK_ID('L', 'E', 'A', 'F'), CHUNK_ID('N', 'O', 'D', 'E'),

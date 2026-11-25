@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 
@@ -119,9 +120,9 @@ int RaiseWithHeap(lua_State* L)
 
 }
 
-TEST_CASE("lua oom is raised as LUA_ERRMEM" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaOomTest1, "Unit::LuaOom::lua oom is raised as LUA_ERRMEM", "[EngineFilter]")
 {
-    ExpectLog expect("Lua out of memory");
+    AddExpectedError("Lua out of memory");
     lua_State* L = lua_open();
     REQUIRE(L);
     {
@@ -134,14 +135,14 @@ TEST_CASE("lua oom is raised as LUA_ERRMEM" * doctest::test_suite("regression"))
     lua_close(L);
 }
 
-TEST_CASE("lua userdata header is four pointer widths" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLuaOomTest2, "Unit::LuaOom::lua userdata header is four pointer widths", "[SmokeFilter]")
 {
     CHECK(sizeof(Udata) == 4 * sizeof(void*));
 }
 
-TEST_CASE("lua failed shrink keeps the old block" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaOomTest3, "Unit::LuaOom::lua failed shrink keeps the old block", "[EngineFilter]")
 {
-    ExpectLog expect("Lua out of memory");
+    AddExpectedError("Lua out of memory");
     void* pBlock = Lua_Red_realloc(0, 0, 100);
     REQUIRE(pBlock);
     {
@@ -155,7 +156,7 @@ TEST_CASE("lua failed shrink keeps the old block" * doctest::test_suite("regress
     CHECK(RedGetHeapFree(GameMemory::LuaHeap) > uiFree);
 }
 
-TEST_CASE("lua error restores the current heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaOomTest4, "Unit::LuaOom::lua error restores the current heap", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -165,9 +166,9 @@ TEST_CASE("lua error restores the current heap" * doctest::test_suite("regressio
     lua_close(L);
 }
 
-TEST_CASE("lua panic handler exits with code 4" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaOomTest5, "Unit::LuaOom::lua panic handler exits with code 4", "[EngineFilter]")
 {
-    ExpectLog expect("Lua panic");
+    AddExpectedError("Lua panic", EAutomationExpectedErrorFlags::Contains, 3);
     lua_State* L = lua_open();
     REQUIRE(L);
     int iCalls = gExitCalls;
@@ -188,7 +189,7 @@ TEST_CASE("lua panic handler exits with code 4" * doctest::test_suite("regressio
     lua_close(L);
 }
 
-TEST_CASE("lua realloc keeps a shrunk heap block in place and bin blocks on their path" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaOomTest6, "Unit::LuaOom::lua realloc keeps a shrunk heap block in place and bin blocks on their path", "[EngineFilter]")
 {
     MiLuaHeap kHeap;
     unsigned char* pHeap = (unsigned char*)Lua_Red_realloc(0, 0, 2000);
@@ -221,7 +222,7 @@ TEST_CASE("lua realloc keeps a shrunk heap block in place and bin blocks on thei
 }
 
 #ifdef OPENSWBF2_TEST
-TEST_CASE("lua realloc keeps the fill test hook on the heap path" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaOomTest7, "Unit::LuaOom::lua realloc keeps the fill test hook on the heap path", "[EngineFilter]")
 {
     MiLuaHeap kHeap;
     PerturbScope kPerturb(1, kRedPerturbFill);
@@ -248,7 +249,7 @@ TEST_CASE("lua realloc keeps the fill test hook on the heap path" * doctest::tes
     Lua_Red_Free(q, 3000);
 }
 
-TEST_CASE("lua realloc keeps the pad test hook on the heap path" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaOomTest8, "Unit::LuaOom::lua realloc keeps the pad test hook on the heap path", "[EngineFilter]")
 {
     MiLuaHeap kHeap;
     PerturbScope kPerturb(7, kRedPerturbPad);
@@ -267,7 +268,7 @@ TEST_CASE("lua realloc keeps the pad test hook on the heap path" * doctest::test
 }
 #endif
 
-TEST_CASE("lua mission bin table is the re-tuned one" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaOomTest9, "Unit::LuaOom::lua mission bin table is the re-tuned one", "[EngineFilter]")
 {
     LuaMemory::CreatePools(false);
     const unsigned int auBins86[4] = { 8, 56, 10, 28 };
@@ -299,7 +300,7 @@ TEST_CASE("lua mission bin table is the re-tuned one" * doctest::test_suite("reg
     LuaMemory::Reset();
 }
 
-TEST_CASE("lua shell bin table is unchanged" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaOomTest10, "Unit::LuaOom::lua shell bin table is unchanged", "[EngineFilter]")
 {
     LuaMemory::CreatePools(true);
     MemoryPool* pEight = LuaMemory::LocatePool(8 * 4, 0);
@@ -315,7 +316,7 @@ TEST_CASE("lua shell bin table is unchanged" * doctest::test_suite("regression")
 extern MemPoolInfo gGamePoolInfo[48];
 extern MemPoolInfo gShellPoolInfo[48];
 
-TEST_CASE("lua demand histogram bound covers twice every bin" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaOomTest11, "Unit::LuaOom::lua demand histogram bound covers twice every bin", "[EngineFilter]")
 {
     CHECK(LuaMemory::kLuaHistMaxBin == 640);
     CHECK(LuaMemory::kLuaHistRows == 642);
@@ -336,9 +337,9 @@ TEST_CASE("lua demand histogram bound covers twice every bin" * doctest::test_su
     CHECK(LuaMemory::LuaHistRow(0xFFFFFFFFu) == 641);
 }
 
-TEST_CASE("lua demand histogram counts peak and calls per bin" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaOomTest12, "Unit::LuaOom::lua demand histogram counts peak and calls per bin", "[EngineFilter]")
 {
-    ExpectLog expect("Lua out of memory");
+    AddExpectedError("Lua out of memory");
     MiLuaHeap kHeap;
     {
         FillGuard guard(GameMemory::LuaHeap, 0);
@@ -411,10 +412,10 @@ TEST_CASE("lua demand histogram counts peak and calls per bin" * doctest::test_s
     {
         LogCapture capture;
         LuaMemory::LogMemReportLines();
-        CHECK(capture.Contains("OPENSWBF2 MEMREPORT luahist bin=8 peak=3 calls=5"));
-        CHECK(capture.Contains("OPENSWBF2 MEMREPORT luahist bin=500 peak=2 calls=4"));
-        CHECK(capture.Contains("OPENSWBF2 MEMREPORT luahist bin=over peak=1 calls=2"));
-        CHECK(capture.Count("OPENSWBF2 MEMREPORT luahist ") == 6);
+        CHECK(capture.Contains("Memory report luahist bin=8 peak=3 calls=5"));
+        CHECK(capture.Contains("Memory report luahist bin=500 peak=2 calls=4"));
+        CHECK(capture.Contains("Memory report luahist bin=over peak=1 calls=2"));
+        CHECK(capture.Count("Memory report luahist ") == 6);
     }
     LuaMemory::Reset();
     LuaMemory::CreatePools(true);

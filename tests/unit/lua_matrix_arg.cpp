@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <string.h>
@@ -22,7 +23,7 @@ void CheckRejected(lua_State* L, int iIndex)
 
 }
 
-TEST_CASE("lua matrix argument accepts only pushed matrices" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaMatrixArgTest1, "Unit::LuaMatrixArg::lua matrix argument accepts only pushed matrices", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L != (lua_State*)0);
@@ -145,7 +146,7 @@ void ListSources(const std::string& sDir, const char* pcPattern, std::vector<std
 
 }
 
-TEST_CASE("lua matrix sites route through the accessor" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaMatrixArgTest2, "Unit::LuaMatrixArg::lua matrix sites route through the accessor", "[EngineFilter]")
 {
     const std::string sRel = "src\\Battlefront2\\Source\\";
     std::vector<std::string> vFiles;

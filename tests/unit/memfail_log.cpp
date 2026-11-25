@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdio.h>
 
@@ -21,9 +22,9 @@ int CreateRuntimeHeap()
 
 }
 
-TEST_CASE("alloc failure handler logs and suppresses" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemfailLogTest1, "Unit::MemfailLog::alloc failure handler logs and suppresses", "[EngineFilter]")
 {
-    ExpectLog expect("alloc failure heap");
+    AddExpectedError("alloc failure heap", EAutomationExpectedErrorFlags::Contains, 16);
     const int iHeap = CreateRuntimeHeap();
     const unsigned int uiFree = RedGetHeapFree(iHeap);
     REQUIRE(uiFree > 0);
@@ -72,9 +73,9 @@ TEST_CASE("alloc failure handler logs and suppresses" * doctest::test_suite("reg
     }
 }
 
-TEST_CASE("alloc failure handler tolerates bad heap id" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemfailLogTest2, "Unit::MemfailLog::alloc failure handler tolerates bad heap id", "[EngineFilter]")
 {
-    ExpectLog expect("alloc failure heap");
+    AddExpectedError("alloc failure heap", EAutomationExpectedErrorFlags::Contains, 2);
     CreateRuntimeHeap();
     LogCapture capture;
     MemFail::OnAllocFailure(-1, 5);
@@ -91,9 +92,9 @@ static void __cdecl ReenterSink(char const* pcLine, ...)
     MemFail::OnAllocFailure(1, 99);
 }
 
-TEST_CASE("alloc failure handler ignores re-entry" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemfailLogTest3, "Unit::MemfailLog::alloc failure handler ignores re-entry", "[EngineFilter]")
 {
-    ExpectLog expect("alloc failure heap");
+    AddExpectedError("alloc failure heap", EAutomationExpectedErrorFlags::Contains, 1);
     const int iHeap = CreateRuntimeHeap();
     LogCapture capture;
     RedWarning::g_fnLogCallback = ReenterSink;

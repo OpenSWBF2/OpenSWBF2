@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdlib.h>
 
@@ -33,14 +34,14 @@ int CanaryMiHeap()
 
 }
 
-TEST_CASE("asan canary heap overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest1, "Unit::AsanCanary::asan canary heap overflow is reported", "[NegativeFilter][AsanCanary][AsanError=heap-buffer-overflow]")
 {
     volatile char* p = (volatile char*)malloc(8);
     p[8] = 1;
     free((void*)p);
 }
 
-TEST_CASE("asan canary red heap overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest2, "Unit::AsanCanary::asan canary red heap overflow is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     volatile char* p = (volatile char*)RedAllocFromHeap(__RedCurrHeap, 8, 0);
     REQUIRE(p);
@@ -48,7 +49,7 @@ TEST_CASE("asan canary red heap overflow is reported" * doctest::test_suite("asa
     RedFreeToHeap(__RedCurrHeap, (void*)p, 0);
 }
 
-TEST_CASE("asan canary red heap use after free is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest3, "Unit::AsanCanary::asan canary red heap use after free is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     volatile char* p = (volatile char*)RedAllocFromHeap(__RedCurrHeap, 16, 0);
     REQUIRE(p);
@@ -56,7 +57,7 @@ TEST_CASE("asan canary red heap use after free is reported" * doctest::test_suit
     p[0] = 1;
 }
 
-TEST_CASE("asan canary memory pool overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest4, "Unit::AsanCanary::asan canary memory pool overflow is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     MemoryPool pool("canary", 16);
     pool.Create(4, 16, 1);
@@ -66,7 +67,7 @@ TEST_CASE("asan canary memory pool overflow is reported" * doctest::test_suite("
     pool.Free((void*)p);
 }
 
-TEST_CASE("asan canary memory pool use after free is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest5, "Unit::AsanCanary::asan canary memory pool use after free is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     MemoryPool pool("canary", 16);
     pool.Create(4, 16, 1);
@@ -76,7 +77,7 @@ TEST_CASE("asan canary memory pool use after free is reported" * doctest::test_s
     p[0] = 1;
 }
 
-TEST_CASE("asan canary lua bin overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest6, "Unit::AsanCanary::asan canary lua bin overflow is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     LuaMemory::CreatePools(true);
     volatile char* p = (volatile char*)Lua_Red_realloc(0, 0, 13);
@@ -86,7 +87,7 @@ TEST_CASE("asan canary lua bin overflow is reported" * doctest::test_suite("asan
     Lua_Red_Free((void*)p, 13);
 }
 
-TEST_CASE("asan canary lua bin use after free is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest7, "Unit::AsanCanary::asan canary lua bin use after free is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     LuaMemory::CreatePools(true);
     volatile char* p = (volatile char*)Lua_Red_realloc(0, 0, 16);
@@ -96,7 +97,7 @@ TEST_CASE("asan canary lua bin use after free is reported" * doctest::test_suite
     p[0] = 1;
 }
 
-TEST_CASE("asan canary net packet overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest8, "Unit::AsanCanary::asan canary net packet overflow is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     NetPacket::Create();
     NetPacket* pPacket = NetPacket::Alloc(false);
@@ -106,7 +107,7 @@ TEST_CASE("asan canary net packet overflow is reported" * doctest::test_suite("a
     pPacket->Free();
 }
 
-TEST_CASE("asan canary net packet use after free is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest9, "Unit::AsanCanary::asan canary net packet use after free is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     NetPacket::Create();
     NetPacket* pPacket = NetPacket::Alloc(false);
@@ -116,14 +117,14 @@ TEST_CASE("asan canary net packet use after free is reported" * doctest::test_su
     p[0] = 1;
 }
 
-TEST_CASE("asan canary red stack overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest10, "Unit::AsanCanary::asan canary red stack overflow is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     RedStack stack;
     volatile char* p = (volatile char*)stack.Alloc(13);
     p[13] = 1;
 }
 
-TEST_CASE("asan canary red stack use after scope is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest11, "Unit::AsanCanary::asan canary red stack use after scope is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     volatile char* p = 0;
     {
@@ -133,7 +134,7 @@ TEST_CASE("asan canary red stack use after scope is reported" * doctest::test_su
     p[0] = 1;
 }
 
-TEST_CASE("asan canary stack allocator overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest12, "Unit::AsanCanary::asan canary stack allocator overflow is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     void* pBlock = RedAllocFromHeap(__RedCurrHeap, 256, 0);
     REQUIRE(pBlock);
@@ -150,7 +151,7 @@ TEST_CASE("asan canary stack allocator overflow is reported" * doctest::test_sui
     RedFreeToHeap(__RedCurrHeap, pBlock, 0);
 }
 
-TEST_CASE("asan canary stack allocator use after free is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest13, "Unit::AsanCanary::asan canary stack allocator use after free is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     void* pBlock = RedAllocFromHeap(__RedCurrHeap, 256, 0);
     REQUIRE(pBlock);
@@ -168,7 +169,7 @@ TEST_CASE("asan canary stack allocator use after free is reported" * doctest::te
     RedFreeToHeap(__RedCurrHeap, pBlock, 0);
 }
 
-TEST_CASE("asan canary sub allocator overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest14, "Unit::AsanCanary::asan canary sub allocator overflow is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     util::StaticSubAlloc<CanaryElem> alloc;
     util::Buffer buf(0, 8);
@@ -179,7 +180,7 @@ TEST_CASE("asan canary sub allocator overflow is reported" * doctest::test_suite
     alloc.Deallocate(buf);
 }
 
-TEST_CASE("asan canary sub allocator use after free is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest15, "Unit::AsanCanary::asan canary sub allocator use after free is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     util::StaticSubAlloc<CanaryElem> alloc;
     util::Buffer buf(0, 16);
@@ -190,7 +191,7 @@ TEST_CASE("asan canary sub allocator use after free is reported" * doctest::test
     p[0] = 1;
 }
 
-TEST_CASE("asan canary list allocator overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest16, "Unit::AsanCanary::asan canary list allocator overflow is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     util::ListAllocator* pAlloc = util::ListAllocator::Create(0x2000, 0x10000);
     util::Buffer buf(0, 13);
@@ -202,7 +203,7 @@ TEST_CASE("asan canary list allocator overflow is reported" * doctest::test_suit
     delete pAlloc;
 }
 
-TEST_CASE("asan canary list allocator use after free is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest17, "Unit::AsanCanary::asan canary list allocator use after free is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     util::ListAllocator* pAlloc = util::ListAllocator::Create(0x2000, 0x10000);
     util::Buffer buf(0, 32);
@@ -214,7 +215,7 @@ TEST_CASE("asan canary list allocator use after free is reported" * doctest::tes
     delete pAlloc;
 }
 
-TEST_CASE("asan canary snd free list overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest18, "Unit::AsanCanary::asan canary snd free list overflow is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     Snd::FreeList list(16, 1, false, 8);
     volatile char* p = (volatile char*)list.Alloc();
@@ -224,7 +225,7 @@ TEST_CASE("asan canary snd free list overflow is reported" * doctest::test_suite
     list.PurgeBlocks();
 }
 
-TEST_CASE("asan canary snd free list use after free is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest19, "Unit::AsanCanary::asan canary snd free list use after free is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     Snd::FreeList list(16, 1, false, 8);
     volatile char* p = (volatile char*)list.Alloc();
@@ -234,7 +235,7 @@ TEST_CASE("asan canary snd free list use after free is reported" * doctest::test
     list.PurgeBlocks();
 }
 
-TEST_CASE("asan canary glyph memory overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest20, "Unit::AsanCanary::asan canary glyph memory overflow is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     RedGlyphMemoryManager* pManager = new RedGlyphMemoryManager(32);
     void* pBlock = pManager->Alloc(1);
@@ -244,7 +245,7 @@ TEST_CASE("asan canary glyph memory overflow is reported" * doctest::test_suite(
     pManager->Free(pBlock);
 }
 
-TEST_CASE("asan canary glyph memory use after free is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest21, "Unit::AsanCanary::asan canary glyph memory use after free is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     RedGlyphMemoryManager* pManager = new RedGlyphMemoryManager(32);
     void* pBlock = pManager->Alloc(1);
@@ -254,7 +255,7 @@ TEST_CASE("asan canary glyph memory use after free is reported" * doctest::test_
     p[0] = 1;
 }
 
-TEST_CASE("asan canary mimalloc heap slack overflow is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest22, "Unit::AsanCanary::asan canary mimalloc heap slack overflow is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     const int iHeap = CanaryMiHeap();
     REQUIRE(iHeap > 0);
@@ -265,7 +266,7 @@ TEST_CASE("asan canary mimalloc heap slack overflow is reported" * doctest::test
     RedDestroyHeap(iHeap);
 }
 
-TEST_CASE("asan canary mimalloc heap prefix underrun is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest23, "Unit::AsanCanary::asan canary mimalloc heap prefix underrun is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     const int iHeap = CanaryMiHeap();
     REQUIRE(iHeap > 0);
@@ -276,7 +277,7 @@ TEST_CASE("asan canary mimalloc heap prefix underrun is reported" * doctest::tes
     RedDestroyHeap(iHeap);
 }
 
-TEST_CASE("asan canary mimalloc heap use after destroy is reported" * doctest::test_suite("asan_canary"))
+TEST_CASE_NAMED(FAsanCanaryTest24, "Unit::AsanCanary::asan canary mimalloc heap use after destroy is reported", "[NegativeFilter][AsanCanary][AsanError=use-after-poison]")
 {
     const int iHeap = CanaryMiHeap();
     REQUIRE(iHeap > 0);

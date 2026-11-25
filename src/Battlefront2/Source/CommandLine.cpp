@@ -67,7 +67,9 @@ int gSaveTestType;
 char gSaveTestName[16];
 static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", "shellfirst", "exitonmovieclose",
     "digestdetail", "savetest", "handsoff", "movietest", "movieloops", "movielocal",
-    "movieskip", "moviefault" };
+    "movieskip", "moviefault", "autotest" };
+bool gAutoTestRequested;
+char gAutoTestFilter[512];
 // GLOBAL: SWBF2 0x007e6310
 int gBootLaggerPing = 300;
 
@@ -512,6 +514,8 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
     gMovieLocal = false;
     gMovieSkip = 0;
     gMovieFault = 0;
+    gAutoTestRequested = false;
+    gAutoTestFilter[0] = 0;
     gMissionOnCommandLine = false;
     sbNoVictoryNetLogged = false;
     suTestOnlyIgnored = 0;
@@ -690,6 +694,12 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             {
                 RedLog::ParseCmds(apcArgv[++i]);
             }
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "NOLOGTIMES") == 0)
+        {
+            RedLog::gNoLogTimes = true;
             continue;
         }
 
@@ -899,6 +909,29 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
 #endif
             }
             NoteTestOnlyArg(11);
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "autotest") == 0)
+        {
+            const char* pcValue = i + 1 < iArgc && apcArgv[i + 1][0] != '-' ? apcArgv[i + 1] : 0;
+            if (pcValue)
+            {
+                ++i;
+            }
+            if (!pcValue || strlen(pcValue) >= sizeof(gAutoTestFilter))
+            {
+                LOG(LogCore, Warning, "-autotest needs a test filter shorter than %u characters",
+                    (unsigned int)sizeof(gAutoTestFilter));
+            }
+#ifdef OPENSWBF2_TEST
+            gAutoTestRequested = true;
+            if (pcValue && strlen(pcValue) < sizeof(gAutoTestFilter))
+            {
+                strcpy(gAutoTestFilter, pcValue);
+            }
+#endif
+            NoteTestOnlyArg(12);
             continue;
         }
 

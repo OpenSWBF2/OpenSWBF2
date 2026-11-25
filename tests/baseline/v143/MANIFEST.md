@@ -19,33 +19,32 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 
 | File | SHA-256 | Produced by |
 |------|---------|-------------|
-| `CAUSES.md` | 65AD8B16776219FE6DBBC66C54DCBDC7E144F423904A9CBB1345C3EEE86FCDA4 | written by hand from the comparison against `tests/baseline/vs2013/` |
-| `smoke-all-digests.txt` | 60FE9252FB11AAD362EEF5FBA927BD2CCD2BBC041258E0A585FACE34C676F833 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
+| `CAUSES.md` | B359FBE78CFB4F64DEB369A2975F4DFB0190E60FB3A1CE83C4F268B9BB9CA451 | written by hand from the comparison against `tests/baseline/vs2013/` |
+| `smoke-all-digests.txt` | 7296407B0E03CF7AF42319AE3B44C72F631DC765C324464AE8CCDD9B9C772DA3 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `pool-sizes.txt` | A2FA679AC1174C9082D1E3DE216F82FC16B5E20B35A41C09AC4F081CF9643D72 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `mem-peaks.txt` | D24B076240DC0D686B07C7F1D33EF273F88E928C863E9C11878061FF3A7D41B0 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `cloth-headroom.txt` | 7C388EDBA9ADC4CF1D82A8C66FD7409CAF534B023E630AB59F9844312104F720 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
-| `hardening.txt` | AD181084A9C20B017CF56E5C98806540D4C3A68B2F29708C10CBE79D858E58ED | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
 | `offthread.txt` | 2D70A010C5B9E2DA6F6A2E79D230A3D505C72D065FE5066F17207379561E4DD5 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
 | `lua-bins.txt` | A6E3FF46D1E8A6D69232061361199590BC6FB0C1AEEF6EFF0A0E19F69DA5936A | `capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All` |
 | `lua-hist.txt` | CB394BFAF9FDEF86E9C4A51C16F9AAEDFABD0882A150490E6A8EEFE3F88B488A | `capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All` |
-| `digests-debug.txt` | B0856D73AF662CC495ECC019194E0DE150C71A8BA648B9211A33C29AEB18A122 | `capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug` |
-| `digests.txt` | 9AE18CAC28450E27A9AD9992321734DFAE2BBBFF90C50FAA6EBD99518B89D6B7 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `digests-hog.txt` | 9AE18CAC28450E27A9AD9992321734DFAE2BBBFF90C50FAA6EBD99518B89D6B7 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `digest-trace-geo1c_con.txt` | 90874B7E3EDB3B9412E64692CF4038EDA5EC97BE719ED712F0EAB044DFB99C57 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `digest-trace-hot1g_con.txt` | 21509E3C46BDE4C15ED1435FB1639F9E38B291EF070CF0EB3701755002B93994 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `digest-trace-nab2g_c.txt` | D81004C7FD74558721DF792795F156E08D085E6CFFED20F8BB3D78C13080AC21 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `digest-trace-spa3c_ass.txt` | 68AEF8A5CEEF5BB4335436E3EDA69D3E7368EF9C7A0CAB97834885E437A6560F | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `digest-trace-dag1c_ctf.txt` | BD12FDFA82CB2DB57D9D6041BFABDE0B6D1FF11C90BD387D48634C03D5E30651 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `digest-trace-kas2c_uber.txt` | C19068BAEFD49012871FB438375FD7FC8CB115F571BDD5D5E9956EB738BAD32A | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `factory-geo1c_con.txt` | 0C3C380156342E1C492092575630152541B648FF038F8B6285A840C6F73D9C7A | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `factory-hot1g_con.txt` | 21739D89813BFA37EC08B53900C0EDE5AD79CA96D8DFDEBAEDE5692127F3E5D6 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `factory-nab2g_c.txt` | 2192336505D7A03D0ABD400927A962AFB6EF09358AB6E572657AC7A4EC0C94E7 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
-| `factory-spa3c_ass.txt` | 0FDB0B17217BBC000279BBCD49AE05681C8ACB199306878FE0AA8E485714CABF | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `digests-debug.txt` | 43410C1C6F2D0877EC3D088DAF7E6DB8E1EA721AFEB5DABBE0634765398AE52E | `capture-vs2013.ps1 -DebugDigests` from `run.ps1 -Smoke Twice -SmokeConfiguration Debug` |
+| `digests.txt` | C366231B400687A272F3030E8BBD88D597475225CF040B39E9FF9A4C55D537C9 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `digests-hog.txt` | C366231B400687A272F3030E8BBD88D597475225CF040B39E9FF9A4C55D537C9 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `digest-trace-geo1c_con.txt` | AFFEBB16D317C5209C79B868F30A1BE624221D7BA4F391828221FB4E633473AF | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `digest-trace-hot1g_con.txt` | 581CAEFF4A3AB8BF5D28AF7A6FFCB8FC8B573B6E83BC2C56326AEF6B28835840 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `digest-trace-nab2g_c.txt` | 36D3D65BC29277A31F0D6F19038C3721DC74604505BCB0096495324F021F468C | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `digest-trace-spa3c_ass.txt` | 0E7B9CDEC9BEEF30858FEFA7FFEFC25291BABAD2057E0748892C146451A11ECF | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `digest-trace-dag1c_ctf.txt` | C6EFAE14F11C89BA4F306A7DCF503BD09189F52B270E54354DD3B3492C363715 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `digest-trace-kas2c_uber.txt` | 8E17DE177026D327DD4DE5E6FE4D0A68188AEE3C05B1EAAE8723D60200696862 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `factory-geo1c_con.txt` | 3A9A62BC7946C8D00184CC755C15AF05A00C47BB4AE1CC1079FB2A2599032B3A | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `factory-hot1g_con.txt` | ABE2A1CE250B9820092243654E00676957035F6682C5BBB9C74C58CACF01F5BD | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `factory-nab2g_c.txt` | 68A112D1C57A0F92D0B11C6B63507C444C14F3656BB7D882E68510685377FCAC | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
+| `factory-spa3c_ass.txt` | 528D729A022C9EDE3E8BE2E737047416FF7663D685BDF440BC3BB65472EB3563 | `capture-vs2013.ps1 -Collect -OutDir tests\baseline\v143` |
 | `initializers.txt` | DFAB8F8E42253C47AA0D88E56845E8E39DBAA531EA828E06A1FD7C74721B5320 | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
 | `initializers-di.txt` | 2C89B86B8D5836A6069AA6F99237253E30635B9C99FF7A17BCF4AE4D3BAA7D80 | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
 | `initializers-discarded.txt` | F9656D1101DEA5FE04D1DC5F96876DBAC83954CA710272BBE4D8DCFEED4BCCA0 | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
 | `x87-inventory.tsv` | 8B1B550A6B5524704B51DC49747FF9C8FF9B9E6F3C0E3AFC89597B39F4D524AC | `x87-inventory.ps1 -Exe bin\Win32\Release\BattlefrontII.exe -Map obj\Win32\Release\BattlefrontII.map -Out tests\baseline\v143\x87-inventory.tsv` |
-| `movie-goldens.txt` | A0514A9F758942EE48F428EE98C0C6A4EAEE1153B1284F2F0F87CA824F34FF41 | built from the `OPENSWBF2 MOVIE frame` lines of the 51-04 `-movietest` runs on the Win32 Test build, two byte-identical runs per segment; the `## binkw32 ingame digest` line from the 51-06 `ingame-movie-digest` runs, two byte-identical sound-on runs and one `-nosound` run |
+| `movie-goldens.txt` | D509FB737B257A12E868095E2E9CDD1773E0AD363EA01D5908EF782EC4693AFE | built from the `Movie frame` lines of the 51-04 `-movietest` runs on the Win32 Test build, two byte-identical runs per segment; the `## binkw32 ingame digest` line from the 51-06 `ingame-movie-digest` runs, two byte-identical sound-on runs and one `-nosound` run |
 | `movie-frames.txt` | 467DDFDE166F59741D202D0CCE369E7114C4B9F6B824F5B753AFFEBF3CAA0839 | the hashes the T2 `movie frame hashes match the pinned FFmpeg path` computes through `MovieDecoder` and `ConvertYuv420ToXrgb` on the Win32 Test build, two byte-identical runs; the x64 Test run gave the same bytes |
 
 ## Notes
@@ -54,7 +53,7 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 - Every file was captured or re-checked on commit eff2850, whose game exe is the a2c980c build with the 20-12 and 20-14 fixes (eff2850 changes only tests). Release exe SHA-256 `17A3A864356C23D254EA6A302DA0FF591A3013B0F5135A18F64E99E130A71885`. `hardening.txt` was regenerated there and `smoke-all-digests.txt` came out byte-identical. `digest-trace-hot1g_con.txt` was regenerated on a381f01. `digests.txt`, `digests-hog.txt`, `digests-debug.txt`, the other three digest traces and the four factory logs were captured on 1b1cbca/dce2810, and all ten, with `digest-trace-hot1g_con.txt`, are byte-identical when re-captured on eff2850. The `initializers*.txt` files come from dce2810.
 - The pool size, memory peak and cloth headroom tables name their commit on their first line and cover the missions in `tests/smoke/missions-all.txt`. The memory peak table keeps the latest MEMREPORT line for each heap and pool. A pool freed before the `exit` report still has an `exit` row, with count 0 and its peak.
 - `smoke-all-digests.txt` row `dedicated` is a real-time run, so its `state=`, `time=` and `rand=` vary between runs.
-- `offthread.txt` comes from the Test configuration, because the off-thread counter exists only in Test and Asan builds; every other table here except `lua-bins.txt` is Release. Its `## sound-on` section holds geo1c_xl, kas2c_xl and hot1g_xl run with the renderer and sound on by `tests\baseline\soundon.ps1`, which also writes each case's `sound.txt`. `sound=opened` means the game logged `OPENSWBF2 SOUND open=ok`; a `-nosound` control run logs no such line.
+- `offthread.txt` comes from the Test configuration, because the off-thread counter exists only in Test and Asan builds; every other table here except `lua-bins.txt` is Release. Its `## sound-on` section holds geo1c_xl, kas2c_xl and hot1g_xl run with the renderer and sound on by `tests\baseline\soundon.ps1`, which also writes each case's `sound.txt`. `sound=opened` means the game logged `Sound open=ok`; a `-nosound` control run logs no such line.
 - The serial-order flip re-captured `digests*.txt`, the four digest traces, `smoke-all-digests.txt`, `pool-sizes.txt`, `mem-peaks.txt`, `cloth-headroom.txt` and `lua-bins.txt` once, under the `serial` default, in the commit that made it the default; a table that names its commit names that commit's parent, because the capture ran on the uncommitted flip. The four factory logs came out byte-identical, so the address and serial Factory orders are equal. `offthread.txt` is unchanged: its main section re-captured byte-identical under `serial`.
 - `lua-bins.txt` is the serial Lua bin table: Test configuration, because the Lua spill counter exists only in Test and Asan builds; peak equals count on saturated bins, so the spill column is the demand signal for MPOOL-06. The DATA-04 address-against-serial comparison, taken where the Lua `Node` grew from 20 to 28 bytes and `Table` from 32 to 40, is in git history.
 - Phase 41 re-captured `mem-peaks.txt`, `cloth-headroom.txt`, `hardening.txt` (Release) and `lua-bins.txt` (Test) from mimalloc runs. `compare-tables.ps1` compares `mem-peaks.txt` (Lua rows included), `cloth-headroom.txt`, `pool-sizes.txt` and `smoke-all-digests.txt` exactly, so the hand-written cloth slack table was deleted.

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -362,7 +363,7 @@ unsigned int ScriptCeiling(const RedScriptLimits::ScriptLimit& rLimit, unsigned 
 
 }
 
-TEST_CASE("pool capacities in entries" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPoolEntriesTest1, "Unit::PoolEntries::pool capacities in entries", "[EngineFilter]")
 {
     PoolTable kX86;
     PoolTable kX64;
@@ -494,7 +495,7 @@ TEST_CASE("pool capacities in entries" * doctest::test_suite("regression"))
     }
 }
 
-TEST_CASE("pool capacities in entries for the stick and mine lists" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPoolEntriesTest2, "Unit::PoolEntries::pool capacities in entries for the stick and mine lists", "[EngineFilter]")
 {
     const unsigned int uPlatformBytes = kX86PoolBytes / 4u * (unsigned int)sizeof(void*);
     CHECK(kStickListCapacity >= kX86StickListCapacity);
@@ -505,7 +506,7 @@ TEST_CASE("pool capacities in entries for the stick and mine lists" * doctest::t
     CHECK(kMineListCapacity == (sizeof(void*) == 8 ? 33288u : kX86MineListCapacity));
 }
 
-TEST_CASE("x64 runtime allocs equal the extra pool growths plus their named sources" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPoolEntriesTest3, "Unit::PoolEntries::x64 runtime allocs equal the extra pool growths plus their named sources", "[EngineFilter]")
 {
     RuntimeTable kX86;
     RuntimeTable kX64;

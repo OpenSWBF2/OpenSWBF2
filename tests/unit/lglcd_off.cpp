@@ -1,11 +1,12 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "lglcd/lgLcd.h"
 #include "testutil.h"
 
 extern char* lpSubKey;
 
-TEST_CASE("logitech lcd stays off without its server" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLglcdOffTest1, "Unit::LglcdOff::logitech lcd stays off without its server", "[SmokeFilter]")
 {
     static char acAbsentKey[] =
         "SOFTWARE\\Classes\\CLSID\\{73384F02-333F-42FC-A2AD-A387DBB94DCF}\\ServerBinary";

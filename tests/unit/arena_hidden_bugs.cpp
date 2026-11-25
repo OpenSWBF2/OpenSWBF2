@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <string>
@@ -85,7 +86,7 @@ struct ScopedHudNameHeap
 
 }
 
-TEST_CASE("fake d3d device starts with one reference (source pin: renderer-bound class)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FArenaHiddenBugsTest1, "Unit::ArenaHiddenBugs::fake d3d device starts with one reference (source pin: renderer-bound class)", "[EngineFilter]")
 {
     std::string sHeader = ReadRepoTextLf("src\\RedEngineFL\\Graphics\\PC\\pcRedRenderer.h");
     CHECK(sHeader.find("class FakeD3DDevice : public IDirect3DDevice9\n"
@@ -95,7 +96,7 @@ TEST_CASE("fake d3d device starts with one reference (source pin: renderer-bound
                        "    FakeD3DDevice() : refCount(1) {}\n") != std::string::npos);
 }
 
-TEST_CASE("glyph cache walks stop at the allocated count when the font gains pages" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FArenaHiddenBugsTest2, "Unit::ArenaHiddenBugs::glyph cache walks stop at the allocated count when the font gains pages", "[EngineFilter]")
 {
     GlyphShaderProbe akShader[5] = { { 1 }, { 2 }, { 3 }, { 4 }, { 5 } };
     GlyphShaderProbe* apShader[6] = { &akShader[0], &akShader[1], 0, &akShader[2], &akShader[3], &akShader[4] };
@@ -106,7 +107,7 @@ TEST_CASE("glyph cache walks stop at the allocated count when the font gains pag
     CHECK(GlyphCacheCount(5u, (GlyphShaderProbe* const*)0) == 0u);
 }
 
-TEST_CASE("glyph cache element routes every shader walk through the allocated count (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FArenaHiddenBugsTest3, "Unit::ArenaHiddenBugs::glyph cache element routes every shader walk through the allocated count (source pin)", "[EngineFilter]")
 {
     std::string sCache = ReadRepoTextLf("src\\RedEngineFL\\Interface\\pc\\pcRedGlyphCacheElement.cpp");
     CHECK(CountText(sCache, "GlyphCacheCount(m_pFont, m_ppInterfaceShader)") == 6);
@@ -122,7 +123,7 @@ TEST_CASE("glyph cache element routes every shader walk through the allocated co
                       "    m_ppInterfaceShader[uiNumTextures] = 0;\n") != std::string::npos);
 }
 
-TEST_CASE("hud item set name after an aliased name keeps the display name valid" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FArenaHiddenBugsTest4, "Unit::ArenaHiddenBugs::hud item set name after an aliased name keeps the display name valid", "[EngineFilter]")
 {
     char acLong[300];
     memset(acLong, 'b', sizeof(acLong) - 1);
@@ -159,7 +160,7 @@ TEST_CASE("hud item set name after an aliased name keeps the display name valid"
     CHECK(bNameKept);
 }
 
-TEST_CASE("snddsbufferrenderer reset gain copies the target gain (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FArenaHiddenBugsTest5, "Unit::ArenaHiddenBugs::snddsbufferrenderer reset gain copies the target gain (source pin)", "[EngineFilter]")
 {
     std::string sSource = ReadRepoTextLf("src\\SoundFL\\source\\win\\snddsbufferrenderer.cpp");
     const size_t uiStart = sSource.find("void DSBufferRenderer::ResetGain()\n{\n");
@@ -175,7 +176,7 @@ TEST_CASE("snddsbufferrenderer reset gain copies the target gain (source pin)" *
     CHECK(CountText(sBody, "mGainCurrent[") == 1);
 }
 
-TEST_CASE("voice chat encoder closes its source before freeing its buffers (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FArenaHiddenBugsTest6, "Unit::ArenaHiddenBugs::voice chat encoder closes its source before freeing its buffers (source pin)", "[EngineFilter]")
 {
     std::string sSource = ReadRepoTextLf("src\\Battlefront2\\Source\\GameVoiceChatEncoder.cpp");
     const size_t uiStart = sSource.find("void GameVoiceChat::Encoder::Close()\n{\n");
@@ -196,7 +197,7 @@ TEST_CASE("voice chat encoder closes its source before freeing its buffers (sour
     CHECK(uiDetach < uiFree);
 }
 
-TEST_CASE("dsound wave format cbSize matches the struct passed (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FArenaHiddenBugsTest7, "Unit::ArenaHiddenBugs::dsound wave format cbSize matches the struct passed (source pin)", "[EngineFilter]")
 {
     std::string sSource = ReadRepoTextLf("src\\SoundFL\\source\\win\\snddsbuffer.cpp");
     const size_t uiStart = sSource.find("DSBuffer::WaveFormat::WaveFormat(");

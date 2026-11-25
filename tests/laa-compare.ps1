@@ -9,112 +9,33 @@ param(
 $ErrorActionPreference = 'Stop'
 $testsDir = $PSScriptRoot
 $root = Split-Path $testsDir -Parent
-. (Join-Path $testsDir 'smoke.ps1')
-$script:SmokePlatform = $Platform
+. (Join-Path $testsDir 'common.ps1')
 
 if ($Runs -lt 5) { Write-Host "INFO: -Runs raised from $Runs to 5 (minimum)"; $Runs = 5 }
 
 if (-not $NoBuild) {
     $msbuild = Find-MSBuild
-    & $msbuild (Join-Path $root 'BattlefrontII.vcxproj') "/p:Configuration=$Configuration" "/p:Platform=$Platform" /m /v:minimal /nologo
-    if ($LASTEXITCODE -ne 0) { Write-Host 'Build failed.'; exit 2 }
+    foreach ($proj in (Join-Path $root 'BattlefrontII.vcxproj'), (Join-Path $testsDir 'OpenSWBF2Tests.vcxproj')) {
+        & $msbuild $proj "/p:Configuration=$Configuration" "/p:Platform=$Platform" /m /v:minimal /nologo
+        if ($LASTEXITCODE -ne 0) { Write-Host 'Build failed.'; exit 2 }
+    }
 }
 
 $exeDir = Join-Path $root "bin\$Platform\$Configuration"
-$gameExe = Join-Path $exeDir 'BattlefrontII.exe'
 $reason = Get-SmokePrecheck (Find-GameDataRoot) $exeDir $false $Platform
 if ($reason) { Write-Host "[SKIP] laa-compare - $reason"; exit 0 }
+$testsExe = Join-Path $root "bin\Tests\$Platform\$Configuration\OpenSWBF2Tests.exe"
+if (-not (Test-Path -LiteralPath $testsExe -PathType Leaf)) { Write-Host "[FAIL] laa-compare - tests exe not found: $testsExe"; exit 2 }
 
 if (-not $OutDir) { $OutDir = New-StampedDir (Join-Path $root 'artifacts\laa-compare') }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
-
-$dumpbin = Find-Dumpbin $Platform
-$editbin = Find-Editbin $Platform
-$laaText = 'Application can handle large \(>2GB\) addresses'
-
-function Test-ExeLaa($exe) {
-    $hdr = (& $dumpbin /headers $exe | Out-String)
-    return ($hdr -match $laaText)
-}
-
-if (-not (Test-ExeLaa $gameExe)) { Write-Host "[FAIL] laa-compare - built exe lacks the large address aware flag: $gameExe"; exit 1 }
-
-$nolaaName = 'BattlefrontII-nolaa.exe'
-$nolaaExe = Join-Path $OutDir $nolaaName
-$workDirs = @()
-$batch = $null
-$failed = $false
+Write-Host "INFO: laa-compare runs=$Runs per side jobs=$Jobs out=$OutDir"
+Push-Location -LiteralPath $testsDir
 try {
-    Copy-Item -LiteralPath $gameExe -Destination $nolaaExe -Force
-    & $editbin /LARGEADDRESSAWARE:NO $nolaaExe | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "editbin exit $LASTEXITCODE" }
-    if (Test-ExeLaa $nolaaExe) { throw 'patched copy still has the large address aware flag' }
-
-    $baseCase = (Get-SmokeCases 'Standard' @() $false $null $false)[0]
-    $laaCase = (Get-SmokeCases 'Standard' @() $false $null $true)[0]
-
-    $items = @()
-    for ($i = 1; $i -le $Runs; $i++) {
-        $items += New-Object PSObject -Property @{ Name = "base-$i"; ExeName = $nolaaName; ArgLine = $baseCase.Args.Replace('{CASEDIR}', (Join-Path $OutDir "base-$i")); CaseDir = (Join-Path $OutDir "base-$i") }
-        $items += New-Object PSObject -Property @{ Name = "laa-$i"; ExeName = 'BattlefrontII.exe'; ArgLine = $laaCase.Args.Replace('{CASEDIR}', (Join-Path $OutDir "laa-$i")); CaseDir = (Join-Path $OutDir "laa-$i") }
-    }
-    $workerCount = [Math]::Min($Jobs, $items.Count)
-    Write-Host "INFO: laa-compare runs=$Runs per side jobs=$workerCount out=$OutDir"
-    for ($w = 1; $w -le $workerCount; $w++) {
-        $d = Get-WorkerPath $root $Platform $Configuration 'laa' $w
-        $workDirs += $d
-        New-SmokeWorkerDir $exeDir $d
-        Copy-Item -LiteralPath $nolaaExe -Destination $d -Force
-    }
-    $batch = Start-SmokeBatch $items $workDirs $exeDir
-
-    $base = @(); $laa = @()
-    for ($i = 0; $i -lt $items.Count; $i++) {
-        $res = Receive-SmokeCase $batch $i
-        $name = $items[$i].Name
-        $isLaa = $name.StartsWith('laa-')
-        $key = Get-FinalScoreKey $res.CaseDir
-        $frames = 0
-        if ($res.LogText -match 'OPENSWBF2 RUN COMPLETE') {
-            $fm = [regex]::Match($res.LogText, '\[f=(\d+)\][^\r\n]*OPENSWBF2 RUN COMPLETE')
-            if ($fm.Success) { $frames = [int]$fm.Groups[1].Value }
-        }
-        $arena = $null
-        $am = [regex]::Match($res.LogText, 'OPENSWBF2 ADDRSPACE arena=0x([0-9A-F]{8})')
-        if ($am.Success) { $arena = [Convert]::ToInt64($am.Groups[1].Value, 16) }
-        $problem = $null
-        if ($res.Class -ne 'Pass') { $problem = "class=$($res.Class)" }
-        elseif (-not $key) { $problem = 'no finalscore.log' }
-        elseif ($frames -eq 0) { $problem = 'no frame count' }
-        elseif ($arena -eq $null) { $problem = 'no ADDRSPACE line' }
-        elseif ($isLaa -and $arena -lt 2147483648) { $problem = ('arena 0x{0:X8} below 2 GB' -f $arena) }
-        elseif (-not $isLaa -and $arena -ge 2147483648) { $problem = ('arena 0x{0:X8} at or above 2 GB' -f $arena) }
-        $arenaText = if ($arena -ne $null) { '0x{0:X8}' -f $arena } else { 'none' }
-        Write-Host ("{0,-8} arena={1} frames={2} key={3}{4}" -f $name, $arenaText, $frames, $key, $(if ($problem) { " PROBLEM: $problem" } else { '' }))
-        if ($problem) { $failed = $true }
-        $rec = New-Object PSObject -Property @{ Key = $key; Frames = $frames }
-        if ($isLaa) { $laa += $rec } else { $base += $rec }
-    }
-
-    if (-not $failed) {
-        $cmp = Compare-LaaRuns $base $laa 5
-        if ($cmp.Keys.Count -eq 1) { Write-Host "  all $($base.Count + $laa.Count) runs identical: $($cmp.Keys[0])" }
-        foreach ($m in $cmp.Failures) { Write-Host "  $m" }
-        if (-not $cmp.Ok) { $failed = $true }
-    }
+    & $testsExe --runner "--out=$OutDir" "--platform=$Platform" "--config=$Configuration" "--exclude=$(Join-Path $testsDir 'excluded.tsv')" '--tags=*[Laa][OnRequest]*' "--game-dir=$exeDir" "--jobs=$Jobs" "--param=$Runs" | ForEach-Object { Write-Host $_ }
+    $code = $LASTEXITCODE
 }
-catch {
-    Write-Host "[FAIL] laa-compare - $($_.Exception.Message)"
-    $failed = $true
-}
-finally {
-    if ($batch) { Stop-SmokeBatch $batch }
-    foreach ($d in $workDirs) { Remove-HarnessTree $d }
-    Remove-Item -LiteralPath $nolaaExe -Force -ErrorAction SilentlyContinue
-}
-
-if (-not (Test-ExeLaa $gameExe)) { Write-Host "[FAIL] laa-compare - built exe lost the large address aware flag"; $failed = $true }
-
-if ($failed) { Write-Host '[FAIL] laa-compare'; exit 1 }
+finally { Pop-Location }
+if ($code -ne 0) { Write-Host "[FAIL] laa-compare - the test runner exited $code"; exit 1 }
 Write-Host "[PASS] laa-compare ($Runs runs per side)"
 exit 0

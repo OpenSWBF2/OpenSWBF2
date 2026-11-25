@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -91,7 +92,7 @@ int SlotWideLenAtEnd(GuardPages& kGuard, lua_State* L, int iIndex)
 
 }
 
-TEST_CASE("lua wide terminator scan stays inside the string" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaWideStringTest1, "Unit::LuaWideString::lua wide terminator scan stays inside the string", "[EngineFilter]")
 {
     GuardPages kGuard;
     REQUIRE(OpenGuard(kGuard));
@@ -109,7 +110,7 @@ TEST_CASE("lua wide terminator scan stays inside the string" * doctest::test_sui
     CloseGuard(kGuard);
 }
 
-TEST_CASE("lua wide accessor terminates inside the allocation" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaWideStringTest2, "Unit::LuaWideString::lua wide accessor terminates inside the allocation", "[EngineFilter]")
 {
     GuardPages kGuard;
     REQUIRE(OpenGuard(kGuard));
@@ -196,7 +197,7 @@ int CountOf(const std::string& sText, const char* pcNeedle)
 
 }
 
-TEST_CASE("lua wide string sites route through the accessor" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaWideStringTest3, "Unit::LuaWideString::lua wide string sites route through the accessor", "[EngineFilter]")
 {
     struct SiteFile
     {
@@ -232,7 +233,7 @@ TEST_CASE("lua wide string sites route through the accessor" * doctest::test_sui
     CHECK(sSaveFsm.find("if (pusFilename && mLoadQueueCnt < MAX_LOAD_QUEUE)") != std::string::npos);
 }
 
-TEST_CASE("usprintf fills the 1-based argument slots (source pin as LuaCallbacks.cpp is not linked into T1)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaWideStringTest4, "Unit::LuaWideString::usprintf fills the 1-based argument slots (source pin as LuaCallbacks.cpp is not linked into T1)", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\LuaCallbacks.cpp", sText));
