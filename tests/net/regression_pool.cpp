@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "testutil.h"
 #include "nettest.h"
@@ -20,9 +21,9 @@ static void BuildInts(NetPktGroup& g, int iCount)
     g.EndWrite();
 }
 
-TEST_CASE("alloc exhaustion is fatal and does not recycle" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionPoolTest1, "Net::RegressionPool::alloc exhaustion is fatal and does not recycle", "[EngineFilter]")
 {
-    ExpectLog expect("net packet pool exhausted");
+    AddExpectedError("net packet pool exhausted");
     NetTestReset();
     LogCapture capture;
     for (int i = 0; i < 256; ++i)
@@ -39,7 +40,7 @@ TEST_CASE("alloc exhaustion is fatal and does not recycle" * doctest::test_suite
     CHECK(NetCountPackets(256) == 512);
 }
 
-TEST_CASE("alloc recv keeps the big reserve" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionPoolTest2, "Net::RegressionPool::alloc recv keeps the big reserve", "[EngineFilter]")
 {
     NetTestReset();
     int iHeld = 0;
@@ -56,7 +57,7 @@ TEST_CASE("alloc recv keeps the big reserve" * doctest::test_suite("regression")
     CHECK(NetCountPackets(iHeld) == 512);
 }
 
-TEST_CASE("alloc recv keeps the small reserve" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionPoolTest3, "Net::RegressionPool::alloc recv keeps the small reserve", "[EngineFilter]")
 {
     NetTestReset();
     int iHeld = 0;
@@ -73,7 +74,7 @@ TEST_CASE("alloc recv keeps the small reserve" * doctest::test_suite("regression
     CHECK(NetCountPackets(iHeld) == 512);
 }
 
-TEST_CASE("packet read with non positive length copies nothing" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionPoolTest4, "Net::RegressionPool::packet read with non positive length copies nothing", "[EngineFilter]")
 {
     NetTestReset();
     NetPacket* pPacket = MakeOne(0x01020304);
@@ -91,7 +92,7 @@ TEST_CASE("packet read with non positive length copies nothing" * doctest::test_
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("group bad discards later readers" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionPoolTest5, "Net::RegressionPool::group bad discards later readers", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup g;
@@ -130,7 +131,7 @@ TEST_CASE("group bad discards later readers" * doctest::test_suite("regression")
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("begin read clears a stale bad flag" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionPoolTest6, "Net::RegressionPool::begin read clears a stale bad flag", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup g;
@@ -143,7 +144,7 @@ TEST_CASE("begin read clears a stale bad flag" * doctest::test_suite("regression
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("begin read on an empty first packet is bad" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionPoolTest7, "Net::RegressionPool::begin read on an empty first packet is bad", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup g;
@@ -156,7 +157,7 @@ TEST_CASE("begin read on an empty first packet is bad" * doctest::test_suite("re
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("read past the end marks bad but a zero bit read does not" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionPoolTest8, "Net::RegressionPool::read past the end marks bad but a zero bit read does not", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup g;
@@ -180,7 +181,7 @@ TEST_CASE("read past the end marks bad but a zero bit read does not" * doctest::
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("group read bytes negative length keeps cursor and marks bad" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionPoolTest9, "Net::RegressionPool::group read bytes negative length keeps cursor and marks bad", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup g;
@@ -198,7 +199,7 @@ TEST_CASE("group read bytes negative length keeps cursor and marks bad" * doctes
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("group read bytes past the end marks bad" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionPoolTest10, "Net::RegressionPool::group read bytes past the end marks bad", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup g;

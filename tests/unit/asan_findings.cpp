@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <limits.h>
 #include <new>
@@ -29,7 +30,7 @@
 #include <sanitizer/asan_interface.h>
 #endif
 
-TEST_CASE("pbl in bounds accepts only indices inside the array" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest1, "Unit::AsanFindings::pbl in bounds accepts only indices inside the array", "[EngineFilter]")
 {
     int aiValues[3] = {};
     CHECK(PblInBounds(aiValues, 0));
@@ -46,7 +47,7 @@ struct HashTableWithSentinel
     unsigned int mSentinel;
 };
 
-TEST_CASE("hash table end converts to null" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest2, "Unit::AsanFindings::hash table end converts to null", "[EngineFilter]")
 {
     HashTableWithSentinel kHolder;
     memset(&kHolder, 0, sizeof(kHolder));
@@ -69,7 +70,7 @@ TEST_CASE("hash table end converts to null" * doctest::test_suite("regression"))
     CHECK(iCount == 1);
 }
 
-TEST_CASE("hash table iteration visits null valued entries" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest3, "Unit::AsanFindings::hash table iteration visits null valued entries", "[EngineFilter]")
 {
     PblHashTable<int, 4> kTable;
     kTable.Clear();
@@ -94,7 +95,7 @@ TEST_CASE("hash table iteration visits null valued entries" * doctest::test_suit
     CHECK(iFound == 1);
 }
 
-TEST_CASE("remove polygon keeps the remaining polygons" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest4, "Unit::AsanFindings::remove polygon keeps the remaining polygons", "[EngineFilter]")
 {
     PolyListContainer<4> kList;
     kList.Clear();
@@ -128,7 +129,7 @@ TEST_CASE("remove polygon keeps the remaining polygons" * doctest::test_suite("r
     }
 }
 
-TEST_CASE("remove polygon leaves the slot past the count alone" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest5, "Unit::AsanFindings::remove polygon leaves the slot past the count alone", "[EngineFilter]")
 {
     PolyListContainer<4> kList;
     memset(&kList, 0, sizeof(kList));
@@ -158,7 +159,7 @@ struct HeroIdSlotsProbe
     int aiAfter[1];
 };
 
-TEST_CASE("hero slot match ignores teams outside the slot array" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest6, "Unit::AsanFindings::hero slot match ignores teams outside the slot array", "[EngineFilter]")
 {
     HeroIdSlotsProbe probe = { { 9 }, { 4, 5, 6 }, { 9 } };
     CHECK(HeroSlotIs(probe.aiSlots, 1, 5));
@@ -174,7 +175,7 @@ struct HeroUnlockSlotsProbe
     bool abAfter[1];
 };
 
-TEST_CASE("hero unlock check ignores teams outside the slot array" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest7, "Unit::AsanFindings::hero unlock check ignores teams outside the slot array", "[EngineFilter]")
 {
     HeroUnlockSlotsProbe probe = { { true }, { false, true, false }, { true } };
     CHECK(HeroSlotSet(probe.abSlots, 1));
@@ -183,7 +184,7 @@ TEST_CASE("hero unlock check ignores teams outside the slot array" * doctest::te
     CHECK_FALSE(HeroSlotSet(probe.abSlots, 3));
 }
 
-TEST_CASE("hero slot read outside the slot array returns the fallback" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest8, "Unit::AsanFindings::hero slot read outside the slot array returns the fallback", "[EngineFilter]")
 {
     HeroIdSlotsProbe probe = { { 9 }, { 4, 5, 6 }, { 9 } };
     CHECK(HeroSlotOr(probe.aiSlots, 0, -1) == 4);
@@ -199,7 +200,7 @@ struct HeroKillerSlotsProbe
     int aiAfter[1];
 };
 
-TEST_CASE("hero killer write outside the slot array is dropped" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest9, "Unit::AsanFindings::hero killer write outside the slot array is dropped", "[EngineFilter]")
 {
     HeroKillerSlotsProbe probe = { { 0 }, { -1, -1, -1, -1 }, { 0 } };
     SetHeroSlot(probe.aiSlots, -1, 7);
@@ -215,7 +216,7 @@ TEST_CASE("hero killer write outside the slot array is dropped" * doctest::test_
     CHECK(probe.aiAfter[0] == 0);
 }
 
-TEST_CASE("game rules index outside the rules arrays is rejected" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest10, "Unit::AsanFindings::game rules index outside the rules arrays is rejected", "[EngineFilter]")
 {
     int aiNumBots[4] = { -1, -1, 16, 16 };
     CHECK(HasRulesSlot(aiNumBots, 0));
@@ -225,7 +226,7 @@ TEST_CASE("game rules index outside the rules arrays is rejected" * doctest::tes
     CHECK_FALSE(HasRulesSlot(aiNumBots, INT_MIN));
 }
 
-TEST_CASE("stack allocator starts at the first size slot" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest11, "Unit::AsanFindings::stack allocator starts at the first size slot", "[EngineFilter]")
 {
     alignas(util::StackAllocator) unsigned char acBuf[sizeof(util::StackAllocator)];
     memset(acBuf, 0x55, sizeof(acBuf));
@@ -234,7 +235,7 @@ TEST_CASE("stack allocator starts at the first size slot" * doctest::test_suite(
     pAlloc->~StackAllocator();
 }
 
-TEST_CASE("stack allocator free after a full size ring keeps the pool" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest12, "Unit::AsanFindings::stack allocator free after a full size ring keeps the pool", "[EngineFilter]")
 {
     void* pBlock = RedAllocFromHeap(0, 256, 0);
     REQUIRE(pBlock);
@@ -272,7 +273,7 @@ TEST_CASE("stack allocator free after a full size ring keeps the pool" * doctest
     RedFreeToHeap(0, pBlock, 0);
 }
 
-TEST_CASE("list allocator serves requests of a page or more" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest13, "Unit::AsanFindings::list allocator serves requests of a page or more", "[EngineFilter]")
 {
     util::ListAllocator* pAlloc = util::ListAllocator::Create(0x2000, 0x10000);
     REQUIRE(pAlloc);
@@ -291,12 +292,12 @@ TEST_CASE("list allocator serves requests of a page or more" * doctest::test_sui
     delete pAlloc;
 }
 
-TEST_CASE("soldier animation fits its pool slot" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest14, "Unit::AsanFindings::soldier animation fits its pool slot", "[EngineFilter]")
 {
     CHECK(sizeof(SoldierAnimation) == 3 * sizeof(void*));
 }
 
-TEST_CASE("walker idle setup stays inside its animation list" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest15, "Unit::AsanFindings::walker idle setup stays inside its animation list", "[EngineFilter]")
 {
     WalkerAnimationIdle kIdle(0, 0, "idle idle_leftup idle_rightup", false);
     CHECK(!kIdle.m_bHasTiltAnims);
@@ -414,7 +415,7 @@ static void CheckHoleTable()
     CHECK(HoleProbes(2.5f, 40.0f) == 1);
 }
 
-TEST_CASE("terrain hole test stays inside the patch table" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest16, "Unit::AsanFindings::terrain hole test stays inside the patch table", "[EngineFilter]")
 {
     const TerrainStatics kSaved = SaveTerrainStatics();
     SetTinyTerrain();
@@ -481,7 +482,7 @@ struct HandleProbe : PblHandled
 
 MemoryPool* HandleProbe::spPool = 0;
 
-TEST_CASE("handle to a freed pool object resolves to null" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest17, "Unit::AsanFindings::handle to a freed pool object resolves to null", "[EngineFilter]")
 {
     MemoryPool pool("handleprobe", sizeof(HandleProbe));
     pool.Create(2, sizeof(HandleProbe), 1);
@@ -523,7 +524,7 @@ static int CountText(const std::string& sText, const char* pcNeedle)
     return iCount;
 }
 
-TEST_CASE("asan fix helpers stay wired into the game (source pin: callers need the game runtime)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest18, "Unit::AsanFindings::asan fix helpers stay wired into the game (source pin: callers need the game runtime)", "[EngineFilter]")
 {
     std::string sVoice = ReadRepoTextLf("src\\SoundFL\\source\\sndvoicevirtual.cpp");
     CHECK(sVoice.find("void VoiceVirtual::SetVoice(VoiceBase* pVoice)\n"
@@ -742,7 +743,7 @@ static bool SameVector(const PblVector3& v, float fX, float fY, float fZ)
     return v.x == fX && v.y == fY && v.z == fZ;
 }
 
-TEST_CASE("sound listener keeps its own position after the owner is released" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest19, "Unit::AsanFindings::sound listener keeps its own position after the owner is released", "[EngineFilter]")
 {
     alignas(SndProbeOwner) unsigned char acOwner[sizeof(SndProbeOwner)];
     SndProbeOwner* pOwner = MakeSndProbeOwner(acOwner);
@@ -760,7 +761,7 @@ TEST_CASE("sound listener keeps its own position after the owner is released" * 
     CHECK(SameVector(*hardware.mVel3D, 0.0f, 0.0f, 0.0f));
 }
 
-TEST_CASE("released 3d voice reports its stored velocity" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest20, "Unit::AsanFindings::released 3d voice reports its stored velocity", "[EngineFilter]")
 {
     alignas(SndProbeOwner) unsigned char acOwner[sizeof(SndProbeOwner)];
     SndProbeOwner* pOwner = MakeSndProbeOwner(acOwner);
@@ -884,7 +885,7 @@ struct ListedProbe
     PblList<ListedProbe>::Node mNode;
 };
 
-TEST_CASE("pbl list delete of self removing objects never steps through a freed node" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest21, "Unit::AsanFindings::pbl list delete of self removing objects never steps through a freed node", "[EngineFilter]")
 {
     typedef ListProbeSlots<SelfRemovingProbe> Slots;
     Slots::Reset();
@@ -907,7 +908,7 @@ TEST_CASE("pbl list delete of self removing objects never steps through a freed 
     Slots::spList = 0;
 }
 
-TEST_CASE("pbl list delete unlinks each object before it is freed" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest22, "Unit::AsanFindings::pbl list delete unlinks each object before it is freed", "[EngineFilter]")
 {
     typedef ListProbeSlots<ListedProbe> Slots;
     Slots::Reset();
@@ -985,7 +986,7 @@ struct EffectProbe
     PblVector3 mvWorld;
 };
 
-TEST_CASE("effect keeps its last position after its attach vector is released" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest23, "Unit::AsanFindings::effect keeps its last position after its attach vector is released", "[EngineFilter]")
 {
     alignas(SndProbeOwner) unsigned char acOwner[sizeof(SndProbeOwner)];
     SndProbeOwner* pOwner = MakeSndProbeOwner(acOwner);
@@ -1018,7 +1019,7 @@ TEST_CASE("effect keeps its last position after its attach vector is released" *
     CHECK(onObject.m_pvAttachedToVector == &vFixed);
 }
 
-TEST_CASE("mod data fixed array appends stop at the array size" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest24, "Unit::AsanFindings::mod data fixed array appends stop at the array size", "[EngineFilter]")
 {
     std::string sDroideka = ReadRepoTextLf("src\\Battlefront2\\Source\\EntityDroideka.cpp");
     CHECK(sDroideka.find("if (iMask >= 0 && mNumFeet < 3)\n"
@@ -1068,7 +1069,7 @@ TEST_CASE("mod data fixed array appends stop at the array size" * doctest::test_
           != std::string::npos);
 }
 
-TEST_CASE("squadron formation list does not run into the next stack block" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest25, "Unit::AsanFindings::squadron formation list does not run into the next stack block", "[EngineFilter]")
 {
     RedStack stack;
     static const int siFormation = 7;
@@ -1097,7 +1098,7 @@ struct FormationProbe
     unsigned int uAfter;
 };
 
-TEST_CASE("squadron formation odf list stops at its array size" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest26, "Unit::AsanFindings::squadron formation odf list stops at its array size", "[EngineFilter]")
 {
     static const char* const apcNames[11] = { "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10" };
     FormationProbe probe;
@@ -1116,7 +1117,7 @@ TEST_CASE("squadron formation odf list stops at its array size" * doctest::test_
     }
 }
 
-TEST_CASE("walker leg pair count from mod data stays inside the leg pair array" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest27, "Unit::AsanFindings::walker leg pair count from mod data stays inside the leg pair array", "[EngineFilter]")
 {
     CHECK(ClampLegPairCount(INT_MIN) == 0);
     CHECK(ClampLegPairCount(-1) == 0);
@@ -1132,7 +1133,7 @@ struct LegPairInfoProbe
     int miJoint;
 };
 
-TEST_CASE("walker leg pair properties past the leg pair count are ignored" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest28, "Unit::AsanFindings::walker leg pair properties past the leg pair count are ignored", "[EngineFilter]")
 {
     LegPairInfoProbe akInfo[2] = { { 1 }, { 2 } };
     CHECK(LegPairAt(akInfo, 0, 2) == &akInfo[0]);
@@ -1156,7 +1157,7 @@ struct LegPairProbe
     int miReads;
 };
 
-TEST_CASE("walker without leg pairs never reads a leg pair turn state" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest29, "Unit::AsanFindings::walker without leg pairs never reads a leg pair turn state", "[EngineFilter]")
 {
     LegPairProbe front;
     LegPairProbe back;
@@ -1176,7 +1177,7 @@ TEST_CASE("walker without leg pairs never reads a leg pair turn state" * doctest
 
 static char sacReusedArena[0x1000];
 
-TEST_CASE("heap re-created after destroy is writable" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAsanFindingsTest30, "Unit::AsanFindings::heap re-created after destroy is writable", "[EngineFilter]")
 {
     char* pcEnd = sacReusedArena + sizeof(sacReusedArena);
     int iHeap = RedCreateHeap(sacReusedArena, pcEnd, 0x10, "ArenaReuse");

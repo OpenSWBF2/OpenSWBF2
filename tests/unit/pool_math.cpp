@@ -1,8 +1,9 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "RedEngineFL/Graphics/PC/pcRedPoolMath.h"
 
-TEST_CASE("bone matrix pool" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPoolMathTest1, "Unit::PoolMath::bone matrix pool", "[EngineFilter]")
 {
     unsigned int uiOffset = 3000;
     unsigned int uiStart = 99;
@@ -35,7 +36,7 @@ TEST_CASE("bone matrix pool" * doctest::test_suite("regression"))
     }
 }
 
-TEST_CASE("render item pool" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPoolMathTest2, "Unit::PoolMath::render item pool", "[EngineFilter]")
 {
     CHECK(PoolMath::RenderItemHasRoom(4747, 4748));
     CHECK(!PoolMath::RenderItemHasRoom(4748, 4748));

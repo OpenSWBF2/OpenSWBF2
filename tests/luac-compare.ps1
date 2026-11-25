@@ -7,8 +7,8 @@ $testsDir = $PSScriptRoot
 $root = Split-Path $testsDir -Parent
 . (Join-Path $testsDir 'common.ps1')
 
-$plainCase = 'luac x86 and x64 write the same plain bytecode'
-$lvlCase = 'luac x86 and x64 write the same lvls'
+$plainCase = 'Unit::LuacCompare::luac x86 and x64 write the same plain bytecode'
+$lvlCase = 'Unit::LuacCompare::luac x86 and x64 write the same lvls'
 $msbuild = Find-MSBuild
 $env:SWBF2_NOSTAGE = 'true'
 foreach ($p in 'Win32', 'x64') {
@@ -21,7 +21,7 @@ $testsExe = Join-Path $root "bin\Tests\$Platform\$Configuration\OpenSWBF2Tests.e
 if (-not (Test-Path -LiteralPath $testsExe -PathType Leaf)) { Write-Host "[FAIL] luac-compare: $testsExe not built"; exit 1 }
 
 $ErrorActionPreference = 'Continue'
-$out = @(& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'run.ps1') -Platform $Platform -Configuration $Configuration -NoBuild -Smoke None -Filter 'luac x86 and x64 write the same *' 2>&1 | ForEach-Object { $t = "$_"; Write-Host $t; $t })
+$out = @(& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $testsDir 'run.ps1') -Platform $Platform -Configuration $Configuration -NoBuild -Smoke None -Filter 'Unit::LuacCompare::luac x86 and x64 write the same *' 2>&1 | ForEach-Object { $t = "$_"; Write-Host $t; $t })
 $code = $LASTEXITCODE
 $ErrorActionPreference = 'Stop'
 $verdict = {

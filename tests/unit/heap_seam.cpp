@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -114,7 +115,7 @@ bool CrtBlockReleased(const void* p)
 
 }
 
-TEST_CASE("heap free is debited from the owning heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapSeamTest1, "Unit::HeapSeam::heap free is debited from the owning heap", "[EngineFilter]")
 {
     HeapScope kScope;
     const int iA = kScope.Create(sacSeamArena, sacSeamArena + 0x1000, 0x10, "SeamA");
@@ -137,7 +138,7 @@ TEST_CASE("heap free is debited from the owning heap" * doctest::test_suite("reg
     CHECK(SeamStats(iA).uUsed == uABefore);
 }
 
-TEST_CASE("heap free of a nested block goes to the inner heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapSeamTest2, "Unit::HeapSeam::heap free of a nested block goes to the inner heap", "[EngineFilter]")
 {
     HeapScope kScope;
     const int iO = kScope.Create(sacSeamArena, sacSeamArena + 0x4000, 0x10, "SeamOuter");
@@ -156,7 +157,7 @@ TEST_CASE("heap free of a nested block goes to the inner heap" * doctest::test_s
     CHECK(SeamStats(iO).uUsed == uOUsed);
 }
 
-TEST_CASE("heap free of an unowned block uses the crt" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapSeamTest3, "Unit::HeapSeam::heap free of an unowned block uses the crt", "[EngineFilter]")
 {
 #if defined(__SANITIZE_ADDRESS__)
     const size_t uBytes = 32;
@@ -177,7 +178,7 @@ TEST_CASE("heap free of an unowned block uses the crt" * doctest::test_suite("re
     CHECK(kAfter.uFailed == kBefore.uFailed);
 }
 
-TEST_CASE("heap slot ids are stable across destroy and re-create" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapSeamTest4, "Unit::HeapSeam::heap slot ids are stable across destroy and re-create", "[EngineFilter]")
 {
     char* pBase = sacSeamArena;
     {
@@ -219,7 +220,7 @@ TEST_CASE("heap slot ids are stable across destroy and re-create" * doctest::tes
     }
 }
 
-TEST_CASE("heap queries reject an id past maxheaps" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapSeamTest5, "Unit::HeapSeam::heap queries reject an id past maxheaps", "[EngineFilter]")
 {
     const int iPast = maxheaps;
     REQUIRE(iPast >= 0);
@@ -245,7 +246,7 @@ TEST_CASE("heap queries reject an id past maxheaps" * doctest::test_suite("regre
     CHECK(!RedGetHeapStats(-1, &kStats));
 }
 
-TEST_CASE("heap destroy ignores an id out of range" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapSeamTest6, "Unit::HeapSeam::heap destroy ignores an id out of range", "[EngineFilter]")
 {
     const int iPast = maxheaps;
     REQUIRE(iPast >= 0);

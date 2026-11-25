@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $testsDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $testsDir -Parent
-. (Join-Path $testsDir 'smoke.ps1')
+. (Join-Path $testsDir 'hardening.ps1')
 . (Join-Path $testsDir 'gate\keys.ps1')
 $steamExe = 'C:\Program Files (x86)\Steam\steam.exe'
 
@@ -17,7 +17,7 @@ if ($out -ieq $baseDir -or $out.StartsWith($baseDir + '\', [StringComparison]::O
 
 $blockers = @()
 $blockers += @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'BattlefrontII*' } | ForEach-Object { "game process $($_.Name) ($($_.Id))" })
-$blockers += @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.ProcessId -ne $PID -and [string]$_.CommandLine -imatch '[\\/](gate|run|guard-revert)\.ps1\b' } | ForEach-Object { "harness process $($_.ProcessId): $($_.CommandLine)" })
+$blockers += @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.ProcessId -ne $PID -and [string]$_.CommandLine -imatch '[\\/](gate|run)\.ps1\b' } | ForEach-Object { "harness process $($_.ProcessId): $($_.CommandLine)" })
 if ($blockers.Count) {
     Write-Host '[FAIL] capture-commit - a commit capture runs alone; refusing beside:'
     foreach ($b in $blockers) { Write-Host "    $b" }
@@ -27,7 +27,9 @@ if ($blockers.Count) {
 $was = Get-SteamRunning
 if ($SteamState -ceq 'Running' -and $was -cne 'yes') { Write-Host "[FAIL] capture-commit - -SteamState Running needs Steam running and logged in; Get-SteamRunning is $was"; exit 2 }
 $want = $(if ($SteamState -ceq 'Running') { 'yes' } else { 'no' })
+if ($HogAddrSpace.IsPresent -ne ($Platform -ceq 'x64')) { Write-Host '[FAIL] capture-commit - Game::Standard::commit-flat runs under -hogaddrspace on x64 only; pass -HogAddrSpace exactly with -Platform x64'; exit 2 }
 $hog = [string][int]$HogAddrSpace.IsPresent
+$seen = $null
 $runDir = $null
 $runCode = -1
 try {
@@ -37,12 +39,15 @@ try {
         while (@(Get-Process -Name 'steam' -ErrorAction SilentlyContinue).Count -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
         if (@(Get-Process -Name 'steam' -ErrorAction SilentlyContinue).Count) { throw 'Steam did not exit within 3 minutes of -shutdown' }
     }
-    $runArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $testsDir 'run.ps1'), '-Platform', $Platform, '-Configuration', 'Test', '-NoBuild', '-Smoke', 'Standard', '-Case', 'commit-flat')
-    if ($HogAddrSpace) { $runArgs += '-HogAddrSpace' }
-    $runOut = @(& powershell @runArgs 2>&1 | ForEach-Object { $l = "$_"; Write-Host $l; $l })
-    $runCode = $LASTEXITCODE
-    $art = @($runOut | Where-Object { $_ -cmatch '^Artifacts: (.+)$' } | ForEach-Object { $Matches[1].Trim() })
-    if ($art.Count -eq 1) { $runDir = $art[0] }
+    $seen = Get-SteamRunning
+    $runDir = New-StampedDir (Join-Path $root 'artifacts\tests')
+    $testsExe = Join-Path $root "bin\Tests\$Platform\Test\OpenSWBF2Tests.exe"
+    Push-Location -LiteralPath $testsDir
+    try {
+        & $testsExe --runner "--out=$runDir" "--platform=$Platform" '--config=Test' "--exclude=$(Join-Path $testsDir 'excluded.tsv')" '--tags=*[Standard]*' '--name=Game::Standard::commit-flat' "--game-dir=$(Join-Path $root "bin\$Platform\Test")" | ForEach-Object { Write-Host $_ }
+        $runCode = $LASTEXITCODE
+    }
+    finally { Pop-Location }
 }
 finally {
     if ($was -ceq 'yes' -and (Get-SteamRunning) -cne 'yes') {
@@ -53,17 +58,13 @@ finally {
     }
 }
 
-if (-not $runDir) { Write-Host "[FAIL] capture-commit - run.ps1 exited $runCode and named no artifacts folder"; exit 1 }
-$params = Read-KeyValueFile (Join-Path $runDir 'run-params.txt')
-if ($params['steam'] -cne $want) { Write-Host "[FAIL] capture-commit - $runDir recorded steam=$($params['steam']), -SteamState $SteamState needs steam=$want"; exit 1 }
-$script:SmokePlatform = $Platform
-$script:SmokeDigestConfiguration = 'Test'
-$case = @(Get-SmokeCases 'Standard' @() $false $null $HogAddrSpace.IsPresent | Where-Object { $_.Name -ceq 'commit-flat' })
-if ($case.Count -ne 1) { Write-Host '[FAIL] capture-commit - no commit-flat case'; exit 1 }
-$settled = [int]$case[0].Expect.CommitSettled
-$log = Join-Path $runDir 'smoke\commit-flat\run.log'
-if (-not (Test-Path -LiteralPath $log -PathType Leaf)) { Write-Host "[FAIL] capture-commit - $log not found"; exit 1 }
-$parts = @([regex]::Matches([IO.File]::ReadAllText($log), 'OPENSWBF2 COMMITPARTS state=(\w+) private=\d+ gamecrt=(\d+) heaps=\d+ threads=\d+ threadcount=\d+ arena=(\d+) crtbusy=\d+ crtcommitted=\d+ crtlarge=\d+ gamevm=(\d+)') | ForEach-Object { ,@($_.Groups[1].Value, [long]$_.Groups[3].Value, ([long]$_.Groups[4].Value + [long]$_.Groups[2].Value)) })
+if (-not $runDir) { Write-Host "[FAIL] capture-commit - the test runner did not start"; exit 1 }
+if ($seen -cne $want) { Write-Host "[FAIL] capture-commit - Steam was steam=$seen at the run, -SteamState $SteamState needs steam=$want"; exit 1 }
+$settled = 8
+$logs = @(Get-ChildItem -LiteralPath $runDir -Recurse -File -Filter 'run.log' | Where-Object { $_.Directory.Name -ceq 'commit-flat' })
+if ($logs.Count -ne 1) { Write-Host "[FAIL] capture-commit - $($logs.Count) commit-flat run logs under $runDir"; exit 1 }
+$log = $logs[0].FullName
+$parts = @([regex]::Matches([IO.File]::ReadAllText($log), 'Commit parts state=(\w+) private=\d+ gamecrt=(\d+) heaps=\d+ threads=\d+ threadcount=\d+ arena=(\d+) crtbusy=\d+ crtcommitted=\d+ crtlarge=\d+ gamevm=(\d+)') | ForEach-Object { ,@($_.Groups[1].Value, [long]$_.Groups[3].Value, ([long]$_.Groups[4].Value + [long]$_.Groups[2].Value)) })
 $rows = @()
 $bad = @()
 foreach ($s in 'mission', 'shell') {
@@ -85,7 +86,7 @@ $sha = (& git -C $root rev-parse --short=8 HEAD).Trim()
 $text = (@("# commit $sha", "steam`thog`tstate`tarena`trest") + $rows) -join "`r`n"
 [IO.File]::WriteAllText((Join-Path $out 'commit.txt'), $text + "`r`n")
 [IO.File]::WriteAllText((Join-Path $out 'run.txt'), "run=$runDir`r`nexit=$runCode`r`n")
-Write-Host "capture-commit: wrote $(Join-Path $out 'commit.txt') from $runDir (run.ps1 exit $runCode)"
+Write-Host "capture-commit: wrote $(Join-Path $out 'commit.txt') from $runDir (test runner exit $runCode)"
 foreach ($r in $rows) { Write-Host "    $r" }
-if ($runCode -ne 0) { Write-Host "[FAIL] capture-commit - run.ps1 exited $runCode"; exit 1 }
+if ($runCode -ne 0) { Write-Host "[FAIL] capture-commit - the test runner exited $runCode"; exit 1 }
 exit 0

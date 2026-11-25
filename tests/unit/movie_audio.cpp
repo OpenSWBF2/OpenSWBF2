@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string>
 #include <vector>
@@ -65,7 +66,7 @@ struct HoldFixture
 
 }
 
-TEST_CASE("movie audio hold fills to exactly 48000 frames and counts the rest as dropped" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieAudioTest1, "Unit::MovieAudio::movie audio hold fills to exactly 48000 frames and counts the rest as dropped", "[SmokeFilter]")
 {
     HoldFixture f;
     const std::vector<short> vFirst = Ramp(30000, 0);
@@ -89,7 +90,7 @@ TEST_CASE("movie audio hold fills to exactly 48000 frames and counts the rest as
     CHECK(f.TailUntouched());
 }
 
-TEST_CASE("movie audio queue takes the hold first and keeps the remainder in order" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieAudioTest2, "Unit::MovieAudio::movie audio queue takes the hold first and keeps the remainder in order", "[SmokeFilter]")
 {
     HoldFixture f;
     const std::vector<short> vOld = Ramp(10, 0);
@@ -126,7 +127,7 @@ TEST_CASE("movie audio queue takes the hold first and keeps the remainder in ord
     CHECK(f.TailUntouched());
 }
 
-TEST_CASE("movie audio starves at the start threshold only while not playing" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieAudioTest3, "Unit::MovieAudio::movie audio starves at the start threshold only while not playing", "[SmokeFilter]")
 {
     CHECK(MovieAudioStartFrames(96000, 4) == 12000);
     CHECK(MovieAudioStartFrames(96002, 4) == 12001);
@@ -140,7 +141,7 @@ TEST_CASE("movie audio starves at the start threshold only while not playing" * 
     CHECK(MovieAudioStarved(13000, 12000, 0, true, 12000));
 }
 
-TEST_CASE("movie audio counts played bytes across a wrap and at the end and not on a stop" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieAudioTest4, "Unit::MovieAudio::movie audio counts played bytes across a wrap and at the end and not on a stop", "[SmokeFilter]")
 {
     CHECK(MovieAudioPlayedStep(10000, 95000, 96000, 6000, 3000, false) == 4000);
     CHECK(MovieAudioPlayedStep(10000, 1000, 96000, 6000, 5000, false) == 4000);
@@ -151,7 +152,7 @@ TEST_CASE("movie audio counts played bytes across a wrap and at the end and not 
     CHECK(MovieAudioPlayedStep(10000, 1000, 96000, 6000, 5000, true) == 0);
 }
 
-TEST_CASE("movie audio renderer sets the hardware gain flag before the base update that flush clears" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieAudioTest5, "Unit::MovieAudio::movie audio renderer sets the hardware gain flag before the base update that flush clears", "[SmokeFilter]")
 {
     std::string sAudio;
     REQUIRE(ReadRepoText("src/RedEngineFL/movie/pc/pcRedMovieAudio.cpp", sAudio));

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "testutil.h"
 #include "nettest.h"
@@ -14,7 +15,7 @@ static NetPacket* MakeOne(unsigned int uTag)
     return NetMakePacket(acPayload, 4);
 }
 
-TEST_CASE("pool after create is 512" * doctest::test_suite("characterisation"))
+TEST_CASE_NAMED(FCharacterisationTest1, "Net::Characterisation::pool after create is 512", "[EngineFilter]")
 {
     NetTestReset();
     CHECK(freeBigPackets.pktCount == 256);
@@ -22,7 +23,7 @@ TEST_CASE("pool after create is 512" * doctest::test_suite("characterisation"))
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("group write read round trip" * doctest::test_suite("characterisation"))
+TEST_CASE_NAMED(FCharacterisationTest2, "Net::Characterisation::group write read round trip", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup g;
@@ -47,7 +48,7 @@ TEST_CASE("group write read round trip" * doctest::test_suite("characterisation"
     CHECK(iD == -7);
 }
 
-TEST_CASE("recv single packet" * doctest::test_suite("characterisation"))
+TEST_CASE_NAMED(FCharacterisationTest3, "Net::Characterisation::recv single packet", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup g;
@@ -67,7 +68,7 @@ TEST_CASE("recv single packet" * doctest::test_suite("characterisation"))
     CHECK(NetCountPackets(out.pktCount) == 512);
 }
 
-TEST_CASE("recv two fragments reordered" * doctest::test_suite("characterisation"))
+TEST_CASE_NAMED(FCharacterisationTest4, "Net::Characterisation::recv two fragments reordered", "[EngineFilter]")
 {
     NetTestReset();
     NetPacket* pSecond = MakeOne(0x22222222);
@@ -87,7 +88,7 @@ TEST_CASE("recv two fragments reordered" * doctest::test_suite("characterisation
     CHECK(NetCountPackets(out.pktCount) == 512);
 }
 
-TEST_CASE("alloc exhaustion 512" * doctest::test_suite("characterisation"))
+TEST_CASE_NAMED(FCharacterisationTest5, "Net::Characterisation::alloc exhaustion 512", "[EngineFilter]")
 {
     NetTestReset();
     for (int i = 0; i < 512; ++i)
@@ -98,9 +99,9 @@ TEST_CASE("alloc exhaustion 512" * doctest::test_suite("characterisation"))
     CHECK(freeSmallPackets.pktCount == 0);
 }
 
-TEST_CASE("alloc 513th is fatal and returns null" * doctest::test_suite("characterisation"))
+TEST_CASE_NAMED(FCharacterisationTest6, "Net::Characterisation::alloc 513th is fatal and returns null", "[EngineFilter]")
 {
-    ExpectLog expect("net packet pool exhausted");
+    AddExpectedError("net packet pool exhausted");
     NetTestReset();
     for (int i = 0; i < 512; ++i)
     {
@@ -112,7 +113,7 @@ TEST_CASE("alloc 513th is fatal and returns null" * doctest::test_suite("charact
     CHECK(NetCountPackets(512) == 1024 - 512);
 }
 
-TEST_CASE("free group cycle never advances" * doctest::test_suite("characterisation"))
+TEST_CASE_NAMED(FCharacterisationTest7, "Net::Characterisation::free group cycle never advances", "[EngineFilter]")
 {
     NetTestReset();
     inPktGroups[1].PushBack(MakeOne(1));
@@ -124,7 +125,7 @@ TEST_CASE("free group cycle never advances" * doctest::test_suite("characterisat
     CHECK(inPktGroups[1].pktCount == 1);
 }
 
-TEST_CASE("duplicate fragment keeps accounting" * doctest::test_suite("characterisation"))
+TEST_CASE_NAMED(FCharacterisationTest8, "Net::Characterisation::duplicate fragment keeps accounting", "[EngineFilter]")
 {
     NetTestReset();
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 2, 0);
@@ -134,7 +135,7 @@ TEST_CASE("duplicate fragment keeps accounting" * doctest::test_suite("character
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("count zero is dropped" * doctest::test_suite("characterisation"))
+TEST_CASE_NAMED(FCharacterisationTest9, "Net::Characterisation::count zero is dropped", "[EngineFilter]")
 {
     NetTestReset();
     NetStampAndQueue(MakeOne(1), 5, PKT_GAME_MOVE, 1, 0, 0, 0);
@@ -145,7 +146,7 @@ TEST_CASE("count zero is dropped" * doctest::test_suite("characterisation"))
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("negative readbytes keeps cursor and marks group bad" * doctest::test_suite("characterisation"))
+TEST_CASE_NAMED(FCharacterisationTest10, "Net::Characterisation::negative readbytes keeps cursor and marks group bad", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup g;

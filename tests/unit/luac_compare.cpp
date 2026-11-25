@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -223,7 +224,7 @@ private:
 
 }
 
-TEST_CASE("luac x86 and x64 write the same plain bytecode" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuacCompareTest1, "Unit::LuacCompare::luac x86 and x64 write the same plain bytecode", "[EngineFilter]")
 {
     std::string sX86;
     std::string sX64;
@@ -261,7 +262,7 @@ TEST_CASE("luac x86 and x64 write the same plain bytecode" * doctest::test_suite
     CHECK(uSame == vSources.size());
 }
 
-TEST_CASE("luac x86 and x64 write the same lvls" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuacCompareTest2, "Unit::LuacCompare::luac x86 and x64 write the same lvls", "[EngineFilter]")
 {
     std::string sX86;
     std::string sX64;

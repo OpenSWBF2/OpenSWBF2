@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "testutil.h"
 #include "Battlefront2/Platform/Pc/pcColorRamp.h"
@@ -314,7 +315,7 @@ int CountZero(const unsigned short awRamp[256])
 
 }
 
-TEST_CASE("color ramp golden default" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FColorRampTest1, "Unit::ColorRamp::color ramp golden default", "[SmokeFilter]")
 {
     unsigned short aw[256];
     CheckRamp(0.5f, 0.5f, 0.5f, kRamp050_050_050, 0x0e53908au, aw);
@@ -330,7 +331,7 @@ TEST_CASE("color ramp golden default" * doctest::test_suite("unit"))
     CHECK(aw[255] == 65535);
 }
 
-TEST_CASE("color ramp golden menu range" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FColorRampTest2, "Unit::ColorRamp::color ramp golden menu range", "[SmokeFilter]")
 {
     unsigned short aw[256];
     CheckRamp(0.2f, 0.2f, 0.5f, kRamp020_020_050, 0x74acbab7u, aw);
@@ -340,7 +341,7 @@ TEST_CASE("color ramp golden menu range" * doctest::test_suite("unit"))
     CheckRamp(0.3f, 0.7f, 0.5f, kRamp030_070_050, 0xdac4d7e9u, aw);
 }
 
-TEST_CASE("color ramp golden clamp ends" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FColorRampTest3, "Unit::ColorRamp::color ramp golden clamp ends", "[SmokeFilter]")
 {
     unsigned short aw[256];
     CheckRamp(0.0f, 0.0f, 0.0f, kRamp000_000_000, 0x1f2a7d57u, aw);

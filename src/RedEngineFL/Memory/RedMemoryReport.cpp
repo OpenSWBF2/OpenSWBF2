@@ -20,7 +20,7 @@ bool FormatHeapLine(const char* pcName, const RedHeapStats& rStats, char* pcOut,
     {
         return false;
     }
-    _snprintf(pcOut, uSize, "OPENSWBF2 MEMREPORT heap=%s cap=%u peak=%u used=%u allocs=%u failed=%u",
+    _snprintf(pcOut, uSize, "Memory report heap=%s cap=%u peak=%u used=%u allocs=%u failed=%u",
               pcName ? pcName : "?", rStats.uCap, rStats.uPeak, rStats.uUsed, rStats.uAllocs, rStats.uFailed);
     pcOut[uSize - 1] = 0;
     return true;
@@ -33,7 +33,7 @@ bool FormatPoolLine(const char* pcLabel, unsigned int uCount, unsigned int uBloc
     {
         return false;
     }
-    _snprintf(pcOut, uSize, "OPENSWBF2 MEMREPORT pool=%s count=%u size=%u peak=%u grown=%u",
+    _snprintf(pcOut, uSize, "Memory report pool=%s count=%u size=%u peak=%u grown=%u",
               pcLabel ? pcLabel : "?", uCount, uBlockSize, uPeak, uGrown);
     pcOut[uSize - 1] = 0;
     return true;
@@ -57,7 +57,7 @@ bool FormatCloth(int iFree, bool bEnabled, int iLow, int iHigh, char* pcOut, uns
     {
         return false;
     }
-    _snprintf(pcOut, uSize, "OPENSWBF2 CLOTH free=%d enabled=%d low=%d high=%d", iFree, bEnabled ? 1 : 0, iLow,
+    _snprintf(pcOut, uSize, "Cloth free=%d enabled=%d low=%d high=%d", iFree, bEnabled ? 1 : 0, iLow,
               iHigh);
     pcOut[uSize - 1] = 0;
     return true;
@@ -85,7 +85,7 @@ bool FormatOffThreadTotal(unsigned int uCount, unsigned int uSources, unsigned i
     {
         return false;
     }
-    _snprintf(pcOut, uSize, "OPENSWBF2 MEMREPORT offthread count=%u sources=%u dropped=%u", uCount, uSources,
+    _snprintf(pcOut, uSize, "Memory report offthread count=%u sources=%u dropped=%u", uCount, uSources,
               uDropped);
     pcOut[uSize - 1] = 0;
     return true;
@@ -157,7 +157,7 @@ bool FormatOffThreadSource(const RedOffThreadSource& rSource, char* pcOut, unsig
     }
     pcOut[0] = 0;
     unsigned int uLen = AppendText(pcOut, uSize, 0,
-                                   "OPENSWBF2 MEMREPORT offthread tid=%u heap=%s size=%u count=%u stack=",
+                                   "Memory report offthread tid=%u heap=%s size=%u count=%u stack=",
                                    rSource.uTid, rSource.pcHeap ? rSource.pcHeap : "?", rSource.uSize,
                                    rSource.uCount);
     unsigned int uFrames = rSource.uFrames;
@@ -221,7 +221,7 @@ size_t LargestFreeRegion()
 void LogMemReport(const char* pcSource)
 {
     char acLine[256];
-    LOG(LogMemory, Inform, "OPENSWBF2 MEMREPORT source=%s", pcSource ? pcSource : "?");
+    LOG(LogMemory, Inform, "Memory report source=%s", pcSource ? pcSource : "?");
     for (int i = 0; i < maxheaps; ++i)
     {
         RedHeapStats kStats;
@@ -247,6 +247,11 @@ void LogMemReport(const char* pcSource)
     unsigned int uSources = 0;
     unsigned int uDropped = 0;
     RedGetOffThreadTotals(&uCount, &uSources, &uDropped);
+    if (uCount != 0 || uSources != 0 || uDropped != 0)
+    {
+        LOG(LogMemory, Error, "game heap allocations from other threads: count=%u sources=%u dropped=%u", uCount,
+            uSources, uDropped);
+    }
     if (FormatOffThreadTotal(uCount, uSources, uDropped, acLine, sizeof(acLine)))
     {
         LOG(LogMemory, Inform, "%s", acLine);

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "testutil.h"
 #include "Battlefront2/Source/LuaVideoArgs.h"
@@ -34,7 +35,7 @@ void CheckRejected(lua_State* L, int iCount)
 
 }
 
-TEST_CASE("legacy video args arity" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLegacyVideoArgsTest1, "Unit::LegacyVideoArgs::legacy video args arity", "[SmokeFilter]")
 {
     CHECK(LuaVideoArgs::kLegacyVideoSetArgs == 21);
     CHECK(LuaVideoArgs::kLegacyVideoGetValues == 19);

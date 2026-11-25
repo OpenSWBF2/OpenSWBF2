@@ -448,7 +448,7 @@ void RedMovie::MovieNotification(RedMoviePlayerBase* pPlayer, NotifyType eType, 
     {
         static const char* const apcType[] = { "Invalid", "BufferingComplete", "End", "Discontinuity" };
         const Segment* pRead = pPlayer->GetCurrentSegment();
-        LOG(LogCore, Inform, "OPENSWBF2 MOVIE notify type=%s seg=0x%08X read=0x%08X",
+        LOG(LogCore, Inform, "Movie notify type=%s seg=0x%08X read=0x%08X",
             (unsigned int)eType < 4 ? apcType[eType] : "?", pSegmentInfo ? pSegmentInfo->GetHashID() : 0u,
             pRead ? pRead->GetHashID() : 0u);
         if (eType == notifyType_End || eType == notifyType_Discontinuity)

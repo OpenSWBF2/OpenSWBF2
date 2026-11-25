@@ -1539,7 +1539,7 @@ void RedPurgeHeapHandles(int heap, const char* name)
     const unsigned int uStale = RedCountStaleHandles();
     if (uStale != 0)
     {
-        LOG(LogMemory, Inform, "OPENSWBF2 HANDLEREG purge heap=%s stale=%u", name ? name : "?", uStale);
+        LOG(LogMemory, Inform, "Handle registry purge heap=%s stale=%u", name ? name : "?", uStale);
     }
 #endif
     PblHandleRegistry::PurgeIf(HeapOwnsKey, &heap);
@@ -1547,7 +1547,7 @@ void RedPurgeHeapHandles(int heap, const char* name)
     const unsigned int uLeft = PblHandleRegistry::CountIf(HeapOwnsKey, &heap);
     if (uLeft != 0)
     {
-        LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit heap=%s left=%u", name ? name : "?", uLeft);
+        LOG(LogMemory, Error, "Handle registry audit heap=%s left=%u", name ? name : "?", uLeft);
         check(uLeft == 0);
     }
 #else

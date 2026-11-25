@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include "RedEngineFL/Graphics/PC/pcGammaPassPS.h"
@@ -32,7 +33,7 @@ unsigned int Fnv1a()
 
 }
 
-TEST_CASE("gamma pass shader bytecode" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FGammaShaderTest1, "Unit::GammaShader::gamma pass shader bytecode", "[SmokeFilter]")
 {
     const unsigned int uiCount = sizeof(kGammaPassPS) / sizeof(kGammaPassPS[0]);
     CHECK(kGammaPassPS[0] == 0xFFFF0200);

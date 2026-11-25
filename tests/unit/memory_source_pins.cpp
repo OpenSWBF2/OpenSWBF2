@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <string.h>
@@ -254,7 +255,7 @@ std::string PinEnclosingClass(const std::vector<std::string>& vLines, size_t uiL
 
 }
 
-TEST_CASE("script-size-clamp: lua memory sinks route through the shared clamp" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemorySourcePinsTest1, "Unit::MemorySourcePins::script-size-clamp: lua memory sinks route through the shared clamp", "[EngineFilter]")
 {
     const std::string sRel = "src\\Battlefront2\\Source\\";
     std::vector<std::string> vFiles;
@@ -295,8 +296,7 @@ TEST_CASE("script-size-clamp: lua memory sinks route through the shared clamp" *
     CHECK(HardenBody(sArgs, "void StealArtistHeap(").find("ClampScriptSize(") != std::string::npos);
 }
 
-TEST_CASE("heap cap window opens in build heaps and closes after post load (source pin)" *
-          doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemorySourcePinsTest2, "Unit::MemorySourcePins::heap cap window opens in build heaps and closes after post load (source pin)", "[EngineFilter]")
 {
     const std::string sBuild = HardenBody(HardenSource("src\\Battlefront2\\Source\\GameMemory.cpp"), "void GameMemory::BuildHeaps(");
     const size_t uiOpen = sBuild.find("RedHeapCapOpenWindow();");
@@ -318,13 +318,13 @@ TEST_CASE("heap cap window opens in build heaps and closes after post load (sour
     }
 }
 
-TEST_CASE("startup heap cap scan keeps a switch as the next token (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemorySourcePinsTest3, "Unit::MemorySourcePins::startup heap cap scan keeps a switch as the next token (source pin)", "[EngineFilter]")
 {
     const std::string sBody = HardenBody(HardenSource("src\\Battlefront2\\Source\\pcMain.cpp"), "static void ReadHeapCapArgs(");
     CHECK(sBody.find("FindNextCommandLineArg(pcLine, \"-heapcap\", &iPos, &pcVal, &iLen, true)") != std::string::npos);
 }
 
-TEST_CASE("set heap cap is registered in the mission table (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemorySourcePinsTest4, "Unit::MemorySourcePins::set heap cap is registered in the mission table (source pin)", "[EngineFilter]")
 {
     const std::string sText = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_Mission.cpp");
     const char* const pcDecl = "sMissionCallbacks[";
@@ -347,7 +347,7 @@ TEST_CASE("set heap cap is registered in the mission table (source pin)" * docte
     CHECK(sText.find(sLoop, uiEnd) != std::string::npos);
 }
 
-TEST_CASE("script-size-clamp: checker flags an unclamped sink" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemorySourcePinsTest5, "Unit::MemorySourcePins::script-size-clamp: checker flags an unclamped sink", "[EngineFilter]")
 {
     std::vector<std::string> vBad;
     ClampViolations("int Bad(lua_State* L)\n{\n    RedAllocFromHeap(0, LuaHelper::GetInt(1), 0);\n    return 0;\n}\n",
@@ -366,7 +366,7 @@ TEST_CASE("script-size-clamp: checker flags an unclamped sink" * doctest::test_s
     CHECK(vBad.empty());
 }
 
-TEST_CASE("gated pools: IsFull and IsSufficientSpace sites match the pinned list" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemorySourcePinsTest6, "Unit::MemorySourcePins::gated pools: IsFull and IsSufficientSpace sites match the pinned list", "[EngineFilter]")
 {
     const char* const apcPinned[][2] = {
         { "Combo.cpp", "Combo" },
@@ -465,7 +465,7 @@ TEST_CASE("gated pools: IsFull and IsSufficientSpace sites match the pinned list
     CHECK(kFound == kPinned);
 }
 
-TEST_CASE("mission and shell bin tables follow build heaps (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemorySourcePinsTest7, "Unit::MemorySourcePins::mission and shell bin tables follow build heaps (source pin)", "[EngineFilter]")
 {
     const std::string sState = HardenSource("src\\Battlefront2\\Source\\GameState.cpp");
     const std::string sLua = HardenSource("src\\Battlefront2\\Source\\LuaMemory.cpp");

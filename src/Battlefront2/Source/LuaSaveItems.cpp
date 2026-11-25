@@ -286,9 +286,26 @@ int Load(lua_State* L, const unsigned char* pData, unsigned int uSize, const cha
         {
             PblUnicode::ustrncnv(acName, pusName, sizeof(acName) - 1);
         }
-        LOG(LogLua, Warning, "OPENSWBF2 SAVE rejected %s save \"%s\"", pcType, acName);
+        LOG(LogLua, Warning, "Save data rejected %s save \"%s\"", pcType, acName);
+#ifdef OPENSWBF2_TEST
+        SaveRejects::Note();
+#endif
     }
     return iCount;
 }
 
 }
+
+#ifdef OPENSWBF2_TEST
+static unsigned int suSaveRejects;
+
+void SaveRejects::Note()
+{
+    ++suSaveRejects;
+}
+
+unsigned int SaveRejects::Count()
+{
+    return suSaveRejects;
+}
+#endif

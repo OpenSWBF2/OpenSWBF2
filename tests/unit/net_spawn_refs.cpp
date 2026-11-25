@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <string>
@@ -48,7 +49,7 @@ const char* const kNetGame = "src\\Battlefront2\\Source\\NetGame.cpp";
 
 }
 
-TEST_CASE("spawn select rejects unknown guest slots" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetSpawnRefsTest1, "Unit::NetSpawnRefs::spawn select rejects unknown guest slots", "[EngineFilter]")
 {
     const std::string sBody = NetRefBody(NetRefSource(kNetGame), "void ReadSpawnSelect(NetPktGroup& group, int player)");
     CHECK(NetRefCount(sBody, "LocalLimits::IsValidNetPlayer(id)") == 1);
@@ -57,13 +58,13 @@ TEST_CASE("spawn select rejects unknown guest slots" * doctest::test_suite("regr
     CHECK(NetRefBefore(sBody, "group.Read(hasSpawn);", "LocalLimits::IsValidNetPlayer(id)"));
 }
 
-TEST_CASE("team change event ignores null references" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetSpawnRefsTest2, "Unit::NetSpawnRefs::team change event ignores null references", "[EngineFilter]")
 {
     const std::string sBody = NetRefBody(NetRefSource(kNetGame), "void HandleEvent_ChangeTeam(ReliableNetEvent& event)");
     CHECK(NetRefBefore(sBody, "if (!post || !team)", "->"));
 }
 
-TEST_CASE("read create rejects unknown class and team" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetSpawnRefsTest3, "Unit::NetSpawnRefs::read create rejects unknown class and team", "[EngineFilter]")
 {
     const std::string sText = NetRefSource(kNetGame);
     const std::string sCreate = NetRefBody(sText, "GameObject* ReadCreate(NetPktGroup& group, unsigned int uniqId)");
@@ -90,7 +91,7 @@ TEST_CASE("read create rejects unknown class and team" * doctest::test_suite("re
     CHECK(NetRefCount(sBuild, "initialPlayerId != playerId && object->GetControllable()") == 1);
 }
 
-TEST_CASE("net object slots are bounded" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetSpawnRefsTest4, "Unit::NetSpawnRefs::net object slots are bounded", "[EngineFilter]")
 {
     const std::string sSmooth = NetRefBody(NetRefSource("src\\Battlefront2\\Source\\NetPredict.cpp"),
                                            "SmoothInfo& NetPredict::GetSmoothInfo(int iIndex)");
@@ -118,7 +119,7 @@ TEST_CASE("net object slots are bounded" * doctest::test_suite("regression"))
     CHECK(iMethods == 9);
 }
 
-TEST_CASE("net message and chunk events ignore null references" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetSpawnRefsTest5, "Unit::NetSpawnRefs::net message and chunk events ignore null references", "[EngineFilter]")
 {
     const std::string sText = NetRefSource(kNetGame);
     const std::string sMessage = NetRefBody(sText, "void HandleEvent_Message(ReliableNetEvent& event)");
@@ -134,7 +135,7 @@ TEST_CASE("net message and chunk events ignore null references" * doctest::test_
     CHECK(NetRefBefore(sChunk, "PblInBounds(relChunkClusterData", "ReadEntityClass(group)"));
 }
 
-TEST_CASE("join guest count is bounded" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetSpawnRefsTest6, "Unit::NetSpawnRefs::join guest count is bounded", "[EngineFilter]")
 {
     const std::string sText = NetRefSource("src\\Battlefront2\\Source\\NetSetup.cpp");
     const std::string sUpdate = NetRefBody(sText, "bool ReadShellUpdate(NetPktGroup& group, ShellUpdate& update, ShellMove& move)");

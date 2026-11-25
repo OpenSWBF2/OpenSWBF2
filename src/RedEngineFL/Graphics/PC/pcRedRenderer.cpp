@@ -289,7 +289,7 @@ static void TrackTarget(FakeD3DTexture* pTexture, unsigned int uiW, unsigned int
     if (!gTrackedTargetsFull)
     {
         gTrackedTargetsFull = true;
-        LOG(LogRender, Error, "OPENSWBF2 APPLY TARGETS tracking full at %u entries",
+        LOG(LogRender, Error, "Apply targets tracking full at %u entries",
             (unsigned int)(sizeof(gTrackedTargets) / sizeof(gTrackedTargets[0])));
     }
 }
@@ -451,8 +451,10 @@ static void LogApplyTargets(const ResetScript& s)
         }
     }
     LOG(LogRender, Inform,
-        "OPENSWBF2 APPLY TARGETS alive=%u fresh=%u stale=%u buffers=%u/3 moved=%u sizes=%s",
+        "Apply targets alive=%u fresh=%u stale=%u buffers=%u/3 moved=%u sizes=%s",
         uiAlive, uiFresh, uiStale, uiBuffers, uiMoved, acSizes);
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioApplyTargets, uiAlive, uiFresh, uiStale, uiBuffers,
+                                            uiMoved));
 }
 
 static void TrackGammaTarget(FakeD3DTexture* pTexture, unsigned int uiW, unsigned int uiH)
@@ -671,8 +673,10 @@ public:
         FakePresentWait();
         if (++presents == 30)
         {
-            LOG(LogRender, Inform, "OPENSWBF2 SHELLSTRETCH FAKE chain=%ux%u presents=%u filter=%s",
+            LOG(LogRender, Inform, "Shell stretch fake chain=%ux%u presents=%u filter=%s",
                 w, h, presents, FilterName(gShellLastFilter));
+            PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioShellStretchFake, presents, 0, 0, 0, 0, 0, 0,
+                                                    FilterName(gShellLastFilter)));
         }
         return D3D_OK;
     }
@@ -1575,9 +1579,12 @@ STDMETHODIMP FakeD3DDevice::Present(CONST RECT*, CONST RECT*, HWND,
     {
         gGammaPending = false;
         LOG(LogRender, Inform,
-            "OPENSWBF2 GAMMA FAKE target=%ux%u alive=%u bb=%ux%u draws=%u ramp_nonid=%u", gGammaW,
+            "Gamma fake target=%ux%u alive=%u bb=%ux%u draws=%u ramp_nonid=%u", gGammaW,
             gGammaH, gGammaAlive, RedRenderer::m_d3dpp.BackBufferWidth,
             RedRenderer::m_d3dpp.BackBufferHeight, gGammaDraws, gGammaRampNonId);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioGammaFake, gGammaW, gGammaH, gGammaAlive,
+                                                RedRenderer::m_d3dpp.BackBufferWidth,
+                                                RedRenderer::m_d3dpp.BackBufferHeight, gGammaDraws, gGammaRampNonId));
     }
     return 0;
 }
@@ -2946,8 +2953,9 @@ bool RedRenderer::pcRequestAdapter(unsigned int uiIndex)
     DisplayLogic::AdapterChoice choice = DisplayLogic::AdapterDecision(uiIndex, gAdapter, uiCount);
     if (!choice.bValid)
     {
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY adapter=%u invalid count=%u, ignored", uiIndex,
+        LOG(LogRender, Warning, "Display adapter=%u invalid count=%u, ignored", uiIndex,
             uiCount);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioAdapterInvalid, uiIndex));
         return false;
     }
 
@@ -2963,13 +2971,14 @@ bool RedRenderer::pcRequestAdapter(unsigned int uiIndex)
 
     if (choice.bRestart)
     {
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adapter=%u pending, restart required", uiIndex);
+        LOG(LogRender, Inform, "Display adapter=%u pending, restart required", uiIndex);
     }
     else
     {
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY adapter=%u pending, running adapter unchanged",
+        LOG(LogRender, Inform, "Display adapter=%u pending, running adapter unchanged",
             uiIndex);
     }
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioAdapterPending, uiIndex, choice.bRestart ? 0u : 1u));
     return choice.bRestart;
 }
 
@@ -3116,7 +3125,7 @@ void RedRenderer::pcRegisterResetFunction(void(__cdecl* pFunction)(ResetFlagsT))
         if (!sbFullLogged)
         {
             sbFullLogged = true;
-            LOG(LogRender, Error, "OPENSWBF2 RESET callbacks full at %u, registration dropped", 100u);
+            LOG(LogRender, Error, "Reset callbacks full at %u, registration dropped", 100u);
         }
         return;
     }
@@ -3756,7 +3765,7 @@ void RedRenderer::Init()
         const char* pcVsync = ulInterval == D3DPRESENT_INTERVAL_IMMEDIATE
                                   ? "off"
                                   : (ulInterval == D3DPRESENT_INTERVAL_TWO ? "half" : "on");
-        LOG(LogRender, Inform, "OPENSWBF2 PACING fps=%u vsync=%s interval=0x%08X waitquery=%d timer=%s",
+        LOG(LogRender, Inform, "Pacing fps=%u vsync=%s interval=0x%08X waitquery=%d timer=%s",
             DisplayCfg::gDisplay.uiFps, pcVsync, ulInterval, sWaitForFrameQuery ? 1 : 0,
             FrameLimiter::KindName(FrameLimiter::Kind()));
     }
@@ -3825,7 +3834,8 @@ void RedRenderer::Init()
                 ++uiFailures;
                 if (uiAttempts == 1)
                 {
-                    LOG(LogRender, Warning, "OPENSWBF2 RESET failed hr=0x%08X, waiting", (unsigned int)hr);
+                    LOG(LogRender, Warning, "Reset failed hr=0x%08X, waiting", (unsigned int)hr);
+                    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioResetFailed, (unsigned int)hr));
                 }
             }
             uiElapsed = ResetClock() - dwStart;
@@ -3848,7 +3858,8 @@ void RedRenderer::Init()
             ResetPresentWatch();
             if (uiAttempts > 1)
             {
-                LOG(LogRender, Inform, "OPENSWBF2 RESET recovered after %u attempts", uiAttempts);
+                LOG(LogRender, Inform, "Reset recovered after %u attempts", uiAttempts);
+                PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioResetRecovered, uiAttempts));
             }
             break;
         }
@@ -3857,7 +3868,7 @@ void RedRenderer::Init()
             bRevertUsed = true;
             bReverted = true;
             LOG(LogRender, Warning,
-                "OPENSWBF2 RESET reverting asked=%ux%u windowed=%d used=%ux%u windowed=%d ms=%d q=%u",
+                "Reset reverting asked=%ux%u windowed=%d used=%ux%u windowed=%d ms=%d q=%u",
                 m_d3dpp.BackBufferWidth, m_d3dpp.BackBufferHeight, (int)m_d3dpp.Windowed,
                 m_d3dppLast.BackBufferWidth, m_d3dppLast.BackBufferHeight,
                 (int)m_d3dppLast.Windowed, (int)m_d3dpp.MultiSampleType,
@@ -4752,7 +4763,7 @@ void RedRenderer::pcSetWaitForFrameQuery(bool bWait)
     DisplayCfg::gDisplay.bNoWaitQuery = !bWait;
     if (bChanged)
     {
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY waitquery=%d", bWait ? 1 : 0);
+        LOG(LogRender, Inform, "Display waitquery=%d", bWait ? 1 : 0);
     }
 }
 
@@ -4885,10 +4896,13 @@ static void LogDisplayReverted(const D3DPRESENT_PARAMETERS& ppAsked,
                                DisplayLogic::DisplayMode eAsked, HRESULT hr)
 {
     LOG(LogRender, Warning,
-        "OPENSWBF2 DISPLAY reverted asked=%ux%u mode=%d used=%ux%u mode=%d hr=0x%08X",
+        "Display reverted asked=%ux%u mode=%d used=%ux%u mode=%d hr=0x%08X",
         ppAsked.BackBufferWidth, ppAsked.BackBufferHeight, (int)eAsked,
         RedRenderer::m_d3dppLast.BackBufferWidth, RedRenderer::m_d3dppLast.BackBufferHeight,
         (int)RedRenderer::m_displayModeLast, (unsigned int)hr);
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioReverted, ppAsked.BackBufferWidth,
+                                            ppAsked.BackBufferHeight, RedRenderer::m_d3dppLast.BackBufferWidth,
+                                            RedRenderer::m_d3dppLast.BackBufferHeight, (unsigned int)hr));
 }
 
 static void PromoteApplied()
@@ -4899,12 +4913,15 @@ static void PromoteApplied()
     RedRenderer::m_clientHLast = RedRenderer::m_clientH;
     sNoticeTag = sInFlightTag;
     sApplyNotice = 1;
-    LOG(LogRender, Inform, "OPENSWBF2 DISPLAY applied %ux%u mode=%s refresh=%u/%u vsync=%s ms=%u",
+    LOG(LogRender, Inform, "Display applied %ux%u mode=%s refresh=%u/%u vsync=%s ms=%u",
         RedRenderer::m_d3dpp.BackBufferWidth, RedRenderer::m_d3dpp.BackBufferHeight,
         DisplayModeName(RedRenderer::m_displayMode),
         RedRenderer::m_d3dpp.FullScreen_RefreshRateInHz, ReadbackRefresh(),
         VsyncName(RedRenderer::m_d3dpp.PresentationInterval),
         (unsigned int)(GetTickCount() - sApplyStartTick));
+    PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioApplied, RedRenderer::m_d3dpp.BackBufferWidth,
+                                            RedRenderer::m_d3dpp.BackBufferHeight, 0, 0, 0, 0, 0,
+                                            VsyncName(RedRenderer::m_d3dpp.PresentationInterval)));
 }
 
 static void ResizeBuffersToBackBuffer()
@@ -5045,8 +5062,9 @@ void RedRenderer::internalReset()
 
         if (sResetAttempts > 0)
         {
-            LOG(LogRender, Inform, "OPENSWBF2 RESET recovered after %u attempts",
+            LOG(LogRender, Inform, "Reset recovered after %u attempts",
                 sResetAttempts + 1);
+            PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioResetRecovered, sResetAttempts + 1));
         }
         sResetFailures = 0;
         sResetAttempts = 0;
@@ -5056,7 +5074,8 @@ void RedRenderer::internalReset()
 
     if (sResetAttempts == 0)
     {
-        LOG(LogRender, Warning, "OPENSWBF2 RESET failed hr=0x%08X, retrying", (unsigned int)hr);
+        LOG(LogRender, Warning, "Reset failed hr=0x%08X, retrying", (unsigned int)hr);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioResetFailed, (unsigned int)hr));
     }
     if (sResetFailures == 0)
     {
@@ -5079,7 +5098,7 @@ void RedRenderer::internalReset()
     {
         sResetRevertUsed = true;
         LOG(LogRender, Warning,
-            "OPENSWBF2 RESET reverting asked=%ux%u windowed=%d used=%ux%u windowed=%d ms=%d q=%u",
+            "Reset reverting asked=%ux%u windowed=%d used=%ux%u windowed=%d ms=%d q=%u",
             m_d3dpp.BackBufferWidth, m_d3dpp.BackBufferHeight, (int)m_d3dpp.Windowed,
             m_d3dppLast.BackBufferWidth, m_d3dppLast.BackBufferHeight,
             (int)m_d3dppLast.Windowed, (int)m_d3dpp.MultiSampleType,
@@ -6005,6 +6024,19 @@ const PblMatrix* RedRenderer::AllocMatrixInCache(const PblMatrix& mat)
 // GLOBAL: SWBF2 0x007de2b0
 
 bool sWaitForFrameQuery = true;
+
+#ifdef OPENSWBF2_TEST
+RedPacingState RedGetPacingState()
+{
+    RedPacingState kState;
+    kState.uFps = DisplayCfg::gDisplay.uiFps;
+    kState.ulInterval = RedRenderer::m_d3dpp.PresentationInterval;
+    kState.bWaitQuery = sWaitForFrameQuery;
+    kState.pcTimer = FrameLimiter::KindName(FrameLimiter::Kind());
+    return kState;
+}
+#endif
+
 // GLOBAL: SWBF2 0x007de2b2
 
 bool sEnableOcclusionQueries = true;
@@ -6148,8 +6180,9 @@ static void ShellStretchFailed(HRESULT hr)
     if (!sShellFailLogged)
     {
         sShellFailLogged = true;
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY shell stretch unavailable hr=0x%08X",
+        LOG(LogRender, Warning, "Display shell stretch unavailable hr=0x%08X",
             (unsigned int)hr);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioShellStretchUnavailable, (unsigned int)hr));
     }
 }
 
@@ -6245,9 +6278,12 @@ static bool EnsureShellStretch(bool bIsShell)
         sShellLogBackH = pp.BackBufferHeight;
         sShellLogW = uiClientW;
         sShellLogH = uiClientH;
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY shell stretch %s %ux%u->%ux%u",
+        LOG(LogRender, Inform, "Display shell stretch %s %ux%u->%ux%u",
             sShellLinear ? "linear" : "none", pp.BackBufferWidth, pp.BackBufferHeight, uiClientW,
             uiClientH);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioShellStretch, pp.BackBufferWidth,
+                                                pp.BackBufferHeight, uiClientW, uiClientH, 0, 0, 0,
+                                                sShellLinear ? "linear" : "none"));
     }
     return true;
 }

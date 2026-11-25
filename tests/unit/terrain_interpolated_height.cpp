@@ -1,10 +1,11 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string>
 
 #include "testutil.h"
 
-TEST_CASE("terrain interpolated height rounds each step to float" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FTerrainInterpolatedHeightTest1, "Unit::TerrainInterpolatedHeight::terrain interpolated height rounds each step to float", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\RedEngineFL\\Application\\RedTerrain.cpp", sText));

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdio.h>
 #include <string>
@@ -821,7 +822,7 @@ const X87MulAddCase kX87HalfCases[] = {
 };
 }
 
-TEST_CASE("x87 multiply add keeps the x86 rounding" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest1, "Unit::X87Math::x87 multiply add keeps the x86 rounding", "[EngineFilter]")
 {
     unsigned int uDiffs = 0;
     for (const X87MulAddCase& k : kX87MulAddCases)
@@ -840,7 +841,7 @@ TEST_CASE("x87 multiply add keeps the x86 rounding" * doctest::test_suite("regre
     CHECK(uDiffs == 0u);
 }
 
-TEST_CASE("x87 multiply subtract keeps the x86 rounding" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest2, "Unit::X87Math::x87 multiply subtract keeps the x86 rounding", "[EngineFilter]")
 {
     unsigned int uDiffs = 0;
     for (const X87MulAddCase& k : kX87MulSubCases)
@@ -859,7 +860,7 @@ TEST_CASE("x87 multiply subtract keeps the x86 rounding" * doctest::test_suite("
     CHECK(uDiffs == 0u);
 }
 
-TEST_CASE("x87 add multiply keeps the x86 rounding" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest3, "Unit::X87Math::x87 add multiply keeps the x86 rounding", "[EngineFilter]")
 {
     unsigned int uDiffs = 0;
     for (const X87MulAddCase& k : kX87AddMulCases)
@@ -878,7 +879,7 @@ TEST_CASE("x87 add multiply keeps the x86 rounding" * doctest::test_suite("regre
     CHECK(uDiffs == 0u);
 }
 
-TEST_CASE("x87 add add keeps the x86 rounding" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest4, "Unit::X87Math::x87 add add keeps the x86 rounding", "[EngineFilter]")
 {
     unsigned int uDiffs = 0;
     for (const X87MulAddCase& k : kX87AddAddCases)
@@ -897,7 +898,7 @@ TEST_CASE("x87 add add keeps the x86 rounding" * doctest::test_suite("regression
     CHECK(uDiffs == 0u);
 }
 
-TEST_CASE("x87 sub sub keeps the x86 rounding" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest5, "Unit::X87Math::x87 sub sub keeps the x86 rounding", "[EngineFilter]")
 {
     unsigned int uDiffs = 0;
     for (const X87MulAddCase& k : kX87SubSubCases)
@@ -916,7 +917,7 @@ TEST_CASE("x87 sub sub keeps the x86 rounding" * doctest::test_suite("regression
     CHECK(uDiffs == 0u);
 }
 
-TEST_CASE("x87 sub div keeps the x86 rounding" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest6, "Unit::X87Math::x87 sub div keeps the x86 rounding", "[EngineFilter]")
 {
     unsigned int uDiffs = 0;
     for (const X87MulAddCase& k : kX87SubDivCases)
@@ -935,7 +936,7 @@ TEST_CASE("x87 sub div keeps the x86 rounding" * doctest::test_suite("regression
     CHECK(uDiffs == 0u);
 }
 
-TEST_CASE("x87 mul div keeps the x86 rounding" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest7, "Unit::X87Math::x87 mul div keeps the x86 rounding", "[EngineFilter]")
 {
     unsigned int uDiffs = 0;
     for (const X87MulAddCase& k : kX87MulDivCases)
@@ -954,7 +955,7 @@ TEST_CASE("x87 mul div keeps the x86 rounding" * doctest::test_suite("regression
     CHECK(uDiffs == 0u);
 }
 
-TEST_CASE("x87 add mul add keeps the x86 rounding" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest8, "Unit::X87Math::x87 add mul add keeps the x86 rounding", "[EngineFilter]")
 {
     unsigned int uDiffs = 0;
     for (const X87Chain4Case& k : kX87AddMulAddCases)
@@ -973,7 +974,7 @@ TEST_CASE("x87 add mul add keeps the x86 rounding" * doctest::test_suite("regres
     CHECK(uDiffs == 0u);
 }
 
-TEST_CASE("convoy follow distance keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest9, "Unit::X87Math::convoy follow distance keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\UnitTrooperAgent.cpp", sText));
@@ -995,7 +996,7 @@ TEST_CASE("convoy follow distance keeps the x86 rounding on x64" * doctest::test
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("cylinder ray hit return keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest10, "Unit::X87Math::cylinder ray hit return keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\CollisionUtil.cpp", sText));
@@ -1021,7 +1022,7 @@ TEST_CASE("cylinder ray hit return keeps the x86 rounding on x64" * doctest::tes
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("path follower roll target keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest11, "Unit::X87Math::path follower roll target keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntityPathFollower.cpp", sText));
@@ -1043,7 +1044,7 @@ TEST_CASE("path follower roll target keeps the x86 rounding on x64" * doctest::t
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("space assault flyer kill timer keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest12, "Unit::X87Math::space assault flyer kill timer keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\AIDifficulty.cpp", sText));
@@ -1062,7 +1063,7 @@ TEST_CASE("space assault flyer kill timer keeps the x86 rounding on x64" * docte
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("space assault critical system timer keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest13, "Unit::X87Math::space assault critical system timer keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\AIDifficulty.cpp", sText));
@@ -1081,7 +1082,7 @@ TEST_CASE("space assault critical system timer keeps the x86 rounding on x64" * 
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("barrage count keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest14, "Unit::X87Math::barrage count keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\AILowLevel.cpp", sText));
@@ -1102,7 +1103,7 @@ TEST_CASE("barrage count keeps the x86 rounding on x64" * doctest::test_suite("r
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("deathmatch jet jump time keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest15, "Unit::X87Math::deathmatch jet jump time keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\UnitDeathmatchAgent.cpp", sText));
@@ -1120,7 +1121,7 @@ TEST_CASE("deathmatch jet jump time keeps the x86 rounding on x64" * doctest::te
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("soldier fly spin keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest16, "Unit::X87Math::soldier fly spin keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\SoldierAnimator.cpp", sText));
@@ -1138,7 +1139,7 @@ TEST_CASE("soldier fly spin keeps the x86 rounding on x64" * doctest::test_suite
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("flyer landing ground distance keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest17, "Unit::X87Math::flyer landing ground distance keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntityFlyer.cpp", sText));
@@ -1160,7 +1161,7 @@ TEST_CASE("flyer landing ground distance keeps the x86 rounding on x64" * doctes
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("flyer trick roll speed keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest18, "Unit::X87Math::flyer trick roll speed keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntityFlyer.cpp", sText));
@@ -1182,7 +1183,7 @@ TEST_CASE("flyer trick roll speed keeps the x86 rounding on x64" * doctest::test
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("target priority keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest19, "Unit::X87Math::target priority keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\TargetInfo.cpp", sText));
@@ -1200,7 +1201,7 @@ TEST_CASE("target priority keeps the x86 rounding on x64" * doctest::test_suite(
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("idle wander keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest20, "Unit::X87Math::idle wander keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\IdleHelper.cpp", sText));
@@ -1219,7 +1220,7 @@ TEST_CASE("idle wander keeps the x86 rounding on x64" * doctest::test_suite("reg
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("charged damage per second keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest21, "Unit::X87Math::charged damage per second keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\CombatUtil.cpp", sText));
@@ -1237,7 +1238,7 @@ TEST_CASE("charged damage per second keeps the x86 rounding on x64" * doctest::t
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("double file jitter phase keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest22, "Unit::X87Math::double file jitter phase keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\ReserveManager.cpp", sText));
@@ -1282,7 +1283,7 @@ TEST_CASE("double file jitter phase keeps the x86 rounding on x64" * doctest::te
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("snipe hint check time keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest23, "Unit::X87Math::snipe hint check time keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\AIUtil.cpp", sText));
@@ -1301,7 +1302,7 @@ TEST_CASE("snipe hint check time keeps the x86 rounding on x64" * doctest::test_
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("combat engage range keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest24, "Unit::X87Math::combat engage range keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\CombatHelper.cpp", sText));
@@ -1322,7 +1323,7 @@ TEST_CASE("combat engage range keeps the x86 rounding on x64" * doctest::test_su
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("spawn invincibility cancel time keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest25, "Unit::X87Math::spawn invincibility cancel time keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\PlayerController.cpp", sText));
@@ -1340,7 +1341,7 @@ TEST_CASE("spawn invincibility cancel time keeps the x86 rounding on x64" * doct
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("adrenaline speed factor keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest26, "Unit::X87Math::adrenaline speed factor keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\Adrenaline.cpp", sText));
@@ -1361,7 +1362,7 @@ TEST_CASE("adrenaline speed factor keeps the x86 rounding on x64" * doctest::tes
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("catapult cocked angle keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest27, "Unit::X87Math::catapult cocked angle keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\WeaponCatapult.cpp", sText));
@@ -1379,7 +1380,7 @@ TEST_CASE("catapult cocked angle keeps the x86 rounding on x64" * doctest::test_
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("max visible distance keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest28, "Unit::X87Math::max visible distance keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\VisionManager.cpp", sText));
@@ -1422,7 +1423,7 @@ TEST_CASE("max visible distance keeps the x86 rounding on x64" * doctest::test_s
     CHECK(sText.find("#include \"VisionManagerDist.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("potentially visible distance keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest29, "Unit::X87Math::potentially visible distance keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\VisionManager.cpp", sText));
@@ -1444,7 +1445,7 @@ TEST_CASE("potentially visible distance keeps the x86 rounding on x64" * doctest
     CHECK(sText.find("#include \"VisionManagerDist.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("attack far range keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest30, "Unit::X87Math::attack far range keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\UnitAttackPatterns.cpp", sText));
@@ -1476,7 +1477,7 @@ TEST_CASE("attack far range keeps the x86 rounding on x64" * doctest::test_suite
     CHECK(sText.find("#include \"VisionManagerDist.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("max visible distance terms keep the x86 operands on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest31, "Unit::X87Math::max visible distance terms keep the x86 operands on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\VisionManagerDist.h", sText));
@@ -1511,7 +1512,7 @@ TEST_CASE("max visible distance terms keep the x86 operands on x64" * doctest::t
     CHECK(sText.find("#include \"VisionManager.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("x87 dot keeps the x86 rounding" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest32, "Unit::X87Math::x87 dot keeps the x86 rounding", "[EngineFilter]")
 {
     unsigned int uDiffs = 0;
     for (const X87Dot3Case& k : kX87Dot3Cases)
@@ -1531,7 +1532,7 @@ TEST_CASE("x87 dot keeps the x86 rounding" * doctest::test_suite("regression"))
     CHECK(uDiffs == 0u);
 }
 
-TEST_CASE("boarding range keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest33, "Unit::X87Math::boarding range keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\UnitBoardAgent.cpp", sText));
@@ -1550,7 +1551,7 @@ TEST_CASE("boarding range keeps the x86 rounding on x64" * doctest::test_suite("
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("asteroid max speed keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest34, "Unit::X87Math::asteroid max speed keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\Asteroid.cpp", sText));
@@ -1572,7 +1573,7 @@ TEST_CASE("asteroid max speed keeps the x86 rounding on x64" * doctest::test_sui
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("soldier sprint start keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest35, "Unit::X87Math::soldier sprint start keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntitySoldier.cpp", sText));
@@ -1617,7 +1618,7 @@ TEST_CASE("soldier sprint start keeps the x86 rounding on x64" * doctest::test_s
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("soldier sprint end keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest36, "Unit::X87Math::soldier sprint end keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntitySoldier.cpp", sText));
@@ -1649,7 +1650,7 @@ TEST_CASE("soldier sprint end keeps the x86 rounding on x64" * doctest::test_sui
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("net front distance keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest37, "Unit::X87Math::net front distance keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetGame.cpp", sText));
@@ -1669,7 +1670,7 @@ TEST_CASE("net front distance keeps the x86 rounding on x64" * doctest::test_sui
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("net far to near order keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest38, "Unit::X87Math::net far to near order keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetGame.cpp", sText));
@@ -1691,7 +1692,7 @@ TEST_CASE("net far to near order keeps the x86 rounding on x64" * doctest::test_
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("net closest ordnance position keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest39, "Unit::X87Math::net closest ordnance position keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetGame.cpp", sText));
@@ -1714,7 +1715,7 @@ TEST_CASE("net closest ordnance position keeps the x86 rounding on x64" * doctes
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("net scope distance keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest40, "Unit::X87Math::net scope distance keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetGame.cpp", sText));
@@ -1733,7 +1734,7 @@ TEST_CASE("net scope distance keeps the x86 rounding on x64" * doctest::test_sui
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("net send priority keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest41, "Unit::X87Math::net send priority keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetGame.cpp", sText));
@@ -1788,7 +1789,7 @@ TEST_CASE("net send priority keeps the x86 rounding on x64" * doctest::test_suit
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("net send priority is replaced on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest42, "Unit::X87Math::net send priority is replaced on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetGame.cpp", sText));
@@ -1803,7 +1804,7 @@ TEST_CASE("net send priority is replaced on x64" * doctest::test_suite("regressi
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("light and weather timers keep the x86 fmod rule on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest43, "Unit::X87Math::light and weather timers keep the x86 fmod rule on x64", "[EngineFilter]")
 {
     std::string sLight;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntityLight.cpp", sLight));
@@ -1822,7 +1823,7 @@ TEST_CASE("light and weather timers keep the x86 fmod rule on x64" * doctest::te
     CHECK(sWeather.find("#include \"PebbleFL/Common/PblCrtTrig.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("x87 add add mul add keeps the x86 rounding" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest44, "Unit::X87Math::x87 add add mul add keeps the x86 rounding", "[EngineFilter]")
 {
     unsigned int uDiffs = 0;
     for (const X87Chain5Case& k : kX87AddAddMulAddCases)
@@ -1842,7 +1843,7 @@ TEST_CASE("x87 add add mul add keeps the x86 rounding" * doctest::test_suite("re
     CHECK(uDiffs == 0u);
 }
 
-TEST_CASE("x87 terrain ray recursion keeps the x86 rounding" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest45, "Unit::X87Math::x87 terrain ray recursion keeps the x86 rounding", "[EngineFilter]")
 {
     unsigned int uDiffs = 0;
     for (const X87RayCase& k : kX87RayCases)
@@ -1876,7 +1877,7 @@ TEST_CASE("x87 terrain ray recursion keeps the x86 rounding" * doctest::test_sui
     CHECK(uDiffs == 0u);
 }
 
-TEST_CASE("cannon spread keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest46, "Unit::X87Math::cannon spread keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\WeaponCannon.cpp", sText));
@@ -1902,7 +1903,7 @@ TEST_CASE("cannon spread keeps the x86 rounding on x64" * doctest::test_suite("r
     CHECK(sText.find("#include \"PebbleFL/Common/PblX87Math.h\"\n") != std::string::npos);
 }
 
-TEST_CASE("cannon spread returns keep the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest47, "Unit::X87Math::cannon spread returns keep the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\WeaponCannon.cpp", sText));
@@ -1939,7 +1940,7 @@ TEST_CASE("cannon spread returns keep the x86 rounding on x64" * doctest::test_s
     CHECK(sText.find("    return fYaw;\n}\n\n// FUNCTION: SWBF2 0x0067e880\n") != std::string::npos);
 }
 
-TEST_CASE("terrain ray recursion keeps the x86 rounding on x64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FX87MathTest48, "Unit::X87Math::terrain ray recursion keeps the x86 rounding on x64", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\RedEngineFL\\Application\\RedTerrain.cpp", sText));

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -32,7 +33,7 @@ std::string SourceSpan(const char* pcPath, const char* pcStart, const char* pcEn
 
 }
 
-TEST_CASE("align helper keeps the high address bits" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FAddressWidthTest1, "Unit::AddressWidth::align helper keeps the high address bits", "[SmokeFilter]")
 {
     const uintptr_t uHigh = (uintptr_t)1 << (sizeof(void*) * 8 - 4);
     CHECK(AlignedAt(uHigh, 16) == uHigh);
@@ -45,7 +46,7 @@ TEST_CASE("align helper keeps the high address bits" * doctest::test_suite("unit
     CHECK(AlignedAt(uHigh - 0x40, 0x40) == uHigh - 0x40);
 }
 
-TEST_CASE("game memory aligns heap starts through the helper" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAddressWidthTest2, "Unit::AddressWidth::game memory aligns heap starts through the helper", "[EngineFilter]")
 {
     const std::string sBody = SourceSpan("src\\Battlefront2\\Source\\GameMemory.cpp",
                                          "static inline char* AlignHeapStart(const void* pAddress)", "}");
@@ -53,7 +54,7 @@ TEST_CASE("game memory aligns heap starts through the helper" * doctest::test_su
     CHECK(sBody.find("(unsigned int)") == std::string::npos);
 }
 
-TEST_CASE("connectivity graph aligns patches through the helper" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAddressWidthTest3, "Unit::AddressWidth::connectivity graph aligns patches through the helper", "[EngineFilter]")
 {
     const std::string sLine = SourceSpan("src\\Battlefront2\\Source\\ConnectivityGraph.cpp",
                                          "ConnectivityGraphPatch* pPatch = (ConnectivityGraphPatch*)", ";");
@@ -61,7 +62,7 @@ TEST_CASE("connectivity graph aligns patches through the helper" * doctest::test
     CHECK(sLine.find("(unsigned int)") == std::string::npos);
 }
 
-TEST_CASE("soldier animator stores its owner as a pointer" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAddressWidthTest4, "Unit::AddressWidth::soldier animator stores its owner as a pointer", "[EngineFilter]")
 {
     std::string sHeader;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\SoldierAnimator.h", sHeader));
@@ -75,7 +76,7 @@ TEST_CASE("soldier animator stores its owner as a pointer" * doctest::test_suite
     CHECK(sGetOwner.find("(unsigned int)") == std::string::npos);
 }
 
-TEST_CASE("soldier animator owner keeps its full address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAddressWidthTest5, "Unit::AddressWidth::soldier animator owner keeps its full address", "[EngineFilter]")
 {
     alignas(SoldierAnimator) unsigned char acRaw[sizeof(SoldierAnimator)];
     memset(acRaw, 0, sizeof(acRaw));
@@ -88,7 +89,7 @@ TEST_CASE("soldier animator owner keeps its full address" * doctest::test_suite(
     CHECK(pAnimator->GetOwner() == pNear);
 }
 
-TEST_CASE("heap ranges keep their full width" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAddressWidthTest6, "Unit::AddressWidth::heap ranges keep their full width", "[EngineFilter]")
 {
     const size_t uSpan = ((size_t)1 << (sizeof(size_t) * 8 - 4)) + 0x1000;
     char* pcStart = (char*)(uintptr_t)0x10;

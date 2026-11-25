@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -51,7 +52,7 @@ namespace
     }
 }
 
-TEST_CASE("odf value guard rejects non-finite tokens" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FOdfValueTest1, "Unit::OdfValue::odf value guard rejects non-finite tokens", "[SmokeFilter]")
 {
     static const char* const kTokens[] = {
         "nan", "NAN", "NaN", "+nan", "-nan", "nan()", "nan(ind)", "-nan(ind)", "nan(snan)",
@@ -74,7 +75,7 @@ TEST_CASE("odf value guard rejects non-finite tokens" * doctest::test_suite("uni
     CHECK(capture.Count("odf: property 0x") == 1);
 }
 
-TEST_CASE("odf value guard repairs dangling exponents" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FOdfValueTest2, "Unit::OdfValue::odf value guard repairs dangling exponents", "[SmokeFilter]")
 {
     static const char* const kTokens[] = {"1e", "1e+"};
     for (size_t i = 0; i < sizeof(kTokens) / sizeof(kTokens[0]); ++i)
@@ -94,7 +95,7 @@ TEST_CASE("odf value guard repairs dangling exponents" * doctest::test_suite("un
     }
 }
 
-TEST_CASE("odf value guard leaves finite and retail values alone" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FOdfValueTest3, "Unit::OdfValue::odf value guard leaves finite and retail values alone", "[SmokeFilter]")
 {
     static const char* const kValues[] = {
         "1.0", "-2.5", "1e39", "1.#INF", "1.#QNAN", "0x10", "rep_inf_ep3_rifleman", ""};
@@ -132,7 +133,7 @@ TEST_CASE("odf value guard leaves finite and retail values alone" * doctest::tes
     }
 }
 
-TEST_CASE("odf value guard leaves string values whole" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FOdfValueTest4, "Unit::OdfValue::odf value guard leaves string values whole", "[SmokeFilter]")
 {
     static const char* const kValues[] = {
         "info", "infantry_x.msh", "inf_trooper", "infantry", "nanny", "rep_inf_ep3_rifleman",

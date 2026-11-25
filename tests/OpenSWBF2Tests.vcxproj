@@ -81,6 +81,7 @@
     <ClCompile Include="..\src\PebbleFL\Common\PblRandom.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblRegion.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\CommandLine.cpp" />
+    <ClCompile Include="..\src\Battlefront2\Source\AutomationTest.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\InGameMovie.cpp" />
     <ClCompile Include="..\src\RedEngineFL\movie\pc\pcRedMovieHeader.cpp" />
     <ClCompile Include="..\src\RedEngineFL\movie\pc\pcRedMovieConvert.cpp" />
@@ -203,6 +204,7 @@
     <ClCompile Include="..\src\RedEngineFL\Application\RedTerrain.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="testutil.cpp" />
+    <ClCompile Include="harness\*.cpp" />
     <ClCompile Include="nettest.cpp" />
     <ClCompile Include="stubs\*.cpp" />
     <ClCompile Include="unit\*.cpp" Exclude="unit\movie_corpus.cpp;unit\fma3_x64.cpp;unit\d3dx_ref_win32.cpp;unit\d3dx_ref_x64.cpp;unit\d3dx_x87_win32.cpp;unit\d3dx_x87_x64.cpp;unit\crt_trig_ref_win32.cpp;unit\crt_trig_ref_strict_win32.cpp;unit\crt_trig_ref_x64.cpp" />
@@ -228,10 +230,12 @@
     <MASM Include="..\src\PebbleFL\pc\pcD3dxX87X64.asm" Condition="'$(Platform)'=='x64'" />
     <MASM Include="..\src\PebbleFL\pc\pcCrtTrigX64.asm" Condition="'$(Platform)'=='x64'" />
     <ClCompile Include="net\*.cpp" />
+    <ClCompile Include="game\*.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="testutil.h" />
     <ClInclude Include="nettest.h" />
+    <ClInclude Include="harness\*.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\src\FFmpegFL\FFmpegFL.vcxproj">

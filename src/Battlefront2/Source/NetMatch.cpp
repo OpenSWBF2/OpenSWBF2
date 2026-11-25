@@ -400,7 +400,7 @@ void NetMatch::StartLogin(int iViewport, bool bArg2, char const* pcArg3, char co
     if (!gf::vendor::IsOn(gf::vendor::SERVICE_GALAXY))
     {
         netLoginFailureReason = 6;
-        LOG(LogCore, Inform, "OPENSWBF2 GALAXY login skipped: %s", gf::vendor::LobbyOffText(sizeof(void*) == 8));
+        LOG(LogCore, Inform, "Galaxy login skipped: %s", gf::vendor::LobbyOffText(sizeof(void*) == 8));
         return;
     }
     if (!gf::isInitialized() && gf::initialize())

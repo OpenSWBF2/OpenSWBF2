@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -304,7 +305,7 @@ void CheckRegions(uintptr_t uBase, const Region* pRegions, unsigned int uiCount,
 
 }
 
-TEST_CASE("voice chat decoder and encoder carving fits and aligns" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FVoiceChatLayoutTest1, "Unit::VoiceChatLayout::voice chat decoder and encoder carving fits and aligns", "[EngineFilter]")
 {
     const size_t uPtr = alignof(void*);
     const uintptr_t uHigh = (uintptr_t)0x7FFF0000u * (sizeof(void*) == 8 ? 0x10000u : 1u);
@@ -376,7 +377,7 @@ TEST_CASE("voice chat decoder and encoder carving fits and aligns" * doctest::te
     }
 }
 
-TEST_CASE("voice chat node carving fits and aligns" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FVoiceChatLayoutTest2, "Unit::VoiceChatLayout::voice chat node carving fits and aligns", "[EngineFilter]")
 {
     typedef VoiceChat::Node VN;
     const size_t uPtr = alignof(void*);

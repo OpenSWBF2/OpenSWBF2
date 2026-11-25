@@ -234,6 +234,18 @@
     <ClCompile Include="src\Battlefront2\Source\AudibleManager.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\AutomationTest.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\AutomationTests_Boot.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\AutomationTests_Crash.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\AutomationTests_Standard.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\Battlefront2Lod.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -1725,6 +1737,9 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\AttackHelper.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\AutomationTest.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\Battlefront2Lod.h">

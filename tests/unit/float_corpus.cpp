@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <float.h>
@@ -954,17 +955,17 @@ static unsigned int CheckMathCorpus(bool bAllowX87PrecisionForms)
     return uX87;
 }
 
-TEST_CASE("float parse corpus odf" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FFloatCorpusTest1, "Unit::FloatCorpus::float parse corpus odf", "[ProductFilter]")
 {
     CheckParseCorpus("corpus\\floatparse\\odf.txt", 700);
 }
 
-TEST_CASE("float parse corpus edge" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FFloatCorpusTest2, "Unit::FloatCorpus::float parse corpus edge", "[ProductFilter]")
 {
     CheckParseCorpus("corpus\\floatparse\\edge.txt", 30);
 }
 
-TEST_CASE("math corpus" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FFloatCorpusTest3, "Unit::FloatCorpus::math corpus", "[ProductFilter]")
 {
     CHECK(CheckMathCorpus(false) == 0);
 }
@@ -1043,7 +1044,7 @@ static bool ReadFileBytes(const std::string& sPath, std::string& sOut)
     return bOk;
 }
 
-TEST_CASE("float corpus generator writes every file" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FFloatCorpusTest4, "Unit::FloatCorpus::float corpus generator writes every file", "[ProductFilter]")
 {
     REQUIRE_GAMEDATA();
     WatchdogArm("gen-corpus child");
@@ -1125,7 +1126,7 @@ struct PrecisionGuard
     }
 };
 
-TEST_CASE("math corpus x87 pc24" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FFloatCorpusTest5, "Unit::FloatCorpus::math corpus x87 pc24", "[ProductFilter]")
 {
     unsigned int uOld = 0;
     unsigned int uTmp = 0;
@@ -1142,7 +1143,7 @@ TEST_CASE("math corpus x87 pc24" * doctest::test_suite("corpus"))
 class SinCosTable;
 extern SinCosTable _TheSinCosTable;
 
-TEST_CASE("sin cos table bits equal x86" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FFloatCorpusTest6, "Unit::FloatCorpus::sin cos table bits equal x86", "[ProductFilter]")
 {
     const unsigned char* pucBytes = reinterpret_cast<const unsigned char*>(&_TheSinCosTable);
     unsigned int uiHash = 2166136261u;

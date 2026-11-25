@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "Steam/galaxy_api.h"
 
@@ -77,7 +78,7 @@ void* RawSlot(void* pObject, unsigned int uiOffset)
 
 }
 
-TEST_CASE("galaxy header IUser retail offset 0x4 is SignedIn" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FGalaxySlotsTest1, "Unit::GalaxySlots::galaxy header IUser retail offset 0x4 is SignedIn", "[SmokeFilter]")
 {
     RecUser kUser;
     galaxy::api::IUser* pUser = &kUser;
@@ -91,7 +92,7 @@ TEST_CASE("galaxy header IUser retail offset 0x4 is SignedIn" * doctest::test_su
     CHECK(kUser.last == CALL_SIGNED_IN);
 }
 
-TEST_CASE("galaxy header IFriends retail offset 0x34 is RequestFriendList" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FGalaxySlotsTest2, "Unit::GalaxySlots::galaxy header IFriends retail offset 0x34 is RequestFriendList", "[SmokeFilter]")
 {
     RecFriends kFriends;
     galaxy::api::IFriends* pFriends = &kFriends;
@@ -101,7 +102,7 @@ TEST_CASE("galaxy header IFriends retail offset 0x34 is RequestFriendList" * doc
     CHECK(kFriends.last == CALL_REQUEST_FRIEND_LIST);
 }
 
-TEST_CASE("galaxy header typed calls hit the retail offsets" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FGalaxySlotsTest3, "Unit::GalaxySlots::galaxy header typed calls hit the retail offsets", "[SmokeFilter]")
 {
     RecUser kUser;
     RecFriends kFriends;

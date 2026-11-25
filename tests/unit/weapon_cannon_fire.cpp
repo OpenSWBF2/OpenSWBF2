@@ -1,10 +1,11 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string>
 
 #include "testutil.h"
 
-TEST_CASE("weapon cannon fire compiles with fp strict" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FWeaponCannonFireTest1, "Unit::WeaponCannonFire::weapon cannon fire compiles with fp strict", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("BattlefrontII.vcxproj", sText));

@@ -1511,6 +1511,7 @@ public:
 };
 
 void ClearNetEvents();
+void ClearNetEventStorage();
 
 void InitFrameLock();
 void InitBootPlayer();
@@ -2554,6 +2555,7 @@ void NetGame::Reset()
     memset(recentGuestObjects, 0, sizeof(recentGuestObjects));
     memset(suicideChangeCounts, 0, sizeof(suicideChangeCounts));
     memset(suicideInfo, 0, sizeof(suicideInfo));
+    ClearNetEventStorage();
 
     for (i = 0; i < 64; i++)
     {
@@ -3690,6 +3692,12 @@ struct ReliableNetEvent
 
 // GLOBAL: SWBF2 0x01fa6710
 ReliableNetEvent reliableEvents[128];
+
+void ClearNetEventStorage()
+{
+    memset(sServerNetEvents, 0, sizeof(sServerNetEvents));
+    memset(reliableEvents, 0, sizeof(reliableEvents));
+}
 
 // FUNCTION: SWBF2 0x005bf490
 void AdvanceReliableTail(unsigned int uIndex)

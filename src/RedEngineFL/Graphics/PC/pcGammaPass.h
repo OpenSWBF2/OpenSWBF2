@@ -10,5 +10,9 @@ void Draw();
 void ReleaseDefault();
 void Shutdown();
 bool IsEnsuring();
+#ifdef OPENSWBF2_TEST
+const char* TestPathName();
+const char* TestReason();
+#endif
 
 }

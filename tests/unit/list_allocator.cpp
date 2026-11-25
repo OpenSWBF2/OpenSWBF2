@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 
@@ -93,8 +94,7 @@ void LaRun(bool bDescending, LaPick* pSmall, LaPick* pLarge)
 
 }
 
-TEST_CASE("cloth list allocator picks the same block whatever order its pages have in memory" *
-          doctest::test_suite("regression"))
+TEST_CASE_NAMED(FListAllocatorTest1, "Unit::ListAllocator::cloth list allocator picks the same block whatever order its pages have in memory", "[EngineFilter]")
 {
     LaPick kAscSmall;
     LaPick kAscLarge;
@@ -499,8 +499,7 @@ int LcMissionCount(const LcMissionRow& rRow)
 
 }
 
-TEST_CASE("cloth list allocator holds as many allocations at its ceiling on x64 as on x86" *
-          doctest::test_suite("regression"))
+TEST_CASE_NAMED(FListAllocatorTest2, "Unit::ListAllocator::cloth list allocator holds as many allocations at its ceiling on x64 as on x86", "[EngineFilter]")
 {
     for (unsigned int i = 0; i < sizeof(kLcRepeatRows) / sizeof(kLcRepeatRows[0]); ++i)
     {

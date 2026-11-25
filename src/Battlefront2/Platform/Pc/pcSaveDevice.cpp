@@ -3,6 +3,7 @@
 #include "pcSaveDevice.h"
 #include "PebbleFL/Common/PblUnicode.h"
 #include "RedEngineFL/Util/RedLog.h"
+#include "Battlefront2/Source/LuaSaveItems.h"
 
 #include <direct.h>
 #include <errno.h>
@@ -163,8 +164,11 @@ int SaveDevice::StartReadFile(SaveFile& file, void* pBuf, unsigned int uiSize)
         {
             PblUnicode::ustrncnv(acExt, SFTPrefix[file.GetType()], sizeof(acExt) - 1);
         }
-        LOG(LogLoad, Warning, "OPENSWBF2 SAVE rejected short file \"%s.%s\" read %u of %u bytes", acName,
+        LOG(LogLoad, Warning, "Save data rejected short file \"%s.%s\" read %u of %u bytes", acName,
             acExt, uiRead, uiSize);
+#ifdef OPENSWBF2_TEST
+        SaveRejects::Note();
+#endif
         return -5;
     }
     mLastAsyncResult = uiRead;

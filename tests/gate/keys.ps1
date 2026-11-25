@@ -1,28 +1,21 @@
-$script:KeyComparedTables = @(@('cloth-headroom.txt', 'mem-peaks.txt', 'pool-sizes.txt', 'smoke-all-digests.txt', 'lua-bins.txt', 'lua-hist.txt', 'offthread.txt', 'hardening.txt', 'digests.txt', 'digests-hog.txt', 'digest-trace-geo1c_con.txt', 'digest-trace-hot1g_con.txt', 'digest-trace-nab2g_c.txt', 'digest-trace-spa3c_ass.txt', 'digest-trace-dag1c_ctf.txt', 'digest-trace-kas2c_uber.txt', 'factory-geo1c_con.txt', 'factory-hot1g_con.txt', 'factory-nab2g_c.txt', 'factory-spa3c_ass.txt', 'initializers.txt', 'initializers-di.txt', 'initializers-discarded.txt', 'digests-debug.txt', 'x87-inventory.tsv') | ForEach-Object { "tests\baseline\v143\$_" }) + @('tests\baseline\v143-x64\mem-peaks.txt', 'tests\baseline\v143-x64\commit.txt', 'tests\baseline\v143-x64\lua-hist.txt', 'tests\baseline\v143-x64\cloth-headroom.txt', 'tests\baseline\v143-x64\pool-sizes.txt', 'tests\baseline\v143-x64\lua-bins.txt', 'tests\baseline\v143-x64\offthread.txt')
+$script:KeyComparedTables = @(@('cloth-headroom.txt', 'mem-peaks.txt', 'pool-sizes.txt', 'smoke-all-digests.txt', 'lua-bins.txt', 'lua-hist.txt', 'offthread.txt', 'digests.txt', 'digests-hog.txt', 'digest-trace-geo1c_con.txt', 'digest-trace-hot1g_con.txt', 'digest-trace-nab2g_c.txt', 'digest-trace-spa3c_ass.txt', 'digest-trace-dag1c_ctf.txt', 'digest-trace-kas2c_uber.txt', 'factory-geo1c_con.txt', 'factory-hot1g_con.txt', 'factory-nab2g_c.txt', 'factory-spa3c_ass.txt', 'initializers.txt', 'initializers-di.txt', 'initializers-discarded.txt', 'digests-debug.txt', 'x87-inventory.tsv') | ForEach-Object { "tests\baseline\v143\$_" }) + @('tests\baseline\v143-x64\mem-peaks.txt', 'tests\baseline\v143-x64\commit.txt', 'tests\baseline\v143-x64\lua-hist.txt', 'tests\baseline\v143-x64\cloth-headroom.txt', 'tests\baseline\v143-x64\pool-sizes.txt', 'tests\baseline\v143-x64\lua-bins.txt', 'tests\baseline\v143-x64\offthread.txt')
 
 $script:JudgeOnlyFiles = @{
-    'smoke' = @(@{ Path = 'tests\smoke\digest-expected.txt'; Reader = 'Test-SmokeExpect' }, @{ Path = 'tests\smoke\expected-errors.txt'; Reader = 'Get-SmokeUnexpected' }) + @($script:KeyComparedTables | ForEach-Object { @{ Path = $_; Reader = 'compare-tables' } })
-    'smoke-all' = @(@{ Path = 'tests\smoke\expected-errors.txt'; Reader = 'Get-SmokeUnexpected' }) + @($script:KeyComparedTables | ForEach-Object { @{ Path = $_; Reader = 'compare-tables' } })
+    'smoke' = @()
+    'smoke-all' = @()
     't1' = @()
-    'hardening' = @(@{ Path = 'tests\baseline\v143\hardening.txt'; Reader = 'compare-tables' })
     'compare' = @($script:KeyComparedTables | ForEach-Object { @{ Path = $_; Reader = 'compare-tables' } })
 }
 
-$script:KindRunUnread = @{
-    'hardening' = @('tests\smoke\digest-expected.txt', 'tests\smoke\expected-errors.txt')
-}
 
-$script:KeyJudgeScripts = @('tests\smoke.ps1', 'tests\common.ps1', 'tests\smoke\cases.ps1', 'tests\baseline\compare-tables.ps1')
+$script:KeyJudgeScripts = @('tests\hardening.ps1', 'tests\common.ps1', 'tests\hardening\allow.ps1', 'tests\baseline\compare-tables.ps1')
 
 $script:KeyExcludedDocs = @('tests\README.md')
 
-$script:KeyRecordFiles = @('tests\guardrevert\steps.tsv', 'tests\guardrevert\proven.tsv', 'tests\baseline\gate-times.tsv')
 
-$script:KeyRecordLeaves = @('proven.partial.tsv')
+$script:StepColumns = @('Step', 'RunKey', 'JudgeKey', 'Platform', 'Config', 'Evidence', 'Result', 'Wall_s', 'Tree', 'Commit', 'Date')
 
-$script:StepColumns = @('Step', 'RunKey', 'JudgeKey', 'Platform', 'Config', 'Tier', 'Evidence', 'Result', 'Tree', 'Commit', 'Date')
-
-$script:StepKeyColumns = @('Step', 'Platform', 'Config', 'Tier')
+$script:StepKeyColumns = @('Step', 'Platform', 'Config')
 
 $script:SteamOverlayApp = '6060'
 
@@ -102,27 +95,6 @@ function Get-KeyGitList([string]$Root, [string[]]$GitArgs) {
     return @(($out -join "`n").Split([char]0) | Where-Object { $_ })
 }
 
-function Get-GuardHashes([string]$Root) {
-    $h = New-Object System.Collections.Hashtable ([StringComparer]::OrdinalIgnoreCase)
-    foreach ($e in (Get-KeyGitList $Root @('ls-files', '-s', '-z'))) {
-        $tab = $e.IndexOf("`t")
-        $h[$e.Substring($tab + 1).Replace('/', '\')] = $e.Split(' ')[1]
-    }
-    $live = @()
-    foreach ($p in (@(Get-KeyGitList $Root @('diff', '--name-only', '-z', 'HEAD')) + @(Get-KeyGitList $Root @('ls-files', '--others', '--exclude-standard', '-z')))) {
-        $k = $p.Replace('/', '\')
-        if (Test-Path -LiteralPath (Join-Path $Root $k) -PathType Leaf) { $live += $p }
-        else { $h.Remove($k) }
-    }
-    if ($live.Count) {
-        $ErrorActionPreference = 'Continue'
-        $out = @($live | & git -C $Root hash-object --stdin-paths)
-        if ($LASTEXITCODE -ne 0 -or $out.Count -ne $live.Count) { throw 'git hash-object failed' }
-        for ($i = 0; $i -lt $live.Count; $i++) { $h[$live[$i].Replace('/', '\')] = "$($out[$i])".Trim() }
-    }
-    return $h
-}
-
 function Get-TreeFileHashes([string]$Root) {
     $h = New-Object System.Collections.Hashtable ([StringComparer]::OrdinalIgnoreCase)
     foreach ($p in (Get-KeyGitList $Root @('ls-files', '--cached', '--others', '--exclude-standard', '-z'))) {
@@ -132,6 +104,95 @@ function Get-TreeFileHashes([string]$Root) {
         else { $h[$k] = 'absent' }
     }
     return $h
+}
+
+function Test-KeyInput([string]$Path, [string[]]$Inputs) {
+    foreach ($i in $Inputs) {
+        if ($i.EndsWith('\')) { if ($Path.StartsWith($i, [StringComparison]::OrdinalIgnoreCase)) { return $true } }
+        elseif ($i.Contains('*')) { if ($Path -like $i) { return $true } }
+        elseif ($Path -ieq $i) { return $true }
+    }
+    return $false
+}
+
+function Select-KeyInputFiles($Files, [string[]]$Inputs) {
+    $h = New-Object System.Collections.Hashtable ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($p in $Files.Keys) { if (Test-KeyInput $p $Inputs) { $h[$p] = $Files[$p] } }
+    return $h
+}
+
+function New-GuardPathSet
+{
+    New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+}
+
+function Read-ClReadTlog([string]$Path, [string]$Root)
+{
+    if (-not $Path -or -not [IO.File]::Exists($Path))
+    {
+        return $null
+    }
+    if (-not $Root.EndsWith('\'))
+    {
+        $Root += '\'
+    }
+    $cmp = [StringComparison]::OrdinalIgnoreCase
+    $rl = $Root.Length
+    $time = [IO.File]::GetLastWriteTimeUtc($Path)
+    $text = [IO.File]::ReadAllText($Path)
+    $sets = New-Object 'System.Collections.Generic.Dictionary[string,System.Collections.Generic.HashSet[string]]' ([StringComparer]::OrdinalIgnoreCase)
+    $cur = New-Object 'System.Collections.Generic.List[System.Collections.Generic.HashSet[string]]'
+    foreach ($l in $text.Split([char[]]"`r`n", [StringSplitOptions]::RemoveEmptyEntries))
+    {
+        if ($l[0] -eq [char]'^')
+        {
+            $cur.Clear()
+            foreach ($s in $l.Substring(1).Split('|'))
+            {
+                if ($s.StartsWith($Root, $cmp))
+                {
+                    $rel = $s.Substring($rl)
+                    $set = $null
+                    if (-not $sets.TryGetValue($rel, [ref]$set))
+                    {
+                        $set = New-GuardPathSet
+                        [void]$set.Add($rel)
+                        $sets[$rel] = $set
+                    }
+                    $cur.Add($set)
+                }
+            }
+        }
+        elseif ($cur.Count -gt 0 -and $l.StartsWith($Root, $cmp))
+        {
+            $rel = $l.Substring($rl)
+            foreach ($set in $cur)
+            {
+                [void]$set.Add($rel)
+            }
+        }
+    }
+    $fileStale = New-Object 'System.Collections.Generic.Dictionary[string,bool]' ([StringComparer]::OrdinalIgnoreCase)
+    $stale = New-GuardPathSet
+    foreach ($kv in $sets.GetEnumerator())
+    {
+        foreach ($p in $kv.Value)
+        {
+            $b = $false
+            if (-not $fileStale.TryGetValue($p, [ref]$b))
+            {
+                $full = $Root + $p
+                $b = (-not [IO.File]::Exists($full)) -or ([IO.File]::GetLastWriteTimeUtc($full) -gt $time)
+                $fileStale[$p] = $b
+            }
+            if ($b)
+            {
+                [void]$stale.Add($kv.Key)
+                break
+            }
+        }
+    }
+    [pscustomobject]@{ Path = $Path; Root = $Root; Time = $time; Sets = $sets; Stale = $stale }
 }
 
 function Get-EvidenceHash([string]$Dir) {
@@ -225,7 +286,6 @@ function Get-StepJudgeOnly([string[]]$Kinds) {
     foreach ($k in @($Kinds | Where-Object { $_ })) {
         $paths = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
         if ($script:JudgeOnlyFiles.ContainsKey($k)) { foreach ($e in $script:JudgeOnlyFiles[$k]) { [void]$paths.Add($e.Path); [void]$judged.Add($e.Path) } }
-        if ($script:KindRunUnread.ContainsKey($k)) { foreach ($p in $script:KindRunUnread[$k]) { [void]$paths.Add($p) } }
         if ($null -eq $set) { $set = $paths }
         else { $set.IntersectWith($paths) }
     }
@@ -256,8 +316,8 @@ function Format-KeyField($Value) {
 function Get-StepKey($In) {
     $valid = $true
     $head = New-Object System.Collections.Generic.List[string]
-    $names = @('step', 'platform', 'config', 'tier', 'toolset', 'cl', 'ucrt', 'steam', 'overlay', 'gamedata', 'exe', 'dlls', 'vendor')
-    if ($In.Kind -eq 'guard') { $names += 'selection' }
+    $names = @('step', 'platform', 'config', 'toolset', 'cl', 'ucrt', 'steam', 'overlay', 'gamedata', 'exe', 'dlls', 'vendor')
+    if ($In.Header) { $names = @($In.Header) }
     foreach ($name in $names) {
         $v = Format-KeyField $In[$name]
         if ($name -eq 'overlay' -and $v -cne 'on' -and $v -cne 'off') { $v = '-' }
@@ -274,11 +334,9 @@ function Get-StepKey($In) {
     }
     else {
         $skip = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
-        foreach ($x in (@($script:KeyExcludedDocs) + @($script:KeyRecordFiles))) { [void]$skip.Add($x) }
-        $leaves = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
-        foreach ($x in $script:KeyRecordLeaves) { [void]$leaves.Add($x) }
+        foreach ($x in $script:KeyExcludedDocs) { [void]$skip.Add($x) }
         foreach ($p in $files.Keys) {
-            if ($skip.Contains($p) -or $leaves.Contains($p.Substring($p.LastIndexOf('\') + 1))) { continue }
+            if ($skip.Contains($p)) { continue }
             $line = $p.ToLowerInvariant() + "`t" + [string]$files[$p]
             if ($judgeSet.Contains($p)) { $judgeLines.Add($line) }
             else { $runLines.Add($line) }
@@ -348,10 +406,6 @@ function Format-StepRecord($Record) {
     return (@($script:StepColumns | ForEach-Object { [string]$Record.$_ }) -join "`t")
 }
 
-function Add-StepRecord([string]$Path, $Record) {
-    Merge-StepRecords $Path @(Format-StepRecord $Record)
-}
-
 function Test-StepRecordUsable($Record) {
     if (-not $Record) { return $false }
     foreach ($c in $script:StepColumns) {
@@ -364,117 +418,4 @@ function Test-StepRecordUsable($Record) {
 function Test-StepRecordMatch($Record, $Key) {
     if (-not $Key.Valid -or -not (Test-StepRecordUsable $Record)) { return $false }
     return ($Record.Platform -ceq $Key.Platform -and $Record.RunKey -ceq $Key.RunKey)
-}
-
-$script:OutcomeResultFields = @('class', 'exit', 'dumps', 'asan', 'stall', 'turns', 'stdout_complete', 'stderr_complete')
-
-$script:OutcomeUndetermined = @('dedicated')
-
-function Get-RunOutcome([string]$Dir) {
-    $results = Join-Path $Dir 'results.txt'
-    if (-not [IO.File]::Exists($results)) { throw "no results.txt in $Dir" }
-    $lines = New-Object 'System.Collections.Generic.SortedDictionary[string,int]' ([StringComparer]::Ordinal)
-    foreach ($l in [IO.File]::ReadAllLines($results)) {
-        $t = ($l -replace '\s*\(\d+ ms\)', '').TrimEnd()
-        if (-not $t -or $t.StartsWith('Suspected hardware:', [StringComparison]::Ordinal)) { continue }
-        if ($lines.ContainsKey($t)) { $lines[$t]++ }
-        else { $lines[$t] = 1 }
-    }
-    $cases = New-Object 'System.Collections.Generic.SortedDictionary[string,object]' ([StringComparer]::Ordinal)
-    $smoke = Join-Path $Dir 'smoke'
-    if ([IO.Directory]::Exists($smoke)) {
-        foreach ($cd in [IO.Directory]::GetDirectories($smoke)) {
-            $f = New-Object 'System.Collections.Generic.SortedDictionary[string,string]' ([StringComparer]::Ordinal)
-            $rf = Join-Path $cd 'result.txt'
-            $kv = @{}
-            if ([IO.File]::Exists($rf)) {
-                foreach ($rl in [IO.File]::ReadAllLines($rf)) {
-                    $i = $rl.IndexOf('=')
-                    if ($i -gt 0) { $kv[$rl.Substring(0, $i)] = $rl.Substring($i + 1) }
-                }
-            }
-            else { $f['result.txt'] = 'missing' }
-            foreach ($k in $script:OutcomeResultFields) { $f[$k] = $(if ($kv.ContainsKey($k)) { [string]$kv[$k] } else { '-' }) }
-            $sim = New-Object System.Collections.Generic.List[string]
-            $soak = New-Object System.Collections.Generic.List[string]
-            $done = New-Object System.Collections.Generic.List[string]
-            $fatal = New-Object System.Collections.Generic.List[string]
-            $trace = New-Object System.Text.StringBuilder
-            $traceCount = 0
-            $traceLast = '-'
-            $log = Join-Path $cd 'run.log'
-            if ([IO.File]::Exists($log)) {
-                foreach ($ll in [IO.File]::ReadLines($log)) {
-                    $j = $ll.IndexOf('FATAL: ')
-                    if ($j -ge 0) {
-                        $ft = $ll.Substring($j)
-                        $b = $ft.IndexOf(' build ')
-                        if ($b -ge 0) { $ft = $ft.Substring(0, $b) }
-                        $fatal.Add((($ft -replace '0x[0-9A-Fa-f]+', '0x#') -replace '\d+', '#'))
-                    }
-                    $i = $ll.IndexOf('OPENSWBF2 ')
-                    if ($i -lt 0) { continue }
-                    $t = $ll.Substring($i)
-                    if ($t.StartsWith('OPENSWBF2 SIM DIGEST ')) { $sim.Add($t) }
-                    elseif ($t.StartsWith('OPENSWBF2 DIGEST TRACE ')) {
-                        [void]$trace.Append($t).Append("`n")
-                        $traceCount++
-                        $traceLast = $t
-                    }
-                    elseif ($t.StartsWith('OPENSWBF2 SOAK ')) { $soak.Add($t) }
-                    elseif ($t.StartsWith('OPENSWBF2 RUN COMPLETE')) { $done.Add($t) }
-                }
-            }
-            else { $f['run.log'] = 'missing' }
-            $f['sim_digest'] = ($sim.ToArray() -join ' | ')
-            $f['soak'] = ($soak.ToArray() -join ' | ')
-            $f['run_complete'] = ($done.ToArray() -join ' | ')
-            $f['fatal'] = ($fatal.ToArray() -join ' | ')
-            $f['digest_trace_end'] = "$traceCount $traceLast"
-            $f['digest_trace_sha'] = $(if ($traceCount) { Get-KeyTextSha $trace.ToString() } else { '-' })
-            $name = [IO.Path]::GetFileName($cd)
-            if ($script:OutcomeUndetermined -contains $name) {
-                $f['turns'] = 'undetermined'
-                $f['sim_digest'] = "$($sim.Count) lines"
-                $f['soak'] = "$($soak.Count) lines"
-                $f['run_complete'] = "$($done.Count) lines"
-                $f['digest_trace_end'] = "$traceCount lines"
-                $f['digest_trace_sha'] = 'undetermined'
-            }
-            $cases[$name] = $f
-        }
-    }
-    return New-Object PSObject -Property @{ Lines = $lines; Cases = $cases }
-}
-
-function Compare-RunOutcome([string]$DirA, [string]$DirB) {
-    $a = Get-RunOutcome $DirA
-    $b = Get-RunOutcome $DirB
-    $diff = New-Object System.Collections.Generic.List[string]
-    $keys = New-Object 'System.Collections.Generic.SortedSet[string]' ([StringComparer]::Ordinal)
-    foreach ($k in $a.Lines.Keys) { [void]$keys.Add($k) }
-    foreach ($k in $b.Lines.Keys) { [void]$keys.Add($k) }
-    foreach ($k in $keys) {
-        $ca = $(if ($a.Lines.ContainsKey($k)) { $a.Lines[$k] } else { 0 })
-        $cb = $(if ($b.Lines.ContainsKey($k)) { $b.Lines[$k] } else { 0 })
-        if ($ca -ne $cb) { $diff.Add("results.txt: A x$ca B x$cb '$k'") }
-    }
-    $names = New-Object 'System.Collections.Generic.SortedSet[string]' ([StringComparer]::Ordinal)
-    foreach ($k in $a.Cases.Keys) { [void]$names.Add($k) }
-    foreach ($k in $b.Cases.Keys) { [void]$names.Add($k) }
-    foreach ($name in $names) {
-        if (-not $a.Cases.ContainsKey($name)) { $diff.Add("smoke\${name}: case only in B"); continue }
-        if (-not $b.Cases.ContainsKey($name)) { $diff.Add("smoke\${name}: case only in A"); continue }
-        $fa = $a.Cases[$name]
-        $fb = $b.Cases[$name]
-        $fields = New-Object 'System.Collections.Generic.SortedSet[string]' ([StringComparer]::Ordinal)
-        foreach ($k in $fa.Keys) { [void]$fields.Add($k) }
-        foreach ($k in $fb.Keys) { [void]$fields.Add($k) }
-        foreach ($k in $fields) {
-            $va = $(if ($fa.ContainsKey($k)) { $fa[$k] } else { '(absent)' })
-            $vb = $(if ($fb.ContainsKey($k)) { $fb[$k] } else { '(absent)' })
-            if ($va -cne $vb) { $diff.Add("smoke\$name ${k}: A '$va' B '$vb'") }
-        }
-    }
-    return New-Object PSObject -Property @{ Equal = ($diff.Count -eq 0); Differences = $diff.ToArray() }
 }

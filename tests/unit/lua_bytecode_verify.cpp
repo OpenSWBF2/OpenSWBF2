@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <cstdio>
 #include <cstring>
@@ -247,7 +248,7 @@ int LoadAndRun(const std::string& sChunk, std::string* psMsg, int iDepth = 0)
 
 }
 
-TEST_CASE("lua chunk builder output loads" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest1, "Unit::LuaBytecodeVerify::lua chunk builder output loads", "[EngineFilter]")
 {
     std::string sMsg;
     INFO(sMsg);
@@ -256,7 +257,7 @@ TEST_CASE("lua chunk builder output loads" * doctest::test_suite("regression"))
     CHECK(LoadAndRun(BuildChunk(RichProto()), &sMsg) == 0);
 }
 
-TEST_CASE("lua loadstring refuses binary chunks" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest2, "Unit::LuaBytecodeVerify::lua loadstring refuses binary chunks", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -283,7 +284,7 @@ TEST_CASE("lua loadstring refuses binary chunks" * doctest::test_suite("regressi
     lua_close(L);
 }
 
-TEST_CASE("lua refused chunk logs one alert" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest3, "Unit::LuaBytecodeVerify::lua refused chunk logs one alert", "[EngineFilter]")
 {
     std::string sChunk = BuildChunk(MinimalProto());
     sChunk.resize(sChunk.size() - 2);
@@ -294,7 +295,7 @@ TEST_CASE("lua refused chunk logs one alert" * doctest::test_suite("regression")
     {
         LogCapture capture;
         CHECK(lua_dobuffer(L, sChunk.data(), sChunk.size(), "=evil") != 0);
-        CHECK(capture.Count("OPENSWBF2 LUA error") == 1);
+        CHECK(capture.Count("Lua error") == 1);
         CHECK(capture.Contains("evil"));
     }
     lua_close(L);
@@ -438,7 +439,7 @@ void CheckRefusedWithBad(const std::string& sChunk, const char* pcWhat)
 
 }
 
-TEST_CASE("lua undump refuses every truncation" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest4, "Unit::LuaBytecodeVerify::lua undump refuses every truncation", "[EngineFilter]")
 {
     const FakeProto akProtos[2] = { MinimalProto(), RichProto() };
     for (int iProto = 0; iProto < 2; ++iProto)
@@ -457,49 +458,49 @@ TEST_CASE("lua undump refuses every truncation" * doctest::test_suite("regressio
     }
 }
 
-TEST_CASE("lua undump refuses oversized line counts" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest5, "Unit::LuaBytecodeVerify::lua undump refuses oversized line counts", "[EngineFilter]")
 {
     const char* pcWant = "bad lines count in evil";
     CheckRefusedWith(ForgedCountChunk(0, 0x40000001u, ReturnRecords(64)), "lines wrap", pcWant);
     CheckRefusedWith(ForgedCountChunk(0, 0x01000000u), "lines huge", pcWant);
 }
 
-TEST_CASE("lua undump refuses oversized local counts" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest6, "Unit::LuaBytecodeVerify::lua undump refuses oversized local counts", "[EngineFilter]")
 {
     const char* pcWant = "bad locals count in evil";
     CheckRefusedWith(ForgedCountChunk(1, 0x15555556u, LocalRecords(16)), "locals wrap", pcWant);
     CheckRefusedWith(ForgedCountChunk(1, 0x01000000u), "locals huge", pcWant);
 }
 
-TEST_CASE("lua undump refuses oversized constant counts" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest7, "Unit::LuaBytecodeVerify::lua undump refuses oversized constant counts", "[EngineFilter]")
 {
     const char* pcWant = "bad constant count in evil";
     CheckRefusedWith(ForgedCountChunk(3, 0x20000001u), "constants wrap", pcWant);
     CheckRefusedWith(ForgedCountChunk(3, 0x01000000u), "constants huge", pcWant);
 }
 
-TEST_CASE("lua undump refuses oversized function counts" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest8, "Unit::LuaBytecodeVerify::lua undump refuses oversized function counts", "[EngineFilter]")
 {
     const char* pcWant = "bad function count in evil";
     CheckRefusedWith(ForgedCountChunk(4, 0x40000001u, ProtoRecords(8)), "functions wrap", pcWant);
     CheckRefusedWith(ForgedCountChunk(4, 0x01000000u), "functions huge", pcWant);
 }
 
-TEST_CASE("lua undump refuses oversized code counts" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest9, "Unit::LuaBytecodeVerify::lua undump refuses oversized code counts", "[EngineFilter]")
 {
     const char* pcWant = "bad code count in evil";
     CheckRefusedWith(ForgedCountChunk(5, 0x40000001u, ReturnRecords(64)), "code wrap", pcWant);
     CheckRefusedWith(ForgedCountChunk(5, 0x01000000u), "code huge", pcWant);
 }
 
-TEST_CASE("lua undump refuses oversized string sizes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest10, "Unit::LuaBytecodeVerify::lua undump refuses oversized string sizes", "[EngineFilter]")
 {
     const char* pcWant = "bad string size in evil";
     CheckRefusedWith(ForgedStringChunk(0xFFFFFFFFu), "string wrap", pcWant);
     CheckRefusedWith(ForgedStringChunk(0x01000000u), "string huge", pcWant);
 }
 
-TEST_CASE("lua undump refuses multi-block binary chunks" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest11, "Unit::LuaBytecodeVerify::lua undump refuses multi-block binary chunks", "[EngineFilter]")
 {
     const std::string sChunk = BuildChunk(RichProto());
     std::string sMsg;
@@ -530,7 +531,7 @@ FakeProto NestedChain(int iDepth)
 
 }
 
-TEST_CASE("lua undump refuses deep nesting" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest12, "Unit::LuaBytecodeVerify::lua undump refuses deep nesting", "[EngineFilter]")
 {
     std::string sMsg;
     INFO(sMsg);
@@ -540,7 +541,7 @@ TEST_CASE("lua undump refuses deep nesting" * doctest::test_suite("regression"))
     CHECK(sMsg.find("too deep") != std::string::npos);
 }
 
-TEST_CASE("lua undump refuses main upvalues" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest13, "Unit::LuaBytecodeVerify::lua undump refuses main upvalues", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.iNups = 1;
@@ -550,7 +551,7 @@ TEST_CASE("lua undump refuses main upvalues" * doctest::test_suite("regression")
     CheckRefusedWithBad(BuildChunk(kMain), "main upvalues");
 }
 
-TEST_CASE("lua undump refuses null strings" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest14, "Unit::LuaBytecodeVerify::lua undump refuses null strings", "[EngineFilter]")
 {
     FakeProto kConst = MinimalProto();
     kConst.akConsts.push_back(MakeConst(LUA_TSTRING, 0.0f, FakeStr()));
@@ -601,7 +602,7 @@ void CheckRefusedAt(const FakeProto& kProto, int iInstruction, int iDepth = 0)
 
 }
 
-TEST_CASE("lua verifier names the bad instruction" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest15, "Unit::LuaBytecodeVerify::lua verifier names the bad instruction", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.auiCode.clear();
@@ -611,7 +612,7 @@ TEST_CASE("lua verifier names the bad instruction" * doctest::test_suite("regres
     CheckRefusedAt(kMain, 2);
 }
 
-TEST_CASE("lua verifier refuses unknown opcodes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest16, "Unit::LuaBytecodeVerify::lua verifier refuses unknown opcodes", "[EngineFilter]")
 {
     for (int iOp = NUM_OPCODES; iOp <= 63; ++iOp)
     {
@@ -626,14 +627,14 @@ TEST_CASE("lua verifier refuses unknown opcodes" * doctest::test_suite("regressi
     }
 }
 
-TEST_CASE("lua verifier refuses empty code" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest17, "Unit::LuaBytecodeVerify::lua verifier refuses empty code", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.auiCode.clear();
     CHECK(RefusedMessage(kMain) == "bad code in evil");
 }
 
-TEST_CASE("lua verifier refuses parameters beyond the frame" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest18, "Unit::LuaBytecodeVerify::lua verifier refuses parameters beyond the frame", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.iParams = 3;
@@ -641,7 +642,7 @@ TEST_CASE("lua verifier refuses parameters beyond the frame" * doctest::test_sui
     CHECK(RefusedMessage(kMain) == "bad code in evil");
 }
 
-TEST_CASE("lua verifier refuses concat past the frame" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest19, "Unit::LuaBytecodeVerify::lua verifier refuses concat past the frame", "[EngineFilter]")
 {
     for (int iC = 3; iC < MAXSTACK; ++iC)
     {
@@ -655,7 +656,7 @@ TEST_CASE("lua verifier refuses concat past the frame" * doctest::test_suite("re
     }
 }
 
-TEST_CASE("lua verifier refuses wild tforprep jumps" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest20, "Unit::LuaBytecodeVerify::lua verifier refuses wild tforprep jumps", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.iMaxStack = 3;
@@ -665,7 +666,7 @@ TEST_CASE("lua verifier refuses wild tforprep jumps" * doctest::test_suite("regr
     CheckRefusedAt(kMain, 1);
 }
 
-TEST_CASE("lua vm keeps tforloop results inside the stack" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest21, "Unit::LuaBytecodeVerify::lua vm keeps tforloop results inside the stack", "[EngineFilter]")
 {
     const int kWideC = 120;
     FakeProto kChild;
@@ -757,7 +758,7 @@ int CountFinalized(lua_State* L)
 
 }
 
-TEST_CASE("lua vm tforloop stays inside the stack at the extra stack limit" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest22, "Unit::LuaBytecodeVerify::lua vm tforloop stays inside the stack at the extra stack limit", "[EngineFilter]")
 {
     const int aiVars[2] = { EXTRA_STACK + 1, EXTRA_STACK + 2 };
     for (int iCase = 0; iCase < 2; ++iCase)
@@ -819,7 +820,7 @@ TEST_CASE("lua vm tforloop stays inside the stack at the extra stack limit" * do
     }
 }
 
-TEST_CASE("lua verifier accepts generic for loops with many variables" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest23, "Unit::LuaBytecodeVerify::lua verifier accepts generic for loops with many variables", "[EngineFilter]")
 {
     const int aiVars[4] = { EXTRA_STACK + 2, EXTRA_STACK + 4, 30, 90 };
     for (int iCase = 0; iCase < 4; ++iCase)
@@ -865,7 +866,7 @@ TEST_CASE("lua verifier accepts generic for loops with many variables" * doctest
     }
 }
 
-TEST_CASE("lua verifier accepts a four variable for-in loop" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest24, "Unit::LuaBytecodeVerify::lua verifier accepts a four variable for-in loop", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -880,7 +881,7 @@ TEST_CASE("lua verifier accepts a four variable for-in loop" * doctest::test_sui
     CHECK(LoadAndRun(sChunk, &sMsg) == 0);
 }
 
-TEST_CASE("lua verifier refuses huge table sizes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest25, "Unit::LuaBytecodeVerify::lua verifier refuses huge table sizes", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.auiCode.clear();
@@ -892,7 +893,7 @@ TEST_CASE("lua verifier refuses huge table sizes" * doctest::test_suite("regress
     CheckRefusedAt(kMain, 1);
 }
 
-TEST_CASE("lua verifier accepts the largest table size" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest26, "Unit::LuaBytecodeVerify::lua verifier accepts the largest table size", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.auiCode.clear();
@@ -927,7 +928,7 @@ int LoadAndCall(const std::string& sChunk, std::string* psMsg)
 
 }
 
-TEST_CASE("lua vm raises on self with a register key" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest27, "Unit::LuaBytecodeVerify::lua vm raises on self with a register key", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.iMaxStack = 4;
@@ -942,7 +943,7 @@ TEST_CASE("lua vm raises on self with a register key" * doctest::test_suite("reg
     CHECK(sMsg.find("bad code") != std::string::npos);
 }
 
-TEST_CASE("lua vm raises on setlist into a non-table" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest28, "Unit::LuaBytecodeVerify::lua vm raises on setlist into a non-table", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.iMaxStack = 3;
@@ -955,7 +956,7 @@ TEST_CASE("lua vm raises on setlist into a non-table" * doctest::test_suite("reg
     CHECK(sMsg.find("bad code") != std::string::npos);
 }
 
-TEST_CASE("lua verifier refuses self with a non-string constant key" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest29, "Unit::LuaBytecodeVerify::lua verifier refuses self with a non-string constant key", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.iMaxStack = 3;
@@ -966,7 +967,7 @@ TEST_CASE("lua verifier refuses self with a non-string constant key" * doctest::
     CheckRefusedAt(kMain, 1);
 }
 
-TEST_CASE("lua verifier refuses open calls past their producer" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest30, "Unit::LuaBytecodeVerify::lua verifier refuses open calls past their producer", "[EngineFilter]")
 {
     FakeProto kChild;
     kChild.auiCode.push_back(OpReturn());
@@ -1016,7 +1017,7 @@ FakeProto OpenCallIntoProducer()
 
 }
 
-TEST_CASE("lua verifier refuses an open call into its producer register" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest31, "Unit::LuaBytecodeVerify::lua verifier refuses an open call into its producer register", "[EngineFilter]")
 {
     const std::string sChunk = BuildChunk(OpenCallIntoProducer());
     lua_State* L = lua_open();
@@ -1048,7 +1049,7 @@ TEST_CASE("lua verifier refuses an open call into its producer register" * docte
     CheckRefusedAt(kTail, 2);
 }
 
-TEST_CASE("lua verifier accepts open returns and lists into their producer register" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest32, "Unit::LuaBytecodeVerify::lua verifier accepts open returns and lists into their producer register", "[EngineFilter]")
 {
     FakeProto kChild;
     kChild.auiCode.push_back(OpReturn());
@@ -1070,7 +1071,7 @@ TEST_CASE("lua verifier accepts open returns and lists into their producer regis
     CHECK(iStatus == 0);
 }
 
-TEST_CASE("lua verifier refuses non-boolean loadbool" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest33, "Unit::LuaBytecodeVerify::lua verifier refuses non-boolean loadbool", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.auiCode.clear();
@@ -1079,7 +1080,7 @@ TEST_CASE("lua verifier refuses non-boolean loadbool" * doctest::test_suite("reg
     CheckRefusedAt(kMain, 1);
 }
 
-TEST_CASE("lua verifier accepts boolean loadbool" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest34, "Unit::LuaBytecodeVerify::lua verifier accepts boolean loadbool", "[EngineFilter]")
 {
     for (int iB = 0; iB <= 1; ++iB)
     {
@@ -1094,7 +1095,7 @@ TEST_CASE("lua verifier accepts boolean loadbool" * doctest::test_suite("regress
     }
 }
 
-TEST_CASE("lua verifier accepts open calls from the parser" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest35, "Unit::LuaBytecodeVerify::lua verifier accepts open calls from the parser", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -1163,7 +1164,7 @@ int ProbeLocals(lua_State* L)
 
 }
 
-TEST_CASE("lua debug locals stay inside the frame" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest36, "Unit::LuaBytecodeVerify::lua debug locals stay inside the frame", "[EngineFilter]")
 {
     FakeProto kMain = MinimalProto();
     kMain.iMaxStack = 2;
@@ -1214,7 +1215,7 @@ void CheckUpvalueIndexRefused(lua_State* L)
 
 }
 
-TEST_CASE("lua debug upvalue index zero is refused" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaBytecodeVerifyTest37, "Unit::LuaBytecodeVerify::lua debug upvalue index zero is refused", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);

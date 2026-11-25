@@ -64,7 +64,7 @@ $script:SimExceptions = @(
     'src\Battlefront2\Source\ParticleGeometry.cpp'
     'src\Battlefront2\Platform\Pc\pcHeatShimmerEffect.cpp'
 )
-$script:CauseHeading = '^### (C1|C2|C3|C-X64-\S+)\s*$'
+$script:CauseLine = '^- `[^`]+` \| (C1|C2|C3|C-X64-\S+) \| '
 $script:Header = @('obj', 'function', 'flags', 'pattern', 'verdict', 'evidence')
 $script:RuleVerdict = '^(offpath:(' + ((@($script:OffPathDirs | ForEach-Object { $_.Name }) + $script:NoSource.Name | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')$|match:exact$|match:single-rounding$)'
 $script:FlagOrder = @('arith', 'callret_precise', 'chain', 'cmp_precise', 'cvt_precise', 'ret_precise', 'store_double_precise', 'transc', 'unknown')
@@ -136,10 +136,8 @@ function Get-CauseFiles([string]$Path, $Sources) {
     $byName = New-Object System.Collections.Hashtable ([StringComparer]::OrdinalIgnoreCase)
     foreach ($rel in $Sources.Values) { $byName[[IO.Path]::GetFileName($rel)] = $rel }
     $set = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
-    $on = $false
     foreach ($line in [IO.File]::ReadAllLines($Path)) {
-        if ($line.StartsWith('## ') -or $line.StartsWith('### ')) { $on = $line -cmatch $script:CauseHeading; continue }
-        if (-not $on) { continue }
+        if ($line -cnotmatch $script:CauseLine) { continue }
         foreach ($m in [regex]::Matches($line, '[A-Za-z0-9_]+\.(?:cpp|c)\b')) {
             if ($byName.ContainsKey($m.Value)) { [void]$set.Add($byName[$m.Value]) }
         }

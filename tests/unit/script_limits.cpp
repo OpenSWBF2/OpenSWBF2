@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <limits.h>
 #include <string.h>
@@ -26,7 +27,7 @@ bool IsPowerOfTwo(unsigned int uValue)
 
 }
 
-TEST_CASE("script clamp passes retail values unchanged" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest1, "Unit::ScriptLimits::script clamp passes retail values unchanged", "[EngineFilter]")
 {
     LogCapture capture;
     CHECK(ClampScriptSize(kSetupTempHeap, 0, 2 * 1024 * 1024, 1) == 2097152);
@@ -35,7 +36,7 @@ TEST_CASE("script clamp passes retail values unchanged" * doctest::test_suite("r
     CHECK(capture.Count("refused") == 0);
 }
 
-TEST_CASE("script clamp bounds negative and huge values" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest2, "Unit::ScriptLimits::script clamp bounds negative and huge values", "[EngineFilter]")
 {
     LogCapture capture;
     CHECK(ClampScriptSize(kSetHeapCap, "t1neg", INT_MIN, 16) == 0);
@@ -51,7 +52,7 @@ TEST_CASE("script clamp bounds negative and huge values" * doctest::test_suite("
     CHECK(capture.Count("clamped") == 5);
 }
 
-TEST_CASE("script clamp keeps the retail unsigned wrap for pool counts" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest3, "Unit::ScriptLimits::script clamp keeps the retail unsigned wrap for pool counts", "[EngineFilter]")
 {
     LogCapture capture;
     CHECK(ClampScriptSize(kSetMemoryPoolSize, "t1wrap", -1, 16) == 0xFFFFFFFFu);
@@ -63,7 +64,7 @@ TEST_CASE("script clamp keeps the retail unsigned wrap for pool counts" * doctes
     CHECK(capture.Count("t1nowrap") == 2);
 }
 
-TEST_CASE("script clamp refuses outside range when configured" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest4, "Unit::ScriptLimits::script clamp refuses outside range when configured", "[EngineFilter]")
 {
     LogCapture capture;
     CHECK(ClampScriptSize(kStealArtistHeap, "t1steal", 0, 1) == 0);
@@ -78,7 +79,7 @@ TEST_CASE("script clamp refuses outside range when configured" * doctest::test_s
     CHECK(capture.Count("refused") == 4);
 }
 
-TEST_CASE("script ceilings respect the runtime heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest5, "Unit::ScriptLimits::script ceilings respect the runtime heap", "[EngineFilter]")
 {
     const unsigned int uRuntime = GameMemory::kArenaSize - GameMemory::kApplicationHeapSize - GameMemory::kGamespyHeapSize -
                                   GameMemory::kLuaHeapSize - GameMemory::kArtistHeapSize;
@@ -205,8 +206,7 @@ int NextFreeHeapSlot()
 
 }
 
-TEST_CASE("set heap cap raises inside the window and clamps to the ceiling through the shared limit" *
-          doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest6, "Unit::ScriptLimits::set heap cap raises inside the window and clamps to the ceiling through the shared limit", "[EngineFilter]")
 {
     const int iHeap = RedCreateHeap(sacScriptLoad, sacScriptLoad + sizeof(sacScriptLoad), 0x10, "Temp");
     REQUIRE(iHeap >= 0);
@@ -225,7 +225,7 @@ TEST_CASE("set heap cap raises inside the window and clamps to the ceiling throu
     RedDestroyHeap(iHeap);
 }
 
-TEST_CASE("set heap cap outside the window changes nothing and logs one warning" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest7, "Unit::ScriptLimits::set heap cap outside the window changes nothing and logs one warning", "[EngineFilter]")
 {
     const int iHeap = RedCreateHeap(sacScriptLoad, sacScriptLoad + sizeof(sacScriptLoad), 0x10, "Temp");
     REQUIRE(iHeap >= 0);
@@ -243,7 +243,7 @@ TEST_CASE("set heap cap outside the window changes nothing and logs one warning"
     RedDestroyHeap(iHeap);
 }
 
-TEST_CASE("set heap cap on an unknown or dead heap logs one warning" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest8, "Unit::ScriptLimits::set heap cap on an unknown or dead heap logs one warning", "[EngineFilter]")
 {
     lua_State* L = OpenScriptState();
     {
@@ -258,7 +258,7 @@ TEST_CASE("set heap cap on an unknown or dead heap logs one warning" * doctest::
     lua_close(L);
 }
 
-TEST_CASE("set heap cap below the default or negative logs exactly one warning" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest9, "Unit::ScriptLimits::set heap cap below the default or negative logs exactly one warning", "[EngineFilter]")
 {
     const int iHeap = RedCreateHeap(sacScriptLoad, sacScriptLoad + sizeof(sacScriptLoad), 0x10, "Temp");
     REQUIRE(iHeap >= 0);
@@ -287,7 +287,7 @@ TEST_CASE("set heap cap below the default or negative logs exactly one warning" 
     RedDestroyHeap(iHeap);
 }
 
-TEST_CASE("set memory pool size clamps script count" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest10, "Unit::ScriptLimits::set memory pool size clamps script count", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     MemoryPool kPool("t1clamp", 16);
@@ -308,7 +308,7 @@ TEST_CASE("set memory pool size clamps script count" * doctest::test_suite("regr
     lua_close(L);
 }
 
-TEST_CASE("set memory pool size clamps with the rounded pool size" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest11, "Unit::ScriptLimits::set memory pool size clamps with the rounded pool size", "[EngineFilter]")
 {
     MemoryPool kPool("t1oddsize", 16);
     kPool.SetSize(13);
@@ -321,7 +321,7 @@ TEST_CASE("set memory pool size clamps with the rounded pool size" * doctest::te
     lua_close(L);
 }
 
-TEST_CASE("set memory pool size label abi" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest12, "Unit::ScriptLimits::set memory pool size label abi", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     lua_State* L = OpenScriptState();
@@ -383,27 +383,27 @@ TEST_CASE("set memory pool size label abi" * doctest::test_suite("regression"))
         CallSetPoolSize(L, "t1nosuchpool", 5.0f);
         CHECK(kOther.GetCount() == 3);
         CHECK(capture.Count(
-                  "OPENSWBF2 SCRIPTMEM entry=SetMemoryPoolSize label=t1nosuchpool requested=5 applied=0 pool=none")
+                  "Script memory entry=SetMemoryPoolSize label=t1nosuchpool requested=5 applied=0 pool=none")
               == 1);
     }
     lua_close(L);
 }
 
-TEST_CASE("set memory pool size logs verbose line" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest13, "Unit::ScriptLimits::set memory pool size logs verbose line", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     MemoryPool kPool("t1clamp", 16);
     lua_State* L = OpenScriptState();
     LogCapture capture;
     CallSetPoolSize(L, "t1clamp", 12.0f);
-    CHECK(capture.Count("OPENSWBF2 SCRIPTMEM entry=SetMemoryPoolSize label=t1clamp requested=12 applied=12 "
+    CHECK(capture.Count("Script memory entry=SetMemoryPoolSize label=t1clamp requested=12 applied=12 "
                         "pool=t1clamp")
           == 1);
     CHECK(capture.Count("clamped") == 0);
     lua_close(L);
 }
 
-TEST_CASE("setup temp heap clamps size" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest14, "Unit::ScriptLimits::setup temp heap clamps size", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     lua_State* L = OpenScriptState();
@@ -414,7 +414,7 @@ TEST_CASE("setup temp heap clamps size" * doctest::test_suite("regression"))
         LogCapture capture;
         CallSetupTempHeap(L, 100.0f, iRuntime, iTemp);
         CHECK(capture.Count("SetupTempHeap(): script value 100 clamped to 4096") == 1);
-        CHECK(capture.Count("OPENSWBF2 SCRIPTMEM entry=SetupTempHeap label=- requested=100 applied=4096 pool=-")
+        CHECK(capture.Count("Script memory entry=SetupTempHeap label=- requested=100 applied=4096 pool=-")
               == 1);
     }
     REQUIRE(iTemp > 0);
@@ -429,7 +429,7 @@ TEST_CASE("setup temp heap clamps size" * doctest::test_suite("regression"))
     lua_close(L);
 }
 
-TEST_CASE("setup temp heap null block leaves no temp heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest15, "Unit::ScriptLimits::setup temp heap null block leaves no temp heap", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     lua_State* L = OpenScriptState();
@@ -453,7 +453,7 @@ TEST_CASE("setup temp heap null block leaves no temp heap" * doctest::test_suite
     lua_close(L);
 }
 
-TEST_CASE("setup temp heap twice frees previous heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest16, "Unit::ScriptLimits::setup temp heap twice frees previous heap", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     lua_State* L = OpenScriptState();
@@ -476,7 +476,7 @@ TEST_CASE("setup temp heap twice frees previous heap" * doctest::test_suite("reg
     lua_close(L);
 }
 
-TEST_CASE("setup temp heap forget drops stale block" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest17, "Unit::ScriptLimits::setup temp heap forget drops stale block", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     lua_State* L = OpenScriptState();
@@ -503,7 +503,7 @@ TEST_CASE("setup temp heap forget drops stale block" * doctest::test_suite("regr
     lua_close(L);
 }
 
-TEST_CASE("setup temp heap refuses while load heap is live" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest18, "Unit::ScriptLimits::setup temp heap refuses while load heap is live", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     lua_State* L = OpenScriptState();
@@ -525,7 +525,7 @@ TEST_CASE("setup temp heap refuses while load heap is live" * doctest::test_suit
     lua_close(L);
 }
 
-TEST_CASE("setup temp heap refuses when no heap slot is left" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest19, "Unit::ScriptLimits::setup temp heap refuses when no heap slot is left", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     lua_State* L = OpenScriptState();
@@ -561,7 +561,7 @@ TEST_CASE("setup temp heap refuses when no heap slot is left" * doctest::test_su
     lua_close(L);
 }
 
-TEST_CASE("steal artist heap refuses zero small and negative sizes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest20, "Unit::ScriptLimits::steal artist heap refuses zero small and negative sizes", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     lua_State* L = OpenScriptState();
@@ -607,7 +607,7 @@ TEST_CASE("steal artist heap refuses zero small and negative sizes" * doctest::t
     lua_close(L);
 }
 
-TEST_CASE("steal artist heap on the mimalloc heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest21, "Unit::ScriptLimits::steal artist heap on the mimalloc heap", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     lua_State* L = OpenScriptState();
@@ -644,7 +644,7 @@ TEST_CASE("steal artist heap on the mimalloc heap" * doctest::test_suite("regres
     lua_close(L);
 }
 
-TEST_CASE("add walker type clamps script counts" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest22, "Unit::ScriptLimits::add walker type clamps script counts", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     MemoryPool kWalker("t1walker", 16);
@@ -657,7 +657,7 @@ TEST_CASE("add walker type clamps script counts" * doctest::test_suite("regressi
         LogCapture capture;
         CallAddWalkerType(L, 2.0f, 3.0f, &kWalker, &kLegPair, &kBlend, &kBlendUnit, &kDroideka);
         CHECK(capture.Count("clamped") == 0);
-        CHECK(capture.Count("OPENSWBF2 SCRIPTMEM entry=AddWalkerType label=t1blendunit requested=27 applied=27 "
+        CHECK(capture.Count("Script memory entry=AddWalkerType label=t1blendunit requested=27 applied=27 "
                             "pool=t1blendunit")
               == 1);
     }
@@ -670,7 +670,7 @@ TEST_CASE("add walker type clamps script counts" * doctest::test_suite("regressi
         LogCapture capture;
         CallAddWalkerType(L, 1.0f, 268435456.0f, &kWalker, &kLegPair, &kBlend, &kBlendUnit, &kDroideka);
         CHECK(capture.Count("clamped") == 4);
-        CHECK(capture.Count((std::string("OPENSWBF2 SCRIPTMEM entry=AddWalkerType label=t1walker requested=268435459 applied=") + std::to_string(kPoolEntryBytesMax / 16) + " pool=t1walker").c_str()) == 1);
+        CHECK(capture.Count((std::string("Script memory entry=AddWalkerType label=t1walker requested=268435459 applied=") + std::to_string(kPoolEntryBytesMax / 16) + " pool=t1walker").c_str()) == 1);
     }
     CHECK(kWalker.GetCount() == kPoolEntryBytesMax / 16);
     CHECK(kLegPair.GetCount() == kPoolEntryBytesMax / 32);
@@ -684,7 +684,7 @@ TEST_CASE("add walker type clamps script counts" * doctest::test_suite("regressi
     lua_close(L);
 }
 
-TEST_CASE("add walker type keeps the retail unsigned wrap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FScriptLimitsTest23, "Unit::ScriptLimits::add walker type keeps the retail unsigned wrap", "[EngineFilter]")
 {
     VerboseMemoryLog kVerbose;
     MemoryPool kWalker("t1wrapwalker", 16);

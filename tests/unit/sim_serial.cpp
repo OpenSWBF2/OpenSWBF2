@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "Battlefront2/Source/Thread.h"
 #include "Battlefront2/Source/CollisionObject.h"
@@ -173,7 +174,7 @@ std::string LineWith(const std::string& sText, const char* pcNeedle)
 
 }
 
-TEST_CASE("collision serial compare ignores object addresses under serial order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest1, "Unit::SimSerial::collision serial compare ignores object addresses under serial order", "[EngineFilter]")
 {
     CHECK(PblSerialAfter(2, 1));
     CHECK_FALSE(PblSerialAfter(1, 2));
@@ -192,28 +193,30 @@ TEST_CASE("collision serial compare ignores object addresses under serial order"
     CHECK(pLow->mLastCollidedWithNonTerrain == 0);
 
 #ifdef OPENSWBF2_TEST
+    AddExpectedError("1 collision serial ties: two collision objects shared a serial",
+                     EAutomationExpectedErrorFlags::Exact, 2);
     TieLogCapture capture;
     CollisionObject::LogSerialTies(true);
     CollisionObject::LogSerialTies(false);
-    CHECK(LastLogHas("OPENSWBF2 COLLISION serialties=0"));
+    CHECK(LastLogHas("Collision serialties=0"));
 
     CollisionObject::NoteCollisionSerialTie(pLow, pHigh);
     CollisionObject::LogSerialTies(false);
-    CHECK(LastLogHas("OPENSWBF2 COLLISION serialties=0"));
+    CHECK(LastLogHas("Collision serialties=0"));
 
     pHigh->mCollisionSerial = 2;
     CollisionObject::NoteCollisionSerialTie(pLow, pHigh);
     CollisionObject::LogSerialTies(false);
-    CHECK(LastLogHas("OPENSWBF2 COLLISION serialties=1"));
+    CHECK(LastLogHas("Collision serialties=1"));
 
     CollisionObject::LogSerialTies(true);
-    CHECK(LastLogHas("OPENSWBF2 COLLISION serialties=1"));
+    CHECK(LastLogHas("Collision serialties=1"));
     CollisionObject::LogSerialTies(false);
-    CHECK(LastLogHas("OPENSWBF2 COLLISION serialties=0"));
+    CHECK(LastLogHas("Collision serialties=0"));
 #endif
 }
 
-TEST_CASE("last collided key does not follow a dead receiver to a new object at its address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest2, "Unit::SimSerial::last collided key does not follow a dead receiver to a new object at its address", "[EngineFilter]")
 {
     TestCollisionObject kCollider;
     TestCollisionObject kOther;
@@ -240,7 +243,7 @@ TEST_CASE("last collided key does not follow a dead receiver to a new object at 
     pReused->~TestCollisionObject();
 }
 
-TEST_CASE("last collided record keeps three recent receivers without duplicates" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest3, "Unit::SimSerial::last collided record keeps three recent receivers without duplicates", "[EngineFilter]")
 {
     CollisionObjectBuffer aBuf[5];
     memset(aBuf, 0, sizeof(aBuf));
@@ -264,7 +267,7 @@ TEST_CASE("last collided record keeps three recent receivers without duplicates"
     CHECK(pCollider->mLastCollidedObjs[2] == 2);
 }
 
-TEST_CASE("last collided key treats a null list entry as an empty slot" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest4, "Unit::SimSerial::last collided key treats a null list entry as an empty slot", "[EngineFilter]")
 {
     CollisionObjectBuffer aBuf[2];
     memset(aBuf, 0, sizeof(aBuf));
@@ -278,7 +281,7 @@ TEST_CASE("last collided key treats a null list entry as an empty slot" * doctes
     CHECK(apList[1] == static_cast<CollisionObject*>(0));
 }
 
-TEST_CASE("last collided sites all go through the key helpers (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest5, "Unit::SimSerial::last collided sites all go through the key helpers (source pin)", "[EngineFilter]")
 {
     std::string sModel;
     std::string sManager;
@@ -296,7 +299,7 @@ TEST_CASE("last collided sites all go through the key helpers (source pin)" * do
     CHECK(sManager.find("mLastCollidedObjs") == std::string::npos);
 }
 
-TEST_CASE("collision serial sites keep the wire bool writes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest6, "Unit::SimSerial::collision serial sites keep the wire bool writes", "[EngineFilter]")
 {
     std::string sNetState;
     std::string sManager;
@@ -317,7 +320,7 @@ TEST_CASE("collision serial sites keep the wire bool writes" * doctest::test_sui
     CHECK(sState.find("    Thread::Reset();\n    CollisionObject::ResetCollisionSerials();\n") != std::string::npos);
 }
 
-TEST_CASE("ordered list breaks equal keys fifo under serial order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest7, "Unit::SimSerial::ordered list breaks equal keys fifo under serial order", "[EngineFilter]")
 {
     PblOrderedList<Thread, int> list;
     PblOrderedList<Thread, int>::Node aNodes[5];
@@ -336,13 +339,13 @@ TEST_CASE("ordered list breaks equal keys fifo under serial order" * doctest::te
     CHECK(apGot[4] == &aNodes[1]);
 }
 
-TEST_CASE("ordered list sentinel key stops at the head under serial order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest8, "Unit::SimSerial::ordered list sentinel key stops at the head under serial order", "[EngineFilter]")
 {
     CheckSentinelStopsAtHead<int>(0x7FFFFFFF);
     CheckSentinelStopsAtHead<float>(2147483648.0f);
 }
 
-TEST_CASE("thread activation order ignores node addresses under serial order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest9, "Unit::SimSerial::thread activation order ignores node addresses under serial order", "[EngineFilter]")
 {
     PblOrderedList<Thread, int> list;
     PblOrderedList<Thread, int>::Node aNodes[2];
@@ -355,7 +358,7 @@ TEST_CASE("thread activation order ignores node addresses under serial order" * 
     CHECK(apGot[1] == &aNodes[0]);
 }
 
-TEST_CASE("thread activation key is set through one counter reader and reset" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest10, "Unit::SimSerial::thread activation key is set through one counter reader and reset", "[EngineFilter]")
 {
     std::string sThread;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\Thread.cpp", sThread));
@@ -373,7 +376,7 @@ TEST_CASE("thread activation key is set through one counter reader and reset" * 
     CHECK(sThread.substr(uiReset, uiEnd - uiReset).find("sThreadActivationKey = 0;") != std::string::npos);
 }
 
-TEST_CASE("thread reset moves the executing iterator off the deleted groups" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest11, "Unit::SimSerial::thread reset moves the executing iterator off the deleted groups", "[EngineFilter]")
 {
     std::string sThread;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\Thread.cpp", sThread));
@@ -391,7 +394,7 @@ TEST_CASE("thread reset moves the executing iterator off the deleted groups" * d
     CHECK(CountOf(sThread, "sExecutingThread = ") == 2);
 }
 
-TEST_CASE("wobble phase comes from the owner handle id under serial order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest12, "Unit::SimSerial::wobble phase comes from the owner handle id under serial order", "[EngineFilter]")
 {
     const unsigned int auiId[] = { 0x13u, 0x20u, 0x7FFFu };
     for (size_t j = 0; j < sizeof(auiId) / sizeof(auiId[0]); ++j)
@@ -405,7 +408,7 @@ TEST_CASE("wobble phase comes from the owner handle id under serial order" * doc
     CheckFollowerOwnerPhase(sRawCarrier, 0x7FFFu);
 }
 
-TEST_CASE("wobble sites route through the phase helper" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest13, "Unit::SimSerial::wobble sites route through the phase helper", "[EngineFilter]")
 {
     std::string sFlyer;
     std::string sFollower;
@@ -428,7 +431,7 @@ TEST_CASE("wobble sites route through the phase helper" * doctest::test_suite("r
     CHECK(CountOf(sFollower, "GetBranchParams()") == 8);
 }
 
-TEST_CASE("ordered list move keeps an unchanged key in place while a walk re-queues it" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest14, "Unit::SimSerial::ordered list move keeps an unchanged key in place while a walk re-queues it", "[EngineFilter]")
 {
     PblOrderedList<Thread, float> list;
     PblOrderedList<Thread, float>::Node aNodes[4];
@@ -467,7 +470,7 @@ TEST_CASE("ordered list move keeps an unchanged key in place while a walk re-que
     CHECK(list.GetCount() == 4);
 }
 
-TEST_CASE("controller update asap reschedules through the ordered list move" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest15, "Unit::SimSerial::controller update asap reschedules through the ordered list move", "[EngineFilter]")
 {
     std::string sManager;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\ControllerManager.cpp", sManager));
@@ -482,7 +485,7 @@ TEST_CASE("controller update asap reschedules through the ordered list move" * d
     CHECK(sBody.find("sAICtrls->Add(") == std::string::npos);
 }
 
-TEST_CASE("controller update loop requeues through the ordered list move" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest16, "Unit::SimSerial::controller update loop requeues through the ordered list move", "[EngineFilter]")
 {
     std::string sManager;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\ControllerManager.cpp", sManager));
@@ -497,7 +500,7 @@ TEST_CASE("controller update loop requeues through the ordered list move" * doct
     CHECK(sBody.find("sAICtrls->Add(") == std::string::npos);
 }
 
-TEST_CASE("ordered list move ignores a node that is not in the list" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSimSerialTest17, "Unit::SimSerial::ordered list move ignores a node that is not in the list", "[EngineFilter]")
 {
     PblOrderedList<Thread, float> list;
     PblOrderedList<Thread, float>::Node aNodes[3];

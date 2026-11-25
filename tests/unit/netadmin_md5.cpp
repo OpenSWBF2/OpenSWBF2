@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 
@@ -18,7 +19,7 @@ void CheckDigest(const char* pcText, const char* pcExpected)
 
 }
 
-TEST_CASE("netadmin md5 matches rfc 1321" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FNetadminMd5Test1, "Unit::NetadminMd5::netadmin md5 matches rfc 1321", "[SmokeFilter]")
 {
     CheckDigest("abc", "900150983cd24fb0d6963f7d28e17f72");
     CheckDigest("", "d41d8cd98f00b204e9800998ecf8427e");

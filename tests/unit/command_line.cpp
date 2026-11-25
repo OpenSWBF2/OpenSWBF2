@@ -1,8 +1,10 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <string>
 
+#include "Battlefront2/Source/AutomationTest.h"
 #include "Battlefront2/Source/CommandLine.h"
 #include "Battlefront2/Source/GameLoop.h"
 #include "Battlefront2/Source/NetGame.h"
@@ -26,7 +28,7 @@ std::string Mission()
 
 }
 
-TEST_CASE("command line keeps -perturbheap and -repeatmission out of the mission name" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest1, "Unit::CommandLine::command line keeps -perturbheap and -repeatmission out of the mission name", "[EngineFilter]")
 {
     Parse("-perturbheap 1:pad,fill,pool geo1c_con");
     CHECK(Mission() == "geo1c_con");
@@ -66,10 +68,11 @@ TEST_CASE("command line keeps -perturbheap and -repeatmission out of the mission
     CHECK(gExitOnGameOver);
 }
 
-TEST_CASE("command line reports test-only switches it ignores" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest2, "Unit::CommandLine::command line reports test-only switches it ignores", "[EngineFilter]")
 {
     Parse("-perturbheap 1:pad -repeatmission 2 -shellfirst -exitonmovieclose -digestdetail 4 -savetest write -handsoff "
-          "-movietest shell.mvs:0xB4A21ED9:10 -movieloops 2 -movielocal -movieskip 300 -moviefault hold geo1c_con");
+          "-movietest shell.mvs:0xB4A21ED9:10 -movieloops 2 -movielocal -movieskip 300 -moviefault hold "
+          "-autotest Harness.AutoTest.Pass geo1c_con");
     std::string ignored;
     const char* pcName = 0;
     int iCount = 0;
@@ -82,13 +85,16 @@ TEST_CASE("command line reports test-only switches it ignores" * doctest::test_s
             ignored += " ";
         }
     }
-    CHECK(iCount == 12);
+    CHECK(iCount == 13);
     CHECK(Mission() == "geo1c_con");
 #ifdef OPENSWBF2_TEST
     CHECK(ignored == "");
+    CHECK(gAutoTestRequested);
+    CHECK(strcmp(gAutoTestFilter, "Harness.AutoTest.Pass") == 0);
 #else
     CHECK(ignored == "perturbheap repeatmission shellfirst exitonmovieclose digestdetail savetest handsoff movietest "
-                     "movieloops movielocal movieskip moviefault ");
+                     "movieloops movielocal movieskip moviefault autotest ");
+    CHECK(!gAutoTestRequested);
 #endif
 
     Parse("geo1c_con");
@@ -104,7 +110,7 @@ TEST_CASE("command line reports test-only switches it ignores" * doctest::test_s
     CHECK_FALSE(TestOnlyArgIgnored(-1, &pcName));
 }
 
-TEST_CASE("command line -digestdetail takes a turn in Test builds and keeps it out of the mission name" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest3, "Unit::CommandLine::command line -digestdetail takes a turn in Test builds and keeps it out of the mission name", "[EngineFilter]")
 {
     {
         LogCapture capture;
@@ -138,7 +144,7 @@ TEST_CASE("command line -digestdetail takes a turn in Test builds and keeps it o
     CHECK(gDigestDetail == 0);
 }
 
-TEST_CASE("command line switches movietest and movieloops take checked values in Test builds and keep them out of the mission name" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest4, "Unit::CommandLine::command line switches movietest and movieloops take checked values in Test builds and keep them out of the mission name", "[EngineFilter]")
 {
     {
         LogCapture capture;
@@ -202,7 +208,7 @@ TEST_CASE("command line switches movietest and movieloops take checked values in
     CHECK(gMovieLoops == 0);
 }
 
-TEST_CASE("command line switches movielocal and movieskip take checked values in Test builds and keep them out of the mission name" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest5, "Unit::CommandLine::command line switches movielocal and movieskip take checked values in Test builds and keep them out of the mission name", "[EngineFilter]")
 {
     {
         LogCapture capture;
@@ -243,7 +249,7 @@ TEST_CASE("command line switches movielocal and movieskip take checked values in
     CHECK(gMovieSkip == 0);
 }
 
-TEST_CASE("command line switch moviefault takes a named fault in Test builds and keeps it out of the mission name" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest6, "Unit::CommandLine::command line switch moviefault takes a named fault in Test builds and keeps it out of the mission name", "[EngineFilter]")
 {
     const char* apcGood[] = { "-moviefault texture geo1c_con", "geo1c_con -moviefault SURFACE", "-moviefault hold geo1c_con" };
     const int aiWant[] = { kMovieFaultTexture, kMovieFaultSurface, kMovieFaultHold };
@@ -280,7 +286,7 @@ TEST_CASE("command line switch moviefault takes a named fault in Test builds and
     CHECK(gMovieFault == 0);
 }
 
-TEST_CASE("command line -savetest takes write or load with a checked type and name and keeps them out of the mission name" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest7, "Unit::CommandLine::command line -savetest takes write or load with a checked type and name and keeps them out of the mission name", "[EngineFilter]")
 {
     {
         LogCapture capture;
@@ -349,7 +355,7 @@ TEST_CASE("command line -savetest takes write or load with a checked type and na
     CHECK(gSaveTestMode == 0);
 }
 
-TEST_CASE("command line sets -novictory and keeps parsing after it" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest8, "Unit::CommandLine::command line sets -novictory and keeps parsing after it", "[EngineFilter]")
 {
     gNoVictory = true;
     Parse("geo1c_con");
@@ -366,7 +372,7 @@ TEST_CASE("command line sets -novictory and keeps parsing after it" * doctest::t
     gNoVictory = false;
 }
 
-TEST_CASE("command line -soakturns takes a positive turn count and rejects the rest" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest9, "Unit::CommandLine::command line -soakturns takes a positive turn count and rejects the rest", "[EngineFilter]")
 {
     {
         LogCapture capture;
@@ -414,7 +420,7 @@ TEST_CASE("command line -soakturns takes a positive turn count and rejects the r
 
 extern int gStubHangTimeout;
 
-TEST_CASE("command line -hangtimeout passes only a whole number" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest10, "Unit::CommandLine::command line -hangtimeout passes only a whole number", "[EngineFilter]")
 {
     const char* pcWarn = "-hangtimeout needs 0 or a whole number of seconds from 1 to 3600, ignored";
     const char* apcGood[] = { "-hangtimeout 0 geo1c_con", "-hangtimeout 5 geo1c_con", "-hangtimeout -5 geo1c_con" };
@@ -442,7 +448,7 @@ TEST_CASE("command line -hangtimeout passes only a whole number" * doctest::test
     }
 }
 
-TEST_CASE("-novictory has no effect in a network game and says so once" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest11, "Unit::CommandLine::-novictory has no effect in a network game and says so once", "[EngineFilter]")
 {
     const bool bInShell = netInShell;
     const bool bEnabled = netEnabled;
@@ -472,7 +478,7 @@ TEST_CASE("-novictory has no effect in a network game and says so once" * doctes
     netEnabledNext = bEnabledNext;
 }
 
-TEST_CASE("command line keeps -mipurge values out of the mission name" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest12, "Unit::CommandLine::command line keeps -mipurge values out of the mission name", "[EngineFilter]")
 {
     const char* apcLines[] = { "geo1c_con -mipurge 7", "geo1c_con -mipurge 0",
         "geo1c_con -mipurge 250 -exitongameover", "-mipurge 9 geo1c_con", "geo1c_con -mipurge",
@@ -485,7 +491,7 @@ TEST_CASE("command line keeps -mipurge values out of the mission name" * doctest
     }
 }
 
-TEST_CASE("command line keeps the values of removed switches out of the mission name" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest13, "Unit::CommandLine::command line keeps the values of removed switches out of the mission name", "[EngineFilter]")
 {
     const char* apcLines[] = { "geo1c_con -simorder serial", "-simorder address geo1c_con", "geo1c_con -allocator mimalloc",
         "-allocator arena -exitongameover geo1c_con", "geo1c_con /simorder serial", "-simorder -exitongameover geo1c_con" };
@@ -498,7 +504,7 @@ TEST_CASE("command line keeps the values of removed switches out of the mission 
     }
 }
 
-TEST_CASE("command line keeps -heapcap values out of the mission name" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest14, "Unit::CommandLine::command line keeps -heapcap values out of the mission name", "[EngineFilter]")
 {
     const char* apcLines[] = { "geo1c_con -heapcap Runtime=96M", "-heapcap Runtime=96M geo1c_con",
         "geo1c_con -heapcap Runtime=1M -heapcap Runtime=96M -exitongameover", "geo1c_con /heapcap Bogus=1M", "geo1c_con -heapcap",
@@ -512,7 +518,7 @@ TEST_CASE("command line keeps -heapcap values out of the mission name" * doctest
     }
 }
 
-TEST_CASE("command line search returns each repeat of a switch in order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest15, "Unit::CommandLine::command line search returns each repeat of a switch in order", "[EngineFilter]")
 {
     const char* pcLine = "game -heapcap A=1 -other x /heapcap B=2 -heapcap";
     int iPos = 0;
@@ -527,7 +533,7 @@ TEST_CASE("command line search returns each repeat of a switch in order" * docte
     CHECK_FALSE(FindNextCommandLineArg(pcLine, "-heapcap", &iPos, &pcVal, &iLen));
 }
 
-TEST_CASE("command line heapcap scan keeps a switch as the next token" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest16, "Unit::CommandLine::command line heapcap scan keeps a switch as the next token", "[EngineFilter]")
 {
     const char* pcLine = "game -heapcap -heapcap A=1 -heapcap \"-other\" -heapcap \"-heapcap\" B=2 -heapcap";
     int iPos = 0;
@@ -543,7 +549,7 @@ TEST_CASE("command line heapcap scan keeps a switch as the next token" * doctest
     CHECK_FALSE(FindNextCommandLineArg(pcLine, "-heapcap", &iPos, &pcVal, &iLen, true));
 }
 
-TEST_CASE("command line first-match search still returns the first value" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest17, "Unit::CommandLine::command line first-match search still returns the first value", "[EngineFilter]")
 {
     const char* pcVal = 0;
     int iLen = 0;
@@ -552,7 +558,7 @@ TEST_CASE("command line first-match search still returns the first value" * doct
     CHECK_FALSE(FindCommandLineArg("game -other x", "-heapcap", &pcVal, &iLen));
 }
 
-TEST_CASE("command line search accepts the same switch forms as the parser" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest18, "Unit::CommandLine::command line search accepts the same switch forms as the parser", "[EngineFilter]")
 {
     struct FormCase
     {
@@ -589,7 +595,7 @@ TEST_CASE("command line search accepts the same switch forms as the parser" * do
     }
 }
 
-TEST_CASE("command line parser ignores tokens past its argument table" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest19, "Unit::CommandLine::command line parser ignores tokens past its argument table", "[EngineFilter]")
 {
     std::string sLine;
     for (int n = 0; n < 300; ++n)
@@ -600,7 +606,7 @@ TEST_CASE("command line parser ignores tokens past its argument table" * doctest
     CHECK(Mission() == "a");
 }
 
-TEST_CASE("the startup argument search goes through the command line tokenizer (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest20, "Unit::CommandLine::the startup argument search goes through the command line tokenizer (source pin)", "[EngineFilter]")
 {
     std::string sCrash;
     if (!ReadRepoText("src\\Battlefront2\\Source\\pcCrash.cpp", sCrash))
@@ -610,7 +616,7 @@ TEST_CASE("the startup argument search goes through the command line tokenizer (
     CHECK(sCrash.find("FindCommandLineArg(pcCmd, pcName, &pcVal, piLen);") != std::string::npos);
 }
 
-TEST_CASE("command line repeat count takes any digits and clamps them" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest21, "Unit::CommandLine::command line repeat count takes any digits and clamps them", "[EngineFilter]")
 {
     CHECK(CommandLineRepeatCount("3", 1) == 3);
     CHECK(CommandLineRepeatCount("0", 1) == 1);
@@ -624,7 +630,7 @@ TEST_CASE("command line repeat count takes any digits and clamps them" * doctest
     CHECK(CommandLineRepeatCount("", 0) == -1);
 }
 
-TEST_CASE("the startup repeat switch goes through the shared count (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCommandLineTest22, "Unit::CommandLine::the startup repeat switch goes through the shared count (source pin)", "[EngineFilter]")
 {
     std::string sCrash;
     if (!ReadRepoText("src\\Battlefront2\\Source\\pcCrash.cpp", sCrash))
@@ -634,3 +640,21 @@ TEST_CASE("the startup repeat switch goes through the shared count (source pin)"
     CHECK(sCrash.find("const int iCount = CommandLineRepeatCount(pcVal, iLen);") != std::string::npos);
     CHECK(sCrash.find("siRepeat = iCount > 0 ? iCount : 1;") != std::string::npos);
 }
+
+#ifdef OPENSWBF2_TEST
+TEST_CASE_NAMED(FCommandLineTestAutoTestFilter, "Unit::CommandLine::-autotest selects names and wildcards joined by plus with parameters", "[EngineFilter]")
+{
+    char acParameters[16];
+    CHECK(AutomationTest::Select("Harness.AutoTest.Pass", "harness.autotest.pass", acParameters, sizeof(acParameters)));
+    CHECK(strcmp(acParameters, "") == 0);
+    CHECK(AutomationTest::Select("Other+Harness.*=a b", "Harness.AutoTest.Fail", acParameters, sizeof(acParameters)));
+    CHECK(strcmp(acParameters, "a b") == 0);
+    CHECK(AutomationTest::Select("*.Pass=1+*=2", "Harness.AutoTest.Pass", acParameters, sizeof(acParameters)));
+    CHECK(strcmp(acParameters, "1") == 0);
+    CHECK_FALSE(AutomationTest::Select("Harness.AutoTest", "Harness.AutoTest.Pass", acParameters, sizeof(acParameters)));
+    CHECK_FALSE(AutomationTest::Select("Harness.AutoTest.Pass+", "Harness.AutoTest.Fail", acParameters, sizeof(acParameters)));
+    CHECK_FALSE(AutomationTest::Select("", "Harness.AutoTest.Pass", acParameters, sizeof(acParameters)));
+    CHECK_FALSE(AutomationTest::Select("=x", "Harness.AutoTest.Pass", acParameters, sizeof(acParameters)));
+    CHECK_FALSE(AutomationTest::Select("*=0123456789abcdef", "Harness.AutoTest.Pass", acParameters, sizeof(acParameters)));
+}
+#endif

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <algorithm>
 #include <string.h>
@@ -450,7 +451,7 @@ int CountOf(const std::string& sText, const char* pcNeedle)
 
 }
 
-TEST_CASE("object event filter does not match a new object at a dead object's address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest1, "Unit::StaleIdentity::object event filter does not match a new object at a dead object's address", "[EngineFilter]")
 {
     FakeObjectSlot kSlot;
     char cParam = 0;
@@ -467,7 +468,7 @@ TEST_CASE("object event filter does not match a new object at a dead object's ad
     CHECK(kFilterB(*pB, cParam));
 }
 
-TEST_CASE("object event filter dedupe compares identity not address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest2, "Unit::StaleIdentity::object event filter dedupe compares identity not address", "[EngineFilter]")
 {
     FakeObjectSlot kSlot;
     FakeObjectSlot kOther;
@@ -490,7 +491,7 @@ TEST_CASE("object event filter dedupe compares identity not address" * doctest::
     CHECK(kFilterB == CharObjectMatches(pB));
 }
 
-TEST_CASE("object event filter from an unknown pointer matches nothing" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest3, "Unit::StaleIdentity::object event filter from an unknown pointer matches nothing", "[EngineFilter]")
 {
     FakeObjectSlot kUnlisted;
     FakeObjectSlot kNotObject;
@@ -507,7 +508,7 @@ TEST_CASE("object event filter from an unknown pointer matches nothing" * doctes
     CHECK(kFilterNotObject == kNull);
 }
 
-TEST_CASE("melee hit dedupe does not follow a dead victim to a new object at its address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest4, "Unit::StaleIdentity::melee hit dedupe does not follow a dead victim to a new object at its address", "[EngineFilter]")
 {
     CollisionObjectBlock kVictim;
     CollisionObjectBlock kOther;
@@ -527,7 +528,7 @@ TEST_CASE("melee hit dedupe does not follow a dead victim to a new object at its
     CHECK(!kData.HasHit(pB));
 }
 
-TEST_CASE("melee hit sites go through the damage data helpers (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest5, "Unit::StaleIdentity::melee hit sites go through the damage data helpers (source pin)", "[EngineFilter]")
 {
     std::string sMelee;
     std::string sThrow;
@@ -541,7 +542,7 @@ TEST_CASE("melee hit sites go through the damage data helpers (source pin)" * do
     CHECK(!HasText(sThrow, "apObject["));
 }
 
-TEST_CASE("stuck mine does not ignore a new object at its dead target's address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest6, "Unit::StaleIdentity::stuck mine does not ignore a new object at its dead target's address", "[EngineFilter]")
 {
     FakeObjectSlot kHost;
     CollisionObjectBlock kLevel;
@@ -574,7 +575,7 @@ TEST_CASE("stuck mine does not ignore a new object at its dead target's address"
     CHECK(!kLevelStick.IsStuckTo(pReused));
 }
 
-TEST_CASE("mine stick sites go through the stick helper and record the stick key (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest7, "Unit::StaleIdentity::mine stick sites go through the stick helper and record the stick key (source pin)", "[EngineFilter]")
 {
     std::string sMine;
     std::string sNetState;
@@ -586,7 +587,7 @@ TEST_CASE("mine stick sites go through the stick helper and record the stick key
     CHECK(HasText(sNetState, "mStickInfo->mCollKey = CollisionObject::LastCollidedKey(mStickInfo->mCollObject);"));
 }
 
-TEST_CASE("barrier ignore helper clears only the slots that name the barrier" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest8, "Unit::StaleIdentity::barrier ignore helper clears only the slots that name the barrier", "[EngineFilter]")
 {
     alignas(16) char acUnit[64];
     alignas(16) char acTarget[64];
@@ -608,7 +609,7 @@ TEST_CASE("barrier ignore helper clears only the slots that name the barrier" * 
     CHECK(apOne[1] == pTargetBarrier);
 }
 
-TEST_CASE("replacing a barrier keeps the owner's barrier in every ignore list and in the grid once" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest9, "Unit::StaleIdentity::replacing a barrier keeps the owner's barrier in every ignore list and in the grid once", "[EngineFilter]")
 {
     BarrierWorld kWorld;
     const PblVector4 kSize = BarrierSize(2.0f, 3.0f);
@@ -646,7 +647,7 @@ TEST_CASE("replacing a barrier keeps the owner's barrier in every ignore list an
     CHECK(apFollow[0] == static_cast<const Obstacle*>(0));
 }
 
-TEST_CASE("deleting a barrier clears the search and every path request and AI navigator" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest10, "Unit::StaleIdentity::deleting a barrier clears the search and every path request and AI navigator", "[EngineFilter]")
 {
     BarrierWorld kWorld;
     const PblVector4 kSize = BarrierSize(1.0f, 1.0f);
@@ -703,7 +704,7 @@ TEST_CASE("deleting a barrier clears the search and every path request and AI na
     CHECK(apSlideFollow[1] == static_cast<const Obstacle*>(0));
 }
 
-TEST_CASE("controller reset drops the host and client lists of the ended mission" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest11, "Unit::StaleIdentity::controller reset drops the host and client lists of the ended mission", "[EngineFilter]")
 {
     BarrierWorld kWorld;
     FakeAiController kHost(NavigatorPathFollower::GetRtti());
@@ -731,7 +732,7 @@ TEST_CASE("controller reset drops the host and client lists of the ended mission
     CHECK(apClient[0] == pBarrier);
 }
 
-TEST_CASE("mine keeps its parent link only while stuck to that live parent" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest12, "Unit::StaleIdentity::mine keeps its parent link only while stuck to that live parent", "[EngineFilter]")
 {
     CollisionModelBlock kModel;
     StickTestObject kMine;
@@ -773,7 +774,7 @@ TEST_CASE("mine keeps its parent link only while stuck to that live parent" * do
     CHECK(PrepareCallsFor(kChild, kTarget) == 0);
 }
 
-TEST_CASE("mine stuck to a deleted prop does not keep its link to a new object at the prop's address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest13, "Unit::StaleIdentity::mine stuck to a deleted prop does not keep its link to a new object at the prop's address", "[EngineFilter]")
 {
     CollisionModelBlock kModel;
     StickTestObject kMine;
@@ -800,7 +801,7 @@ TEST_CASE("mine stuck to a deleted prop does not keep its link to a new object a
     pReused->~StickTestObject();
 }
 
-TEST_CASE("deleting a stuck-to collision object clears the stick and the stuck mine parent before the follow read" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest14, "Unit::StaleIdentity::deleting a stuck-to collision object clears the stick and the stuck mine parent before the follow read", "[EngineFilter]")
 {
     StickPoolGuard kPool(4);
     StickTestObject kMine;
@@ -833,7 +834,7 @@ TEST_CASE("deleting a stuck-to collision object clears the stick and the stuck m
     delete pOtherStick;
 }
 
-TEST_CASE("deleting an unrelated collision object leaves every stick unchanged" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest15, "Unit::StaleIdentity::deleting an unrelated collision object leaves every stick unchanged", "[EngineFilter]")
 {
     StickPoolGuard kPool(4);
     StickTestObject kMine;
@@ -851,7 +852,7 @@ TEST_CASE("deleting an unrelated collision object leaves every stick unchanged" 
     delete pStick;
 }
 
-TEST_CASE("a stick deleted before its target leaves no registry entry" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest16, "Unit::StaleIdentity::a stick deleted before its target leaves no registry entry", "[EngineFilter]")
 {
     StickPoolGuard kPool(4);
     HeapStickTarget* pProp = NewStickTarget();
@@ -866,7 +867,7 @@ TEST_CASE("a stick deleted before its target leaves no registry entry" * doctest
     delete pKeep;
 }
 
-TEST_CASE("sticks allocated past the initial stick pool count are all forgotten with their target" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest17, "Unit::StaleIdentity::sticks allocated past the initial stick pool count are all forgotten with their target", "[EngineFilter]")
 {
     StickPoolGuard kPool(2);
     HeapStickTarget* pProp = NewStickTarget();
@@ -885,7 +886,7 @@ TEST_CASE("sticks allocated past the initial stick pool count are all forgotten 
     }
 }
 
-TEST_CASE("clearing the stick registries leaves nothing for a later target death" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest18, "Unit::StaleIdentity::clearing the stick registries leaves nothing for a later target death", "[EngineFilter]")
 {
     StickPoolGuard kPool(4);
     StickTestObject kMine;
@@ -902,7 +903,7 @@ TEST_CASE("clearing the stick registries leaves nothing for a later target death
     delete pStick;
 }
 
-TEST_CASE("collision object death forgets sticks and the three stick reads go through the follow helper (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest19, "Unit::StaleIdentity::collision object death forgets sticks and the three stick reads go through the follow helper (source pin)", "[EngineFilter]")
 {
     std::string sCollision;
     std::string sMine;
@@ -922,7 +923,7 @@ TEST_CASE("collision object death forgets sticks and the three stick reads go th
     CHECK(!HasText(sMine, "StickInfo::sMemoryPool.Free("));
 }
 
-TEST_CASE("stick registries are cleared with the live entity set" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest20, "Unit::StaleIdentity::stick registries are cleared with the live entity set", "[EngineFilter]")
 {
     std::string sState;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\GameState.cpp", sState));
@@ -936,7 +937,7 @@ TEST_CASE("stick registries are cleared with the live entity set" * doctest::tes
     CHECK(CountOf(sState, "StickInfo::ClearRegistries();") == 1);
 }
 
-TEST_CASE("client stick restore needs a named object and a mine re-stick reuses its stick (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest21, "Unit::StaleIdentity::client stick restore needs a named object and a mine re-stick reuses its stick (source pin)", "[EngineFilter]")
 {
     std::string sNet;
     std::string sMine;
@@ -949,7 +950,7 @@ TEST_CASE("client stick restore needs a named object and a mine re-stick reuses 
     CHECK(CountOf(sMine, "new StickInfo") == 1);
 }
 
-TEST_CASE("a cloth that dies while cloth is disabled leaves its bank" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest22, "Unit::StaleIdentity::a cloth that dies while cloth is disabled leaves its bank", "[EngineFilter]")
 {
     ClothEnableGuard kGuard;
     ClothBank kBank(0);
@@ -975,7 +976,7 @@ TEST_CASE("a cloth that dies while cloth is disabled leaves its bank" * doctest:
     CHECK(kBank.cloth_.GetSize() == 0);
 }
 
-TEST_CASE("vehicle damage total does not follow a dead vehicle to a new object at its address" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest23, "Unit::StaleIdentity::vehicle damage total does not follow a dead vehicle to a new object at its address", "[EngineFilter]")
 {
     alignas(16) char acCharacter[sizeof(Character)];
     memset(acCharacter, 0, sizeof(acCharacter));
@@ -997,7 +998,7 @@ TEST_CASE("vehicle damage total does not follow a dead vehicle to a new object a
     pReused->~StickTestObject();
 }
 
-TEST_CASE("host world lookup rejects an index past the host world table" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest24, "Unit::StaleIdentity::host world lookup rejects an index past the host world table", "[EngineFilter]")
 {
     FakeObjectSlot aSlot[3];
     GameObject* apTable[5];
@@ -1016,7 +1017,7 @@ TEST_CASE("host world lookup rejects an index past the host world table" * docte
     CHECK(NetWire::MatchHostWorldIndex(apTable, 3, 0x40, apTable[1]) == -1);
 }
 
-TEST_CASE("deleting a carrier clears its cargo parent link so a new object at the dead carrier's address is not skipped" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest25, "Unit::StaleIdentity::deleting a carrier clears its cargo parent link so a new object at the dead carrier's address is not skipped", "[EngineFilter]")
 {
     FakeObjectSlot kCarrier;
     FakeObjectSlot kCargo;
@@ -1049,7 +1050,7 @@ TEST_CASE("deleting a carrier clears its cargo parent link so a new object at th
     CHECK(pCargo->mParent != pNew);
 }
 
-TEST_CASE("carrier destructor clears its cargo parents (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FStaleIdentityTest26, "Unit::StaleIdentity::carrier destructor clears its cargo parents (source pin)", "[EngineFilter]")
 {
     std::string sCarrier;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\EntityCarrier.cpp", sCarrier));

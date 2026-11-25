@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 
@@ -373,7 +374,7 @@ void CheckItemsRoundTrip(const unsigned short* pusName, int iType, const char* p
     {
         LogCapture kCapture;
         CHECK(ReadLikeSaveFsm(*pDevice, pusName, iType, &vLoaded[0], (unsigned int)vLoaded.size()) == 0);
-        CHECK(kCapture.Count("OPENSWBF2 SAVE") == 0);
+        CHECK(kCapture.Count("Save data") == 0);
     }
     CHECK(vLoaded == vBuffer);
     CheckItemsLoad(&vLoaded[0], (unsigned int)vLoaded.size());
@@ -381,7 +382,7 @@ void CheckItemsRoundTrip(const unsigned short* pusName, int iType, const char* p
 
 }
 
-TEST_CASE("save files match pinned x86 bytes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSaveRoundTripTest1, "Unit::SaveRoundTrip::save files match pinned x86 bytes", "[EngineFilter]")
 {
     SUBCASE("profile")
     {
@@ -405,7 +406,7 @@ TEST_CASE("save files match pinned x86 bytes" * doctest::test_suite("regression"
         CHECK(ReadLikeSaveFsm(*pDevice, kProfileName, 1, pLoaded.get(), sizeof(PlayerProfile::tProfile)) == 0);
         CHECK(memcmp(pLoaded.get(), pProfile.get(), sizeof(PlayerProfile::tProfile)) == 0);
         CHECK(PlayerProfile::CheckLoadedCRC(*pLoaded, kProfileName));
-        CHECK(kCapture.Count("OPENSWBF2 SAVE") == 0);
+        CHECK(kCapture.Count("Save data") == 0);
     }
 
     SUBCASE("metagame")
@@ -419,7 +420,7 @@ TEST_CASE("save files match pinned x86 bytes" * doctest::test_suite("regression"
     }
 }
 
-TEST_CASE("save files cut short are rejected with one log line and no read past the end" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSaveRoundTripTest2, "Unit::SaveRoundTrip::save files cut short are rejected with one log line and no read past the end", "[EngineFilter]")
 {
     TempSaveDir kDir;
     REQUIRE(kDir.Ok());
@@ -436,8 +437,8 @@ TEST_CASE("save files cut short are rejected with one log line and no read past 
     {
         LogCapture kCapture;
         CHECK(ReadLikeSaveFsm(*pDevice, kProfileName, 1, &vDest[0], sizeof(PlayerProfile::tProfile)) == -5);
-        CHECK(kCapture.Count("OPENSWBF2 SAVE rejected short file \"Pinned.profile\" read 4351 of 4352 bytes") == 1);
-        CHECK(kCapture.Count("OPENSWBF2 SAVE") == 1);
+        CHECK(kCapture.Count("Save data rejected short file \"Pinned.profile\" read 4351 of 4352 bytes") == 1);
+        CHECK(kCapture.Count("Save data") == 1);
     }
     CHECK(memcmp(&vDest[0], &vFull[4], 4351) == 0);
     for (size_t i = 4351; i < vDest.size(); ++i)
@@ -451,8 +452,8 @@ TEST_CASE("save files cut short are rejected with one log line and no read past 
     {
         LogCapture kCapture;
         CHECK(ReadLikeSaveFsm(*pDevice, kProfileName, 1, &vDest[0], sizeof(PlayerProfile::tProfile)) == -5);
-        CHECK(kCapture.Count("OPENSWBF2 SAVE rejected short file \"Pinned.profile\" read 2 of 4 bytes") == 1);
-        CHECK(kCapture.Count("OPENSWBF2 SAVE") == 1);
+        CHECK(kCapture.Count("Save data rejected short file \"Pinned.profile\" read 2 of 4 bytes") == 1);
+        CHECK(kCapture.Count("Save data") == 1);
     }
     for (size_t i = 0; i < vDest.size(); ++i)
     {
@@ -470,8 +471,8 @@ TEST_CASE("save files cut short are rejected with one log line and no read past 
     {
         LogCapture kCapture;
         CHECK(ReadLikeSaveFsm(*pDevice, kCampaignName, 3, &vCampaignDest[0], 256) == -5);
-        CHECK(kCapture.Count("OPENSWBF2 SAVE rejected short file \"PinnedRC.rote\" read 255 of 256 bytes") == 1);
-        CHECK(kCapture.Count("OPENSWBF2 SAVE") == 1);
+        CHECK(kCapture.Count("Save data rejected short file \"PinnedRC.rote\" read 255 of 256 bytes") == 1);
+        CHECK(kCapture.Count("Save data") == 1);
     }
     for (size_t i = 255; i < vCampaignDest.size(); ++i)
     {
@@ -480,7 +481,7 @@ TEST_CASE("save files cut short are rejected with one log line and no read past 
     }
 }
 
-TEST_CASE("loaded profile with a bad CRC logs one line naming the file" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSaveRoundTripTest3, "Unit::SaveRoundTrip::loaded profile with a bad CRC logs one line naming the file", "[EngineFilter]")
 {
     TempSaveDir kDir;
     REQUIRE(kDir.Ok());
@@ -496,8 +497,8 @@ TEST_CASE("loaded profile with a bad CRC logs one line naming the file" * doctes
     {
         LogCapture kCapture;
         CHECK_FALSE(PlayerProfile::CheckLoadedCRC(*pLoaded, kProfileName));
-        CHECK(kCapture.Count("OPENSWBF2 SAVE profile CRC mismatch \"Pinned.profile\"") == 1);
-        CHECK(kCapture.Count("OPENSWBF2 SAVE") == 1);
+        CHECK(kCapture.Count("Save data profile CRC mismatch \"Pinned.profile\"") == 1);
+        CHECK(kCapture.Count("Save data") == 1);
     }
 
     pLoaded->mCRC ^= 1u;
@@ -505,18 +506,18 @@ TEST_CASE("loaded profile with a bad CRC logs one line naming the file" * doctes
     {
         LogCapture kCapture;
         CHECK(PlayerProfile::CheckLoadedCRC(*pLoaded, kProfileName));
-        CHECK(kCapture.Count("OPENSWBF2 SAVE") == 0);
+        CHECK(kCapture.Count("Save data") == 0);
     }
 
     pLoaded->mBonus ^= 0x100u;
     {
         LogCapture kCapture;
         CHECK_FALSE(PlayerProfile::CheckLoadedCRC(*pLoaded, kProfileName));
-        CHECK(kCapture.Count("OPENSWBF2 SAVE profile CRC mismatch \"Pinned.profile\"") == 1);
+        CHECK(kCapture.Count("Save data profile CRC mismatch \"Pinned.profile\"") == 1);
     }
 }
 
-TEST_CASE("profile loads check the stored CRC before the sanity check (source pin: the callback needs the game runtime)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FSaveRoundTripTest4, "Unit::SaveRoundTrip::profile loads check the stored CRC before the sanity check (source pin: the callback needs the game runtime)", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\LuaCallbacks_LoadSave.cpp", sText));

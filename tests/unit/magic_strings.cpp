@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <string>
@@ -47,7 +48,7 @@ bool HoldsText(const unsigned short* pusText, const char* pcExpected)
 
 }
 
-TEST_CASE("magic strings replace like retail" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMagicStringsTest1, "Unit::MagicStrings::magic strings replace like retail", "[EngineFilter]")
 {
     struct Case
     {
@@ -74,7 +75,7 @@ TEST_CASE("magic strings replace like retail" * doctest::test_suite("regression"
     }
 }
 
-TEST_CASE("magic strings drop an overlong name" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMagicStringsTest2, "Unit::MagicStrings::magic strings drop an overlong name", "[EngineFilter]")
 {
     std::string sOverlong = "{";
     sOverlong.append(300, 'k');
@@ -98,7 +99,7 @@ TEST_CASE("magic strings drop an overlong name" * doctest::test_suite("regressio
     CHECK(HoldsText(ausDest, "a b"));
 }
 
-TEST_CASE("magic strings stay inside the destination" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMagicStringsTest3, "Unit::MagicStrings::magic strings stay inside the destination", "[EngineFilter]")
 {
     const std::vector<unsigned short> src = MagicWide(std::string(40, 'p'));
     unsigned short ausBlock[64];
@@ -137,7 +138,7 @@ TEST_CASE("magic strings stay inside the destination" * doctest::test_suite("reg
     }
 }
 
-TEST_CASE("magic strings call site passes its capacity" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMagicStringsTest4, "Unit::MagicStrings::magic strings call site passes its capacity", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\RedEngineFL\\Interface\\RedTextElement.cpp", sText));

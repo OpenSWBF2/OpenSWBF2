@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -88,7 +89,7 @@ void CheckCrashLine(const char* pcKind, DWORD uWant, const char* pcAsanOptions =
 
 }
 
-TEST_CASE("harness names an access violation crash" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCrashReportTest1, "Unit::CrashReport::harness names an access violation crash", "[EngineFilter]")
 {
 #if defined(__SANITIZE_ADDRESS__)
     const ChildRun kRun = RunCrashChild("access-violation", "exitcode=66");
@@ -102,17 +103,17 @@ TEST_CASE("harness names an access violation crash" * doctest::test_suite("regre
 #endif
 }
 
-TEST_CASE("harness names an invalid parameter crash" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCrashReportTest2, "Unit::CrashReport::harness names an invalid parameter crash", "[EngineFilter]")
 {
     CheckCrashLine("invalid-parameter", 0xE0000001);
 }
 
-TEST_CASE("harness names a pure call crash" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCrashReportTest3, "Unit::CrashReport::harness names a pure call crash", "[EngineFilter]")
 {
     CheckCrashLine("purecall", 0xE0000002);
 }
 
-TEST_CASE("harness names an abort crash" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FCrashReportTest4, "Unit::CrashReport::harness names an abort crash", "[EngineFilter]")
 {
     CheckCrashLine("abort", 0xE0000003);
 }

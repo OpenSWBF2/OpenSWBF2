@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <io.h>
@@ -151,7 +152,7 @@ bool TableHasFunction(lua_State* L, int iIndex)
 
 }
 
-TEST_CASE("lua loadfile dofile and require cannot read files" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest1, "Unit::LuaScriptHardening::lua loadfile dofile and require cannot read files", "[EngineFilter]")
 {
     const std::string sPath = WriteTempScript("Pwned = 1\n");
     lua_State* L = lua_open();
@@ -181,7 +182,7 @@ TEST_CASE("lua loadfile dofile and require cannot read files" * doctest::test_su
     DeleteFileA(sPath.c_str());
 }
 
-TEST_CASE("lua debug debug does not read stdin" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest2, "Unit::LuaScriptHardening::lua debug debug does not read stdin", "[EngineFilter]")
 {
     const std::string sPath = WriteTempScript("Pwned = 1\ncont\n");
     lua_State* L = lua_open();
@@ -207,7 +208,7 @@ TEST_CASE("lua debug debug does not read stdin" * doctest::test_suite("regressio
     DeleteFileA(sPath.c_str());
 }
 
-TEST_CASE("lua io and os libraries expose no functions" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest3, "Unit::LuaScriptHardening::lua io and os libraries expose no functions", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L != (lua_State*)0);
@@ -240,7 +241,7 @@ TEST_CASE("lua io and os libraries expose no functions" * doctest::test_suite("r
     lua_close(L);
 }
 
-TEST_CASE("team lookup rejects out of range indices" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest4, "Unit::LuaScriptHardening::team lookup rejects out of range indices", "[EngineFilter]")
 {
     Team* apSlots[10];
     for (int i = 0; i < 10; ++i)
@@ -261,7 +262,7 @@ TEST_CASE("team lookup rejects out of range indices" * doctest::test_suite("regr
     Team::sTeams = ppSaved;
 }
 
-TEST_CASE("lua team index sites route through team lookup" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest5, "Unit::LuaScriptHardening::lua team index sites route through team lookup", "[EngineFilter]")
 {
     const char* apcFiles[4] = {
         "src\\Battlefront2\\Source\\LuaCallbacks_Mission.cpp",
@@ -317,7 +318,7 @@ TEST_CASE("lua team index sites route through team lookup" * doctest::test_suite
     CHECK(HardenCount(sStats, "Team::sTeams[1] && Team::sTeams[2] &&") == 2);
 }
 
-TEST_CASE("stats team colour slots are bounded" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest6, "Unit::LuaScriptHardening::stats team colour slots are bounded", "[EngineFilter]")
 {
     const std::string sStats = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_Stats.cpp");
     CheckColorAfterBound(HardenBody(sStats, "int ScriptCB_TeamStatsGetTeamColor(lua_State*"));
@@ -325,7 +326,7 @@ TEST_CASE("stats team colour slots are bounded" * doctest::test_suite("regressio
     CheckColorAfterBound(HardenBody(sStats, "int ScriptCB_PersonalStatsSetTitles(lua_State*"));
 }
 
-TEST_CASE("voice over side indices are bounded" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest7, "Unit::LuaScriptHardening::voice over side indices are bounded", "[EngineFilter]")
 {
     const std::string sVo = HardenSource("src\\Battlefront2\\Source\\VoiceOverManager.cpp");
     CHECK(HardenHas(HardenBody(sVo, "void VoiceOverManager::SetBleedingVoiceOver("), "PblInBounds("));
@@ -345,7 +346,7 @@ TEST_CASE("voice over side indices are bounded" * doctest::test_suite("regressio
     CHECK_FALSE(HardenHas(sPost, "Team::sTeams["));
 }
 
-TEST_CASE("lua stream and ui indices are bounded" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest8, "Unit::LuaScriptHardening::lua stream and ui indices are bounded", "[EngineFilter]")
 {
     const std::string sSound = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_Sound.cpp");
     const std::string sHelper = HardenBody(sSound, "static Snd::Stream* GetLuaStream(int iStream)");
@@ -388,14 +389,14 @@ TEST_CASE("lua stream and ui indices are bounded" * doctest::test_suite("regress
     CHECK(HardenHas(HardenBody(sOptions, "int ScriptCB_GetSpectatorMode(lua_State*"), "PblInBounds(g_SpectatorEnabled"));
 }
 
-TEST_CASE("create timer refuses when the timer map is full" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest9, "Unit::LuaScriptHardening::create timer refuses when the timer map is full", "[EngineFilter]")
 {
     const std::string sMission = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_Mission.cpp");
     const std::string sBody = HardenBody(sMission, "int CreateTimer(lua_State*");
     CHECK(HardenHas(sBody, "!Timer::sMemoryPool.IsFull() && Timer::sMap.GetNumEntries() < Timer::sMap.GetMaxEntries()"));
 }
 
-TEST_CASE("space assault critical systems stay inside the hash array" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest10, "Unit::LuaScriptHardening::space assault critical systems stay inside the hash array", "[EngineFilter]")
 {
     const std::string sMission = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_Mission.cpp");
     const std::string sBody = HardenBody(sMission, "int SpaceAssaultLinkCriticalSystems(lua_State*");
@@ -430,7 +431,7 @@ static bool DataFileNameGuardsIntact(const DataFileNameProbe& kProbe)
     return true;
 }
 
-TEST_CASE("read data file name parts stay inside their blocks" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest11, "Unit::LuaScriptHardening::read data file name parts stay inside their blocks", "[EngineFilter]")
 {
     DataFileNameProbe probe;
     memset(&probe, 'x', sizeof(probe));
@@ -454,7 +455,7 @@ TEST_CASE("read data file name parts stay inside their blocks" * doctest::test_s
     CHECK(DataFileNameGuardsIntact(probe));
 }
 
-TEST_CASE("read data file splits its name through the bounded helper (source pin: LoadUtil.cpp is not linked into T1)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest12, "Unit::LuaScriptHardening::read data file splits its name through the bounded helper (source pin: LoadUtil.cpp is not linked into T1)", "[EngineFilter]")
 {
     const std::string sLoad = HardenSource("src\\Battlefront2\\Source\\LoadUtil.cpp");
     const std::string sBody = HardenBody(sLoad, "bool LoadUtil::ReadDataFileOnHeap(");
@@ -468,7 +469,7 @@ TEST_CASE("read data file splits its name through the bounded helper (source pin
     CHECK_FALSE(HardenHas(sBody, "= pName[i];"));
 }
 
-TEST_CASE("delete entity refuses character owned entities" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest13, "Unit::LuaScriptHardening::delete entity refuses character owned entities", "[EngineFilter]")
 {
     const std::string sMission = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_Mission.cpp");
     const std::string sBody = HardenBody(sMission, "int DeleteEntity(lua_State*");
@@ -486,7 +487,7 @@ TEST_CASE("delete entity refuses character owned entities" * doctest::test_suite
     CHECK(HardenHas(sOwner, "i < sCharacterLimit"));
 }
 
-TEST_CASE("screen group fallback returns true when set" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaScriptHardeningTest14, "Unit::LuaScriptHardening::screen group fallback returns true when set", "[EngineFilter]")
 {
     const std::string sIFace = HardenSource("src\\Battlefront2\\Source\\LuaCallbacks_IFace.cpp");
     const std::string sBody = HardenBody(sIFace, "bool Util_GetRedScreenGroupElement(");

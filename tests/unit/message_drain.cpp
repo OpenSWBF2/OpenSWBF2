@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "testutil.h"
 #include "RedEngineFL/Application/pc/pcMessageDrain.h"
@@ -75,7 +76,7 @@ DrainOps Ops(FakeQueue& q)
 
 }
 
-TEST_CASE("message drain stops at the message bound" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMessageDrainTest1, "Unit::MessageDrain::message drain stops at the message bound", "[SmokeFilter]")
 {
     FakeQueue q = Queue(1000, 0);
     DrainResult r = DrainMessages(Ops(q), 64, 1000000);
@@ -86,7 +87,7 @@ TEST_CASE("message drain stops at the message bound" * doctest::test_suite("unit
     CHECK(q.uiDispatched == 64);
 }
 
-TEST_CASE("message drain stops at the time bound" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMessageDrainTest2, "Unit::MessageDrain::message drain stops at the time bound", "[SmokeFilter]")
 {
     FakeQueue q = Queue(1000, 1);
     DrainResult r = DrainMessages(Ops(q), 1000, 10);
@@ -95,7 +96,7 @@ TEST_CASE("message drain stops at the time bound" * doctest::test_suite("unit"))
     CHECK(r.uiCount < 1000);
 }
 
-TEST_CASE("message drain reports WM_QUIT and stops" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMessageDrainTest3, "Unit::MessageDrain::message drain reports WM_QUIT and stops", "[SmokeFilter]")
 {
     FakeQueue q = Queue(10, 0);
     q.uiQuitAt = 3;
@@ -106,7 +107,7 @@ TEST_CASE("message drain reports WM_QUIT and stops" * doctest::test_suite("unit"
     CHECK(q.uiLeft == 7);
 }
 
-TEST_CASE("message drain empty queue returns zero" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMessageDrainTest4, "Unit::MessageDrain::message drain empty queue returns zero", "[SmokeFilter]")
 {
     FakeQueue q = Queue(0, 0);
     DrainResult r = DrainMessages(Ops(q), 64, 1000000);

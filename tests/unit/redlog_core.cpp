@@ -1,6 +1,10 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
+
+#include <regex>
+#include <string>
 
 #include "testutil.h"
 #include "RedEngineFL/Util/RedLog.h"
@@ -44,22 +48,45 @@ bool EnsureOnce(bool bValue)
 
 }
 
-TEST_CASE("redlog line format" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedlogCoreTest1, "Unit::RedlogCore::redlog line format", "[EngineFilter]")
 {
     Scope scope;
     LogCapture capture;
     RedLog::Write(RedLog::LogNet, RedLog::Warning, "src" "\\a\\b.cpp", 7, "x %d", 3);
-    CHECK(strncmp(sLast, "[t=", 3) == 0);
-    CHECK(strstr(sLast, "] [f=0] LogNet Warning a\\b.cpp:7: x 3\n") != nullptr);
-    CHECK(!strstr(sLast, "src\\"));
-    CHECK(capture.Contains("LogNet Warning a\\b.cpp:7: x 3"));
+    const std::regex kTimed("^\\[\\d{4}\\.\\d\\d\\.\\d\\d-\\d\\d\\.\\d\\d\\.\\d\\d:\\d{3}\\]\\[  0\\]LogNet: Warning: x 3\n$");
+    CHECK(std::regex_match(std::string(sLast), kTimed));
+    CHECK(!strstr(sLast, "b.cpp"));
+    CHECK(capture.Contains("LogNet: Warning: x 3"));
+
+    RedLog::gFrame = 7;
+    RedLog::Write(RedLog::LogNet, RedLog::Warning, "x.cpp", 1, "y");
+    CHECK(strstr(sLast, "][  7]LogNet: Warning: y\n") != nullptr);
+    RedLog::gFrame = 12345;
+    RedLog::Write(RedLog::LogNet, RedLog::Warning, "x.cpp", 1, "y");
+    CHECK(strstr(sLast, "][345]LogNet: Warning: y\n") != nullptr);
+    RedLog::gFrame = 1000;
+    RedLog::Write(RedLog::LogNet, RedLog::Warning, "x.cpp", 1, "y");
+    CHECK(strstr(sLast, "][  0]LogNet: Warning: y\n") != nullptr);
 }
 
-TEST_CASE("redlog strips line breaks and terminates once" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedlogCoreTest11, "Unit::RedlogCore::redlog -NOLOGTIMES drops the time and frame fields", "[EngineFilter]")
 {
     Scope scope;
     LogCapture capture;
-    ExpectLog expect("a  b cd e");
+    RedLog::gFrame = 42;
+    RedLog::gNoLogTimes = true;
+    RedLog::Write(RedLog::LogSim, RedLog::Inform, "x.cpp", 1, "z %d", 9);
+    CHECK(strcmp(sLast, "LogSim: Inform: z 9\n") == 0);
+    RedLog::gNoLogTimes = false;
+    RedLog::Write(RedLog::LogSim, RedLog::Inform, "x.cpp", 1, "z");
+    CHECK(sLast[0] == '[');
+}
+
+TEST_CASE_NAMED(FRedlogCoreTest2, "Unit::RedlogCore::redlog strips line breaks and terminates once", "[EngineFilter]")
+{
+    Scope scope;
+    LogCapture capture;
+    AddExpectedError("a  b cd e");
     RedLog::Write(RedLog::LogCore, RedLog::Error, "x.cpp", 1, "a\r\nb\nc%s", "d\re");
     size_t uLen = strlen(sLast);
     REQUIRE(uLen > 0);
@@ -69,11 +96,11 @@ TEST_CASE("redlog strips line breaks and terminates once" * doctest::test_suite(
     CHECK(strstr(sLast, "a  b cd e") != nullptr);
 }
 
-TEST_CASE("redlog caps line length" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedlogCoreTest3, "Unit::RedlogCore::redlog caps line length", "[EngineFilter]")
 {
     Scope scope;
     LogCapture capture;
-    ExpectLog expect("zzzz");
+    AddExpectedError("zzzz");
     char acBig[3000];
     memset(acBig, 'z', sizeof(acBig) - 1);
     acBig[sizeof(acBig) - 1] = 0;
@@ -82,7 +109,7 @@ TEST_CASE("redlog caps line length" * doctest::test_suite("regression"))
     CHECK(sLast[strlen(sLast) - 1] == '\n');
 }
 
-TEST_CASE("redlog verbosity filters by category" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedlogCoreTest4, "Unit::RedlogCore::redlog verbosity filters by category", "[EngineFilter]")
 {
     Scope scope;
     LogCapture capture;
@@ -96,7 +123,7 @@ TEST_CASE("redlog verbosity filters by category" * doctest::test_suite("regressi
     CHECK(RedLog::MinVerbosity() == RedLog::Verbose);
 }
 
-TEST_CASE("redlog defaults to Inform and ignores bad commands" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedlogCoreTest5, "Unit::RedlogCore::redlog defaults to Inform and ignores bad commands", "[EngineFilter]")
 {
     Scope scope;
     LogCapture capture;
@@ -112,18 +139,11 @@ TEST_CASE("redlog defaults to Inform and ignores bad commands" * doctest::test_s
     CHECK(capture.Contains("log start"));
 }
 
-TEST_CASE("redlog trims source paths" * doctest::test_suite("regression"))
-{
-    CHECK(strcmp(RedLog::TrimPath("unit\\x.cpp"), "unit\\x.cpp") == 0);
-    CHECK(strcmp(RedLog::TrimPath("..\\src\\A\\b.cpp"), "A\\b.cpp") == 0);
-    CHECK(strcmp(RedLog::TrimPath("C:\\r\\src\\A\\b.cpp"), "A\\b.cpp") == 0);
-}
-
-TEST_CASE("redlog ensure counts once per site" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedlogCoreTest7, "Unit::RedlogCore::redlog ensure counts once per site", "[EngineFilter]")
 {
     Scope scope;
     LogCapture capture;
-    ExpectEnsure expect("bValue");
+    AddExpectedError("ensure failed: bValue");
     CHECK(EnsureOnce(true));
     CHECK(RedLog::EnsureFailureCount() == 0);
     CHECK(!EnsureOnce(false));
@@ -137,9 +157,9 @@ TEST_CASE("redlog ensure counts once per site" * doctest::test_suite("regression
     CHECK(capture.Contains("ensure summary: 3 failures at 1 sites"));
 }
 
-TEST_CASE("redlog ensure evaluates its expression once" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedlogCoreTest8, "Unit::RedlogCore::redlog ensure evaluates its expression once", "[EngineFilter]")
 {
-    ExpectLog expect("ensure failed: ++i == 5");
+    AddExpectedErrorPlain("ensure failed: ++i == 5");
     Scope scope;
     LogCapture capture;
     int i = 0;
@@ -149,12 +169,12 @@ TEST_CASE("redlog ensure evaluates its expression once" * doctest::test_suite("r
     CHECK(i == 2);
 }
 
-TEST_CASE("redlog ensure table overflow logs once" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedlogCoreTest9, "Unit::RedlogCore::redlog ensure table overflow logs once", "[EngineFilter]")
 {
     Scope scope;
     LogCapture capture;
-    ExpectEnsure expect("e");
-    ExpectLog expectFull("ensure table full");
+    AddExpectedError("ensure failed: e", EAutomationExpectedErrorFlags::Exact, 64);
+    AddExpectedError("ensure table full");
     for (int i = 0; i < 65; ++i)
     {
         RedLog::EnsureFailed("e", "t.cpp", 100 + i);
@@ -168,22 +188,12 @@ TEST_CASE("redlog ensure table overflow logs once" * doctest::test_suite("regres
     CHECK(RedLog::EnsureFailureCount() == 66);
 }
 
-TEST_CASE("redlog treats arguments as data" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRedlogCoreTest10, "Unit::RedlogCore::redlog treats arguments as data", "[EngineFilter]")
 {
     Scope scope;
     LogCapture capture;
-    ExpectLog expect("name %n%s");
+    AddExpectedErrorPlain("name %n%s");
     LOG(LogCore, Error, "name %s", "%n%s");
     CHECK(strstr(sLast, "name %n%s\n") != nullptr);
     CHECK(capture.Contains("name %n%s"));
-}
-
-TEST_CASE("strictness probe emits an undeclared error" * doctest::skip())
-{
-    LOG(LogCore, Error, "probe undeclared");
-}
-
-TEST_CASE("strictness probe unmatched expectation" * doctest::skip())
-{
-    ExpectLog expect("never logged");
 }

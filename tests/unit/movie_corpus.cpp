@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 
@@ -102,7 +103,7 @@ void DecodeCorpusStream(const std::string& sFile, const std::string& sPath, cons
 
 }
 
-TEST_CASE("movie corpus decodes every retail stream" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieCorpusTest1, "Unit::MovieCorpus::movie corpus decodes every retail stream", "[SmokeFilter][OnRequest]")
 {
     const std::string sDir = MovieDataDir();
     SKIP_IF(sDir.empty(), "GameData movies not found");

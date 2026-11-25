@@ -10,6 +10,8 @@
 #include <string.h>
 
 #include "testutil.h"
+#include "harness/gamerun.h"
+#include "harness/runner.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "Battlefront2/Platform/Pc/pcMathStartup.h"
@@ -196,6 +198,7 @@ extern void __cdecl PblTraceP(const char* Format, ...);
 int FloatCorpusGenerate(const char* pcOutDir);
 int D3dxRefWriteFile(const char* pcPath);
 int CrtTrigRefWriteFile(const char* pcPath);
+int RunExpectProbe(const char* pcKind);
 
 int main(int argc, char** argv)
 {
@@ -247,6 +250,18 @@ int main(int argc, char** argv)
             strncpy(gCurrentCase, "crt-trig-ref child", sizeof(gCurrentCase) - 1);
             return CrtTrigRefWriteFile(argv[i] + 15);
         }
+        if (strcmp(argv[i], "--runner") == 0)
+        {
+            return RunnerMain(argc, argv);
+        }
+        if (strncmp(argv[i], "--expect-probe=", 15) == 0)
+        {
+            strncpy(gCurrentCase, "expect probe", sizeof(gCurrentCase) - 1);
+            RedWarning::Init();
+            RedLog::gObserver = TestLogObserver;
+            RunExpectProbe(argv[i] + 15);
+            return TestStrictnessReport(argv[i] + 15) != 0 ? 1 : 0;
+        }
     }
     InitializeCriticalSection(&sWatchdogLock);
     pcProgress::Open();
@@ -278,6 +293,9 @@ int main(int argc, char** argv)
         else if (strncmp(pcArg, "--fuzz-out=", 11) == 0)
         {
             strncpy(gFuzzOutPath, pcArg + 11, sizeof(gFuzzOutPath) - 1);
+        }
+        else if (GameRunArg(pcArg))
+        {
         }
         else if (strstr(pcArg, "list-test") || strcmp(pcArg, "-ltc") == 0 || strcmp(pcArg, "-lts") == 0
                  || strcmp(pcArg, "-c") == 0 || strcmp(pcArg, "--count") == 0)

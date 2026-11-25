@@ -105,6 +105,9 @@ public:
     void Set(MemoryPool const& rPool);
 
     static void PoolErrorPostLoad();
+#ifdef OPENSWBF2_TEST
+    static unsigned int RefusedSizes();
+#endif
 
     static bool sErrorOnExpansionPostLoad;
 

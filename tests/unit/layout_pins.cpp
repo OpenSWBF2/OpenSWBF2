@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "Battlefront2/Source/Weapon.h"
 #include "Battlefront2/Source/EntityFlyer.h"
@@ -239,7 +240,7 @@ static_assert(sizeof(EntityGeometry) == 0x140, "entity geometry size");
 static_assert(sizeof(GameObject) == 0x240, "game object size");
 static_assert(offsetof(GameObject, mEntityClass) == 0x8, "game object entity class");
 static_assert(sizeof(PblHandle<GameObject>) == 8, "game object handle size");
-TEST_CASE("game object handle id stays at offset 0x204" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLayoutPinsTest1, "Unit::LayoutPins::game object handle id stays at offset 0x204", "[SmokeFilter]")
 {
     GameObject* pObject = (GameObject*)0x1000;
     const unsigned int uBase = (unsigned int)((char*)static_cast<PblHandled*>(pObject) - (char*)pObject);
@@ -510,7 +511,7 @@ static_assert(offsetof(ParticleEmitterObject, mbAddedToScene) == 0x106, "particl
 static_assert(offsetof(ParticleEmitterObject, mIsChildPEO) == 0x107, "particle emitter object child");
 static_assert(offsetof(ParticleEmitterObject, mReflectionEnable) == 0x108, "particle emitter object reflection");
 
-TEST_CASE("game object damageable base and vanish bits keep the retail offsets" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLayoutPinsTest2, "Unit::LayoutPins::game object damageable base and vanish bits keep the retail offsets", "[SmokeFilter]")
 {
     GameObject* pObject = (GameObject*)0x1000;
     CHECK((unsigned int)((char*)static_cast<Damageable*>(pObject) - (char*)pObject) == 0x140);
@@ -528,7 +529,7 @@ TEST_CASE("game object damageable base and vanish bits keep the retail offsets" 
     CHECK(uWord == 0xFFFFFFE7u);
 }
 
-TEST_CASE("movie player and movie keep the retail x86 layout" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FLayoutPinsTest3, "Unit::LayoutPins::movie player and movie keep the retail x86 layout", "[SmokeFilter]")
 {
     CHECK(sizeof(RedMoviePlayer) == 0x210);
     CHECK(offsetof(RedMoviePlayer, mPlayback) == 0x200);
@@ -542,6 +543,7 @@ TEST_CASE("movie player and movie keep the retail x86 layout" * doctest::test_su
 #include <string>
 
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "Battlefront2/Source/PlayerProfile.h"
 #include "Battlefront2/Source/SaveFsm.h"
@@ -569,7 +571,7 @@ static_assert(sizeof(PlayerProfile::tPCOpt) == 252, "profile on disk pc options 
 static_assert(sizeof(RenderOptionsT) == 72, "profile on disk render options size");
 static_assert(SaveFsm::CRC_SIZE == 4, "save file checksum");
 
-TEST_CASE("save buffers on disk are 512 and 256 bytes on every platform" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLayoutPinsTest4, "Unit::LayoutPins::save buffers on disk are 512 and 256 bytes on every platform", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\LuaCallbacks_LoadSave.cpp", sText));

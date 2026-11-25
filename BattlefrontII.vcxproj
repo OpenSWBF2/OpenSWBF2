@@ -107,6 +107,10 @@
     <ClCompile Include="src\Battlefront2\Source\AttachedEffects.cpp" />
     <ClCompile Include="src\Battlefront2\Source\AttackHelper.cpp" />
     <ClCompile Include="src\Battlefront2\Source\AudibleManager.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AutomationTest.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AutomationTests_Boot.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AutomationTests_Crash.cpp" />
+    <ClCompile Include="src\Battlefront2\Source\AutomationTests_Standard.cpp" />
     <ClCompile Include="src\Battlefront2\Source\Battlefront2Lod.cpp" />
     <ClCompile Include="src\Battlefront2\Source\Battlefront2SceneManager.cpp" />
     <ClCompile Include="src\Battlefront2\Source\BirdEffect.cpp" />
@@ -620,6 +624,7 @@
     <ClInclude Include="src\Battlefront2\Source\Asteroid.h" />
     <ClInclude Include="src\Battlefront2\Source\AttachedEffects.h" />
     <ClInclude Include="src\Battlefront2\Source\AttackHelper.h" />
+    <ClInclude Include="src\Battlefront2\Source\AutomationTest.h" />
     <ClInclude Include="src\Battlefront2\Source\Battlefront2Lod.h" />
     <ClInclude Include="src\Battlefront2\Source\Battlefront2SceneManager.h" />
     <ClInclude Include="src\Battlefront2\Source\BirdEffect.h" />

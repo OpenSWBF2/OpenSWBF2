@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <d3d9.h>
 #include <string.h>
@@ -23,7 +24,7 @@ DisplayModeRec M(unsigned int w, unsigned int h, unsigned int r, unsigned int a 
 
 }
 
-TEST_CASE("display logic mode list keeps one adapter" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest1, "Unit::DisplayLogic::display logic mode list keeps one adapter", "[SmokeFilter]")
 {
     DisplayModeRec src[] = {M(1920, 1080, 60, 0), M(1280, 720, 60, 1), M(1920, 1080, 60, 1),
                             M(1920, 1080, 144, 1), M(1920, 1080, 144, 1)};
@@ -35,7 +36,7 @@ TEST_CASE("display logic mode list keeps one adapter" * doctest::test_suite("uni
     CHECK(BuildModeList(src, 5, 0, out, 8) == 1);
 }
 
-TEST_CASE("display logic mode list collapses duplicates and has no cap" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest2, "Unit::DisplayLogic::display logic mode list collapses duplicates and has no cap", "[SmokeFilter]")
 {
     DisplayModeRec src[300];
     for (unsigned int i = 0; i < 200; i++)
@@ -49,7 +50,7 @@ TEST_CASE("display logic mode list collapses duplicates and has no cap" * doctes
     CHECK(BuildModeList(dup, 3, 0, out, 300) == 2);
 }
 
-TEST_CASE("display logic mode list respects the output cap" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest3, "Unit::DisplayLogic::display logic mode list respects the output cap", "[SmokeFilter]")
 {
     DisplayModeRec src[] = {M(640, 480, 60), M(800, 600, 60), M(1024, 768, 60)};
     DisplayModeRec out[4] = {M(7, 7, 7), M(7, 7, 7), M(7, 7, 7), M(7, 7, 7)};
@@ -58,7 +59,7 @@ TEST_CASE("display logic mode list respects the output cap" * doctest::test_suit
     CHECK(out[2].w == 7);
 }
 
-TEST_CASE("display logic unique resolutions" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest4, "Unit::DisplayLogic::display logic unique resolutions", "[SmokeFilter]")
 {
     DisplayModeRec src[] = {M(640, 480, 60), M(800, 600, 60), M(800, 600, 75), M(1920, 1080, 60)};
     DisplayModeRec out[4];
@@ -67,7 +68,7 @@ TEST_CASE("display logic unique resolutions" * doctest::test_suite("unit"))
     CHECK(out[1].w == 1920);
 }
 
-TEST_CASE("display logic desktop default exact and nearest" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest5, "Unit::DisplayLogic::display logic desktop default exact and nearest", "[SmokeFilter]")
 {
     unsigned int w = 0, h = 0;
     DisplayModeRec a[] = {M(1280, 1024, 60), M(2560, 1440, 60), M(1920, 1080, 60)};
@@ -84,7 +85,7 @@ TEST_CASE("display logic desktop default exact and nearest" * doctest::test_suit
     CHECK(h == 480);
 }
 
-TEST_CASE("display logic desktop default empty list" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest6, "Unit::DisplayLogic::display logic desktop default empty list", "[SmokeFilter]")
 {
     unsigned int w = 1, h = 1;
     DesktopDefault(0, 0, 1920, 1080, w, h);
@@ -92,7 +93,7 @@ TEST_CASE("display logic desktop default empty list" * doctest::test_suite("unit
     CHECK(h == 600);
 }
 
-TEST_CASE("display logic desktop default zero desktop" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest7, "Unit::DisplayLogic::display logic desktop default zero desktop", "[SmokeFilter]")
 {
     unsigned int w = 1, h = 1;
     DisplayModeRec a[] = {M(1920, 1080, 60)};
@@ -101,7 +102,7 @@ TEST_CASE("display logic desktop default zero desktop" * doctest::test_suite("un
     CHECK(h == 600);
 }
 
-TEST_CASE("display logic desktop default nothing fits" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest8, "Unit::DisplayLogic::display logic desktop default nothing fits", "[SmokeFilter]")
 {
     unsigned int w = 1, h = 1;
     DisplayModeRec a[] = {M(1920, 1080, 60)};
@@ -110,7 +111,7 @@ TEST_CASE("display logic desktop default nothing fits" * doctest::test_suite("un
     CHECK(h == 600);
 }
 
-TEST_CASE("display logic refresh windowed or unrequested" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest9, "Unit::DisplayLogic::display logic refresh windowed or unrequested", "[SmokeFilter]")
 {
     DisplayModeRec a[] = {M(1920, 1080, 60), M(1920, 1080, 144)};
     CHECK(PickRefresh(a, 2, 1920, 1080, 144, true, 0) == 0);
@@ -119,7 +120,7 @@ TEST_CASE("display logic refresh windowed or unrequested" * doctest::test_suite(
     CHECK(PickRefresh(a, 2, 1280, 720, 60, false, 0) == 0);
 }
 
-TEST_CASE("display logic refresh fallback" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest10, "Unit::DisplayLogic::display logic refresh fallback", "[SmokeFilter]")
 {
     DisplayModeRec a[] = {M(1920, 1080, 60), M(1920, 1080, 144), M(1280, 720, 240)};
     LogCapture capture;
@@ -127,7 +128,7 @@ TEST_CASE("display logic refresh fallback" * doctest::test_suite("unit"))
     CHECK(capture.Contains("display: refresh 100Hz not listed"));
 }
 
-TEST_CASE("display logic refresh desktop default" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest11, "Unit::DisplayLogic::display logic refresh desktop default", "[SmokeFilter]")
 {
     DisplayModeRec a[] = {M(1920, 1080, 60), M(1920, 1080, 144), M(1280, 720, 240)};
     {
@@ -154,13 +155,13 @@ TEST_CASE("display logic refresh desktop default" * doctest::test_suite("unit"))
     }
 }
 
-TEST_CASE("display logic adapter name beats ordinal" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest12, "Unit::DisplayLogic::display logic adapter name beats ordinal", "[SmokeFilter]")
 {
     AdapterRec ads[] = {{0, "\\\\.\\DISPLAY1"}, {1, "\\\\.\\DISPLAY2"}};
     CHECK(ResolveAdapter(0, false, "\\\\.\\display2", ads, 2, false) == 1);
 }
 
-TEST_CASE("display logic adapter fallback" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest13, "Unit::DisplayLogic::display logic adapter fallback", "[SmokeFilter]")
 {
     AdapterRec ads[] = {{0, "\\\\.\\DISPLAY1"}, {1, "\\\\.\\DISPLAY2"}};
     {
@@ -185,7 +186,7 @@ TEST_CASE("display logic adapter fallback" * doctest::test_suite("unit"))
     }
 }
 
-TEST_CASE("display logic adapter norender is silent" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest14, "Unit::DisplayLogic::display logic adapter norender is silent", "[SmokeFilter]")
 {
     AdapterRec ads[] = {{0, "a"}};
     LogCapture capture;
@@ -193,7 +194,7 @@ TEST_CASE("display logic adapter norender is silent" * doctest::test_suite("unit
     CHECK(!capture.Contains("display:"));
 }
 
-TEST_CASE("display logic usable uncached" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest15, "Unit::DisplayLogic::display logic usable uncached", "[SmokeFilter]")
 {
     CHECK(UsableUncached(true, false, true, 0, 0));
     CHECK(UsableUncached(false, true, true, 0, 0));
@@ -202,7 +203,7 @@ TEST_CASE("display logic usable uncached" * doctest::test_suite("unit"))
     CHECK(!UsableUncached(false, false, true, 4, 0));
 }
 
-TEST_CASE("display logic effective vsync precedence" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest16, "Unit::DisplayLogic::display logic effective vsync precedence", "[SmokeFilter]")
 {
     CHECK(EffectiveVsync(true, 2, false) == 2);
     CHECK(EffectiveVsync(true, 0, true) == 0);
@@ -210,7 +211,7 @@ TEST_CASE("display logic effective vsync precedence" * doctest::test_suite("unit
     CHECK(EffectiveVsync(false, 0, true) == 1);
 }
 
-TEST_CASE("display logic vsync off and on" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest17, "Unit::DisplayLogic::display logic vsync off and on", "[SmokeFilter]")
 {
     const unsigned long caps[] = {0, 0x1, 0x3, 0x80000001ul, 0x80000003ul};
     for (int w = 0; w < 2; ++w)
@@ -228,7 +229,7 @@ TEST_CASE("display logic vsync off and on" * doctest::test_suite("unit"))
     }
 }
 
-TEST_CASE("display logic vsync half needs fullscreen and caps" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest18, "Unit::DisplayLogic::display logic vsync half needs fullscreen and caps", "[SmokeFilter]")
 {
     const unsigned long caps[] = {0, 0x1, 0x3, 0x80000001ul, 0x80000003ul};
     for (int w = 0; w < 2; ++w)
@@ -243,7 +244,7 @@ TEST_CASE("display logic vsync half needs fullscreen and caps" * doctest::test_s
     }
 }
 
-TEST_CASE("display logic vsync unknown request and null flag" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest19, "Unit::DisplayLogic::display logic vsync unknown request and null flag", "[SmokeFilter]")
 {
     bool fb = true;
     CHECK(ResolveVsyncInterval(7, 0x80000003ul, false, &fb) == kIntervalDefault);
@@ -254,7 +255,7 @@ TEST_CASE("display logic vsync unknown request and null flag" * doctest::test_su
     CHECK(ResolveVsyncInterval(2, 3, false, nullptr) == kIntervalTwo);
 }
 
-TEST_CASE("reset step maps every code" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest20, "Unit::DisplayLogic::reset step maps every code", "[SmokeFilter]")
 {
     CHECK(ResetStep(S_OK, 0, 0xFFFFFFFFu, true, kRuntimeBounds) == kResetDone);
     CHECK(ResetStep(S_OK, 99, 0xFFFFFFFFu, false, kStartupBounds) == kResetDone);
@@ -268,7 +269,7 @@ TEST_CASE("reset step maps every code" * doctest::test_suite("unit"))
     CHECK(ResetStep(D3DERR_INVALIDCALL, 1, 0, true, kRuntimeBounds) == kResetRevert);
 }
 
-TEST_CASE("reset step lost device waits without limit" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest21, "Unit::DisplayLogic::reset step lost device waits without limit", "[SmokeFilter]")
 {
     CHECK(kRuntimeBounds.uiMaxMs == 0);
     CHECK(ResetStep(D3DERR_DEVICELOST, 1, 0xFFFFFFFFu, false, kRuntimeBounds) == kResetWait);
@@ -278,7 +279,7 @@ TEST_CASE("reset step lost device waits without limit" * doctest::test_suite("un
     CHECK(CoopStep(D3DERR_DEVICELOST, 0xFFFFFFFFu, kRuntimeBounds) == kResetWait);
 }
 
-TEST_CASE("coop step maps every code" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest22, "Unit::DisplayLogic::coop step maps every code", "[SmokeFilter]")
 {
     CHECK(CoopStep(S_OK, 0, kRuntimeBounds) == kResetNow);
     CHECK(CoopStep(S_OK, 0xFFFFFFFFu, kStartupBounds) == kResetNow);
@@ -290,14 +291,14 @@ TEST_CASE("coop step maps every code" * doctest::test_suite("unit"))
     CHECK(CoopStep(E_FAIL, 0, kRuntimeBounds) == kResetFatal);
 }
 
-TEST_CASE("coop step startup lost device times out without revert" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest23, "Unit::DisplayLogic::coop step startup lost device times out without revert", "[SmokeFilter]")
 {
     CHECK(CoopStep(D3DERR_DEVICELOST, 29999, kStartupBounds) == kResetWait);
     CHECK(CoopStep(D3DERR_DEVICELOST, 30000, kStartupBounds) == kResetFatal);
     CHECK(CoopStep(D3DERR_DEVICELOST, 0xFFFFFFFFu, kStartupBounds) == kResetFatal);
 }
 
-TEST_CASE("reset step startup timeout is fatal" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest24, "Unit::DisplayLogic::reset step startup timeout is fatal", "[SmokeFilter]")
 {
     CHECK(kStartupBounds.uiMaxMs == 30000);
     CHECK(ResetStep(D3DERR_DEVICELOST, 5, 29999, false, kStartupBounds) == kResetWait);
@@ -306,7 +307,7 @@ TEST_CASE("reset step startup timeout is fatal" * doctest::test_suite("unit"))
     CHECK(ResetStep(D3DERR_DEVICELOST, 500, 29999, false, kStartupBounds) == kResetWait);
 }
 
-TEST_CASE("reset step runtime failure bound" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest25, "Unit::DisplayLogic::reset step runtime failure bound", "[SmokeFilter]")
 {
     CHECK(kRuntimeBounds.uiMaxFailures == 20);
     CHECK(ResetStep(D3DERR_DEVICELOST, 19, 0xFFFFFFFFu, false, kRuntimeBounds) == kResetWait);
@@ -318,7 +319,7 @@ TEST_CASE("reset step runtime failure bound" * doctest::test_suite("unit"))
     CHECK(ResetStep(D3DERR_DEVICENOTRESET, 1, 30000, false, kStartupBounds) == kResetFatal);
 }
 
-TEST_CASE("reset step reverts once then fatal" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest26, "Unit::DisplayLogic::reset step reverts once then fatal", "[SmokeFilter]")
 {
     const long codes[] = {D3DERR_INVALIDCALL, D3DERR_NOTAVAILABLE, E_OUTOFMEMORY,
                           D3DERR_OUTOFVIDEOMEMORY};
@@ -332,7 +333,7 @@ TEST_CASE("reset step reverts once then fatal" * doctest::test_suite("unit"))
     CHECK(ResetStep(unknown, 1, 0, false, kRuntimeBounds) == kResetFatal);
 }
 
-TEST_CASE("display logic mode resolution" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest27, "Unit::DisplayLogic::display logic mode resolution", "[SmokeFilter]")
 {
     CHECK(ResolveMode(true, false, false) == kModeBorderless);
     CHECK(ResolveMode(true, true, true) == kModeBorderless);
@@ -341,7 +342,7 @@ TEST_CASE("display logic mode resolution" * doctest::test_suite("unit"))
     CHECK(ResolveMode(false, false, false) == kModeFullscreen);
 }
 
-TEST_CASE("display logic mode predicates" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest28, "Unit::DisplayLogic::display logic mode predicates", "[SmokeFilter]")
 {
     CHECK_FALSE(D3DWindowed(kModeFullscreen));
     CHECK(D3DWindowed(kModeWindowed));
@@ -354,7 +355,7 @@ TEST_CASE("display logic mode predicates" * doctest::test_suite("unit"))
     CHECK_FALSE(Topmost(kModeBorderless));
 }
 
-TEST_CASE("display logic window style" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest29, "Unit::DisplayLogic::display logic window style", "[SmokeFilter]")
 {
     WinStyle f = WindowStyleFor(kModeFullscreen, true);
     CHECK(f.style == (WS_POPUP | WS_VISIBLE));
@@ -374,7 +375,7 @@ TEST_CASE("display logic window style" * doctest::test_suite("unit"))
     CHECK((b.exStyle & WS_EX_TOPMOST) == 0);
 }
 
-TEST_CASE("display logic window placement" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest30, "Unit::DisplayLogic::display logic window placement", "[SmokeFilter]")
 {
     const Frame none = {0, 0, 0, 0};
     const Rect monitors[] = {{0, 0, 1920, 1080}, {-1920, 0, 0, 1080}, {1920, -200, 3840, 880}};
@@ -412,7 +413,7 @@ TEST_CASE("display logic window placement" * doctest::test_suite("unit"))
     CHECK(fs.t == (-200 - 639 + 880) / 2);
 }
 
-TEST_CASE("display logic dpi changed rect" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest31, "Unit::DisplayLogic::display logic dpi changed rect", "[SmokeFilter]")
 {
     const Rect suggested = {100, 50, 900, 700};
     const Frame frame = {-12, -45, 12, 12};
@@ -463,7 +464,7 @@ DpiLevel RunCascade(int iPmv2, int iPm, int iSystem, bool bNoDpi, bool bNull)
 
 }
 
-TEST_CASE("display logic dpi cascade" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest32, "Unit::DisplayLogic::display logic dpi cascade", "[SmokeFilter]")
 {
     CHECK(RunCascade(kDpiOk, kDpiOk, kDpiOk, false, false) == kDpiLevelPmV2);
     CHECK(strcmp(sOrder, "a") == 0);
@@ -486,7 +487,7 @@ TEST_CASE("display logic dpi cascade" * doctest::test_suite("unit"))
     CHECK(strcmp(DpiLevelName(kDpiLevelOff), "off") == 0);
 }
 
-TEST_CASE("display logic dpi preset" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest33, "Unit::DisplayLogic::display logic dpi preset", "[SmokeFilter]")
 {
     CHECK(PresetDpiLevel(2, true, kDpiLevelPm) == kDpiLevelPmV2);
     CHECK(PresetDpiLevel(2, false, kDpiLevelPmV2) == kDpiLevelPm);
@@ -497,7 +498,7 @@ TEST_CASE("display logic dpi preset" * doctest::test_suite("unit"))
     CHECK(PresetDpiLevel(-1, false, kDpiLevelPm) == kDpiLevelPm);
 }
 
-TEST_CASE("display logic coordinate mapping" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest34, "Unit::DisplayLogic::display logic coordinate mapping", "[SmokeFilter]")
 {
     int ox = -1;
     int oy = -1;
@@ -548,7 +549,7 @@ TEST_CASE("display logic coordinate mapping" * doctest::test_suite("unit"))
     }
 }
 
-TEST_CASE("display logic shell size policy" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest35, "Unit::DisplayLogic::display logic shell size policy", "[SmokeFilter]")
 {
     ShellSize s = ShellSizePolicy(kModeFullscreen, false, 0, 0, 1280, 720, 1920, 1080);
     CHECK(s.uiBackW == 1280);
@@ -646,7 +647,7 @@ TEST_CASE("display logic shell size policy" * doctest::test_suite("unit"))
     CHECK(s.uiClientH == 1440);
 }
 
-TEST_CASE("display logic shell stretch plan" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest36, "Unit::DisplayLogic::display logic shell stretch plan", "[SmokeFilter]")
 {
     ShellStretch s = ShellStretchPlan(kModeWindowed, true, 800, 600, 1920, 1080, true);
     CHECK(s.bActive);
@@ -693,7 +694,7 @@ TEST_CASE("display logic shell stretch plan" * doctest::test_suite("unit"))
     CHECK(s.bActive);
 }
 
-TEST_CASE("display logic apply same params" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest37, "Unit::DisplayLogic::display logic apply same params", "[SmokeFilter]")
 {
     DisplayRec a = {800, 600, true, 0, 0, 1, 60, kModeWindowed, 800, 600};
     DisplayRec b = a;
@@ -710,7 +711,7 @@ TEST_CASE("display logic apply same params" * doctest::test_suite("unit"))
     b = a; b.uiClientH = 1; CHECK_FALSE(SameDisplayParams(a, b));
 }
 
-TEST_CASE("display logic apply buffer sizes" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest38, "Unit::DisplayLogic::display logic apply buffer sizes", "[SmokeFilter]")
 {
     BufferSet s = BufferSizes(800, 600, 4096, 4096, false);
     CHECK(s.akBuf[1].uiW == 512);
@@ -753,7 +754,7 @@ TEST_CASE("display logic apply buffer sizes" * doctest::test_suite("unit"))
     CHECK(s.akBuf[2].uiH == 256);
 }
 
-TEST_CASE("display logic live size fits caps" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest39, "Unit::DisplayLogic::display logic live size fits caps", "[SmokeFilter]")
 {
     CHECK(SizeFitsCaps(1920, 1080, 2048, 2048));
     CHECK(SizeFitsCaps(2048, 2048, 2048, 2048));
@@ -763,7 +764,7 @@ TEST_CASE("display logic live size fits caps" * doctest::test_suite("unit"))
     CHECK_FALSE(SizeFitsCaps(8192, 1080, 4096, 0));
 }
 
-TEST_CASE("display logic apply buffer sizes zero caps" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest40, "Unit::DisplayLogic::display logic apply buffer sizes zero caps", "[SmokeFilter]")
 {
     BufferSet s = BufferSizes(800, 600, 0, 0, false);
     CHECK(s.akBuf[1].uiW == 512);
@@ -782,7 +783,7 @@ TEST_CASE("display logic apply buffer sizes zero caps" * doctest::test_suite("un
     CHECK(s.akBuf[1].uiH == 1);
 }
 
-TEST_CASE("display logic shadow quad shares sky" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest41, "Unit::DisplayLogic::display logic shadow quad shares sky", "[SmokeFilter]")
 {
     CHECK(ShadowQuadSharesSky(1920, 1080, 0, false, 1920, 1080));
     CHECK_FALSE(ShadowQuadSharesSky(1920, 1080, 4, false, 1920, 1080));
@@ -797,7 +798,7 @@ TEST_CASE("display logic shadow quad shares sky" * doctest::test_suite("unit"))
     CHECK(ShadowQuadSharesSky(1280, 720, 0, false, s.akBuf[1].uiW, s.akBuf[1].uiH));
 }
 
-TEST_CASE("display logic revert restores profile" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest42, "Unit::DisplayLogic::display logic revert restores profile", "[SmokeFilter]")
 {
     CHECK(ShouldRestoreProfile(true, 2, 2, false));
     CHECK_FALSE(ShouldRestoreProfile(false, 2, 2, false));
@@ -806,7 +807,7 @@ TEST_CASE("display logic revert restores profile" * doctest::test_suite("unit"))
     CHECK_FALSE(ShouldRestoreProfile(true, 0, 3, true));
 }
 
-TEST_CASE("display logic apply phase" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest43, "Unit::DisplayLogic::display logic apply phase", "[SmokeFilter]")
 {
     ApplyStep s = ApplyPhaseStep(kApplyResetting, kEvResetOk);
     CHECK(s.ePhase == kApplyAwaitPresent);
@@ -840,7 +841,7 @@ TEST_CASE("display logic apply phase" * doctest::test_suite("unit"))
     CHECK(s.eAction == kActNone);
 }
 
-TEST_CASE("display logic apply present event" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest44, "Unit::DisplayLogic::display logic apply present event", "[SmokeFilter]")
 {
     CHECK(PresentEvent(S_OK) == kEvPresentOk);
     CHECK(PresentEvent(D3DERR_DEVICELOST) == kEvPresentLost);
@@ -849,7 +850,7 @@ TEST_CASE("display logic apply present event" * doctest::test_suite("unit"))
     CHECK(PresentEvent(E_FAIL) == kEvPresentFail);
 }
 
-TEST_CASE("display logic adapter decision" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest45, "Unit::DisplayLogic::display logic adapter decision", "[SmokeFilter]")
 {
     AdapterChoice c = AdapterDecision(1, 0, 1);
     CHECK_FALSE(c.bValid);
@@ -872,7 +873,7 @@ TEST_CASE("display logic adapter decision" * doctest::test_suite("unit"))
     CHECK_FALSE(c.bRestart);
 }
 
-TEST_CASE("display logic apply size bounds" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest46, "Unit::DisplayLogic::display logic apply size bounds", "[SmokeFilter]")
 {
     CHECK(SizeInBounds(320, 240));
     CHECK_FALSE(SizeInBounds(319, 240));
@@ -882,7 +883,7 @@ TEST_CASE("display logic apply size bounds" * doctest::test_suite("unit"))
     CHECK_FALSE(SizeInBounds(0, 0));
 }
 
-TEST_CASE("display logic gamma lut" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest47, "Unit::DisplayLogic::display logic gamma lut", "[SmokeFilter]")
 {
     unsigned short aw[256];
     unsigned char ab[256];
@@ -925,7 +926,7 @@ TEST_CASE("display logic gamma lut" * doctest::test_suite("unit"))
     }
 }
 
-TEST_CASE("display logic gamma identity" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest48, "Unit::DisplayLogic::display logic gamma identity", "[SmokeFilter]")
 {
     unsigned short aw[256];
     unsigned char ab[256];
@@ -958,7 +959,7 @@ TEST_CASE("display logic gamma identity" * doctest::test_suite("unit"))
     CHECK_FALSE(LutIsIdentity(ab));
 }
 
-TEST_CASE("display logic gamma path" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest49, "Unit::DisplayLogic::display logic gamma path", "[SmokeFilter]")
 {
     CHECK(GammaPathFor(false, false, true) == kGammaReasonNone);
     CHECK(GammaPathFor(false, false, false) == kGammaReasonNoProg2);
@@ -968,7 +969,7 @@ TEST_CASE("display logic gamma path" * doctest::test_suite("unit"))
     CHECK(GammaPathFor(true, true, false) == kGammaReasonNoProg2);
 }
 
-TEST_CASE("display logic gamma pass runs" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest50, "Unit::DisplayLogic::display logic gamma pass runs", "[SmokeFilter]")
 {
     CHECK(GammaPassRuns(kGammaPass, false, false, true));
     CHECK_FALSE(GammaPassRuns(kGammaUndecided, false, false, true));
@@ -978,7 +979,7 @@ TEST_CASE("display logic gamma pass runs" * doctest::test_suite("unit"))
     CHECK_FALSE(GammaPassRuns(kGammaPass, false, false, false));
 }
 
-TEST_CASE("display logic legacy flags" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest51, "Unit::DisplayLogic::display logic legacy flags", "[SmokeFilter]")
 {
     LegacyFlags f = LegacyFlagsFor(kModeFullscreen, 0);
     CHECK_FALSE(f.bWindowed);
@@ -994,7 +995,7 @@ TEST_CASE("display logic legacy flags" * doctest::test_suite("unit"))
     CHECK_FALSE(f.bVsync);
 }
 
-TEST_CASE("display logic frame cap list" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest52, "Unit::DisplayLogic::display logic frame cap list", "[SmokeFilter]")
 {
     unsigned int out[12];
     const unsigned int base[] = {0, 30, 60, 75, 120, 144, 165, 240};
@@ -1025,7 +1026,7 @@ TEST_CASE("display logic frame cap list" * doctest::test_suite("unit"))
     CHECK(FrameCapList(0, 0, 0) == 8);
 }
 
-TEST_CASE("display logic monitor label" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest53, "Unit::DisplayLogic::display logic monitor label", "[SmokeFilter]")
 {
     CHECK(DisplayNumberFromDeviceName("\\\\.\\DISPLAY2") == 2);
     CHECK(DisplayNumberFromDeviceName("\\\\.\\DISPLAY12") == 12);
@@ -1059,7 +1060,7 @@ TEST_CASE("display logic monitor label" * doctest::test_suite("unit"))
     CHECK_FALSE(MonitorLabel(0, 1, 1920, 1080, buf, 0));
 }
 
-TEST_CASE("display logic multisample list" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest54, "Unit::DisplayLogic::display logic multisample list", "[SmokeFilter]")
 {
     MultisampleEntry out[kMultisampleTypes + 1];
     REQUIRE(MultisampleList(0, out, kMultisampleTypes) == 1);
@@ -1123,14 +1124,14 @@ TEST_CASE("display logic multisample list" * doctest::test_suite("unit"))
     CHECK_FALSE(MultisampleLabel(4, 0, buf, 0));
 }
 
-TEST_CASE("display logic effective fps cap" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest55, "Unit::DisplayLogic::display logic effective fps cap", "[SmokeFilter]")
 {
     CHECK(EffectiveFpsCap(80, false) == 80);
     CHECK(EffectiveFpsCap(80, true) == 0);
     CHECK(EffectiveFpsCap(0, false) == 0);
 }
 
-TEST_CASE("display logic present watch" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest56, "Unit::DisplayLogic::display logic present watch", "[SmokeFilter]")
 {
     PresentWatch w;
     memset(&w, 0xFF, sizeof(w));
@@ -1225,7 +1226,7 @@ TEST_CASE("display logic present watch" * doctest::test_suite("unit"))
     CHECK_FALSE(PresentThrottledNow(w, true, 0.5));
 }
 
-TEST_CASE("display logic refresh rates" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest57, "Unit::DisplayLogic::display logic refresh rates", "[SmokeFilter]")
 {
     DisplayModeRec src[] = {M(1920, 1080, 144), M(1280, 720, 60), M(1920, 1080, 60),
                             M(1920, 1080, 144), M(1920, 1080, 120), M(1920, 1080, 0)};
@@ -1246,7 +1247,7 @@ TEST_CASE("display logic refresh rates" * doctest::test_suite("unit"))
     CHECK(RefreshRates(src, 6, 1920, 1080, 0, 0) == 3);
 }
 
-TEST_CASE("display logic confirm needed" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest58, "Unit::DisplayLogic::display logic confirm needed", "[SmokeFilter]")
 {
     DisplayRec a = {1920, 1080, false, 0, 0, 1, 60, kModeFullscreen, 1920, 1080};
     DisplayRec b = a;
@@ -1277,7 +1278,7 @@ TEST_CASE("display logic confirm needed" * doctest::test_suite("unit"))
     CHECK(ConfirmNeeded(a, b));
 }
 
-TEST_CASE("display logic stage arm merge" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest59, "Unit::DisplayLogic::display logic stage arm merge", "[SmokeFilter]")
 {
     bool bArm = MergeStageArm(false, true, true, true);
     bArm = MergeStageArm(bArm, true, false, true);
@@ -1318,7 +1319,7 @@ TEST_CASE("display logic stage arm merge" * doctest::test_suite("unit"))
     CHECK_FALSE(StagedConfirm(false, true, true, true));
 }
 
-TEST_CASE("display logic confirm phase" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest60, "Unit::DisplayLogic::display logic confirm phase", "[SmokeFilter]")
 {
     CHECK(kConfirmMs == 15000);
 
@@ -1394,7 +1395,7 @@ TEST_CASE("display logic confirm phase" * doctest::test_suite("unit"))
     }
 }
 
-TEST_CASE("display logic cursor plan" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest61, "Unit::DisplayLogic::display logic cursor plan", "[SmokeFilter]")
 {
     const DisplayMode aModes[3] = {kModeFullscreen, kModeWindowed, kModeBorderless};
     int iRows = 0;
@@ -1471,8 +1472,7 @@ TEST_CASE("display logic cursor plan" * doctest::test_suite("unit"))
     CHECK(p.bHideDrawn);
 }
 
-TEST_CASE("display logic moves the system cursor only from the foreground window"
-          * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest62, "Unit::DisplayLogic::display logic moves the system cursor only from the foreground window", "[SmokeFilter]")
 {
     CHECK(OwnsSystemCursor(true, true, true));
     CHECK_FALSE(OwnsSystemCursor(true, true, false));
@@ -1489,7 +1489,7 @@ TEST_CASE("display logic moves the system cursor only from the foreground window
     CHECK(iOwned == 1);
 }
 
-TEST_CASE("display logic cursor button latch" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest63, "Unit::DisplayLogic::display logic cursor button latch", "[SmokeFilter]")
 {
     unsigned int uiLatched = 0;
     CHECK(CursorButtonLatch(0x1, 0, true, uiLatched) == 0);
@@ -1508,7 +1508,7 @@ TEST_CASE("display logic cursor button latch" * doctest::test_suite("unit"))
     CHECK(uiLatched == 0x1);
 }
 
-TEST_CASE("display logic cursor size" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest64, "Unit::DisplayLogic::display logic cursor size", "[SmokeFilter]")
 {
     unsigned int w = 0;
     unsigned int h = 0;
@@ -1542,7 +1542,7 @@ TEST_CASE("display logic cursor size" * doctest::test_suite("unit"))
     CHECK(h == kCursorMaxDim);
 }
 
-TEST_CASE("display logic cursor scale" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest65, "Unit::DisplayLogic::display logic cursor scale", "[SmokeFilter]")
 {
     const unsigned int aRow[2] = {0xFFFFFFFFu, 0x00FF0000u};
     unsigned int aRowOut[4] = {0, 0, 0, 0};
@@ -1614,7 +1614,7 @@ TEST_CASE("display logic cursor scale" * doctest::test_suite("unit"))
     CHECK(uiUntouched == 0x12345678u);
 }
 
-TEST_CASE("display logic cursor mask" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FDisplayLogicTest66, "Unit::DisplayLogic::display logic cursor mask", "[SmokeFilter]")
 {
     CHECK(CursorMaskStride(16) == 4);
     CHECK(CursorMaskStride(38) == 8);

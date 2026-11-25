@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include "PebbleFL/Common/PblUnicode.h"
@@ -16,22 +17,22 @@ static void CheckTruncate(unsigned int uiSize)
     CHECK(acDest[uiSize] == 0x7F);
 }
 
-TEST_CASE("lobby host name truncates to 64 and terminates" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLobbyStringsTest1, "Unit::LobbyStrings::lobby host name truncates to 64 and terminates", "[EngineFilter]")
 {
     CheckTruncate(64);
 }
 
-TEST_CASE("lobby map type truncates to 32 and terminates" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLobbyStringsTest2, "Unit::LobbyStrings::lobby map type truncates to 32 and terminates", "[EngineFilter]")
 {
     CheckTruncate(32);
 }
 
-TEST_CASE("lobby map name truncates to 32 and terminates" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLobbyStringsTest3, "Unit::LobbyStrings::lobby map name truncates to 32 and terminates", "[EngineFilter]")
 {
     CheckTruncate(32);
 }
 
-TEST_CASE("lobby string exact fit is truncated and terminated" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLobbyStringsTest4, "Unit::LobbyStrings::lobby string exact fit is truncated and terminated", "[EngineFilter]")
 {
     char acDest[32];
     char acSource[33];

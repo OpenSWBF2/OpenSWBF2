@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <algorithm>
 #include <string.h>
@@ -15,7 +16,7 @@
 #include "Battlefront2/Source/GameMemory.h"
 #include "Battlefront2/Source/LuaMemory.h"
 
-TEST_CASE("memory pool tracks peak and grown chunks" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest1, "Unit::MemoryPool::memory pool tracks peak and grown chunks", "[EngineFilter]")
 {
     MemoryPool kPool("t1peak", 16);
     kPool.Create(2, 16, 0);
@@ -35,7 +36,7 @@ TEST_CASE("memory pool tracks peak and grown chunks" * doctest::test_suite("regr
     CHECK(kPool.GetPeak() == 3);
 }
 
-TEST_CASE("memory pool set copies stats" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest2, "Unit::MemoryPool::memory pool set copies stats", "[EngineFilter]")
 {
     MemoryPool kSource("t1setsrc", 16);
     kSource.Create(2, 16, 0);
@@ -59,7 +60,7 @@ TEST_CASE("memory pool set copies stats" * doctest::test_suite("regression"))
     }
 }
 
-TEST_CASE("memory pool stats survive reset and destroy for the exit report" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest3, "Unit::MemoryPool::memory pool stats survive reset and destroy for the exit report", "[EngineFilter]")
 {
     MemoryPool kPool("t1destroy", 16);
     kPool.Create(2, 16, 0);
@@ -120,7 +121,7 @@ void DestroyAllOf(MemoryPool& rPool)
 
 }
 
-TEST_CASE("memory pool stats reset on destroy all" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest4, "Unit::MemoryPool::memory pool stats reset on destroy all", "[EngineFilter]")
 {
     MemoryPool kPool("t1destroyall", 16);
     kPool.mPeak = 5;
@@ -133,7 +134,7 @@ TEST_CASE("memory pool stats reset on destroy all" * doctest::test_suite("regres
     CHECK(!kPool.mFullReported);
 }
 
-TEST_CASE("memory pool full line logs once on growth" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest5, "Unit::MemoryPool::memory pool full line logs once on growth", "[EngineFilter]")
 {
     MemoryPool kPool("t1full", 16);
     kPool.Create(2, 16, 0);
@@ -152,7 +153,7 @@ TEST_CASE("memory pool full line logs once on growth" * doctest::test_suite("reg
     }
 }
 
-TEST_CASE("memory pool full line logs once when gated" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest6, "Unit::MemoryPool::memory pool full line logs once when gated", "[EngineFilter]")
 {
     MemoryPool kPool("t1gated", 16);
     kPool.Create(2, 16, 0);
@@ -195,13 +196,13 @@ TEST_CASE("memory pool full line logs once when gated" * doctest::test_suite("re
     kPool.Destroy();
 }
 
-TEST_CASE("memory pool full line is error when strict" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest7, "Unit::MemoryPool::memory pool full line is error when strict", "[EngineFilter]")
 {
     MemoryPool kPool("t1strict", 16);
     kPool.Create(2, 16, 0);
     void* apBlock[3];
     {
-        ExpectLog expect("Memory pool \"t1strict\" is full; raise count to at least 3");
+        AddExpectedError("Memory pool \"t1strict\" is full; raise count to at least 3");
         MemoryPool::sErrorOnExpansionPostLoad = true;
         for (int i = 0; i < 3; ++i)
         {
@@ -216,8 +217,7 @@ TEST_CASE("memory pool full line is error when strict" * doctest::test_suite("re
     }
 }
 
-TEST_CASE("memory pool full line escalates once when strict arms after a load report" *
-          doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest8, "Unit::MemoryPool::memory pool full line escalates once when strict arms after a load report", "[EngineFilter]")
 {
     MemoryPool kPool("t1escalate", 16);
     kPool.Create(2, 16, 0);
@@ -234,7 +234,7 @@ TEST_CASE("memory pool full line escalates once when strict arms after a load re
     }
     {
         LogCapture capture;
-        ExpectLog expect("Memory pool \"t1escalate\" is full; raise count to at least 3");
+        AddExpectedError("Memory pool \"t1escalate\" is full; raise count to at least 3");
         MemoryPool::sErrorOnExpansionPostLoad = true;
         CHECK(kPool.IsFull());
         CHECK(kPool.IsFull());
@@ -272,7 +272,7 @@ void CreateAdjacentHeaps(int& iLow, int& iHigh)
 
 }
 
-TEST_CASE("heap stats count used peak allocs and failures" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest9, "Unit::MemoryPool::heap stats count used peak allocs and failures", "[EngineFilter]")
 {
     const int iHeap = RedCreateHeap(sacHeapArena, sacHeapArena + sizeof(sacHeapArena), 0x10, "T1Stats");
     REQUIRE(iHeap >= 0);
@@ -308,7 +308,7 @@ TEST_CASE("heap stats count used peak allocs and failures" * doctest::test_suite
     CHECK(!RedGetHeapStats(64, &kStats));
 }
 
-TEST_CASE("heap stats survive move heap end" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest10, "Unit::MemoryPool::heap stats survive move heap end", "[EngineFilter]")
 {
     int iLow = -1;
     int iHigh = -1;
@@ -341,7 +341,7 @@ TEST_CASE("heap stats survive move heap end" * doctest::test_suite("regression")
     RedDestroyHeap(iLow);
 }
 
-TEST_CASE("move heap end refuses a failed allocation" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest11, "Unit::MemoryPool::move heap end refuses a failed allocation", "[EngineFilter]")
 {
     int iLow = -1;
     int iHigh = -1;
@@ -368,7 +368,7 @@ TEST_CASE("move heap end refuses a failed allocation" * doctest::test_suite("reg
     RedDestroyHeap(iLow);
 }
 
-TEST_CASE("move heap end moves only the aligned block it transfers" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest12, "Unit::MemoryPool::move heap end moves only the aligned block it transfers", "[EngineFilter]")
 {
     int iLow = -1;
     int iHigh = -1;
@@ -391,7 +391,7 @@ TEST_CASE("move heap end moves only the aligned block it transfers" * doctest::t
     RedDestroyHeap(iLow);
 }
 
-TEST_CASE("memory pool refuses a request larger than its block" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest13, "Unit::MemoryPool::memory pool refuses a request larger than its block", "[EngineFilter]")
 {
     MemoryPool kPool("t1refuse", 24);
     kPool.Create(8, 24, 0);
@@ -425,7 +425,7 @@ TEST_CASE("memory pool refuses a request larger than its block" * doctest::test_
     kPool.Destroy();
 }
 
-TEST_CASE("memory pool create refuses overflowing count" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest14, "Unit::MemoryPool::memory pool create refuses overflowing count", "[EngineFilter]")
 {
     MemoryPool kPool("t1ovf", 16);
     {
@@ -456,7 +456,7 @@ TEST_CASE("memory pool create refuses overflowing count" * doctest::test_suite("
     kPool.Destroy();
 }
 
-TEST_CASE("memory pool create refuses count over ceiling" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest15, "Unit::MemoryPool::memory pool create refuses count over ceiling", "[EngineFilter]")
 {
     const unsigned int uOver = RedScriptLimits::kPoolEntryBytesMax / 16 + 1;
     MemoryPool kPool("t1ceil", 16);
@@ -497,7 +497,7 @@ void __cdecl CountNoChunk(int iSeverity, int iCategory, char const* pcLine)
 
 }
 
-TEST_CASE("memory pool create survives failed heap block" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest16, "Unit::MemoryPool::memory pool create survives failed heap block", "[EngineFilter]")
 {
     const int iHeap = RedCreateHeap(sacTinyHeap, sacTinyHeap + sizeof(sacTinyHeap), 0x10, "T1Tiny");
     REQUIRE(iHeap >= 0);
@@ -527,7 +527,7 @@ TEST_CASE("memory pool create survives failed heap block" * doctest::test_suite(
     RedDestroyHeap(iHeap);
 }
 
-TEST_CASE("memory pool growth refuses overflowing grow" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest17, "Unit::MemoryPool::memory pool growth refuses overflowing grow", "[EngineFilter]")
 {
     MemoryPool kPool("t1grow", 16);
     kPool.Create(1, 16, 0x10000001);
@@ -606,7 +606,7 @@ void CheckEveryChunkPresent(const MemoryPool& rPool, void* pOwnerPool, unsigned 
 
 }
 
-TEST_CASE("memory pool destroy frees every growth chunk" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest18, "Unit::MemoryPool::memory pool destroy frees every growth chunk", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkDestroy");
     const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
@@ -620,7 +620,7 @@ TEST_CASE("memory pool destroy frees every growth chunk" * doctest::test_suite("
     CHECK(!kPool.mChunks);
 }
 
-TEST_CASE("memory pool destructor frees every growth chunk" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest19, "Unit::MemoryPool::memory pool destructor frees every growth chunk", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkDtor");
     const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
@@ -633,7 +633,7 @@ TEST_CASE("memory pool destructor frees every growth chunk" * doctest::test_suit
     CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
 }
 
-TEST_CASE("memory pool destroy all frees every growth chunk" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest20, "Unit::MemoryPool::memory pool destroy all frees every growth chunk", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkAll");
     const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
@@ -644,7 +644,7 @@ TEST_CASE("memory pool destroy all frees every growth chunk" * doctest::test_sui
     CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
 }
 
-TEST_CASE("memory pool is present covers every chunk and nothing else" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest21, "Unit::MemoryPool::memory pool is present covers every chunk and nothing else", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkPresent");
     void* pOther = RedAllocFromHeap(kHeap.miHeap, 16, 0);
@@ -665,7 +665,7 @@ TEST_CASE("memory pool is present covers every chunk and nothing else" * doctest
     RedFreeToHeap(kHeap.miHeap, pOther, 0);
 }
 
-TEST_CASE("memory pool first chunk keeps its own extent" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest22, "Unit::MemoryPool::memory pool first chunk keeps its own extent", "[EngineFilter]")
 {
     MemoryPool kPool("t1chunkfirst", 16);
     kPool.Create(2, 16, 8);
@@ -682,7 +682,7 @@ TEST_CASE("memory pool first chunk keeps its own extent" * doctest::test_suite("
     kPool.Destroy();
 }
 
-TEST_CASE("memory pool view sees its chunks and frees nothing" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest23, "Unit::MemoryPool::memory pool view sees its chunks and frees nothing", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkView");
     const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
@@ -726,7 +726,7 @@ TEST_CASE("memory pool view sees its chunks and frees nothing" * doctest::test_s
     CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
 }
 
-TEST_CASE("memory pool chunk charges reconcile with the heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest24, "Unit::MemoryPool::memory pool chunk charges reconcile with the heap", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkCharge");
     const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
@@ -738,7 +738,7 @@ TEST_CASE("memory pool chunk charges reconcile with the heap" * doctest::test_su
     kPool.Destroy();
 }
 
-TEST_CASE("memory pool growth charges the pool's heap and not the current heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest25, "Unit::MemoryPool::memory pool growth charges the pool's heap and not the current heap", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkOwnHeap");
     const int iOther = RedCreateHeap(sacChunkOther, sacChunkOther + sizeof(sacChunkOther), 0x10, "T1ChunkOther");
@@ -759,7 +759,7 @@ TEST_CASE("memory pool growth charges the pool's heap and not the current heap" 
     RedDestroyHeap(iOther);
 }
 
-TEST_CASE("lua free routes a growth chunk block to its pool" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest26, "Unit::MemoryPool::lua free routes a growth chunk block to its pool", "[EngineFilter]")
 {
     const unsigned int uiSize = 13;
     LuaMemory::CreatePools(true);
@@ -794,7 +794,7 @@ TEST_CASE("lua free routes a growth chunk block to its pool" * doctest::test_sui
     LuaMemory::Reset();
 }
 
-TEST_CASE("memory pool destroy then re-create starts with no old chunks" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest27, "Unit::MemoryPool::memory pool destroy then re-create starts with no old chunks", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkAgain");
     const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
@@ -815,7 +815,7 @@ TEST_CASE("memory pool destroy then re-create starts with no old chunks" * docte
     CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
 }
 
-TEST_CASE("memory pool first growth of an empty pool is its first chunk" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest28, "Unit::MemoryPool::memory pool first growth of an empty pool is its first chunk", "[EngineFilter]")
 {
     MemoryPool kPool("t1chunkempty", 16);
     kPool.Create(0, 16, 4);
@@ -833,7 +833,7 @@ TEST_CASE("memory pool first growth of an empty pool is its first chunk" * docte
     kPool.Destroy();
 }
 
-TEST_CASE("memory pool reset of an owner clears its records and keeps the chunks charged" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest29, "Unit::MemoryPool::memory pool reset of an owner clears its records and keeps the chunks charged", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkReset");
     MemoryPool kPool("t1chunkreset", 16);
@@ -850,7 +850,7 @@ TEST_CASE("memory pool reset of an owner clears its records and keeps the chunks
     }
 }
 
-TEST_CASE("memory pool reset of a view leaves the owner's records" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest30, "Unit::MemoryPool::memory pool reset of a view leaves the owner's records", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkResetV");
     const unsigned int uBefore = GetStats(kHeap.miHeap).uUsed;
@@ -870,7 +870,7 @@ TEST_CASE("memory pool reset of a view leaves the owner's records" * doctest::te
     CHECK(GetStats(kHeap.miHeap).uUsed == uBefore);
 }
 
-TEST_CASE("memory pool destroy all frees the chunk records of swapped views" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest31, "Unit::MemoryPool::memory pool destroy all frees the chunk records of swapped views", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkSwap");
     MemoryPool kOwner("t1chunkswapown", 16);
@@ -887,7 +887,7 @@ TEST_CASE("memory pool destroy all frees the chunk records of swapped views" * d
     CHECK(!kHost.mChunks);
 }
 
-TEST_CASE("memory pool chunk record list drops an owner's records" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest32, "Unit::MemoryPool::memory pool chunk record list drops an owner's records", "[EngineFilter]")
 {
     ChunkHeap kHeap("T1ChunkForget");
     MemoryPool kKeep("t1chunkkeep", 16);
@@ -902,7 +902,7 @@ TEST_CASE("memory pool chunk record list drops an owner's records" * doctest::te
     CHECK(!MemoryPool::sChunkRecords);
 }
 
-TEST_CASE("memory pool reset frees chunk records only for an owner (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest33, "Unit::MemoryPool::memory pool reset frees chunk records only for an owner (source pin)", "[EngineFilter]")
 {
     std::string sSource;
     REQUIRE(ReadRepoText("src\\RedEngineFL\\Memory\\RedMemoryPool.cpp", sSource));
@@ -954,7 +954,7 @@ void CheckRunResult(const int* aiFree, int iFreeCount, unsigned int uRun, int iE
 
 }
 
-TEST_CASE("memory pool free pushes front and allocate pops the head" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest34, "Unit::MemoryPool::memory pool free pushes front and allocate pops the head", "[EngineFilter]")
 {
     MemoryPool kPool("t1pushfront", 16);
     kPool.Create(8, 16, 0);
@@ -974,7 +974,7 @@ TEST_CASE("memory pool free pushes front and allocate pops the head" * doctest::
     kPool.Destroy();
 }
 
-TEST_CASE("memory pool run search depends only on the free set" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest35, "Unit::MemoryPool::memory pool run search depends only on the free set", "[EngineFilter]")
 {
     const int aiMixed[] = { 0, 1, 3, 4, 5, 7 };
     CheckRunResult(aiMixed, 6, 1, 0);
@@ -987,7 +987,7 @@ TEST_CASE("memory pool run search depends only on the free set" * doctest::test_
     CheckRunResult(aiGaps, 4, 3, -1);
 }
 
-TEST_CASE("memory pool run search sees an inversion after a satisfying run" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest36, "Unit::MemoryPool::memory pool run search sees an inversion after a satisfying run", "[EngineFilter]")
 {
     MemoryPool kPool("t1runinvert", 16);
     kPool.Create(11, 16, 0);
@@ -1006,7 +1006,7 @@ TEST_CASE("memory pool run search sees an inversion after a satisfying run" * do
     kPool.Destroy();
 }
 
-TEST_CASE("memory pool run search leaves the free set unchanged apart from the run" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest37, "Unit::MemoryPool::memory pool run search leaves the free set unchanged apart from the run", "[EngineFilter]")
 {
     MemoryPool kPool("t1runfreeset", 16);
     kPool.Create(8, 16, 0);
@@ -1035,7 +1035,7 @@ TEST_CASE("memory pool run search leaves the free set unchanged apart from the r
     kPool.Destroy();
 }
 
-TEST_CASE("memory pool fullness and growth rule are count based" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest38, "Unit::MemoryPool::memory pool fullness and growth rule are count based", "[EngineFilter]")
 {
     MemoryPool kPool("t1gates", 16);
     kPool.Create(3, 16, 0);
@@ -1064,7 +1064,7 @@ TEST_CASE("memory pool fullness and growth rule are count based" * doctest::test
     kPool.Destroy();
 }
 
-TEST_CASE("memory pool of 1-byte blocks survives alloc and free" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest39, "Unit::MemoryPool::memory pool of 1-byte blocks survives alloc and free", "[EngineFilter]")
 {
     MemoryPool kPool("t1onebyte", 1);
     CHECK(kPool.GetSize() == sizeof(void*));
@@ -1101,7 +1101,7 @@ TEST_CASE("memory pool of 1-byte blocks survives alloc and free" * doctest::test
     kPool.Destroy();
 }
 
-TEST_CASE("lua 4-byte bin survives alloc and free" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FMemoryPoolTest40, "Unit::MemoryPool::lua 4-byte bin survives alloc and free", "[EngineFilter]")
 {
     const int kBlocks = 32;
     LuaMemory::CreatePools(true);

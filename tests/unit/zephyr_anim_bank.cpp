@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <vector>
@@ -7,7 +8,7 @@
 #include "Zephyr/Source/ZephyrAnimJoint.h"
 #include "Zephyr/Source/ZephyrFile.h"
 
-TEST_CASE("zephyr anim bank keeps every joint and the frame data apart" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FZephyrAnimBankTest1, "Unit::ZephyrAnimBank::zephyr anim bank keeps every joint and the frame data apart", "[EngineFilter]")
 {
     const unsigned short u16NumAnims = 2;
     const unsigned short au16Joints[u16NumAnims] = { 2, 3 };

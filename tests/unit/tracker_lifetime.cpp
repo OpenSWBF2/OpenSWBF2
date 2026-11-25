@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string>
 
@@ -39,7 +40,7 @@ struct TrackerWorldGuard
 
 }
 
-TEST_CASE("destroying a trackable clears both tracker worlds and the alo slots" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FTrackerLifetimeTest1, "Unit::TrackerLifetime::destroying a trackable clears both tracker worlds and the alo slots", "[EngineFilter]")
 {
     TrackerWorldGuard kGuard;
     netIsOneWorld = false;
@@ -82,7 +83,7 @@ TEST_CASE("destroying a trackable clears both tracker worlds and the alo slots" 
     delete pOther;
 }
 
-TEST_CASE("trackable destructor removes it from every tracker (source pin: callers need the game runtime)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FTrackerLifetimeTest2, "Unit::TrackerLifetime::trackable destructor removes it from every tracker (source pin: callers need the game runtime)", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\Trackable.cpp", sText));

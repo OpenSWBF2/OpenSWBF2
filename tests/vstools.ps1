@@ -49,8 +49,6 @@ function Find-VcBin([ValidateSet('Win32','x64')][string]$Platform = 'Win32') { r
 
 function Find-Dumpbin([ValidateSet('Win32','x64')][string]$Platform = 'Win32') { return (Join-Path (Find-VcBin $Platform) 'dumpbin.exe') }
 
-function Find-Editbin([ValidateSet('Win32','x64')][string]$Platform = 'Win32') { return (Join-Path (Find-VcBin $Platform) 'editbin.exe') }
-
 function Get-MissingRuntimes([string]$dir, [string[]]$dlls) {
     return @($dlls | Where-Object { -not (Test-Path -LiteralPath (Join-Path $dir $_)) })
 }

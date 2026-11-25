@@ -38,6 +38,7 @@ typedef void(__cdecl* Observer)(int iSeverity, int iCategory, char const* pcLine
 
 extern Observer gObserver;
 extern int gFrame;
+extern bool gNoLogTimes;
 
 void __cdecl Write(Category eCategory, Severity eSeverity, char const* pcFile, int iLine,
                    char const* pcFormat, ...);
@@ -47,7 +48,6 @@ void Apply(char const* pcBuildId);
 int MinVerbosity();
 char const* CategoryName(int iCategory);
 char const* SeverityName(int iSeverity);
-char const* TrimPath(char const* pcPath);
 bool EnsureFailed(char const* pcExpr, char const* pcFile, int iLine);
 unsigned int EnsureFailureCount();
 unsigned int EnsureSiteCount();

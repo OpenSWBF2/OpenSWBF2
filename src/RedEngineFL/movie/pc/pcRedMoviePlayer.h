@@ -11,6 +11,24 @@ extern unsigned int gRedMovieCloses;
 extern unsigned int gRedMovieTestFrames;
 extern unsigned int gRedMovieTestFrameNum;
 extern bool gRedMovieTestEnd;
+struct RedMovieTestRecord
+{
+    unsigned int uOpens;
+    unsigned int uRejects;
+    char acReject[16];
+    unsigned int uEnds;
+    unsigned int uEndMismatches;
+    unsigned int uEndSegment;
+    unsigned int uEndFrames;
+    unsigned int uEndShown;
+    unsigned int uEndHeader;
+    unsigned int uEndWaits;
+    unsigned int uHashed;
+    unsigned int uFrame300Segment;
+    unsigned long long ullFrame300;
+    unsigned int uWaits;
+};
+extern RedMovieTestRecord gRedMovieTestRecord;
 #endif
 
 // VTABLE: SWBF2 0x00783ff0

@@ -1,0 +1,53 @@
+Test	Reason	Platforms	Configs
+Unit::FloatCorpus::math corpus	Win32 toolchain corpus: compares VS2013 and v143 x86 CRT results; x64 sim math is checked by sim math corpus	x64	
+Unit::FloatCorpus::math corpus x87 pc24	x87 precision control does not exist on x64	x64	
+Game::Boot::boot-sound-on	C-DSOUND-LFQUEUE-ASAN: DSOUND LFQueue 43-bit pointer pack vs ASan heap >16 TB	x64	Asan
+Game::Boot::boot-hot1g_con	x64 only: checks the address space above 4 GB under -hogaddrspace and the derived x64 heap caps	Win32	
+Game::Boot::boot-tat2g_eli	x64 only: checks the address space above 4 GB under -hogaddrspace and the derived x64 heap caps	Win32	
+Game::Boot::boot-nab2g_c	x64 only: checks the address space above 4 GB under -hogaddrspace and the derived x64 heap caps	Win32	
+Game::Harness::a passing in-game test exits 0	Release has no in-game tests (D-20): -autotest needs a Test or Asan build		Release
+Game::Harness::a failing in-game test exits -1	Release has no in-game tests (D-20): -autotest needs a Test or Asan build		Release
+Game::Harness::a filter that selects no in-game test exits -1	Release has no in-game tests (D-20): -autotest needs a Test or Asan build		Release
+Game::Standard::asan-hot1g_con	Asan only: the Asan Standard group runs this mission under Asan; Release and Test run it in the Twice group		Release,Debug,Test
+Game::Standard::asan-spa3c_ass	Asan only: the Asan Standard group runs this mission under Asan; Release and Test run it in the Twice group		Release,Debug,Test
+Game::Standard::shell-first	-shellfirst is a Test and Asan switch; Release and Debug ignore it		Release,Debug
+Game::Standard::repeat-water	-repeatmission is a Test and Asan switch; Release and Debug ignore it		Release,Debug
+Game::Standard::repeat-digest	-repeatmission is a Test and Asan switch; Release and Debug ignore it		Release,Debug
+Game::Standard::commit-flat	-repeatmission is a Test and Asan switch; under Asan the mimalloc arena grows in separate areas and the Asan allocator commits memory, so the commit bound and the x64 commit table apply to the Test build only		Release,Debug,Asan
+Game::Standard::digest-detail	-digestdetail is a Test switch; ported as defined, the PowerShell case ran on Win32 Test only		Release,Debug,Asan
+Game::Standard::digest-detail	ported as defined: the PowerShell case ran on Win32 Test only	x64	Test
+Game::Standard::save-roundtrip	-savetest is a Test switch		Release,Debug,Asan
+Game::Standard::campaign-movies	a rendered run needs -handsoff, which only Test and Asan honour, and the movie switches are Test switches; Asan runs no rendered case		Release,Debug,Asan
+Game::Standard::ingame-movie-digest	a rendered run needs -handsoff, which only Test and Asan honour, and the movie switches are Test switches; Asan runs no rendered case		Release,Debug,Asan
+Game::Standard::movie-loop	a rendered run needs -handsoff, which only Test and Asan honour, and the movie switches are Test switches; Asan runs no rendered case		Release,Debug,Asan
+Game::Standard::movie-reject-width	a rendered run needs -handsoff, which only Test and Asan honour, and the movie switches are Test switches; Asan runs no rendered case		Release,Debug,Asan
+Game::Standard::movie-reject-magic	a rendered run needs -handsoff, which only Test and Asan honour, and the movie switches are Test switches; Asan runs no rendered case		Release,Debug,Asan
+Game::Standard::movie-reject-loop	a rendered run needs -handsoff, which only Test and Asan honour, and the movie switches are Test switches; Asan runs no rendered case		Release,Debug,Asan
+Game::Standard::movie-texture-wait	a rendered run needs -handsoff, which only Test and Asan honour, and the movie switches are Test switches; Asan runs no rendered case		Release,Debug,Asan
+Game::Standard::movie-texture-reject	a rendered run needs -handsoff, which only Test and Asan honour, and the movie switches are Test switches; Asan runs no rendered case		Release,Debug,Asan
+Game::Standard::movie-surface-fail	a rendered run needs -handsoff, which only Test and Asan honour, and the movie switches are Test switches; Asan runs no rendered case		Release,Debug,Asan
+Game::Standard::movie-skip	a rendered run needs -handsoff, which only Test and Asan honour, and the movie switches are Test switches; Asan runs no rendered case		Release,Debug,Asan
+Game::Standard::render-sound-on	a rendered run needs -handsoff, which only Test and Asan honour; Asan runs no rendered case		Release,Debug,Asan
+Game::SaveCross::save-cross-load	-savetest is a Test switch		Release,Debug,Asan
+Game::Crash::crash-delayload	Win32 delay-load case: it omits steam_api.dll; on x64 crash-delayload-x64 omits steam_api64.dll	x64	
+Game::Crash::crash-delayload-x64	x64 delay-load case: it omits steam_api64.dll; on Win32 crash-delayload omits steam_api.dll	Win32	
+Game::Crash::crash-buildheapfail	smoke-all-digests.txt pins no row for it: 41-04 kept it Test only so the Release table compare needs none, and adding a row would be a re-pin		Release,Debug,Asan
+Game::Crash::crash-heapinit	the deliberate null write runs in a static initializer outside the __try in WinMain, so under Asan the Asan runtime reports it first (access-violation in pcCrash::EarlyCrashTest, exit 66, seen once in 51.1-06) and the crash filter writes no FATAL line and no dump		Asan
+Game::Vendor::vendor-present	Win32 vendor DLLs (steam_api.dll, Galaxy.dll, GalaxyPeer.dll and the VS2013 runtime that Galaxy.dll loads); x64 has no Galaxy DLL and runs the vendor-x64 cases	x64	
+Game::Vendor::vendor-steam-missing	Win32 vendor DLLs (steam_api.dll, Galaxy.dll, GalaxyPeer.dll and the VS2013 runtime that Galaxy.dll loads); x64 has no Galaxy DLL and runs the vendor-x64 cases	x64	
+Game::Vendor::vendor-galaxy-missing	Win32 vendor DLLs (steam_api.dll, Galaxy.dll, GalaxyPeer.dll and the VS2013 runtime that Galaxy.dll loads); x64 has no Galaxy DLL and runs the vendor-x64 cases	x64	
+Game::Vendor::vendor-vcrt-off	Win32 vendor DLLs (steam_api.dll, Galaxy.dll, GalaxyPeer.dll and the VS2013 runtime that Galaxy.dll loads); x64 has no Galaxy DLL and runs the vendor-x64 cases	x64	
+Game::Vendor::vendor-galaxypeer-missing	Win32 vendor DLLs (steam_api.dll, Galaxy.dll, GalaxyPeer.dll and the VS2013 runtime that Galaxy.dll loads); x64 has no Galaxy DLL and runs the vendor-x64 cases	x64	
+Game::Vendor::vendor-steam-wrongbits	Win32 vendor DLLs (steam_api.dll, Galaxy.dll, GalaxyPeer.dll and the VS2013 runtime that Galaxy.dll loads); x64 has no Galaxy DLL and runs the vendor-x64 cases	x64	
+Game::Vendor::vendor-wan-nogalaxy	Win32 vendor DLLs (steam_api.dll, Galaxy.dll, GalaxyPeer.dll and the VS2013 runtime that Galaxy.dll loads); x64 has no Galaxy DLL and runs the vendor-x64 cases	x64	
+Game::Vendor::vendor-x64-none	x64 vendor DLLs (steam_api64.dll, Galaxy64.dll, GalaxyPeer64.dll); Win32 runs the Win32 vendor cases	Win32	
+Game::Vendor::vendor-x64-steam-wrongbits	x64 vendor DLLs (steam_api64.dll, Galaxy64.dll, GalaxyPeer64.dll); Win32 runs the Win32 vendor cases	Win32	
+Game::Vendor::vendor-x64-galaxy-wrongbits	x64 vendor DLLs (steam_api64.dll, Galaxy64.dll, GalaxyPeer64.dll); Win32 runs the Win32 vendor cases	Win32	
+Game::Vendor::vendor-x64-steam-on	x64 vendor DLLs (steam_api64.dll, Galaxy64.dll, GalaxyPeer64.dll); Win32 runs the Win32 vendor cases	Win32	
+Game::Perturb::geo1c_con	-perturbheap and -repeatmission are Test and Asan switches; Release and Debug ignore them		Release,Debug
+Game::Perturb::nab2g_c	-perturbheap and -repeatmission are Test and Asan switches; Release and Debug ignore them		Release,Debug
+Game::Perturb::hot1g_con	-perturbheap and -repeatmission are Test and Asan switches; Release and Debug ignore them		Release,Debug
+Game::Perturb::spa3c_ass	-perturbheap and -repeatmission are Test and Asan switches; Release and Debug ignore them		Release,Debug
+Game::Perturb::dag1c_ctf	-perturbheap and -repeatmission are Test and Asan switches; Release and Debug ignore them		Release,Debug
+Game::Perturb::kas2c_uber	-perturbheap and -repeatmission are Test and Asan switches; Release and Debug ignore them		Release,Debug
+Game::Perturb::tan1g_con	-perturbheap and -repeatmission are Test and Asan switches; Release and Debug ignore them		Release,Debug

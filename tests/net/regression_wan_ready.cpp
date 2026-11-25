@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string>
 
@@ -26,7 +27,7 @@ struct WanReadyFixture
 };
 }
 
-TEST_CASE("an online session is not ready without an initialized Galaxy" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionWanReadyTest1, "Net::RegressionWanReady::an online session is not ready without an initialized Galaxy", "[EngineFilter]")
 {
     WanReadyFixture f;
     NetComm::SetConnectType(CT_WAN);
@@ -36,7 +37,7 @@ TEST_CASE("an online session is not ready without an initialized Galaxy" * docte
     CHECK(NetComm::IsWanReady());
 }
 
-TEST_CASE("a LAN session is ready without Galaxy" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionWanReadyTest2, "Net::RegressionWanReady::a LAN session is ready without Galaxy", "[EngineFilter]")
 {
     WanReadyFixture f;
     gGalaxyInitializedStub = false;
@@ -46,7 +47,7 @@ TEST_CASE("a LAN session is ready without Galaxy" * doctest::test_suite("regress
     CHECK(NetComm::IsWanReady());
 }
 
-TEST_CASE("hosting a lobby refuses an online session without Galaxy before creating the host game (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionWanReadyTest3, "Net::RegressionWanReady::hosting a lobby refuses an online session without Galaxy before creating the host game (source pin)", "[EngineFilter]")
 {
     std::string sText;
     if (!ReadRepoText("src\\Battlefront2\\Source\\LuaCallbacks_Net.cpp", sText))

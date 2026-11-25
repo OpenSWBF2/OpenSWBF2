@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <limits.h>
 #include <string>
@@ -22,7 +23,7 @@ int CountText(const std::string& sText, const char* pcNeedle)
 
 }
 
-TEST_CASE("ai difficulty level is clamped to the table range" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAiDifficultyLevelTest1, "Unit::AiDifficultyLevel::ai difficulty level is clamped to the table range", "[EngineFilter]")
 {
     CHECK(ClampDifficultyLevel(1) == 1);
     CHECK(ClampDifficultyLevel(2) == 2);
@@ -35,7 +36,7 @@ TEST_CASE("ai difficulty level is clamped to the table range" * doctest::test_su
     CHECK(ClampDifficultyLevel(INT_MAX) == 3);
 }
 
-TEST_CASE("ai difficulty reads go through the clamp" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FAiDifficultyLevelTest2, "Unit::AiDifficultyLevel::ai difficulty reads go through the clamp", "[EngineFilter]")
 {
     std::string sDifficulty;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\AIDifficulty.cpp", sDifficulty));

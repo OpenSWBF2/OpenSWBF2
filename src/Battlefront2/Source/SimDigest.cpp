@@ -1,6 +1,7 @@
 #include "SimDigest.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "AIGoalManager.h"
 #include "Character.h"
@@ -159,6 +160,13 @@ unsigned int SimDigest::StateHash()
 }
 
 #ifdef OPENSWBF2_TEST
+static SimDigest::DetailRecord skDetail;
+
+const SimDigest::DetailRecord& SimDigest::GetDetailRecord()
+{
+    return skDetail;
+}
+
 static unsigned int FloatBits(float fValue)
 {
     unsigned int uBits;
@@ -170,12 +178,20 @@ static void DetailObject(unsigned int uTurn, const char* pcHead, const GameObjec
 {
     if (!pObject)
     {
-        LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u %s none", uTurn, pcHead);
+        LOG(LogSim, Inform, "Digest detail turn=%u %s none", uTurn, pcHead);
         return;
+    }
+    if (strncmp(pcHead, "char=", 5) == 0)
+    {
+        ++skDetail.uCharacters;
+    }
+    else
+    {
+        ++skDetail.uObjects;
     }
     const PblVector3& vPos = pObject->GetPosition();
     const PblVector3& vVel = pObject->GetVelocity();
-    LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u %s pos=%08X %08X %08X vel=%08X %08X %08X hp=%08X objteam=%d", uTurn,
+    LOG(LogSim, Inform, "Digest detail turn=%u %s pos=%08X %08X %08X vel=%08X %08X %08X hp=%08X objteam=%d", uTurn,
         pcHead, FloatBits(vPos.x), FloatBits(vPos.y), FloatBits(vPos.z), FloatBits(vVel.x), FloatBits(vVel.y),
         FloatBits(vVel.z), FloatBits(pObject->mCurHealth), pObject->GetTeam());
 }
@@ -183,7 +199,14 @@ static void DetailObject(unsigned int uTurn, const char* pcHead, const GameObjec
 static void DetailTurn(unsigned int uTurn)
 {
     char acHead[64];
-    LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u time=%08X", uTurn, FloatBits(GameLoop::GetMissionTime()));
+    LOG(LogSim, Inform, "Digest detail turn=%u time=%08X", uTurn, FloatBits(GameLoop::GetMissionTime()));
+    if (skDetail.uTurns == 0)
+    {
+        skDetail.uFirst = uTurn;
+    }
+    ++skDetail.uTurns;
+    ++skDetail.uTimes;
+    skDetail.uLast = uTurn;
     int iLimit = Character::sCharacters ? Character::sCharacterLimit : 0;
     for (int i = 0; i < iLimit; ++i)
     {
@@ -200,10 +223,11 @@ static void DetailTurn(unsigned int uTurn)
         const Team* pTeam = Team::sTeams[i];
         if (!pTeam)
         {
-            LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u team=%d none", uTurn, i);
+            LOG(LogSim, Inform, "Digest detail turn=%u team=%d none", uTurn, i);
             continue;
         }
-        LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u team=%d points=%d reinforcements=%d", uTurn, i, pTeam->GetPoints(),
+        ++skDetail.uTeams;
+        LOG(LogSim, Inform, "Digest detail turn=%u team=%d points=%d reinforcements=%d", uTurn, i, pTeam->GetPoints(),
             pTeam->GetCurReinforcements());
     }
     int iPosts = CommandPost::sPostCount ? *CommandPost::sPostCount : 0;
@@ -212,11 +236,11 @@ static void DetailTurn(unsigned int uTurn)
         const CommandPost* pPost = CommandPost::FindPostByIndex(i);
         if (!pPost)
         {
-            LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u post=%d none", uTurn, i);
+            LOG(LogSim, Inform, "Digest detail turn=%u post=%d none", uTurn, i);
             continue;
         }
         const GameObject* pObject = pPost->GetGameObject();
-        LOG(LogSim, Inform, "OPENSWBF2 DETAIL turn=%u post=%d index=%d team=%d capture=%08X neutralize=%08X", uTurn, i,
+        LOG(LogSim, Inform, "Digest detail turn=%u post=%d index=%d team=%d capture=%08X neutralize=%08X", uTurn, i,
             pPost->GetIndex(), pObject ? pObject->GetTeam() : -1, FloatBits(pPost->mCaptureTimer),
             FloatBits(pPost->mNeutralizeTimer));
     }
@@ -246,7 +270,7 @@ void SimDigest::TraceTurn()
 #endif
     if (gDigestTrace > 0 && suTraceTurn <= (unsigned int)gDigestTrace)
     {
-        LOG(LogSim, Inform, "OPENSWBF2 DIGEST TRACE turn=%u state=0x%08X rand=%u/%u", suTraceTurn, StateHash(),
+        LOG(LogSim, Inform, "Digest trace turn=%u state=0x%08X rand=%u/%u", suTraceTurn, StateHash(),
             PblRandom::_Global._uiSeed, PblRandom::_Sim._uiSeed);
     }
 }
@@ -258,7 +282,7 @@ static void LogFactoryList(const char* pcTag)
     {
         const Factory<TYPE, CLASS, DESC>* pFactory = it;
         unsigned int uParent = pFactory->mParent ? pFactory->mParent->mId : 0;
-        LOG(LogSim, Inform, "OPENSWBF2 FACTORY %s idx=%d id=0x%08X parent=0x%08X", pcTag, (int)pFactory->GetNetIndex(),
+        LOG(LogSim, Inform, "Factory %s idx=%d id=0x%08X parent=0x%08X", pcTag, (int)pFactory->GetNetIndex(),
             pFactory->mId, uParent);
     }
 }
@@ -289,7 +313,7 @@ void SimDigest::LogFactoryCounts()
     {
         return;
     }
-    LOG(LogSim, Inform, "OPENSWBF2 FACTORY COUNTS entity=%u ordnance=%u weapon=%u explosion=%u",
+    LOG(LogSim, Inform, "Factory counts entity=%u ordnance=%u weapon=%u explosion=%u",
         Factory<Entity, EntityClass, EntityDesc>::sCounter, Factory<Ordnance, OrdnanceClass, OrdnanceDesc>::sCounter,
         Factory<Weapon, WeaponClass, WeaponDesc>::sCounter, Factory<Ordnance, ExplosionClass, OrdnanceDesc>::sCounter);
 }

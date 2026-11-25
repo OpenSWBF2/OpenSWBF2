@@ -3,12 +3,16 @@
 #include "RedEngineFL/Graphics/PC/pcRedRenderer.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
 #include "RedEngineFL/Util/RedLog.h"
+#include "Battlefront2/Source/pcCrash.h"
 
 static D3DGAMMARAMP sRamp;
 static unsigned char sLut[3][256];
 static bool sbIdentity = true;
 static bool sbLutDirty;
 static DisplayLogic::GammaPath sePath = DisplayLogic::kGammaUndecided;
+#ifdef OPENSWBF2_TEST
+static const char* spcTestReason = "";
+#endif
 static bool sbRegistered;
 static bool sbEnsuring;
 static bool sbFallbackWarned;
@@ -155,15 +159,22 @@ static void Fallback(HRESULT hr, const char* pcReason)
     GammaPass::Shutdown();
     if (sePath == DisplayLogic::kGammaPass && !sbFallbackWarned)
     {
-        LOG(LogRender, Warning, "OPENSWBF2 GAMMA fallback to ramp reason=%s hr=0x%08X", pcReason,
+        LOG(LogRender, Warning, "Gamma fallback to ramp reason=%s hr=0x%08X", pcReason,
             (unsigned int)hr);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioGammaFallback, (unsigned int)hr, 0, 0, 0, 0, 0, 0,
+                                                pcReason));
         sbFallbackWarned = true;
     }
     if (sePath == DisplayLogic::kGammaUndecided)
     {
-        LOG(LogRender, Inform, "OPENSWBF2 GAMMA path=ramp reason=%s hr=0x%08X", pcReason,
+        LOG(LogRender, Inform, "Gamma path=ramp reason=%s hr=0x%08X", pcReason,
             (unsigned int)hr);
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioGammaPath, 0, (unsigned int)hr, 0, 0, 0, 0, 0,
+                                                pcReason));
     }
+#ifdef OPENSWBF2_TEST
+    spcTestReason = pcReason;
+#endif
     sePath = DisplayLogic::kGammaRamp;
     IDirect3DDevice9* pDevice = RedRenderer::pcGetDevice();
     if (pDevice)
@@ -195,7 +206,8 @@ static void Activate(bool bInReset)
     if (sePath == DisplayLogic::kGammaUndecided)
     {
         sePath = DisplayLogic::kGammaPass;
-        LOG(LogRender, Inform, "OPENSWBF2 GAMMA path=pass");
+        LOG(LogRender, Inform, "Gamma path=pass");
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioGammaPath, 1));
     }
     WriteLut();
 }
@@ -226,12 +238,20 @@ void GammaPass::Route(const D3DGAMMARAMP& ramp, bool bNoRender, bool bTestKind, 
         DisplayLogic::GammaReason eReason = DisplayLogic::GammaPathFor(bNoRender, bTestKind, bProg2);
         if (eReason == DisplayLogic::kGammaReasonNoProg2)
         {
-            LOG(LogRender, Inform, "OPENSWBF2 GAMMA path=ramp reason=noprog2");
+            LOG(LogRender, Inform, "Gamma path=ramp reason=noprog2");
+#ifdef OPENSWBF2_TEST
+            spcTestReason = "noprog2";
+            pcCrash::NoteScenario(pcCrash::kScenarioGammaPath, 0, 0, 0, 0, 0, 0, 0, "noprog2");
+#endif
             sePath = DisplayLogic::kGammaRamp;
         }
         else if (eReason == DisplayLogic::kGammaReasonNoRender)
         {
-            LOG(LogRender, Inform, "OPENSWBF2 GAMMA path=ramp reason=norender");
+            LOG(LogRender, Inform, "Gamma path=ramp reason=norender");
+#ifdef OPENSWBF2_TEST
+            spcTestReason = "norender";
+            pcCrash::NoteScenario(pcCrash::kScenarioGammaPath, 0, 0, 0, 0, 0, 0, 0, "norender");
+#endif
             sePath = DisplayLogic::kGammaRamp;
         }
     }
@@ -385,3 +405,15 @@ bool GammaPass::IsEnsuring()
 {
     return sbEnsuring;
 }
+
+#ifdef OPENSWBF2_TEST
+const char* GammaPass::TestPathName()
+{
+    return sePath == DisplayLogic::kGammaPass ? "pass" : (sePath == DisplayLogic::kGammaRamp ? "ramp" : "undecided");
+}
+
+const char* GammaPass::TestReason()
+{
+    return spcTestReason;
+}
+#endif

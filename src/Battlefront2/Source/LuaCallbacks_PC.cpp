@@ -17,6 +17,7 @@
 #include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "RedEngineFL/Util/RedLog.h"
+#include "pcCrash.h"
 
 #include "RedEngineFL/input/RedKeyboard.h"
 #include "RedEngineFL/Application/pc/pcFLRender.h"
@@ -681,7 +682,7 @@ int ScriptCB_FillMultisampleTable(lua_State* L)
     if (uiWanted > DisplayLogic::kMultisampleTypes && !sTruncLogged)
     {
         sTruncLogged = true;
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY msaa list truncated wanted=%u shown=%u",
+        LOG(LogRender, Warning, "Display msaa list truncated wanted=%u shown=%u",
             uiWanted, uiEntries);
     }
     static int sLastEntries = -1;
@@ -690,7 +691,7 @@ int ScriptCB_FillMultisampleTable(lua_State* L)
     {
         sLastEntries = (int)uiEntries;
         sLastWindowed = bWindowed ? 1 : 0;
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY msaa list entries=%d windowed=%d",
+        LOG(LogRender, Inform, "Display msaa list entries=%d windowed=%d",
             sLastEntries, sLastWindowed);
     }
 
@@ -1126,8 +1127,9 @@ int Lua_Callbacks::ScriptCB_GetDisplayOptions(lua_State* L)
     if (!sBuiltLogged)
     {
         sBuiltLogged = true;
-        LOG(LogRender, Inform, "OPENSWBF2 DISPLAY menu options built adapters=%u",
+        LOG(LogRender, Inform, "Display menu options built adapters=%u",
             RedRenderer::pcGetAdapterCount());
+        PCCRASH_TEST_ONLY(pcCrash::NoteScenario(pcCrash::kScenarioMenuOptionsBuilt, RedRenderer::pcGetAdapterCount()));
     }
 
     PlayerProfile::tProfile* pProfile = PlayerProfile::GetCurProfile();
@@ -1295,7 +1297,7 @@ int Lua_Callbacks::ScriptCB_SetDisplayOptions(lua_State* L)
 
     if (!bOk)
     {
-        LOG(LogRender, Warning, "OPENSWBF2 DISPLAY menu options rejected");
+        LOG(LogRender, Warning, "Display menu options rejected");
         lua_pushboolean(LuaHelper::mState, false);
         return 1;
     }

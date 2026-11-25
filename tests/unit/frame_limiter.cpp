@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "testutil.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
@@ -66,7 +67,7 @@ FramePlan Plan(__int64 iMin, __int64 iMargin)
 
 }
 
-TEST_CASE("frame limiter 80 fps period matches the retail divisor" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FFrameLimiterTest1, "Unit::FrameLimiter::frame limiter 80 fps period matches the retail divisor", "[SmokeFilter]")
 {
     CHECK(MinTicksForFps(10000000, 80) == 125000);
     CHECK(MinTicksForFps(10000000, 80) == 10000000 / 80);
@@ -75,7 +76,7 @@ TEST_CASE("frame limiter 80 fps period matches the retail divisor" * doctest::te
     CHECK(MinTicksForFps(10, 80) == 1);
 }
 
-TEST_CASE("frame limiter uncapped never returns zero ticks" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FFrameLimiterTest2, "Unit::FrameLimiter::frame limiter uncapped never returns zero ticks", "[SmokeFilter]")
 {
     FakeClock c = Clock(0, 1);
     __int64 iOut = 0;
@@ -84,7 +85,7 @@ TEST_CASE("frame limiter uncapped never returns zero ticks" * doctest::test_suit
     CHECK(iOut == iDelta);
 }
 
-TEST_CASE("frame limiter does not wait under the margin" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FFrameLimiterTest3, "Unit::FrameLimiter::frame limiter does not wait under the margin", "[SmokeFilter]")
 {
     FakeClock c = Clock(120000, 1);
     __int64 iOut = 0;
@@ -93,7 +94,7 @@ TEST_CASE("frame limiter does not wait under the margin" * doctest::test_suite("
     CHECK(iDelta >= 125000);
 }
 
-TEST_CASE("frame limiter waits then spins above the margin" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FFrameLimiterTest4, "Unit::FrameLimiter::frame limiter waits then spins above the margin", "[SmokeFilter]")
 {
     FakeClock c = Clock(0, 1);
     __int64 iOut = 0;
@@ -103,7 +104,7 @@ TEST_CASE("frame limiter waits then spins above the margin" * doctest::test_suit
     CHECK(iDelta >= 125000);
 }
 
-TEST_CASE("frame limiter backward clock jump completes the frame at once" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FFrameLimiterTest5, "Unit::FrameLimiter::frame limiter backward clock jump completes the frame at once", "[SmokeFilter]")
 {
     FakeClock c = Clock(-1250000, 1);
     __int64 iOut = 0;
@@ -113,7 +114,7 @@ TEST_CASE("frame limiter backward clock jump completes the frame at once" * doct
     CHECK(iOut == -1250000);
 }
 
-TEST_CASE("frame limiter forward clock jump returns at once" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FFrameLimiterTest6, "Unit::FrameLimiter::frame limiter forward clock jump returns at once", "[SmokeFilter]")
 {
     FakeClock c = Clock(5000000, 1);
     __int64 iOut = 0;
@@ -122,7 +123,7 @@ TEST_CASE("frame limiter forward clock jump returns at once" * doctest::test_sui
     CHECK(iDelta == 5000000);
 }
 
-TEST_CASE("frame limiter without a timer sleeps coarsely only below 50 fps" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FFrameLimiterTest7, "Unit::FrameLimiter::frame limiter without a timer sleeps coarsely only below 50 fps", "[SmokeFilter]")
 {
     REQUIRE(Init(true) == kTimerNone);
     FrameOps kOps;

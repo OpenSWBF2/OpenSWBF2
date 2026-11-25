@@ -1743,4 +1743,15 @@ public:
     __declspec(align(16)) static PblMatrix m_mView;
 };
 
+#ifdef OPENSWBF2_TEST
+struct RedPacingState
+{
+    unsigned int uFps;
+    unsigned long ulInterval;
+    bool bWaitQuery;
+    const char* pcTimer;
+};
+RedPacingState RedGetPacingState();
+#endif
+
 #endif

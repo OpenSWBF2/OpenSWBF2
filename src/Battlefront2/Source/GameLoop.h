@@ -50,6 +50,7 @@ static int PostLoad();
 static int Cleanup();
 
 static void PostRunComplete();
+static int EndRun();
 
 #ifdef OPENSWBF2_TEST
 static bool TakeRepeatPending();

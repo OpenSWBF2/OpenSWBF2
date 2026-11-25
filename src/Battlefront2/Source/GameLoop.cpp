@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "GameLoop.h"
+#include "AutomationTest.h"
 #include "pcCrash.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "SkyManager.h"
@@ -692,22 +693,44 @@ static void SyncDisplayLayout()
         uiViewH = FLRenderer::m_pViewInterfaceScreen[0]->m_uiHeightInPixels;
     }
     LOG(LogRender, Inform,
-        "OPENSWBF2 DISPLAY relayout generation=%u screen=%ux%u view=%ux%u hud=%dx%d aspect=%.4f "
+        "Display relayout generation=%u screen=%ux%u view=%ux%u hud=%dx%d aspect=%.4f "
         "camera=%.4f",
         uiGeneration, RedInterfaceScreen::GetScreenWidth(), RedInterfaceScreen::GetScreenHeight(),
         uiViewW, uiViewH, (int)HUD::Element::GetViewportWidth(),
         (int)HUD::Element::GetViewportHeight(), RedRenderer::GetScreenAspectRatio(), fCamera);
+    PCCRASH_TEST_ONLY(pcCrash::NoteRelayout(RedInterfaceScreen::GetScreenWidth(), RedInterfaceScreen::GetScreenHeight(),
+                                            uiViewW, uiViewH, (int)HUD::Element::GetViewportWidth(),
+                                            (int)HUD::Element::GetViewportHeight(), RedRenderer::GetScreenAspectRatio(),
+                                            fCamera));
 }
 
 static bool sbRunningLogged;
 static unsigned int suDigestTurns;
 static bool sbDigestLogged;
 static bool sbExitPosted;
+static bool sbRunComplete;
+static int siRunExitCode;
+
+int GameLoop::EndRun()
+{
+    if (sbRunComplete)
+    {
+        LOG(LogCore, Inform, "Frames count=%d", RedLog::gFrame);
+        LOG(LogCore, Inform, "**** TEST COMPLETE. EXIT CODE: %d ****", siRunExitCode);
+    }
+    return siRunExitCode;
+}
 
 void GameLoop::PostRunComplete()
 {
     sbExitPosted = true;
-    LOG(LogSim, Inform, "OPENSWBF2 RUN COMPLETE %s", GameLoop::mMissionScript);
+    if (!sbRunComplete)
+    {
+        sbRunComplete = true;
+#ifdef OPENSWBF2_TEST
+        siRunExitCode = AutomationTest::RunRequested(siRunExitCode);
+#endif
+    }
     if (hGlobalWnd)
     {
         PostMessageA(hGlobalWnd, WM_CLOSE, 0, 0);
@@ -1255,7 +1278,7 @@ void GameLoop::Update(float fDeltaTime, float fSystemDeltaTime)
     if (gExitOnGameOver && !sbRunningLogged)
     {
         sbRunningLogged = true;
-        LOG(LogSim, Inform, "OPENSWBF2 MISSION RUNNING %s", mMissionScript);
+        LOG(LogSim, Inform, "Mission running %s", mMissionScript);
     }
     if (sbRunningLogged)
     {
@@ -1408,7 +1431,7 @@ void GameLoop::Update(float fDeltaTime, float fSystemDeltaTime)
             if (gExitOnGameOver && !sbDigestLogged && suDigestTurns >= 1500)
             {
                 sbDigestLogged = true;
-                LOG(LogSim, Inform, "OPENSWBF2 SIM DIGEST turns=%u time=%.3f rand=%u/%u snd=%.3f state=0x%08X",
+                LOG(LogSim, Inform, "Sim digest turns=%u time=%.3f rand=%u/%u snd=%.3f state=0x%08X",
                     suDigestTurns, GameLoop::GetMissionTime(), PblRandom::_Global._uiSeed, PblRandom::_Sim._uiSeed,
                     gSoundClockTime, SimDigest::StateHash());
                 SimDigest::LogFactoryCounts();
@@ -1420,14 +1443,14 @@ void GameLoop::Update(float fDeltaTime, float fSystemDeltaTime)
                 {
                     ++siRepeatsDone;
                     sbRepeatPending = true;
-                    LOG(LogSim, Inform, "OPENSWBF2 REPEAT to_shell mission=%s", mMissionScript);
+                    LOG(LogSim, Inform, "Repeat to_shell mission=%s", mMissionScript);
                     GameState::SetState(0x11E1FC01);
                 }
 #endif
             }
             if (gSoakTurns > 0 && !sbExitPosted && suDigestTurns >= (unsigned int)gSoakTurns)
             {
-                LOG(LogSim, Inform, "OPENSWBF2 SOAK turns=%u", suDigestTurns);
+                LOG(LogSim, Inform, "Soak turns=%u", suDigestTurns);
                 PostRunComplete();
             }
             if (iTurnsRun && !sGameOver && Team::sWinningTeams)
@@ -1637,7 +1660,7 @@ void GameLoop::Update(float fDeltaTime, float fSystemDeltaTime)
             if (!sbRepeatStopped && !sbRepeatPending && siRepeatsDone < pcCrash::RepeatMissionCount())
             {
                 sbRepeatStopped = true;
-                LOG(LogSim, Warning, "OPENSWBF2 REPEAT skipped mission=%s reason=game over before turn 1500", mMissionScript);
+                LOG(LogSim, Warning, "Repeat skipped mission=%s reason=game over before turn 1500", mMissionScript);
             }
             if (sbRepeatPending)
             {

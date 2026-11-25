@@ -270,7 +270,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
             if (!sCloseDeferred)
             {
                 sCloseDeferred = true;
-                LOG(LogCore, Inform, "OPENSWBF2 CLOSE deferred until loading finishes");
+                LOG(LogCore, Inform, "Close deferred until loading finishes");
             }
             gIsQuitting = false;
             return 0;
@@ -299,7 +299,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
         hGlobalWnd = 0;
         RedLog::LogEnsureSummary();
         HwCursor::ReleaseClip();
-        pcCrash::Exit(0);
+        pcCrash::Exit(GameLoop::EndRun());
 
     case WM_ACTIVATE:
         return 0;
@@ -312,7 +312,11 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 #ifdef OPENSWBF2_TEST
         if (wParam != 0)
         {
-            LOG(LogCore, Inform, "OPENSWBF2 FOCUS activated");
+            LOG(LogCore, Inform, "Focus activated");
+            if (pcCrash::HandsOffRequested())
+            {
+                LOG(LogCore, Error, "window activated under -handsoff");
+            }
         }
 #endif
         return 0;
@@ -545,7 +549,7 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         size_t uArenaSize = 0;
         RedMiFirstArena(&uArena, &uArenaSize);
         LOG(LogCore, Inform,
-            "OPENSWBF2 ADDRSPACE arena=0x%08IX arena_end=0x%08IX laa=%d steam=%d steam_api=0x%08IX "
+            "Address space arena=0x%08IX arena_end=0x%08IX laa=%d steam=%d steam_api=0x%08IX "
             "Galaxy=0x%08IX GalaxyPeer=0x%08IX ffmpeg=0x%08IX",
             uArena, uArena + uArenaSize,
             pcCrash::IsLargeAddressAware() ? 1 : 0, gf::_sap()->IsInitialized() ? 1 : 0,
@@ -553,6 +557,14 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
             (uintptr_t)GetModuleHandleA(gf::vendor::DllName("Galaxy.dll", "Galaxy64.dll")),
             (uintptr_t)GetModuleHandleA(gf::vendor::DllName("GalaxyPeer.dll", "GalaxyPeer64.dll")),
             (uintptr_t)GetModuleHandleA("openswbf2-ffmpeg.dll"));
+        char const* pcHogVal = 0;
+        int iHogLen = 0;
+        char const* pcHogFault =
+            pcCrash::FindCommandArg("-hogaddrspace", &pcHogVal, &iHogLen) ? pcCrash::HogLayoutFault() : 0;
+        if (pcHogFault)
+        {
+            LOG(LogCore, Error, "-hogaddrspace left a wrong address layout: %s", pcHogFault);
+        }
         gf::vendor::WriteLog();
         RedMiRegisterOutput();
         char acMiOptions[256];
@@ -565,7 +577,7 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         ReadHeapCapArgs(true);
         if (gNoVictory)
         {
-            LOG(LogCore, Inform, "OPENSWBF2 NOVICTORY");
+            LOG(LogCore, Inform, "No victory");
         }
         char const* pcIgnored = 0;
         for (int i = 0; TestOnlyArgIgnored(i, &pcIgnored); ++i)
@@ -680,7 +692,7 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
 
     if (pcEnableLogging)
     {
-        LOG(LogCore, Inform, "OPENSWBF2 DPI awareness=%s dpi=%u",
+        LOG(LogCore, Inform, "Process DPI awareness=%s dpi=%u",
             DisplayLogic::DpiLevelName(PcWindow::GetDpiLevel()), PcWindow::QueryDpi(hGlobalWnd));
     }
 

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -13,7 +14,7 @@
 #include "lobject.h"
 #include "RedEngineFL/Memory/RedMemory.h"
 
-TEST_CASE("lua object sizes are pinned" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest1, "Unit::LuaSerial::lua object sizes are pinned", "[EngineFilter]")
 {
     CHECK(sizeof(Node) == 7 * sizeof(void*));
     CHECK(sizeof(Table) == 10 * sizeof(void*));
@@ -276,7 +277,7 @@ void SetKeyAt(lua_State* L, int i, bool bNil, int iValue)
 
 }
 
-TEST_CASE("lua hash keys iterate in insertion order under serial order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest2, "Unit::LuaSerial::lua hash keys iterate in insertion order under serial order", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -294,7 +295,7 @@ TEST_CASE("lua hash keys iterate in insertion order under serial order" * doctes
     lua_close(L);
 }
 
-TEST_CASE("lua reset keys keep their place under serial order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest3, "Unit::LuaSerial::lua reset keys keep their place under serial order", "[EngineFilter]")
 {
     const LudPattern aePatterns[] = { kLudAscending, kLudDescending, kLudScattered };
     for (unsigned int p = 0; p < sizeof(aePatterns) / sizeof(aePatterns[0]); ++p)
@@ -420,7 +421,7 @@ std::string StringReviveScript(bool bCollect)
 
 }
 
-TEST_CASE("lua re-store order is the same with and without a collection" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest4, "Unit::LuaSerial::lua re-store order is the same with and without a collection", "[EngineFilter]")
 {
     CHECK(LudReviveOrder(false) == "1 4 3");
     CHECK(LudReviveOrder(true) == "1 4 3");
@@ -543,14 +544,14 @@ std::string RestoreAfterCollection(int iKind, bool bCollect)
 
 }
 
-TEST_CASE("lua clear and restore of the current key during traversal keeps its place" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest5, "Unit::LuaSerial::lua clear and restore of the current key during traversal keeps its place", "[EngineFilter]")
 {
     const std::string sExpected = Sequence(1, 40, " ", false);
     CHECK(RestoreCurrentKeyWalk(false) == sExpected);
     CHECK(RestoreCurrentKeyWalk(true) == sExpected);
 }
 
-TEST_CASE("lua restore after a collection keeps the key's place" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest6, "Unit::LuaSerial::lua restore after a collection keeps the key's place", "[EngineFilter]")
 {
     for (int iKind = 0; iKind < 4; ++iKind)
     {
@@ -573,7 +574,7 @@ int CountFinalizedKey(lua_State*)
 
 }
 
-TEST_CASE("lua a cleared key's object lives until the table rehashes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest7, "Unit::LuaSerial::lua a cleared key's object lives until the table rehashes", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -613,7 +614,7 @@ TEST_CASE("lua a cleared key's object lives until the table rehashes" * doctest:
     lua_close(L);
 }
 
-TEST_CASE("lua weak key tables still drop unreachable cleared keys" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest8, "Unit::LuaSerial::lua weak key tables still drop unreachable cleared keys", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -667,12 +668,12 @@ TEST_CASE("lua weak key tables still drop unreachable cleared keys" * doctest::t
     lua_close(L);
 }
 
-TEST_CASE("lua clearing keys with a collection during traversal visits every key" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest9, "Unit::LuaSerial::lua clearing keys with a collection during traversal visits every key", "[EngineFilter]")
 {
     CHECK(RunScript(kCollectDuringTraversalScript, false) == "60,true");
 }
 
-TEST_CASE("lua weak key tables skip dead keys under serial order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest10, "Unit::LuaSerial::lua weak key tables skip dead keys under serial order", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);
@@ -692,7 +693,7 @@ TEST_CASE("lua weak key tables skip dead keys under serial order" * doctest::tes
     lua_close(L);
 }
 
-TEST_CASE("lua dead slot reuse does not move the resize under serial order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest11, "Unit::LuaSerial::lua dead slot reuse does not move the resize under serial order", "[EngineFilter]")
 {
     const DeadSlotResult kHit = DeadSlotOrder(0x3030);
     const DeadSlotResult kMiss = DeadSlotOrder(0x3040);
@@ -703,12 +704,12 @@ TEST_CASE("lua dead slot reuse does not move the resize under serial order" * do
     CHECK(kHit.iArray == 1);
 }
 
-TEST_CASE("lua clearing a key twice during traversal visits every key" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest12, "Unit::LuaSerial::lua clearing a key twice during traversal visits every key", "[EngineFilter]")
 {
     CHECK(RunScript(kDoubleNilScript, false) == "50,true");
 }
 
-TEST_CASE("lua lightuserdata order depends only on insertion sequence" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest13, "Unit::LuaSerial::lua lightuserdata order depends only on insertion sequence", "[EngineFilter]")
 {
     CHECK(LudOrder(kLudAscending, 3, false) == "1 2 3");
     CHECK(LudOrder(kLudAscending, 8, false) == "1 2 3 4 5 6 7 8");
@@ -727,7 +728,7 @@ TEST_CASE("lua lightuserdata order depends only on insertion sequence" * doctest
     CHECK(sMixed == LudOrder(kLudScattered, 9, true));
 }
 
-TEST_CASE("lua next order ignores allocation padding under serial order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest14, "Unit::LuaSerial::lua next order ignores allocation padding under serial order", "[EngineFilter]")
 {
     const std::string sPlain = RunScript(kOrderScript, false);
     const std::string sPadded = RunScript(kOrderScript, true);
@@ -738,7 +739,7 @@ TEST_CASE("lua next order ignores allocation padding under serial order" * docte
 }
 
 #ifdef OPENSWBF2_TEST
-TEST_CASE("lua next order is stable across perturbheap modes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest15, "Unit::LuaSerial::lua next order is stable across perturbheap modes", "[EngineFilter]")
 {
     const std::string sReference = RunScript(kOrderScript, false);
     REQUIRE(sReference.find("error") == std::string::npos);
@@ -760,7 +761,7 @@ TEST_CASE("lua next order is stable across perturbheap modes" * doctest::test_su
 }
 #endif
 
-TEST_CASE("lua next order survives deletion during traversal under serial order" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FLuaSerialTest16, "Unit::LuaSerial::lua next order survives deletion during traversal under serial order", "[EngineFilter]")
 {
     lua_State* L = lua_open();
     REQUIRE(L);

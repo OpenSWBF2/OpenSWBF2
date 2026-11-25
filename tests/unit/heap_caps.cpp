@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <limits.h>
 #include <stdint.h>
@@ -120,7 +121,7 @@ unsigned int OtherCaps(int iA, int iB)
 
 }
 
-TEST_CASE("heap default caps equal the created sizes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest1, "Unit::HeapCaps::heap default caps equal the created sizes", "[EngineFilter]")
 {
     ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsScratch");
     ScratchHeap kOdd(sacCapsSecond + 1, sacCapsSecond + sizeof(sacCapsSecond) - 1, 0x10, "CapsOdd");
@@ -142,7 +143,7 @@ TEST_CASE("heap default caps equal the created sizes" * doctest::test_suite("reg
     CHECK(RedGetHeapFree(kOdd.miHeap) == 0xFE0);
 }
 
-TEST_CASE("heap over-cap allocation fails through OnFailure" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest2, "Unit::HeapCaps::heap over-cap allocation fails through OnFailure", "[EngineFilter]")
 {
     ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsOver");
     const int iH = kScratch.miHeap;
@@ -173,7 +174,7 @@ TEST_CASE("heap over-cap allocation fails through OnFailure" * doctest::test_sui
     gRedHeapSlots[iH].cap = uCap;
 }
 
-TEST_CASE("heap over-cap failure records the failing heap and need" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest3, "Unit::HeapCaps::heap over-cap failure records the failing heap and need", "[EngineFilter]")
 {
     ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsFailInfo");
     const int iH = kScratch.miHeap;
@@ -213,7 +214,7 @@ TEST_CASE("heap over-cap failure records the failing heap and need" * doctest::t
     }
 }
 
-TEST_CASE("wrapping heap request fails" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest4, "Unit::HeapCaps::wrapping heap request fails", "[EngineFilter]")
 {
     ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsWrap");
     const int iH = kScratch.miHeap;
@@ -238,7 +239,7 @@ TEST_CASE("wrapping heap request fails" * doctest::test_suite("regression"))
     CHECK(suFailSize == 0xFFFFFFFFu);
 }
 
-TEST_CASE("heap charge rolls back when mimalloc refuses the block" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest5, "Unit::HeapCaps::heap charge rolls back when mimalloc refuses the block", "[EngineFilter]")
 {
     ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsRollback");
     const int iH = kScratch.miHeap;
@@ -265,7 +266,7 @@ TEST_CASE("heap charge rolls back when mimalloc refuses the block" * doctest::te
     }
 }
 
-TEST_CASE("heap free is cap minus used on a fixed script" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest6, "Unit::HeapCaps::heap free is cap minus used on a fixed script", "[EngineFilter]")
 {
     ScratchHeap kLow(sacCapsExact, sacCapsExact + 0x1000, 0x10, "CapsExactLow");
     ScratchHeap kHigh(sacCapsExact + 0x1000, sacCapsExact + 0x2000, 0x10, "CapsExactHigh");
@@ -312,7 +313,7 @@ TEST_CASE("heap free is cap minus used on a fixed script" * doctest::test_suite(
     CHECK(RedGetHeapSize(iH) == 0x1000);
 }
 
-TEST_CASE("heap charge follows the need formula" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest7, "Unit::HeapCaps::heap charge follows the need formula", "[EngineFilter]")
 {
     static const unsigned int kauSizes[24] = {
         0, 1, 3, 4, 12, 15, 16, 17, 100, 0x3FF, 0, 1,
@@ -370,7 +371,7 @@ TEST_CASE("heap charge follows the need formula" * doctest::test_suite("regressi
     }
 }
 
-TEST_CASE("raised heap cap does not change the free value" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest8, "Unit::HeapCaps::raised heap cap does not change the free value", "[EngineFilter]")
 {
     ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsRaised");
     const int iH = kScratch.miHeap;
@@ -385,7 +386,7 @@ TEST_CASE("raised heap cap does not change the free value" * doctest::test_suite
     RedFreeToHeap(iH, p, 0);
 }
 
-TEST_CASE("heap free never wraps and is zero for a destroyed heap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest9, "Unit::HeapCaps::heap free never wraps and is zero for a destroyed heap", "[EngineFilter]")
 {
     ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsWrapFree");
     const int iH = kScratch.miHeap;
@@ -403,7 +404,7 @@ TEST_CASE("heap free never wraps and is zero for a destroyed heap" * doctest::te
     CHECK(RedGetHeapFree(maxheaps) == 0);
 }
 
-TEST_CASE("heap realloc charges like allocate copy free" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest10, "Unit::HeapCaps::heap realloc charges like allocate copy free", "[EngineFilter]")
 {
     static const unsigned int kauSizes[8] = { 64, 100, 90, 40, 4000, 4000, 20, 512 };
     ScratchHeap kReal(sacCapsAgn16, sacCapsAgn16 + sizeof(sacCapsAgn16), 0x10, "CapsRealloc");
@@ -440,7 +441,7 @@ TEST_CASE("heap realloc charges like allocate copy free" * doctest::test_suite("
     CHECK(CapsStats(kReal.miHeap).uUsed == 0);
 }
 
-TEST_CASE("heap realloc at the cap fails and leaves the block" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest11, "Unit::HeapCaps::heap realloc at the cap fails and leaves the block", "[EngineFilter]")
 {
     ScratchHeap kHeap(sacCapsAgn16, sacCapsAgn16 + sizeof(sacCapsAgn16), 0x10, "CapsReallocCap");
     REQUIRE(kHeap.miHeap >= 0);
@@ -466,7 +467,7 @@ TEST_CASE("heap realloc at the cap fails and leaves the block" * doctest::test_s
     CHECK(CapsStats(kHeap.miHeap).uUsed == 0);
 }
 
-TEST_CASE("heap cap raise moves only cap" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest12, "Unit::HeapCaps::heap cap raise moves only cap", "[EngineFilter]")
 {
     ScratchHeap kHeap(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsRaiseOnly");
     const int iH = kHeap.miHeap;
@@ -490,7 +491,7 @@ TEST_CASE("heap cap raise moves only cap" * doctest::test_suite("regression"))
     RedRaiseHeapCap(maxheaps, uDefault * 4);
 }
 
-TEST_CASE("heap cap is clamped to the per-heap ceiling by the parser" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest13, "Unit::HeapCaps::heap cap is clamped to the per-heap ceiling by the parser", "[EngineFilter]")
 {
     int iKnob = -1;
     unsigned int uBytes = 0;
@@ -509,7 +510,7 @@ TEST_CASE("heap cap is clamped to the per-heap ceiling by the parser" * doctest:
     CHECK(bClamped);
 }
 
-TEST_CASE("heap cap total is limited" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest14, "Unit::HeapCaps::heap cap total is limited", "[EngineFilter]")
 {
     ScratchHeap kA(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsTotalA");
     ScratchHeap kB(sacCapsAgn16, sacCapsAgn16 + sizeof(sacCapsAgn16), 0x10, "CapsTotalB");
@@ -543,7 +544,7 @@ TEST_CASE("heap cap total is limited" * doctest::test_suite("regression"))
     gRedHeapSlots[iB].cap = gRedHeapSlots[iB].defaultCap;
 }
 
-TEST_CASE("heap cap total holds when a slot is created at the limit" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest15, "Unit::HeapCaps::heap cap total holds when a slot is created at the limit", "[EngineFilter]")
 {
     HeapCapScope kScope;
     ScratchHeap kLow(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsTrimLow");
@@ -580,7 +581,7 @@ TEST_CASE("heap cap total holds when a slot is created at the limit" * doctest::
     gRedHeapSlots[iLow].cap = uDefault;
 }
 
-TEST_CASE("heap cap trim stops at the default and at used" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest16, "Unit::HeapCaps::heap cap trim stops at the default and at used", "[EngineFilter]")
 {
     ScratchHeap kUsed(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsFloorUsed");
     ScratchHeap kRoom(sacCapsAgn16, sacCapsAgn16 + sizeof(sacCapsAgn16), 0x10, "CapsFloorRoom");
@@ -604,7 +605,7 @@ TEST_CASE("heap cap trim stops at the default and at used" * doctest::test_suite
     gRedHeapSlots[iRoom].cap = uDefault;
 }
 
-TEST_CASE("heap cap window open fits notes after dropping stale raises" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest17, "Unit::HeapCaps::heap cap window open fits notes after dropping stale raises", "[EngineFilter]")
 {
     HeapCapScope kScope;
     RedNoteHeapCap(Knob("Debug=1M"), 0x40000);
@@ -623,7 +624,7 @@ TEST_CASE("heap cap window open fits notes after dropping stale raises" * doctes
     CHECK(capture.Count("heap cap for") == 0);
 }
 
-TEST_CASE("heap cap below the default changes nothing" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest18, "Unit::HeapCaps::heap cap below the default changes nothing", "[EngineFilter]")
 {
     ScratchHeap kHeap(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsLower");
     const int iH = kHeap.miHeap;
@@ -645,7 +646,7 @@ TEST_CASE("heap cap below the default changes nothing" * doctest::test_suite("re
     CHECK(gRedHeapSlots[iH].defaultCap == uDefault);
 }
 
-TEST_CASE("heap cap request below the raised cap leaves it with one warning" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest19, "Unit::HeapCaps::heap cap request below the raised cap leaves it with one warning", "[EngineFilter]")
 {
     ScratchHeap kHeap(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsRaiseOnce");
     const int iH = kHeap.miHeap;
@@ -662,7 +663,7 @@ TEST_CASE("heap cap request below the raised cap leaves it with one warning" * d
     CHECK(capture.Count("heap cap for") == 1);
 }
 
-TEST_CASE("heap cap note and script raise combine as the higher value" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest20, "Unit::HeapCaps::heap cap note and script raise combine as the higher value", "[EngineFilter]")
 {
     HeapCapScope kScope;
     const int iKnob = Knob("Temp=1M");
@@ -684,7 +685,7 @@ TEST_CASE("heap cap note and script raise combine as the higher value" * doctest
     }
 }
 
-TEST_CASE("heap cap note is applied when its slot is created" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest21, "Unit::HeapCaps::heap cap note is applied when its slot is created", "[EngineFilter]")
 {
     HeapCapScope kScope;
     const int iKnob = Knob("Temp=1M");
@@ -709,7 +710,7 @@ TEST_CASE("heap cap note is applied when its slot is created" * doctest::test_su
     }
 }
 
-TEST_CASE("heap cap knob HUDEdit reaches the HUDEditHeap slot" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest22, "Unit::HeapCaps::heap cap knob HUDEdit reaches the HUDEditHeap slot", "[EngineFilter]")
 {
     HeapCapScope kScope;
     CHECK(RedHeapCapSlot("HUDEdit") == -1);
@@ -722,7 +723,7 @@ TEST_CASE("heap cap knob HUDEdit reaches the HUDEditHeap slot" * doctest::test_s
     CHECK(RedHeapCapSlot("Bogus") == -1);
 }
 
-TEST_CASE("heap cap knob names match case-insensitively" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest23, "Unit::HeapCaps::heap cap knob names match case-insensitively", "[EngineFilter]")
 {
     CHECK(Knob("runtime=1M") == Knob("Runtime=1M"));
     CHECK(Knob("RUNTIME=1M") == Knob("Runtime=1M"));
@@ -733,7 +734,7 @@ TEST_CASE("heap cap knob names match case-insensitively" * doctest::test_suite("
     CHECK(RedHeapCapSlot("TEMP") == kHeap.miHeap);
 }
 
-TEST_CASE("heap cap window open resets live slots to the note or the default" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest24, "Unit::HeapCaps::heap cap window open resets live slots to the note or the default", "[EngineFilter]")
 {
     HeapCapScope kScope;
     static const char* const kapcNames[3] = { "Application", "Gamespy", "Debug" };
@@ -766,7 +767,7 @@ TEST_CASE("heap cap window open resets live slots to the note or the default" * 
     CHECK(capture.Count("below the default") == 1);
 }
 
-TEST_CASE("heap cap note warns once across heap builds" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest25, "Unit::HeapCaps::heap cap note warns once across heap builds", "[EngineFilter]")
 {
     HeapCapScope kScope;
     const int iKnob = Knob("Temp=1M");
@@ -791,7 +792,7 @@ TEST_CASE("heap cap note warns once across heap builds" * doctest::test_suite("r
     }
 }
 
-TEST_CASE("heap cap reduced note warns once across heap builds" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest26, "Unit::HeapCaps::heap cap reduced note warns once across heap builds", "[EngineFilter]")
 {
     HeapCapScope kScope;
     ScratchHeap kFill(sacCapsAgn16, sacCapsAgn16 + sizeof(sacCapsAgn16), 0x10, "CapsWarnFill");
@@ -812,7 +813,7 @@ TEST_CASE("heap cap reduced note warns once across heap builds" * doctest::test_
     gRedHeapSlots[iFill].cap = gRedHeapSlots[iFill].defaultCap;
 }
 
-TEST_CASE("heap cap trim warns again after a fresh script raise" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest27, "Unit::HeapCaps::heap cap trim warns again after a fresh script raise", "[EngineFilter]")
 {
     HeapCapScope kScope;
     RedNoteHeapCap(Knob("Temp=1M"), 0x8000);
@@ -831,7 +832,7 @@ TEST_CASE("heap cap trim warns again after a fresh script raise" * doctest::test
     gRedHeapSlots[iH].cap = gRedHeapSlots[iH].defaultCap;
 }
 
-TEST_CASE("heap cap window open re-applies the note" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest28, "Unit::HeapCaps::heap cap window open re-applies the note", "[EngineFilter]")
 {
     HeapCapScope kScope;
     RedNoteHeapCap(Knob("Debug=1M"), 0x20000);
@@ -855,7 +856,7 @@ TEST_CASE("heap cap window open re-applies the note" * doctest::test_suite("regr
     gRedHeapSlots[iH].used = 0;
 }
 
-TEST_CASE("heap cap stays when its target is below used" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest29, "Unit::HeapCaps::heap cap stays when its target is below used", "[EngineFilter]")
 {
     HeapCapScope kScope;
     ScratchHeap kHeap(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsBelowUsed");
@@ -892,7 +893,7 @@ TEST_CASE("heap cap stays when its target is below used" * doctest::test_suite("
     gRedHeapSlots[iH].used = 0;
 }
 
-TEST_CASE("heap cap at used on a heap never raised logs nothing" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest30, "Unit::HeapCaps::heap cap at used on a heap never raised logs nothing", "[EngineFilter]")
 {
     HeapCapScope kScope;
     ScratchHeap kHeap(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsNeverRaised");
@@ -909,7 +910,7 @@ TEST_CASE("heap cap at used on a heap never raised logs nothing" * doctest::test
     gRedHeapSlots[iH].used = 0;
 }
 
-TEST_CASE("heap cap parser accepts sizes and rejects malformed values" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest31, "Unit::HeapCaps::heap cap parser accepts sizes and rejects malformed values", "[EngineFilter]")
 {
     struct Good
     {
@@ -949,7 +950,7 @@ TEST_CASE("heap cap parser accepts sizes and rejects malformed values" * doctest
     }
 }
 
-TEST_CASE("raised heap cap does not change a heap move" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest32, "Unit::HeapCaps::raised heap cap does not change a heap move", "[EngineFilter]")
 {
     ScratchHeap kLow(sacCapsExact, sacCapsExact + 0x1000, 0x10, "CapsMoveLow");
     ScratchHeap kHigh(sacCapsExact + 0x1000, sacCapsExact + 0x2000, 0x10, "CapsMoveHigh");
@@ -966,7 +967,7 @@ TEST_CASE("raised heap cap does not change a heap move" * doctest::test_suite("r
     gRedHeapSlots[iL].used = 0;
 }
 
-TEST_CASE("raised heap cap does not change the heap size reading" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest33, "Unit::HeapCaps::raised heap cap does not change the heap size reading", "[EngineFilter]")
 {
     ScratchHeap kHeap(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsSize");
     const int iH = kHeap.miHeap;
@@ -977,7 +978,7 @@ TEST_CASE("raised heap cap does not change the heap size reading" * doctest::tes
     CHECK(RedGetHeapSize(iH) == uSize);
 }
 
-TEST_CASE("heap try allocation fails without the failure handler" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapCapsTest34, "Unit::HeapCaps::heap try allocation fails without the failure handler", "[EngineFilter]")
 {
     ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsTry");
     const int iH = kScratch.miHeap;

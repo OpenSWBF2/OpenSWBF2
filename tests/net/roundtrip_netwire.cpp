@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 
@@ -33,7 +34,7 @@ static void ExpectBytes(NetPktGroup& group, const unsigned char* pExpected, unsi
     CHECK(memcmp(pPacket->mData + pPacket->mDataIndex, pExpected, uCount) == 0);
 }
 
-TEST_CASE("chat at 276 bytes round trips and pins the header" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest1, "Net::RoundtripNetwire::chat at 276 bytes round trips and pins the header", "[EngineFilter]")
 {
     NetTestReset();
     unsigned char acSrc[276];
@@ -59,7 +60,7 @@ TEST_CASE("chat at 276 bytes round trips and pins the header" * doctest::test_su
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("chat at 22 bytes round trips and pins the header" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest2, "Net::RoundtripNetwire::chat at 22 bytes round trips and pins the header", "[EngineFilter]")
 {
     NetTestReset();
     unsigned char acSrc[22];
@@ -82,7 +83,7 @@ TEST_CASE("chat at 22 bytes round trips and pins the header" * doctest::test_sui
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("empty chat writes only the pinned header" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest3, "Net::RoundtripNetwire::empty chat writes only the pinned header", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup group;
@@ -102,7 +103,7 @@ TEST_CASE("empty chat writes only the pinned header" * doctest::test_suite("regr
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("upload header round trips through a retail shaped read and pins bytes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest4, "Net::RoundtripNetwire::upload header round trips through a retail shaped read and pins bytes", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup group;
@@ -133,7 +134,7 @@ TEST_CASE("upload header round trips through a retail shaped read and pins bytes
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("upload header with a full journal name round trips" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest5, "Net::RoundtripNetwire::upload header with a full journal name round trips", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup group;
@@ -161,7 +162,7 @@ TEST_CASE("upload header with a full journal name round trips" * doctest::test_s
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("upload header without more files writes no name or size" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest6, "Net::RoundtripNetwire::upload header without more files writes no name or size", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup group;
@@ -174,7 +175,7 @@ TEST_CASE("upload header without more files writes no name or size" * doctest::t
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("upload chunk pins bytes for a small payload" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest7, "Net::RoundtripNetwire::upload chunk pins bytes for a small payload", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup group;
@@ -187,7 +188,7 @@ TEST_CASE("upload chunk pins bytes for a small payload" * doctest::test_suite("r
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("upload chunk at 1012 bytes round trips" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest8, "Net::RoundtripNetwire::upload chunk at 1012 bytes round trips", "[EngineFilter]")
 {
     NetTestReset();
     unsigned char acSrc[1012];
@@ -213,7 +214,7 @@ TEST_CASE("upload chunk at 1012 bytes round trips" * doctest::test_suite("regres
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("turn rate round trips for every retail value" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest9, "Net::RoundtripNetwire::turn rate round trips for every retail value", "[EngineFilter]")
 {
     NetTestReset();
     for (unsigned int uRate = 10; uRate <= 255; ++uRate)
@@ -239,7 +240,7 @@ TEST_CASE("turn rate round trips for every retail value" * doctest::test_suite("
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("turn rate pins the default twenty" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest10, "Net::RoundtripNetwire::turn rate pins the default twenty", "[EngineFilter]")
 {
     NetTestReset();
     NetPktGroup group;
@@ -252,7 +253,7 @@ TEST_CASE("turn rate pins the default twenty" * doctest::test_suite("regression"
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("player counts one through sixty four round trip unchanged" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest11, "Net::RoundtripNetwire::player counts one through sixty four round trip unchanged", "[EngineFilter]")
 {
     NetTestReset();
     for (unsigned int uCount = 1; uCount <= 64; ++uCount)
@@ -274,7 +275,7 @@ TEST_CASE("player counts one through sixty four round trip unchanged" * doctest:
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("rcon line of 63 characters passes auth and decodes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRoundtripNetwireTest12, "Net::RoundtripNetwire::rcon line of 63 characters passes auth and decodes", "[EngineFilter]")
 {
     NetTestReset();
     char acPacket[9 + 63];

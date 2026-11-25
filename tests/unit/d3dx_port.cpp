@@ -1,10 +1,11 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "unit/d3dx_corpus.h"
 
 #include "testutil.h"
 
-TEST_CASE("d3dx port matches pinned x86 bits" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FD3dxPortTest1, "Unit::D3dxPort::d3dx port matches pinned x86 bits", "[ProductFilter]")
 {
     WatchdogArm("d3dx pinned corpus");
     unsigned int uCount = 0;
@@ -54,7 +55,7 @@ struct ReferenceScope
 };
 }
 
-TEST_CASE("d3dx port equals the x86 d3dx9 dll" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FD3dxPortTest2, "Unit::D3dxPort::d3dx port equals the x86 d3dx9 dll", "[ProductFilter]")
 {
     WatchdogArm("d3dx dll corpus");
     ReferenceScope kScope;

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 
@@ -49,7 +50,7 @@ static bool CanaryIntact(const unsigned char* pBuf, unsigned int uFrom, unsigned
     return true;
 }
 
-TEST_CASE("chat payload over cap is truncated and the group stays in sync" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest1, "Net::RegressionNetwire::chat payload over cap is truncated and the group stays in sync", "[EngineFilter]")
 {
     NetTestReset();
     LogCapture capture;
@@ -71,7 +72,7 @@ TEST_CASE("chat payload over cap is truncated and the group stays in sync" * doc
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("chat payload at cap is copied whole without a reject" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest2, "Net::RegressionNetwire::chat payload at cap is copied whole without a reject", "[EngineFilter]")
 {
     NetTestReset();
     unsigned char acSrc[276];
@@ -90,7 +91,7 @@ TEST_CASE("chat payload at cap is copied whole without a reject" * doctest::test
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("chat payload past the group end marks the group bad" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest3, "Net::RegressionNetwire::chat payload past the group end marks the group bad", "[EngineFilter]")
 {
     NetTestReset();
     unsigned char acSrc[8];
@@ -106,7 +107,7 @@ TEST_CASE("chat payload past the group end marks the group bad" * doctest::test_
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("chat fields out of range are rejected" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest4, "Net::RegressionNetwire::chat fields out of range are rejected", "[EngineFilter]")
 {
     NetTestReset();
     LogCapture capture;
@@ -124,7 +125,7 @@ TEST_CASE("chat fields out of range are rejected" * doctest::test_suite("regress
     CHECK(netRejectCounts[NET_REJECT_CHAT_FIELDS] == 5);
 }
 
-TEST_CASE("upload names outside the allowlist are unsafe" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest5, "Net::RegressionNetwire::upload names outside the allowlist are unsafe", "[EngineFilter]")
 {
     NetTestReset();
     LogCapture capture;
@@ -145,7 +146,7 @@ TEST_CASE("upload names outside the allowlist are unsafe" * doctest::test_suite(
     CHECK(capture.Contains("net reject upload_name"));
 }
 
-TEST_CASE("upload dirs outside the allowlist are unsafe" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest6, "Net::RegressionNetwire::upload dirs outside the allowlist are unsafe", "[EngineFilter]")
 {
     NetTestReset();
     LogCapture capture;
@@ -167,7 +168,7 @@ TEST_CASE("upload dirs outside the allowlist are unsafe" * doctest::test_suite("
     CHECK(capture.Contains("net reject upload_name"));
 }
 
-TEST_CASE("upload chunk longer than the buffer is rejected and fully consumed" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest7, "Net::RegressionNetwire::upload chunk longer than the buffer is rejected and fully consumed", "[EngineFilter]")
 {
     NetTestReset();
     LogCapture capture;
@@ -188,7 +189,7 @@ TEST_CASE("upload chunk longer than the buffer is rejected and fully consumed" *
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("upload chunk longer than the remaining size is rejected" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest8, "Net::RegressionNetwire::upload chunk longer than the remaining size is rejected", "[EngineFilter]")
 {
     NetTestReset();
     LogCapture capture;
@@ -209,7 +210,7 @@ TEST_CASE("upload chunk longer than the remaining size is rejected" * doctest::t
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("upload chunk within limits is copied" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest9, "Net::RegressionNetwire::upload chunk within limits is copied", "[EngineFilter]")
 {
     NetTestReset();
     unsigned char acSrc[1012];
@@ -230,7 +231,7 @@ TEST_CASE("upload chunk within limits is copied" * doctest::test_suite("regressi
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("upload discard consumes the shape the header bit names" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest10, "Net::RegressionNetwire::upload discard consumes the shape the header bit names", "[EngineFilter]")
 {
     NetTestReset();
     unsigned char acSrc[300];
@@ -265,7 +266,7 @@ TEST_CASE("upload discard consumes the shape the header bit names" * doctest::te
     CHECK(NetCountPackets(0) == 512);
 }
 
-TEST_CASE("rcon line is capped to the bytes left in the packet" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest11, "Net::RegressionNetwire::rcon line is capped to the bytes left in the packet", "[EngineFilter]")
 {
     NetTestReset();
     LogCapture capture;
@@ -282,7 +283,7 @@ TEST_CASE("rcon line is capped to the bytes left in the packet" * doctest::test_
     CHECK(capture.Contains("net reject rcon_line"));
 }
 
-TEST_CASE("rcon line is capped at 63 characters" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest12, "Net::RegressionNetwire::rcon line is capped at 63 characters", "[EngineFilter]")
 {
     NetTestReset();
     char acData[200];
@@ -305,7 +306,7 @@ TEST_CASE("rcon line is capped at 63 characters" * doctest::test_suite("regressi
     CHECK(ausOut[1] == 0xAAAA);
 }
 
-TEST_CASE("rcon line keeps the sign extension of high bit characters" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest13, "Net::RegressionNetwire::rcon line keeps the sign extension of high bit characters", "[EngineFilter]")
 {
     NetTestReset();
     char acData[4] = {(char)0x80, 'a', 0, 0};
@@ -316,7 +317,7 @@ TEST_CASE("rcon line keeps the sign extension of high bit characters" * doctest:
     CHECK(ausOut[2] == 0);
 }
 
-TEST_CASE("rcon auth needs eight bytes for J and paren but seven for s" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest14, "Net::RegressionNetwire::rcon auth needs eight bytes for J and paren but seven for s", "[EngineFilter]")
 {
     NetTestReset();
     LogCapture capture;
@@ -336,7 +337,7 @@ TEST_CASE("rcon auth needs eight bytes for J and paren but seven for s" * doctes
     CHECK(netRejectCounts[NET_REJECT_RCON_AUTH_SHORT] == 2);
 }
 
-TEST_CASE("rcon auth accepts a matching key and refuses others" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest15, "Net::RegressionNetwire::rcon auth accepts a matching key and refuses others", "[EngineFilter]")
 {
     NetTestReset();
     char acJ[8] = {0, 0, 0, 0, 0, 'J', 0, 'k'};
@@ -350,7 +351,7 @@ TEST_CASE("rcon auth accepts a matching key and refuses others" * doctest::test_
     CHECK(!NetWire::IsRconAuthorized(acJ, 8, 'k', 'm'));
 }
 
-TEST_CASE("login limiter allows five attempts per ten seconds" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest16, "Net::RegressionNetwire::login limiter allows five attempts per ten seconds", "[EngineFilter]")
 {
     NetTestReset();
     LogCapture capture;
@@ -368,7 +369,7 @@ TEST_CASE("login limiter allows five attempts per ten seconds" * doctest::test_s
     CHECK(limiter.Allow(0, 11.0f));
 }
 
-TEST_CASE("login limiter resets the window when the clock goes backwards" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest17, "Net::RegressionNetwire::login limiter resets the window when the clock goes backwards", "[EngineFilter]")
 {
     NetTestReset();
     NetWire::LoginLimiter limiter;
@@ -385,7 +386,7 @@ TEST_CASE("login limiter resets the window when the clock goes backwards" * doct
     CHECK(!limiter.Allow(0x0a000001u, 1.5f));
 }
 
-TEST_CASE("login limiter key zero is never limited" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest18, "Net::RegressionNetwire::login limiter key zero is never limited", "[EngineFilter]")
 {
     NetTestReset();
     NetWire::LoginLimiter limiter;
@@ -396,7 +397,7 @@ TEST_CASE("login limiter key zero is never limited" * doctest::test_suite("regre
     CHECK(netRejectCounts[NET_REJECT_RCON_LOGIN_RATE] == 0);
 }
 
-TEST_CASE("login limiter evicts the oldest entry when the table is full" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest19, "Net::RegressionNetwire::login limiter evicts the oldest entry when the table is full", "[EngineFilter]")
 {
     NetTestReset();
     NetWire::LoginLimiter limiter;
@@ -413,7 +414,7 @@ TEST_CASE("login limiter evicts the oldest entry when the table is full" * docte
     CHECK(limiter.Allow(1, 1.0f));
 }
 
-TEST_CASE("player count is clamped to 1 through 64" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest20, "Net::RegressionNetwire::player count is clamped to 1 through 64", "[EngineFilter]")
 {
     NetTestReset();
     LogCapture capture;
@@ -429,7 +430,7 @@ TEST_CASE("player count is clamped to 1 through 64" * doctest::test_suite("regre
     CHECK(capture.Contains("net reject player_count"));
 }
 
-TEST_CASE("turn rate outside the retail range is rejected" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionNetwireTest21, "Net::RegressionNetwire::turn rate outside the retail range is rejected", "[EngineFilter]")
 {
     NetTestReset();
     LogCapture capture;

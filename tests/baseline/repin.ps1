@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $testsDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $testsDir -Parent
-. (Join-Path $testsDir 'smoke.ps1')
+. (Join-Path $testsDir 'hardening.ps1')
 . (Join-Path $testsDir 'gate\keys.ps1')
 if (-not $BaselineDir) { $BaselineDir = Join-Path $PSScriptRoot 'v143' }
 if (-not $ExpectedFile) { $ExpectedFile = Join-Path $testsDir 'smoke\digest-expected.txt' }
@@ -31,14 +31,11 @@ if ($curSha -cne $runSha) { Write-Host "[FAIL] repin - the run's exe $runSha is 
 
 $causesFile = Join-Path $BaselineDir 'CAUSES.md'
 $caused = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
-$inEntry = $false
 foreach ($line in [IO.File]::ReadAllLines($causesFile)) {
-    if ($line -cmatch '^### ') { $inEntry = $true; continue }
-    if ($line -cmatch '^#{1,2} ') { $inEntry = $false; continue }
-    if ($inEntry -and $line -cmatch '^\s*(?:- )?row: (\S+) (.+?)\s*$') { [void]$caused.Add("$($Matches[1]) $($Matches[2])") }
+    if ($line -cmatch '^- `(\S+) (\S+)` \| \S+ \| ') { [void]$caused.Add("$($Matches[1]) $($Matches[2])") }
 }
 $uncaused = @($keys | Where-Object { -not $caused.Contains("$Table $_") })
-foreach ($k in $uncaused) { Write-Host "[FAIL] repin - no cause entry in $causesFile has 'row: $Table $k'" }
+foreach ($k in $uncaused) { Write-Host "[FAIL] repin - no cause line in $causesFile names '$Table $k'" }
 if ($uncaused.Count -gt 0) { exit 1 }
 
 $offThread = ($Table -ceq 'offthread')

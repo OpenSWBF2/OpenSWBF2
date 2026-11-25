@@ -46,6 +46,8 @@ extern int gMovieLoops;
 extern bool gMovieLocal;
 extern int gMovieSkip;
 extern int gMovieFault;
+extern bool gAutoTestRequested;
+extern char gAutoTestFilter[512];
 const int kMovieFaultTexture = 1;
 const int kMovieFaultSurface = 2;
 const int kMovieFaultHold = 3;

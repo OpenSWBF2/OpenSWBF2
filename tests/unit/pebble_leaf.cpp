@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include "PebbleFL/Common/PblRandom.h"
@@ -6,7 +7,7 @@
 #include "PebbleFL/Common/PblHashTable.h"
 #include "testutil.h"
 
-TEST_CASE("random lcg sequence for seed 1" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FPebbleLeafTest1, "Unit::PebbleLeaf::random lcg sequence for seed 1", "[SmokeFilter]")
 {
     PblRandom rng(1);
     CHECK(rng.GetInt() == 0x5E883C88u);
@@ -14,7 +15,7 @@ TEST_CASE("random lcg sequence for seed 1" * doctest::test_suite("unit"))
     CHECK(rng.GetInt() == 0x5E980CF0u);
 }
 
-TEST_CASE("random same seed repeats" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FPebbleLeafTest2, "Unit::PebbleLeaf::random same seed repeats", "[SmokeFilter]")
 {
     PblRandom a(1234);
     PblRandom b(1234);
@@ -22,7 +23,7 @@ TEST_CASE("random same seed repeats" * doctest::test_suite("unit"))
     CHECK(a.GetSeed() == b.GetSeed());
 }
 
-TEST_CASE("random normal cache round-trips through get and set" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FPebbleLeafTest3, "Unit::PebbleLeaf::random normal cache round-trips through get and set", "[SmokeFilter]")
 {
     int iSavedHas = 0;
     float fSaved = 0.0f;
@@ -41,7 +42,7 @@ TEST_CASE("random normal cache round-trips through get and set" * doctest::test_
     PblRandom::SetNormalCache(iSavedHas, fSaved);
 }
 
-TEST_CASE("strlcpy truncates and terminates" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FPebbleLeafTest4, "Unit::PebbleLeaf::strlcpy truncates and terminates", "[SmokeFilter]")
 {
     char acBuf[8];
     memset(acBuf, 0x7F, sizeof(acBuf));
@@ -49,14 +50,14 @@ TEST_CASE("strlcpy truncates and terminates" * doctest::test_suite("unit"))
     CHECK(strcmp(acBuf, "abcd") == 0);
 }
 
-TEST_CASE("strlcat truncates and terminates" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FPebbleLeafTest5, "Unit::PebbleLeaf::strlcat truncates and terminates", "[SmokeFilter]")
 {
     char acBuf[8] = "ab";
     CHECK(strlcat(acBuf, "cdefghij", 6) == 6);
     CHECK(strcmp(acBuf, "abcde") == 0);
 }
 
-TEST_CASE("hash table store find remove" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FPebbleLeafTest6, "Unit::PebbleLeaf::hash table store find remove", "[SmokeFilter]")
 {
     PblHashTable<int, 8> table;
     table.Clear();

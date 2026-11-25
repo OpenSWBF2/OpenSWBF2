@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <string>
@@ -24,7 +25,7 @@ void BuildHeader(unsigned char* pBitmap, bool bRelay, unsigned int uiSender, uns
 
 }
 
-TEST_CASE("voice chat header rejects out of range node ids" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FVoiceChatHeaderTest1, "Unit::VoiceChatHeader::voice chat header rejects out of range node ids", "[EngineFilter]")
 {
     const unsigned int uiNodes = 0x32;
     const unsigned int uiLog2 = 6;
@@ -53,7 +54,7 @@ TEST_CASE("voice chat header rejects out of range node ids" * doctest::test_suit
     }
 }
 
-TEST_CASE("voice chat header read rejects out of range node ids" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FVoiceChatHeaderTest2, "Unit::VoiceChatHeader::voice chat header read rejects out of range node ids", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\VoiceChatNode.cpp", sText));
@@ -69,7 +70,7 @@ TEST_CASE("voice chat header read rejects out of range node ids" * doctest::test
     CHECK(uCheck < uBits);
 }
 
-TEST_CASE("voice chat local node ids stay below the transport node count" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FVoiceChatHeaderTest3, "Unit::VoiceChatHeader::voice chat local node ids stay below the transport node count", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\VoiceChatNode.cpp", sText));
@@ -85,7 +86,7 @@ TEST_CASE("voice chat local node ids stay below the transport node count" * doct
     CHECK(sText.find("if (teamInfo[i].player < 0 || teamInfo[i].player == nodeID || (unsigned int)teamInfo[i].player >= mNumNodes)") != std::string::npos);
 }
 
-TEST_CASE("voice chat header bitmap holds a relay header" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FVoiceChatHeaderTest4, "Unit::VoiceChatHeader::voice chat header bitmap holds a relay header", "[EngineFilter]")
 {
     const unsigned int uiNodes = 0x32;
     const unsigned int uiNodesLog2 = 6;
@@ -93,7 +94,7 @@ TEST_CASE("voice chat header bitmap holds a relay header" * doctest::test_suite(
     CHECK(VoiceChat::Node::Header::GetMaxBytes(uiNodes, uiNodesLog2) * 8 >= 12 + uiNodesLog2 + uiNodes);
 }
 
-TEST_CASE("voice chat header bitmap holds every header format" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FVoiceChatHeaderTest5, "Unit::VoiceChatHeader::voice chat header bitmap holds every header format", "[EngineFilter]")
 {
     for (unsigned int uiNodes = 1; uiNodes < 256; ++uiNodes)
     {

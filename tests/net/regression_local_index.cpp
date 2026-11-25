@@ -1,10 +1,11 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "nettest.h"
 
 extern int netLocalIndex[2];
 
-TEST_CASE("local index out of range is minus one" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FRegressionLocalIndexTest1, "Net::RegressionLocalIndex::local index out of range is minus one", "[EngineFilter]")
 {
     int iSaved0 = netLocalIndex[0];
     int iSaved1 = netLocalIndex[1];

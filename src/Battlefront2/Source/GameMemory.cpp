@@ -156,7 +156,7 @@ void GameMemory::BuildHeaps(bool bMission)
         const bool bParts = RedCommitParts(&uPrivate, &uHeapsCommitted, &uThreadsCommitted, &uThreads, 0, 0);
         const unsigned int uGameCrt = PblCrtLiveBytes();
 #endif
-        LOG(LogMemory, Inform, "OPENSWBF2 COMMIT state=%s bytes=%Iu", bMission ? "mission" : "shell",
+        LOG(LogMemory, Inform, "Commit state=%s bytes=%Iu", bMission ? "mission" : "shell",
             kCounters.PagefileUsage);
 #ifdef OPENSWBF2_TEST
         unsigned int uGameVm = 0;
@@ -164,14 +164,14 @@ void GameMemory::BuildHeaps(bool bMission)
         if (bCrt && bArena && bParts && bGameVm)
         {
             LOG(LogMemory, Inform,
-                "OPENSWBF2 COMMITPARTS state=%s private=%u gamecrt=%u heaps=%u threads=%u threadcount=%u arena=%u "
+                "Commit parts state=%s private=%u gamecrt=%u heaps=%u threads=%u threadcount=%u arena=%u "
                 "crtbusy=%u crtcommitted=%u crtlarge=%u gamevm=%u",
                 bMission ? "mission" : "shell", uPrivate, uGameCrt, uHeapsCommitted, uThreadsCommitted, uThreads,
                 uArenaCommitted, uCrtBusy, uCrtCommitted, uCrtLarge, uGameVm);
         }
         else
         {
-            LOG(LogMemory, Error, "OPENSWBF2 COMMITPARTS state=%s crt=%d arena=%d parts=%d failed gamevm=%d",
+            LOG(LogMemory, Error, "Commit parts state=%s crt=%d arena=%d parts=%d failed gamevm=%d",
                 bMission ? "mission" : "shell", bCrt ? 1 : 0, bArena ? 1 : 0, bParts ? 1 : 0, bGameVm ? 1 : 0);
         }
 #endif
@@ -181,7 +181,7 @@ void GameMemory::BuildHeaps(bool bMission)
     const unsigned int uStaleLeft = RedCountStaleHandles();
     if (uStaleLeft != 0)
     {
-        LOG(LogMemory, Error, "OPENSWBF2 HANDLEREG audit stale left=%u", uStaleLeft);
+        LOG(LogMemory, Error, "Handle registry audit stale left=%u", uStaleLeft);
         check(uStaleLeft == 0);
     }
 #endif

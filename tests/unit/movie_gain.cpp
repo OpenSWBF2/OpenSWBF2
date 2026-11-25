@@ -1,11 +1,12 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <limits>
 
 #include "RedEngineFL/movie/RedMovieGain.h"
 #include "SoundFL/source/sndbus.h"
 
-TEST_CASE("movie gain maps the bink volume to the stream amplitude" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieGainTest1, "Unit::MovieGain::movie gain maps the bink volume to the stream amplitude", "[SmokeFilter]")
 {
     CHECK(MovieStreamGain(0.58f) == 0.5799560546875f);
     CHECK(MovieStreamGain(0.5f) == 0.499969482421875f);
@@ -19,7 +20,7 @@ TEST_CASE("movie gain maps the bink volume to the stream amplitude" * doctest::t
     CHECK(MovieStreamGain(std::numeric_limits<float>::quiet_NaN()) == 0.0f);
 }
 
-TEST_CASE("movie bus gain follows a rebuilt bus tree and never reads a destroyed bus" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieGainTest2, "Unit::MovieGain::movie bus gain follows a rebuilt bus tree and never reads a destroyed bus", "[SmokeFilter]")
 {
     const unsigned int uiMovies = 0xF4EB2B40u;
     Snd::Bus* pFirst = Snd::Bus::smRootBus.AddSubBus(uiMovies);

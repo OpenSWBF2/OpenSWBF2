@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <algorithm>
 #include <errno.h>
@@ -123,7 +124,7 @@ unsigned int T1CommitBytes()
 
 }
 
-TEST_CASE("mimalloc heap blocks are zero even when reused" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest1, "Unit::HeapMimalloc::mimalloc heap blocks are zero even when reused", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     MiHeap kHeap(0x10, "T1MiZero");
@@ -165,8 +166,7 @@ TEST_CASE("mimalloc heap blocks are zero even when reused" * doctest::test_suite
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("mimalloc heap frees a crt pointer and a mimalloc pointer each to their owner" *
-          doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest2, "Unit::HeapMimalloc::mimalloc heap frees a crt pointer and a mimalloc pointer each to their owner", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     MiHeap kHeap(0x10, "T1MiOwner");
@@ -204,7 +204,7 @@ TEST_CASE("mimalloc heap frees a crt pointer and a mimalloc pointer each to thei
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("mimalloc heap owner maps interior pointers to the slot" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest3, "Unit::HeapMimalloc::mimalloc heap owner maps interior pointers to the slot", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     MiHeap kHeap(0x10, "T1MiInterior");
@@ -219,8 +219,7 @@ TEST_CASE("mimalloc heap owner maps interior pointers to the slot" * doctest::te
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("mimalloc heap free classifier sorts valid stale foreign and bad prefix blocks" *
-          doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest4, "Unit::HeapMimalloc::mimalloc heap free classifier sorts valid stale foreign and bad prefix blocks", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     {
@@ -257,8 +256,7 @@ TEST_CASE("mimalloc heap free classifier sorts valid stale foreign and bad prefi
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("mimalloc free of an unreadable block reports a bad prefix without touching it" *
-          doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest5, "Unit::HeapMimalloc::mimalloc free of an unreadable block reports a bad prefix without touching it", "[EngineFilter]")
 {
     MiHeap kHeap(0x10, "T1MiNoRead");
     const int iH = kHeap.miHeap;
@@ -268,14 +266,14 @@ TEST_CASE("mimalloc free of an unreadable block reports a bad prefix without tou
     CHECK(RedMiClassify(pRegion + 64) == kRedMiBadPrefix);
     const int iChecks = gCheckCalls;
     {
-        ExpectLog kLog("OPENSWBF2 MIERROR kind=badprefix");
+        AddExpectedError("Mimalloc error kind=badprefix");
         CHECK(RedMiFree(pRegion + 64) == 0);
     }
     CHECK(gCheckCalls == iChecks + 1);
     VirtualFree(pRegion, 0, MEM_RELEASE);
 }
 
-TEST_CASE("mimalloc heap cookie covers the size and the charge words" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest6, "Unit::HeapMimalloc::mimalloc heap cookie covers the size and the charge words", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     MiHeap kHeap(0x10, "T1MiCookie");
@@ -299,7 +297,7 @@ TEST_CASE("mimalloc heap cookie covers the size and the charge words" * doctest:
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("heap purge drops a handle whose block was freed on a released page" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest7, "Unit::HeapMimalloc::heap purge drops a handle whose block was freed on a released page", "[EngineFilter]")
 {
     const unsigned int uBaseStale = RedCountStaleHandles();
     MiHeap kHeap(0x10, "T1MiPurgeStale");
@@ -318,7 +316,7 @@ TEST_CASE("heap purge drops a handle whose block was freed on a released page" *
         RedPurgeHeapHandles(iH, "T1MiPurgeStale");
 #ifdef OPENSWBF2_TEST
         char acWant[96];
-        sprintf(acWant, "OPENSWBF2 HANDLEREG purge heap=T1MiPurgeStale stale=%u", uBaseStale + 1);
+        sprintf(acWant, "Handle registry purge heap=T1MiPurgeStale stale=%u", uBaseStale + 1);
         CHECK(kLog.Contains(acWant));
 #endif
     }
@@ -327,7 +325,7 @@ TEST_CASE("heap purge drops a handle whose block was freed on a released page" *
     VirtualFree(pRegion, 0, MEM_RELEASE);
 }
 
-TEST_CASE("the handle audit counts stale keys in build heaps (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest8, "Unit::HeapMimalloc::the handle audit counts stale keys in build heaps (source pin)", "[EngineFilter]")
 {
     std::string sGame;
     if (!ReadRepoText("src\\Battlefront2\\Source\\GameMemory.cpp", sGame))
@@ -339,7 +337,7 @@ TEST_CASE("the handle audit counts stale keys in build heaps (source pin)" * doc
     CHECK(sGame.find("RedCountStaleHandles()", uTrim) != std::string::npos);
 }
 
-TEST_CASE("mimalloc heap slots are re-created with a new heap after destroy" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest9, "Unit::HeapMimalloc::mimalloc heap slots are re-created with a new heap after destroy", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     const int iFirst = CreateMiHeap(0x10, "T1MiRecreate");
@@ -365,16 +363,16 @@ TEST_CASE("mimalloc heap slots are re-created with a new heap after destroy" * d
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("mimalloc options line lists the effective values" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest10, "Unit::HeapMimalloc::mimalloc options line lists the effective values", "[EngineFilter]")
 {
     char acLine[256];
     RedMiConfigure(0);
     REQUIRE(RedMiFormatOptions(acLine, sizeof(acLine)));
-    CHECK(std::string(acLine) == "OPENSWBF2 MIOPTIONS purge_delay=0 retry_on_oom=0 arena_reserve=67108864 "
+    CHECK(std::string(acLine) == "Mimalloc options purge_delay=0 retry_on_oom=0 arena_reserve=67108864 "
                                  "arena_eager_commit=0 reserve_os_memory=0 page_full_retain=-1");
     RedMiConfigure(1000);
     REQUIRE(RedMiFormatOptions(acLine, sizeof(acLine)));
-    CHECK(std::string(acLine) == "OPENSWBF2 MIOPTIONS purge_delay=1000 retry_on_oom=0 arena_reserve=67108864 "
+    CHECK(std::string(acLine) == "Mimalloc options purge_delay=1000 retry_on_oom=0 arena_reserve=67108864 "
                                  "arena_eager_commit=0 reserve_os_memory=0 page_full_retain=-1");
     char acShort[8];
     CHECK(!RedMiFormatOptions(acShort, sizeof(acShort)));
@@ -387,7 +385,7 @@ bool T1CountBlock(void*, size_t, void* pArg)
     return true;
 }
 
-TEST_CASE("mimalloc heap destroy visits full pages after frees on them" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest11, "Unit::HeapMimalloc::mimalloc heap destroy visits full pages after frees on them", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     RedMiConfigure(1000);
@@ -412,7 +410,7 @@ TEST_CASE("mimalloc heap destroy visits full pages after frees on them" * doctes
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("mimalloc heap records every address region without a fatal check" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest12, "Unit::HeapMimalloc::mimalloc heap records every address region without a fatal check", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     MiHeap kHeap(0x10, "T1MiRegions");
@@ -441,7 +439,7 @@ TEST_CASE("mimalloc heap records every address region without a fatal check" * d
 }
 
 #if !defined(__SANITIZE_ADDRESS__)
-TEST_CASE("a crt block on a released mimalloc region goes to the crt" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest13, "Unit::HeapMimalloc::a crt block on a released mimalloc region goes to the crt", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     MiHeap kHeap(0x10, "T1MiCrtReuse");
@@ -457,7 +455,7 @@ TEST_CASE("a crt block on a released mimalloc region goes to the crt" * doctest:
 }
 #endif
 
-TEST_CASE("mimalloc treats exhaustion as non-fatal and corruption as fatal" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest14, "Unit::HeapMimalloc::mimalloc treats exhaustion as non-fatal and corruption as fatal", "[EngineFilter]")
 {
     static const char* const kapcExhaustion[] = {
         "unable to allocate memory for a thread local heap\n",
@@ -498,7 +496,7 @@ TEST_CASE("mimalloc treats exhaustion as non-fatal and corruption as fatal" * do
     CHECK(RedMiTakeErrorFatal(EAGAIN));
 }
 
-TEST_CASE("mimalloc error hook sees the message text of each error (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest15, "Unit::HeapMimalloc::mimalloc error hook sees the message text of each error (source pin)", "[EngineFilter]")
 {
     std::string sMi;
     if (!ReadRepoText("src\\RedEngineFL\\Memory\\RedMemoryMi.cpp", sMi))
@@ -529,7 +527,7 @@ TEST_CASE("mimalloc error hook sees the message text of each error (source pin)"
     }
 }
 
-TEST_CASE("mimalloc output hook logs one line per message line" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest16, "Unit::HeapMimalloc::mimalloc output hook logs one line per message line", "[EngineFilter]")
 {
     std::vector<std::string> vLines;
     RedMiOutputLines("a\nbc\n\nd", CollectLine, &vLines);
@@ -539,8 +537,7 @@ TEST_CASE("mimalloc output hook logs one line per message line" * doctest::test_
     CHECK(vLines[2] == "d");
 }
 
-TEST_CASE("sound allocations are charged to the heap that owns them across the sound heap switch" *
-          doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest17, "Unit::HeapMimalloc::sound allocations are charged to the heap that owns them across the sound heap switch", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     MiHeap kHeap(0x10, "T1MiSound");
@@ -572,7 +569,7 @@ TEST_CASE("sound allocations are charged to the heap that owns them across the s
     CHECK(sSound.find("RedFreeToHeap(GameSoundEngine::gSoundHeap, pBlock, 0);") != std::string::npos);
 }
 
-TEST_CASE("mimalloc heap alloc checks the owner heap in test builds (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest18, "Unit::HeapMimalloc::mimalloc heap alloc checks the owner heap in test builds (source pin)", "[EngineFilter]")
 {
     std::string sMi;
     if (!ReadRepoText("src\\RedEngineFL\\Memory\\RedMemoryMi.cpp", sMi))
@@ -594,7 +591,7 @@ TEST_CASE("mimalloc heap alloc checks the owner heap in test builds (source pin)
     CHECK(sMi.find_first_not_of(" \t\r\n", uLineAfterIfdef) == uCheck);
 }
 
-TEST_CASE("mimalloc heap destroy visits areas only under asan (source pin)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest19, "Unit::HeapMimalloc::mimalloc heap destroy visits areas only under asan (source pin)", "[EngineFilter]")
 {
     std::string sMi;
     if (!ReadRepoText("src\\RedEngineFL\\Memory\\RedMemoryMi.cpp", sMi))
@@ -608,7 +605,7 @@ TEST_CASE("mimalloc heap destroy visits areas only under asan (source pin)" * do
     CHECK(sMi.find("#endif", uIf) > uVisit);
 }
 
-TEST_CASE("mimalloc purge switch parses its value" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest20, "Unit::HeapMimalloc::mimalloc purge switch parses its value", "[EngineFilter]")
 {
     bool bRejected = false;
     CHECK(RedParseMiPurgeArg(0, 0, &bRejected) == 1000);
@@ -625,7 +622,7 @@ TEST_CASE("mimalloc purge switch parses its value" * doctest::test_suite("regres
     }
 }
 
-TEST_CASE("mimalloc heap destroy poisons every area past the first area table" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest21, "Unit::HeapMimalloc::mimalloc heap destroy poisons every area past the first area table", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     const int iH = RedCreateHeap((char*)0x10, (char*)0x10 + 0x4000000, 0x10, "T1MiAreas");
@@ -661,7 +658,7 @@ TEST_CASE("mimalloc heap destroy poisons every area past the first area table" *
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("mimalloc trim returns a destroyed heap's pages before the purge delay" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest22, "Unit::HeapMimalloc::mimalloc trim returns a destroyed heap's pages before the purge delay", "[EngineFilter]")
 {
     ScopedMiPurge kScope(600000);
     const int iHeap = RedCreateHeap((void*)0x20, (void*)(0x20 + 0x4000000), 0x10, "T1MiTrim");
@@ -680,7 +677,7 @@ TEST_CASE("mimalloc trim returns a destroyed heap's pages before the purge delay
     CHECK(uAfter + 0x800000 <= uBefore);
 }
 
-TEST_CASE("mimalloc realloc shrinks in place and keeps the block valid" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest23, "Unit::HeapMimalloc::mimalloc realloc shrinks in place and keeps the block valid", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     MiHeap kHeap(0x10, "T1MiShrink");
@@ -705,7 +702,7 @@ TEST_CASE("mimalloc realloc shrinks in place and keeps the block valid" * doctes
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("mimalloc realloc moves on growth and copies only user bytes" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest24, "Unit::HeapMimalloc::mimalloc realloc moves on growth and copies only user bytes", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     MiHeap kHeap(0x10, "T1MiGrow");
@@ -736,7 +733,7 @@ TEST_CASE("mimalloc realloc moves on growth and copies only user bytes" * doctes
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("mimalloc realloc of a bad prefix reports and returns null" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest25, "Unit::HeapMimalloc::mimalloc realloc of a bad prefix reports and returns null", "[EngineFilter]")
 {
     MiHeap kHeap(0x10, "T1MiBadRealloc");
     const int iH = kHeap.miHeap;
@@ -746,14 +743,14 @@ TEST_CASE("mimalloc realloc of a bad prefix reports and returns null" * doctest:
     WritePrefixWord(p, -1, ReadPrefixWord(p, -1) ^ 0x10u);
     const int iChecks = gCheckCalls;
     {
-        ExpectLog kLog("OPENSWBF2 MIERROR kind=badprefix");
+        AddExpectedError("Mimalloc error kind=badprefix");
         CHECK(!RedReallocInHeap(iH, p, 48, 96));
     }
     CHECK(gCheckCalls == iChecks + 1);
     CHECK(gRedHeapSlots[iH].failed == 1);
 }
 
-TEST_CASE("mimalloc realloc moves on a large shrink" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest26, "Unit::HeapMimalloc::mimalloc realloc moves on a large shrink", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     MiHeap kHeap(0x10, "T1MiLargeShrink");
@@ -778,7 +775,7 @@ TEST_CASE("mimalloc realloc moves on a large shrink" * doctest::test_suite("regr
     CHECK(gCheckCalls == iChecks);
 }
 
-TEST_CASE("mimalloc realloc regrows in place after a shrink" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHeapMimallocTest27, "Unit::HeapMimalloc::mimalloc realloc regrows in place after a shrink", "[EngineFilter]")
 {
     const int iChecks = gCheckCalls;
     MiHeap kHeap(0x10, "T1MiRegrow");

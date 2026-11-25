@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 
@@ -6,7 +7,7 @@
 
 extern PlayerProfile::tProfile mDefaultProfile;
 
-TEST_CASE("player prefs write the second profile by name" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FPlayerPrefsTest1, "Unit::PlayerPrefs::player prefs write the second profile by name", "[EngineFilter]")
 {
     PlayerPrefs::OnePrefs akSaved[2];
     memcpy(akSaved, PlayerPrefs::mAllUserPrefs, sizeof(akSaved));

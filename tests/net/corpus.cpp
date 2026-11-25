@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <algorithm>
@@ -107,7 +108,7 @@ bool ReplayRecvPacketBytes(const unsigned char* pData, unsigned int uiSize)
     return bOk;
 }
 
-TEST_CASE("corpus replay recvgroup" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FCorpusTest1, "Net::Corpus::corpus replay recvgroup", "[ProductFilter]")
 {
     std::vector<std::string> files = ListCorpus("recvgroup", false);
     REQUIRE(!files.empty());
@@ -123,7 +124,7 @@ TEST_CASE("corpus replay recvgroup" * doctest::test_suite("corpus"))
     }
 }
 
-TEST_CASE("corpus replay recvpacket" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FCorpusTest2, "Net::Corpus::corpus replay recvpacket", "[ProductFilter]")
 {
     std::vector<std::string> files = ListCorpus("recvpacket", false);
     REQUIRE(!files.empty());
@@ -290,32 +291,32 @@ static void ReplayReaderCorpus(const char* pcReader)
     }
 }
 
-TEST_CASE("corpus replay chat-client" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FCorpusTest3, "Net::Corpus::corpus replay chat-client", "[ProductFilter]")
 {
     ReplayReaderCorpus("chat-client");
 }
 
-TEST_CASE("corpus replay chat-server" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FCorpusTest4, "Net::Corpus::corpus replay chat-server", "[ProductFilter]")
 {
     ReplayReaderCorpus("chat-server");
 }
 
-TEST_CASE("corpus replay upload" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FCorpusTest5, "Net::Corpus::corpus replay upload", "[ProductFilter]")
 {
     ReplayReaderCorpus("upload");
 }
 
-TEST_CASE("corpus replay rcon" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FCorpusTest6, "Net::Corpus::corpus replay rcon", "[ProductFilter]")
 {
     ReplayReaderCorpus("rcon");
 }
 
-TEST_CASE("corpus replay load" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FCorpusTest7, "Net::Corpus::corpus replay load", "[ProductFilter]")
 {
     ReplayReaderCorpus("load");
 }
 
-TEST_CASE("corpus replay turnrate" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FCorpusTest8, "Net::Corpus::corpus replay turnrate", "[ProductFilter]")
 {
     ReplayReaderCorpus("turnrate");
 }
@@ -354,7 +355,7 @@ static ByteVec ChatPayload(unsigned int uLen)
     return b;
 }
 
-TEST_CASE("corpus generate netwire" * doctest::test_suite("corpus"))
+TEST_CASE_NAMED(FCorpusTest9, "Net::Corpus::corpus generate netwire", "[ProductFilter]")
 {
     const char* pcGen = getenv("OPENSWBF2_GEN_CORPUS");
     if (!pcGen || pcGen[0] != '1')

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <string>
@@ -33,7 +34,7 @@ bool UiHas(const std::string& sText, const char* pcNeedle)
 
 }
 
-TEST_CASE("interface element destruction clears creation pointers" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FUiElementLifetimesTest1, "Unit::UiElementLifetimes::interface element destruction clears creation pointers", "[EngineFilter]")
 {
     const std::string sText = UiSource("src\\RedEngineFL\\Interface\\RedInterfaceElement.cpp");
     const std::string sDtor = UiBody(sText, "RedInterfaceElement::~RedInterfaceElement()");
@@ -56,7 +57,7 @@ TEST_CASE("interface element destruction clears creation pointers" * doctest::te
     CHECK(UiHas(sReset, "\n    Red3DModelElement::sAttachHosts.Clear();\n"));
 }
 
-TEST_CASE("screen forget element compacts every screen" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FUiElementLifetimesTest2, "Unit::UiElementLifetimes::screen forget element compacts every screen", "[EngineFilter]")
 {
     const std::string sText = UiSource("src\\RedEngineFL\\Interface\\RedIFScreen.cpp");
     const std::string sBody = UiBody(sText, "void IFScreen::ForgetElement(const RedInterfaceElement* pElement)");
@@ -68,7 +69,7 @@ TEST_CASE("screen forget element compacts every screen" * doctest::test_suite("r
                 "static void ForgetElement(const RedInterfaceElement* pElement);"));
 }
 
-TEST_CASE("model attachment detaches on destruction" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FUiElementLifetimesTest3, "Unit::UiElementLifetimes::model attachment detaches on destruction", "[EngineFilter]")
 {
     const std::string sText = UiSource("src\\RedEngineFL\\Interface\\Red3DModelElement.cpp");
     const std::string sDtor = UiBody(sText, "Red3DModelElement::~Red3DModelElement()");

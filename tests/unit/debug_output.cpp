@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <windows.h>
 #include <string.h>
@@ -21,7 +22,7 @@ int CountOf(const std::string& sText, const char* pcNeedle)
 
 }
 
-TEST_CASE("debugger output mirrors the log" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FDebugOutputTest1, "Unit::DebugOutput::debugger output mirrors the log", "[EngineFilter]")
 {
     char acExe[MAX_PATH];
     DWORD uLen = GetModuleFileNameA(0, acExe, sizeof(acExe));
@@ -133,13 +134,13 @@ TEST_CASE("debugger output mirrors the log" * doctest::test_suite("regression"))
     RemoveDirectoryA(sDir.c_str());
 
     CHECK(uExitCode == 0);
-    CHECK(CountOf(sOut, "LogCore Inform x.cpp:1: debug-output-marker 7") == 1);
+    CHECK(CountOf(sOut, "LogCore: Inform: debug-output-marker 7") == 1);
     CHECK(CountOf(sOut, "pbltrace-marker") == 1);
-    CHECK(CountOf(sOut, "LogCore Verbose PblTrace.cpp:0: pbltrace-marker") == 1);
+    CHECK(CountOf(sOut, "LogCore: Verbose: pbltrace-marker") == 1);
     CHECK(CountOf(sOut, "legacy-marker") == 1);
     CHECK(CountOf(sOut, "net-filtered-marker") == 0);
-    CHECK(CountOf(sStdOut, "LogCore Inform x.cpp:1: debug-output-marker 7") == 1);
-    CHECK(CountOf(sStdOut, "LogCore Verbose PblTrace.cpp:0: pbltrace-marker") == 1);
+    CHECK(CountOf(sStdOut, "LogCore: Inform: debug-output-marker 7") == 1);
+    CHECK(CountOf(sStdOut, "LogCore: Verbose: pbltrace-marker") == 1);
     CHECK(CountOf(sStdOut, "legacy-marker") == 1);
     CHECK(CountOf(sStdOut, "net-filtered-marker") == 0);
 }

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <string>
@@ -41,7 +42,7 @@ bool SameUpToTerminator(const unsigned short* pusA, const unsigned short* pusB, 
 
 }
 
-TEST_CASE("profile name template formats like retail" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FProfileNameFormatTest1, "Unit::ProfileNameFormat::profile name template formats like retail", "[EngineFilter]")
 {
     const char* const kTemplates[] = { "Player %d", "Jugador %d", "Giocatore %d", "Joueur %d", "Spieler %d", "%%d %d",
                                        "Plain" };
@@ -83,7 +84,7 @@ TEST_CASE("profile name template formats like retail" * doctest::test_suite("reg
     CHECK(memcmp(ausName, &plain[0], 6 * sizeof(unsigned short)) == 0);
 }
 
-TEST_CASE("profile name template is never used as a raw format" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FProfileNameFormatTest2, "Unit::ProfileNameFormat::profile name template is never used as a raw format", "[EngineFilter]")
 {
     const char* const kHostile[] = { "%s%s%n", "%n%d", "%d%d", "%x", "100%", "%s", "a%d%s", "%c" };
     for (size_t i = 0; i < sizeof(kHostile) / sizeof(kHostile[0]); ++i)
@@ -131,7 +132,7 @@ TEST_CASE("profile name template is never used as a raw format" * doctest::test_
     CHECK(ausBlock[1] == kNameCanary);
 }
 
-TEST_CASE("profile name sites use the template seam" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FProfileNameFormatTest3, "Unit::ProfileNameFormat::profile name sites use the template seam", "[EngineFilter]")
 {
     std::string sLoadSave;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\LuaCallbacks_LoadSave.cpp", sLoadSave));

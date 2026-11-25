@@ -54,6 +54,18 @@ public:
     static int sDataHeap;
     static int sTextureHeap;
     static bool sMemoryReserved;
+#ifdef OPENSWBF2_TEST
+    struct TestPlayRequest
+    {
+        char acName[32];
+        bool bLoop;
+        bool bBlocked;
+        bool bFound;
+    };
+    static int TestPlayRequests();
+    static const TestPlayRequest& GetTestPlayRequest(int i);
+    static unsigned int TestSkipFrame();
+#endif
 };
 
 extern int g_InGameMoviePlayerState;

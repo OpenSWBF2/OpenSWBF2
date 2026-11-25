@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string>
 
@@ -21,7 +22,7 @@ int CountText(const std::string& sText, const char* pcNeedle)
 
 }
 
-TEST_CASE("command post hold mask sites keep retail only in the sim" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHoldPlayerMaskTest1, "Unit::HoldPlayerMask::command post hold mask sites keep retail only in the sim", "[EngineFilter]")
 {
     std::string sText;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\CaptureDisplay.cpp", sText));
@@ -33,7 +34,7 @@ TEST_CASE("command post hold mask sites keep retail only in the sim" * doctest::
     CHECK(CountText(sText, "CommandPost::HoldMaskHasPlayerRetail(") == 1);
 }
 
-TEST_CASE("command post hold mask matches the retail sign-extended 32-bit shift" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHoldPlayerMaskTest2, "Unit::HoldPlayerMask::command post hold mask matches the retail sign-extended 32-bit shift", "[EngineFilter]")
 {
     CHECK(CommandPost::HoldMaskHasPlayerRetail(0x1ull, 0));
     CHECK(CommandPost::HoldMaskHasPlayerRetail(0x40000000ull, 30));
@@ -47,7 +48,7 @@ TEST_CASE("command post hold mask matches the retail sign-extended 32-bit shift"
     CHECK_FALSE(CommandPost::HoldMaskHasPlayerRetail(0xfffffffeull, 0));
 }
 
-TEST_CASE("command post hold mask tests the player bit" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FHoldPlayerMaskTest3, "Unit::HoldPlayerMask::command post hold mask tests the player bit", "[EngineFilter]")
 {
     for (int i = 0; i < 64; ++i)
     {

@@ -38,6 +38,9 @@ static RECT sClipRect;
 static bool sbClipped;
 static unsigned int suiRawPrevDown;
 static unsigned int suiLatched;
+#ifdef OPENSWBF2_TEST
+static const char* spcBuiltImage = "";
+#endif
 
 static HCURSOR MakeCursorFromCache(unsigned int uiW, unsigned int uiH)
 {
@@ -121,7 +124,7 @@ static void SetBuiltCursor(unsigned int uiW, unsigned int uiH)
     }
     else if (!sbCreateLogged)
     {
-        LOG(LogCore, Warning, "OPENSWBF2 CURSOR fallback reason=%s", "create");
+        LOG(LogCore, Warning, "Cursor fallback reason=%s", "create");
         sbCreateLogged = true;
     }
 }
@@ -264,14 +267,20 @@ void HwCursor::Build(unsigned int uiTextureHash)
     }
     if (Software() || g_bNoRender)
     {
-        LOG(LogCore, Inform, "OPENSWBF2 CURSOR mode=%s image=skipped", Software() ? "sw" : "hw");
+        LOG(LogCore, Inform, "Cursor mode=%s image=skipped", Software() ? "sw" : "hw");
+#ifdef OPENSWBF2_TEST
+        spcBuiltImage = "skipped";
+#endif
         return;
     }
     const char* pcReason = ReadCursorTexture(uiTextureHash);
     if (pcReason)
     {
-        LOG(LogCore, Warning, "OPENSWBF2 CURSOR fallback reason=%s", pcReason);
-        LOG(LogCore, Inform, "OPENSWBF2 CURSOR mode=hw image=fallback");
+        LOG(LogCore, Warning, "Cursor fallback reason=%s", pcReason);
+        LOG(LogCore, Inform, "Cursor mode=hw image=fallback");
+#ifdef OPENSWBF2_TEST
+        spcBuiltImage = "fallback";
+#endif
         return;
     }
     unsigned int uiW = 0;
@@ -280,13 +289,23 @@ void HwCursor::Build(unsigned int uiTextureHash)
     SetBuiltCursor(uiW, uiH);
     if (shCursor)
     {
-        LOG(LogCore, Inform, "OPENSWBF2 CURSOR mode=hw image=built");
+        LOG(LogCore, Inform, "Cursor mode=hw image=built");
     }
     else
     {
-        LOG(LogCore, Inform, "OPENSWBF2 CURSOR mode=hw image=fallback");
+        LOG(LogCore, Inform, "Cursor mode=hw image=fallback");
     }
+#ifdef OPENSWBF2_TEST
+    spcBuiltImage = shCursor ? "built" : "fallback";
+#endif
 }
+
+#ifdef OPENSWBF2_TEST
+const char* HwCursor::BuiltImage()
+{
+    return spcBuiltImage;
+}
+#endif
 
 // FUNCTION: SWBF2 0x006da310
 bool RedMouse::Exists()
@@ -413,15 +432,22 @@ void RedMouse::SetCursorPos(int iX, int iY)
     m_Y = Clamp(iY, 0, (int)RedInterfaceScreen::GetScreenHeight());
     FLRenderer::SetCursorPos((float)m_X, (float)m_Y);
 
+    const bool bOwnsCursor = DisplayLogic::OwnsSystemCursor(gAppActive, hGlobalWnd != 0,
+                                                            hGlobalWnd != 0 && GetForegroundWindow() == hGlobalWnd);
 #ifdef OPENSWBF2_TEST
     if (pcCrash::HandsOffRequested())
     {
+        static bool sbWarpLogged;
+        if (bOwnsCursor && !sbWarpLogged)
+        {
+            sbWarpLogged = true;
+            LOG(LogCore, Error, "cursor warp refused under -handsoff: the window owns the system cursor");
+        }
         return;
     }
 #endif
 
-    if (DisplayLogic::OwnsSystemCursor(gAppActive, hGlobalWnd != 0,
-                                       hGlobalWnd != 0 && GetForegroundWindow() == hGlobalWnd))
+    if (bOwnsCursor)
     {
         RECT rc;
         int iCx = 0;
@@ -433,7 +459,7 @@ void RedMouse::SetCursorPos(int iX, int iY)
                                             iCy);
         POINT pt = { iCx, iCy };
         ClientToScreen(hGlobalWnd, &pt);
-        LOG(LogCore, Inform, "OPENSWBF2 CURSOR warp x=%d y=%d", (int)pt.x, (int)pt.y);
+        LOG(LogCore, Inform, "Cursor warp x=%d y=%d", (int)pt.x, (int)pt.y);
         ::SetCursorPos(pt.x, pt.y);
     }
 }
@@ -504,12 +530,21 @@ static void ReconcileCursor(RedMouse& kMouse)
         ::SetCursor(0);
     }
 
-    if (kPlan.bClip
+    bool bClip = kPlan.bClip && DisplayLogic::OwnsSystemCursor(gAppActive, hGlobalWnd != 0,
+                                                               hGlobalWnd != 0 && GetForegroundWindow() == hGlobalWnd);
 #ifdef OPENSWBF2_TEST
-        && !pcCrash::HandsOffRequested()
+    if (bClip && pcCrash::HandsOffRequested())
+    {
+        static bool sbClipLogged;
+        if (!sbClipLogged)
+        {
+            sbClipLogged = true;
+            LOG(LogCore, Error, "cursor clip refused under -handsoff: the window owns the system cursor");
+        }
+        bClip = false;
+    }
 #endif
-        && DisplayLogic::OwnsSystemCursor(gAppActive, hGlobalWnd != 0,
-                                          hGlobalWnd != 0 && GetForegroundWindow() == hGlobalWnd))
+    if (bClip)
     {
         RECT kClient;
         GetClientRect(hGlobalWnd, &kClient);

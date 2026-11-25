@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <string.h>
 #include <string>
@@ -33,7 +34,7 @@ int CountText(const std::string& sText, const char* pcNeedle)
 
 }
 
-TEST_CASE("admin id text keeps the retail low-dword format" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetadminIdTextTest1, "Unit::NetadminIdText::admin id text keeps the retail low-dword format", "[EngineFilter]")
 {
     CheckIdText(0ull, "0ll");
     CheckIdText(0x000000017F000001ull, "2130706433ll");
@@ -41,7 +42,7 @@ TEST_CASE("admin id text keeps the retail low-dword format" * doctest::test_suit
     CheckIdText(0xFFFFFFFFFFFFFFFFull, "4294967295ll");
 }
 
-TEST_CASE("admin id text sites use the pinned format" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetadminIdTextTest2, "Unit::NetadminIdText::admin id text sites use the pinned format", "[EngineFilter]")
 {
     std::string sAdmin;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetAdmin.cpp", sAdmin));
@@ -56,7 +57,7 @@ TEST_CASE("admin id text sites use the pinned format" * doctest::test_suite("reg
     CHECK(sHeader.find("\"%ull\", (unsigned int)") != std::string::npos);
 }
 
-TEST_CASE("net peer lookup covers dests and join slots only" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetadminIdTextTest3, "Unit::NetadminIdText::net peer lookup covers dests and join slots only", "[EngineFilter]")
 {
     for (int i = -2; i < 140; ++i)
     {
@@ -71,7 +72,7 @@ TEST_CASE("net peer lookup covers dests and join slots only" * doctest::test_sui
     }
 }
 
-TEST_CASE("admin replies route to the admin peer" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetadminIdTextTest4, "Unit::NetadminIdText::admin replies route to the admin peer", "[EngineFilter]")
 {
     std::string sAdmin;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetAdmin.cpp", sAdmin));
@@ -87,7 +88,7 @@ TEST_CASE("admin replies route to the admin peer" * doctest::test_suite("regress
     CHECK(sBody.find("NetSocket::GetAddr(&kPeer, iIP, iPort);") != std::string::npos);
 }
 
-TEST_CASE("admin token buffers keep room for the terminator (source pin as NetAdmin.cpp is not linked into T1)" * doctest::test_suite("regression"))
+TEST_CASE_NAMED(FNetadminIdTextTest5, "Unit::NetadminIdText::admin token buffers keep room for the terminator (source pin as NetAdmin.cpp is not linked into T1)", "[EngineFilter]")
 {
     std::string sAdmin;
     REQUIRE(ReadRepoText("src\\Battlefront2\\Source\\NetAdmin.cpp", sAdmin));

@@ -1,4 +1,5 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include <random>
 
@@ -133,7 +134,7 @@ static bool RunFuzz(unsigned int uSeed, unsigned int uCount, unsigned int* puSum
     return true;
 }
 
-TEST_CASE("fuzz default seeds" * doctest::test_suite("fuzz"))
+TEST_CASE_NAMED(FFuzzTest1, "Net::Fuzz::fuzz default seeds", "[StressFilter]")
 {
     const unsigned int auSeeds[4] = {1, 2, 3, 0xC0FFEE};
     const unsigned int auSums[4] = {0xac892f84, 0x10ce3326, 0xec1f98d7, 0xd649cad9};
@@ -145,7 +146,7 @@ TEST_CASE("fuzz default seeds" * doctest::test_suite("fuzz"))
     }
 }
 
-TEST_CASE("fuzz stress soak" * doctest::test_suite("stress"))
+TEST_CASE_NAMED(FFuzzTest2, "Net::Fuzz::fuzz stress soak", "[StressFilter][OnRequest]")
 {
     if (gFuzzDump)
     {
@@ -266,7 +267,7 @@ static bool RunWireFuzz(unsigned int uSeed, unsigned int uCount, unsigned int* p
     return true;
 }
 
-TEST_CASE("fuzz netwire readers" * doctest::test_suite("fuzz"))
+TEST_CASE_NAMED(FFuzzTest3, "Net::Fuzz::fuzz netwire readers", "[StressFilter]")
 {
     const unsigned int auSeeds[4] = {1, 2, 3, 0xC0FFEE};
     const unsigned int auSums[4] = {0xd6d39bb0, 0xef022552, 0x2f8008ad, 0x61d4df43};

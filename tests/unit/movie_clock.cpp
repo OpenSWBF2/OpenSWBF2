@@ -1,8 +1,9 @@
 #include "third_party/doctest/doctest.h"
+#include "harness/tags.h"
 
 #include "RedEngineFL/movie/pc/pcRedMovieClock.h"
 
-TEST_CASE("movie clock frame 1 is due at once and frame 2 at played 1600 for 48000 Hz at 30 fps" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieClockTest1, "Unit::MovieClock::movie clock frame 1 is due at once and frame 2 at played 1600 for 48000 Hz at 30 fps", "[SmokeFilter]")
 {
     CHECK(MovieFrameDue(0, 48000, 30, 1, 1));
     CHECK_FALSE(MovieFrameDue(1599, 48000, 30, 1, 2));
@@ -11,13 +12,13 @@ TEST_CASE("movie clock frame 1 is due at once and frame 2 at played 1600 for 480
     CHECK(MovieFrameDue(3200, 48000, 30, 1, 3));
 }
 
-TEST_CASE("movie clock frame 300 boundary for 44100 Hz at 2997 over 100 fps" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieClockTest2, "Unit::MovieClock::movie clock frame 300 boundary for 44100 Hz at 2997 over 100 fps", "[SmokeFilter]")
 {
     CHECK_FALSE(MovieFrameDue(439969, 44100, 2997, 100, 300));
     CHECK(MovieFrameDue(439970, 44100, 2997, 100, 300));
 }
 
-TEST_CASE("movie clock frame 7314 of a retail rate movie keeps 64 bit width" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieClockTest3, "Unit::MovieClock::movie clock frame 7314 of a retail rate movie keeps 64 bit width", "[SmokeFilter]")
 {
     CHECK_FALSE(MovieFrameDue(1601, 48000, 5000000, 166833, 2));
     CHECK(MovieFrameDue(1602, 48000, 5000000, 166833, 2));
@@ -25,7 +26,7 @@ TEST_CASE("movie clock frame 7314 of a retail rate movie keeps 64 bit width" * d
     CHECK(MovieFrameDue(11712478ull, 48000, 5000000, 166833, 7314));
 }
 
-TEST_CASE("movie clock compares exactly at the header caps" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieClockTest4, "Unit::MovieClock::movie clock compares exactly at the header caps", "[SmokeFilter]")
 {
     CHECK_FALSE(MovieFrameDueTicks(319989999999ull, 10000000ull, 0xFFFFFFFFu, 0xFFFFFFFFu, 32000));
     CHECK(MovieFrameDueTicks(319990000000ull, 10000000ull, 0xFFFFFFFFu, 0xFFFFFFFFu, 32000));
@@ -38,7 +39,7 @@ TEST_CASE("movie clock compares exactly at the header caps" * doctest::test_suit
     CHECK(MovieFrameDueTicks(0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFu, 0xFFFFFFFFu, 2));
 }
 
-TEST_CASE("movie clock wide product matches the exact 128 bit result" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieClockTest5, "Unit::MovieClock::movie clock wide product matches the exact 128 bit result", "[SmokeFilter]")
 {
     const MovieWide kMax = MovieMulWide(0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull);
     CHECK(kMax.uHi == 0xFFFFFFFFFFFFFFFEull);
@@ -54,7 +55,7 @@ TEST_CASE("movie clock wide product matches the exact 128 bit result" * doctest:
     CHECK(MovieWideAtLeast(kCap, kCap));
 }
 
-TEST_CASE("movie clock never stalls on a zero rate or fps" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieClockTest6, "Unit::MovieClock::movie clock never stalls on a zero rate or fps", "[SmokeFilter]")
 {
     CHECK(MovieFrameDue(0, 0, 30, 1, 9));
     CHECK(MovieFrameDue(0, 48000, 0, 1, 9));
@@ -66,7 +67,7 @@ TEST_CASE("movie clock never stalls on a zero rate or fps" * doctest::test_suite
     CHECK(MovieFrameDueTicks(0, 10000000ull, 30, 1, 0));
 }
 
-TEST_CASE("movie clock timer variant paces on the 10 MHz performance counter" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieClockTest7, "Unit::MovieClock::movie clock timer variant paces on the 10 MHz performance counter", "[SmokeFilter]")
 {
     CHECK(MovieFrameDueTicks(0, 10000000ull, 30, 1, 1));
     CHECK_FALSE(MovieFrameDueTicks(333333ull, 10000000ull, 30, 1, 2));
@@ -77,7 +78,7 @@ TEST_CASE("movie clock timer variant paces on the 10 MHz performance counter" * 
     CHECK(MovieFrameDueTicks(2440099458ull, 10000000ull, 5000000, 166833, 7314));
 }
 
-TEST_CASE("movie clock cursor advance covers no wrap and an exact wrap and a wrap past zero" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieClockTest8, "Unit::MovieClock::movie clock cursor advance covers no wrap and an exact wrap and a wrap past zero", "[SmokeFilter]")
 {
     CHECK(MovieCursorAdvance(100, 100, 96000) == 0);
     CHECK(MovieCursorAdvance(100, 4100, 96000) == 4000);
@@ -86,7 +87,7 @@ TEST_CASE("movie clock cursor advance covers no wrap and an exact wrap and a wra
     CHECK(MovieCursorAdvance(95999, 95998, 96000) == 95999);
 }
 
-TEST_CASE("movie playback time follows the audio clock through a retail length movie and stops when the audio stops" * doctest::test_suite("unit"))
+TEST_CASE_NAMED(FMovieClockTest9, "Unit::MovieClock::movie playback time follows the audio clock through a retail length movie and stops when the audio stops", "[SmokeFilter]")
 {
     const unsigned int uRate = 48000;
     const unsigned int uFpsNum = 5000000;
