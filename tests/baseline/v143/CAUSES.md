@@ -3374,6 +3374,464 @@ the P42 runs already print it.
   HARDX-02 (x64 Asan Standard) is also affected.
 - Status: carried, 50-05, 2026-11-22.
 
+### C-FFMPEG-VENDOR-SCOPE
+
+- No digest row moved. No table in this directory changed.
+- What: `src/FFmpegFL/` holds the Bink-only subset of FFmpeg 9.0.2 (179 `.c`, the headers they
+  include and the generated config files), written by `tools/update-ffmpeg.ps1` and checked with
+  its `-Verify` mode. It is upstream vendor code: the files stay byte for byte as in the release
+  tarball plus the recorded patch (`src/FFmpegFL/changes.diff`).
+- Cause: the game-code source rules (allocator bans such as `crt-heap-ban`, handle and spacer
+  rules, logging through `RedLog.h`) describe our own code and the recovered game. They don't
+  apply to upstream FFmpeg, which calls the CRT heap names inside `libavutil/mem.c` by design.
+  So `src\FFmpegFL\` gets the same exclusion as `src\LuaFL\`, `src\ZlibFL\` and `src\mimalloc\`:
+  the vendor regex in `Get-X64SizeLiteralCheck` and `Get-SourceChecks` (`tests/smoke.ps1`) and
+  the `redlog-vendor` directory list (`tests/run.ps1`), which also keeps `RedLog.h` out of it.
+- Our own file inside the tree (`src/FFmpegFL/openswbf2/ossf2_alloc.c`, from 51-02) only forwards
+  to hooks the exe registers. The source exclusion covers it too, so the binary check
+  `ffmpeg-crt-heap` (51-03: the DLL imports nothing from `api-ms-win-crt-heap-l1-1-0.dll`) binds
+  it instead.
+- Proof: the `crt-heap-ban` selftest fixture puts the same `_aligned_malloc` line under
+  `src\FFmpegFL\` and `src\RedEngineFL\`; only the `RedEngineFL` file is reported. With the
+  regex reverted it fails (51-01).
+- Status: in force, 51-01, 2026-11-23.
+
+### C-FFMPEG-ALLOC-CONFIG
+
+- No digest row moved. No table in this directory changed.
+- What: `tools/update-ffmpeg.ps1` edits each generated `config.h` (`src/FFmpegFL/config/Win32/`
+  and `x64/`): `HAVE_ALIGNED_MALLOC 1 -> 0` and `HAVE_POSIX_MEMALIGN 0 -> 1`. The edit is in
+  `src/FFmpegFL/changes.diff`.
+- Cause: configure is run with `--malloc-prefix=ossf2_`, which renames `malloc`, `realloc`,
+  `free`, `memalign` and `posix_memalign` in `libavutil/mem.c`. On MSVC configure also finds
+  `_aligned_malloc` and sets `HAVE_ALIGNED_MALLOC 1`, and `mem.c` then calls `_aligned_malloc`,
+  `_aligned_realloc` and `_aligned_free` unprefixed, so the prefix routes nothing (measured in
+  51-RESEARCH: those three are the DLL's only CRT heap imports). `HAVE_POSIX_MEMALIGN` is 0 only
+  because configure can't link the prefixed name. With the edit, `av_malloc` calls
+  `ossf2_posix_memalign(&p, ALIGN, size)`, `av_realloc` calls `ossf2_realloc` and `av_free` calls
+  `ossf2_free`, which forward to the Red heap that is current at call time, the heap
+  `binkw32` used through `BinkSetMemory` (D-15).
+- `ALIGN` is 16 with asm off, and Red heap user pointers are 16-aligned (`kHeapAlignment` 0x10).
+- Guard: the script fails unless configure generated exactly `HAVE_ALIGNED_MALLOC 1` and
+  `HAVE_POSIX_MEMALIGN 0`, naming the value it found, so the edit can't go stale on an update.
+- Status: in force, 51-01, 2026-11-23.
+
+### C-FFMPEG-WD4146
+
+- No digest row moved. No table in this directory changed.
+- What: `src/FFmpegFL/FFmpegFL.vcxproj` adds `/wd4146` to the `AdditionalOptions` of every
+  FFmpegFL C source. MSBuild emits `AdditionalOptions` after `/sdl`, and the cl tlog shows
+  `/sdl` before `/wd4146` on every FFmpegFL line.
+- Cause: upstream applies unary minus to unsigned values by design (`libavutil/intmath.h:120,136`,
+  pulled into about 104 files, `libavcodec/bink.c` x8, `libavutil/crc.c`,
+  `libavutil/mathematics.c`, `libavcodec/golomb.h`, `libavcodec/dirac.c`). `/sdl` turns C4146
+  into an error, 229 hits. Upstream's own MSVC flags disable it (`-wd4146`). The order matters:
+  `/sdl /wd4146` disables it and `/wd4146 /sdl` doesn't, so a wrong order fails the build.
+- Every other warning stays enabled, and `/sdl`, `/GS` and every other props flag stay on.
+- Status: in force, 51-02, 2026-11-23.
+
+### C-FFMPEG-WD4703
+
+- No digest row moved. No table in this directory changed.
+- What: `/wd4703` per file on five FFmpegFL sources, and on no other file:
+  `libavutil/encryption_info.c` (275, `info`), `libavformat/url.c` (294, `base_path_end`),
+  `libavformat/avio.c` (179, `key`), `libavformat/av1.c` (491, `seq`) and `libavcodec/raw.c`
+  (94, `tags`).
+- Cause: `/sdl` turns C4703 (potentially uninitialized local pointer) into an error, and all five
+  are false positives:
+  - `encryption_info.c`: `info` is set on the first loop pass (`i == 0`) before any read.
+  - `url.c`: `base_path_end` is set under `if (use_base_path)` (273-274), and every read is
+    under `if (use_base_path)` too (293-294, 304-305).
+  - `avio.c`: `p != key` is read only when `ret >= 0`, and then the loop condition has assigned
+    `key`.
+  - `av1.c`: `seq` is read only when `write_seq_header` is set, after the `!nb_seq` check, and
+    `nb_seq > 1` fails earlier, so the one sequence header assigned it.
+  - `raw.c`: the switch in `avpriv_pix_fmt_find` covers every `PixelFormatTagLists` enumerator,
+    and its only caller in the subset (`libavformat/demux.c:3014`) passes `PIX_FMT_LIST_RAW`.
+- 51-RESEARCH named only the first two. 51-02 compiled each of the 179 subset sources alone
+  with `/sdl` at `/O2` and `/Od` on x86 and x64 and found these five on every combination.
+  An MSBuild compile stops at the first failing file of its `/MP` batch (51-02 saw `raw.c`,
+  then `av1.c`, one per build), so a survey read from build output undercounts.
+- Status: in force, 51-02, 2026-11-23.
+
+### C-FFMPEG-DEBUG-O1
+
+- No digest row moved. No table in this directory changed.
+- What: in Debug only, `libavcodec/avcodec.c` compiles with `Optimization` `MinSpace` (`/O1`);
+  every other Debug FFmpegFL file stays at `/Od`.
+- Cause: `avcodec.c` calls `ff_thread_init`, `ff_thread_flush` and `ff_thread_free` under
+  `if (HAVE_THREADS && ...)`. With threads off (`HAVE_THREADS 0`) those functions aren't in the
+  subset, and at `/Od` the dead calls aren't eliminated, so the Debug link has three unresolved
+  symbols. Release, Test and Asan build at `/O2` and need nothing.
+- Status: in force, 51-02, 2026-11-23.
+
+### C-FFMPEG-BCRYPT
+
+- No digest row moved. No table in this directory changed.
+- What: `openswbf2-ffmpeg.dll` imports `bcrypt.dll` (`BCryptOpenAlgorithmProvider`,
+  `BCryptGenRandom`, `BCryptCloseAlgorithmProvider`) in every configuration on both platforms,
+  and links `bcrypt.lib`.
+- Cause: a direct call chain from an export the decoder needs. `avformat_alloc_context`
+  (`libavformat/options.c:180`) calls `av_opt_set_defaults`, then `av_opt_set_defaults2`, which
+  calls `set_string_color` for colour options (`libavutil/opt.c:1732`), which calls
+  `av_parse_color` (`opt.c:533`), whose `"random"` colour calls `av_get_random_seed`
+  (`libavutil/parseutils.c:381`), which calls the three `BCrypt*` functions
+  (`libavutil/random_seed.c`). `avformat_open_input` reaches `set_string_color` too, through
+  `av_opt_set_dict` and `av_opt_set`. These are static calls, so `/OPT:REF` can't drop them while
+  `avformat_alloc_context` is exported.
+- Evidence (51-02): every DLL links with `/OPT:REF /OPT:ICF` and `/Gy`. The `/VERBOSE:REF` link
+  doesn't discard `av_get_random_seed`, `av_parse_color`, `set_string_color` or
+  `av_opt_set_defaults2`. Measured links that export only `avformat_alloc_context`,
+  `avformat_open_input`, `avcodec_open2` or `avutil_version` each import the three `BCrypt*`
+  names too. The other caller, `av_aes_ctr_set_random_iv`, is discarded.
+- Runtime: no Bink option is a colour, so the `"random"` branch never runs; the import is static.
+- Status: in force, 51-02, 2026-11-23.
+
+### C-FFMPEG-HARDENING-ROWS
+
+- No digest row moved. `hardening.txt` gains five rows, `[PASS] hardening:ffmpeg-license`,
+  `ffmpeg-flags`, `ffmpeg-dll`, `ffmpeg-imports` and `ffmpeg-crt-heap`, after `aslr-pe-tests`; no
+  other row moves.
+- Cause: a new binary ships. `openswbf2-ffmpeg.dll` comes from its own DLL project, which
+  `Get-GameProjects` doesn't scan, so `run.ps1` holds it to its own rows on both platforms:
+  - `ffmpeg-license`: the committed `config.h` and `config_components.h` set no `CONFIG_GPL`,
+    `CONFIG_NONFREE`, `CONFIG_GPLV3`, `CONFIG_VERSION3` or `CONFIG_LGPLV3`, the configure line has
+    no `--enable-gpl`, `--enable-nonfree` or `--enable-version3`, and no component outside the four
+    Bink ones is enabled. The `CheckFFmpegLicence` target in `FFmpegFL.vcxproj` applies the same
+    rules and fails the build.
+  - `ffmpeg-flags`: every line of the FFmpegFL cl tlog has `/sdl`, `/GS`, `/Gy` and `/wd4146` after
+    `/sdl` (C-FFMPEG-WD4146); `/wd4703` is on exactly the five C-FFMPEG-WD4703 files and no other
+    `/wd` appears; `/O1` is on `avcodec.c` in Debug only (C-FFMPEG-DEBUG-O1), every other Debug
+    line has `/Od` and every other configuration `/O2`; no `/GS-`, `/GL`, `/fp:fast`,
+    `/fp:contract` or `/Zc:throwingNew`; on x64 every line has `/we4311 /we4312 /we4302 /we4477`.
+  - `ffmpeg-dll`: the DLL has Dynamic base, NX compatible, relocations, a security cookie and, on
+    Win32, a SafeSEH table.
+  - `ffmpeg-imports`: the import modules are KERNEL32, VCRUNTIME140 and the api-ms CRT sets
+    runtime, math, stdio, string, time, convert, environment and utility, plus `bcrypt.dll`
+    (C-FFMPEG-BCRYPT) and, in Asan only, the C-FFMPEG-ASAN-IMPORTS modules.
+  - `ffmpeg-crt-heap`: nothing from `api-ms-win-crt-heap-l1-1-0.dll` and no `malloc`, `realloc`,
+    `free`, `calloc` or `_aligned_*` from any module (C-FFMPEG-ALLOC-CONFIG,
+    C-FFMPEG-VENDOR-SCOPE); in Asan, only the heap names `vcasan.obj` imports
+    (C-FFMPEG-ASAN-IMPORTS).
+- Captured from `run.ps1 -Platform Win32 -Configuration Release -NoBuild -Smoke None -Hardening`
+  with `capture-vs2013.ps1 -NoBuild -Tables -Baseline v143 -HardeningDir` into a scratch
+  `-OutDir`; the capture equals the pinned file plus those five lines, byte for byte.
+- Status: in force, 51-03, 2026-11-23.
+
+### C-FFMPEG-ASAN-IMPORTS
+
+- No digest row moved. No table in this directory changed.
+- What: the Asan `openswbf2-ffmpeg.dll` imports `clang_rt.asan_dynamic-i386.dll` on Win32 and
+  `clang_rt.asan_dynamic-x86_64.dll` on x64, and `calloc`, `free` and `malloc` from
+  `api-ms-win-crt-heap-l1-1-0.dll`. The x64 Asan DLL also imports `__CxxFrameHandler4` from
+  `VCRUNTIME140_1.dll`. The Debug, Release and Test DLLs import none of these.
+- Cause: `/fsanitize=address` links MSVC's ASan support library `vcasan.lib` into every image,
+  the Asan `BattlefrontII.exe` too. Its `vcasan.obj` has `UNDEF` `__imp_calloc`, `__imp_free` and
+  `__imp_malloc` (`__imp__` on x86) and, on x64, `__CxxFrameHandler4`. The 51-02 `/VERBOSE` link
+  shows `__imp__calloc` and `__imp__malloc` referenced only from `vcasan.obj`, and `__imp__free`
+  from `vcasan.obj` and `FILE_OPEN.OBJ`, whose only caller `ff_tempfile` `/OPT:REF` discards.
+  FFmpegFL is C and calls none of them, and the same sources import none of them in Release and
+  Test.
+- Check: in Asan, `ffmpeg-crt-heap` reads the linked `vcasan.lib` path from the FFmpegFL link
+  tlog, lists its `UNDEF __imp_` heap names with dumpbin, and fails when the DLL imports a heap
+  name outside that list or when the list can't be read. `ffmpeg-imports` allows the three
+  modules only in Asan.
+- Status: in force, 51-03, 2026-11-23.
+
+### C-MOVIE-GOLDENS
+
+- No digest row moved. No table in this directory changed; `movie-goldens.txt` is new.
+- What: `movie-goldens.txt` archives the binkw32 frame hashes and the deterministic binkw32 facts
+  that the FFmpeg player is checked against (D-10, D-11). It holds the FNV-1a 64 hash of the
+  B, G and R bytes of every decoded frame of three retail segments: `shell.mvs` 0xB4A21ED9
+  (1349 frames, 48 kHz), `ingame.mvs` 0x2AB9757F (1369 frames, 48 kHz, the segment `nab2g_c`
+  plays) and `ingame.mvs` 0x0B78EBBC (223 frames, 44.1 kHz), 2941 lines in all. A check set
+  repeats frames 1, 2, 3, 30, 300 and the last frame of each segment; frames 1 to 3 and the last
+  frame are black fades, so frames 30 and 300 are the content pins. The facts are the texture
+  format, size, frame rate, audio layout, Bink heap use, the `BinkSetVolume` arguments and the
+  notify sequence of one shell loop.
+- Cause: binkw32 is deleted in 51-15, so its output has to be captured before the switch. The
+  hashes come from the Test-only `-movietest` path (Win32 Test, `BinkCopyToBuffer` into the
+  `D3DFMT_X8R8G8B8` texture, hashed before `UnlockRect`); two runs per segment gave byte-identical
+  frame lines, frame numbers ran 1 to Frames with no gap, and a `-nosound` run gave the same
+  hashes. The file holds no retail bytes, only hashes and counts; the raw frames stay local.
+- Check: the T1 `baseline movie goldens hold every binkw32 frame of the three segments and pin the
+  content frames` (`tests/unit/memory_baseline.cpp`) reads the file.
+- Colour (51-05): the `## colour` section records `model=exact`. binkw32's X8R8G8B8 blitter is an
+  MMX routine with nearest 2x2 chroma and fixed `pmulhw` constants; that model applied to the
+  YUV420P frames FFmpeg decodes from the same segment bytes gives all 2941 archived hashes, with
+  both the Win32 and the x64 `openswbf2-ffmpeg.dll`, and every pixel of the 17 local check-set
+  frames. So FFmpeg's YUV equals Bink's own and no error bound is needed. The same T1 pins the
+  model line and the match count.
+- Status: in force, 51-04, 2026-11-23; colour section 51-05, 2026-11-23.
+
+### C-MOVIE-INGAME-DIGEST
+
+- No digest row moved. `digest-expected.txt` and `smoke-all-digests.txt` are unchanged; the
+  headless `nab2g_c` row never opens a decoder (`-norender` turns movies off).
+- What: the `## binkw32 ingame digest` section of `movie-goldens.txt` holds one line,
+  `ingame-movie-digest` and the `OPENSWBF2 SIM DIGEST` line that the rendered fixed-rate
+  `nab2g_c` run gives with binkw32 (MOVIE-09). The Test case `ingame-movie-digest` names it with
+  `GoldenDigest`, and the smoke judge requires its digest line to equal it. The FFmpeg player
+  must give the same line after the switch.
+- Cause: before 51-06 two binkw32 runs of the case gave different digests. The first differing
+  turn was turn 1 and the only differing field was the mission time; characters and both random
+  seeds were equal. Under `-fixedrate` every frame advances the game clock by 1/30 s, and while
+  the in-game movie plays the sim is paused but frames run unthrottled, so the movie's length in
+  frames set the mission time. That length came from wall time in two places in
+  `pcRedMoviePlayer.cpp`: the Bink open waited for the async read buffer (open frame 51 to 63),
+  and each frame step waited for `BinkWait`, Bink's real-time clock (close frame 164613 to
+  171343). Under fixed rate the player now fills the read buffer before the open and steps a
+  frame when the game's system clock reaches it, the clock `StopInGameMoviePlay` already uses
+  under fixed rate. Without fixed rate it calls `BinkWait` as before.
+- Measured after the fix: two sound-on runs and one `-nosound` run gave the same digest line
+  and the same 1500-turn trace; the movie opens on frame 6 and closes on frame 1377 in each,
+  and frames 30 and 300 keep their archived hashes.
+- Check: the case itself, and two guard rows that turn it RED with a moved mission time:
+  `MOVIE-FIXED-CLOCK` restores `BinkWait` under fixed rate, and `MOVIE-FIXED-OPEN` drops the
+  wait for a full read buffer before the open. The movie goldens T1 pins the section's shape.
+- Status: in force, 51-06, 2026-11-23.
+
+### C-MOVIE-HEADER-CAPS
+
+- No digest row moved. No table in this directory changed; the header check is not called by the
+  game yet (51-12 wires it in front of the decoder).
+- What: `CheckMovieHeader` (`src/RedEngineFL/movie/pc/pcRedMovieHeader.cpp`) reads a Bink
+  header and its whole frame index from bytes and rejects a stream with a named reason before
+  FFmpeg sees a byte (D-18). The caps and their retail values (MOVIE-10 measured set, 24 `.mvs`,
+  281 streams, all BIKi 800x600, one track):
+
+  | Cap | Value | Retail max |
+  |-----|-------|------------|
+  | width | 1024 | 800 |
+  | height | 768 | 600 |
+  | frames | 16000 (32000 until 51-17) | 7314 (`trailer.mvs` 0x816FEDE0) |
+  | largest frame and every index span | 262144 (0x40000) | 135192 (`shell*.mvs` 0xA62393D8) |
+  | tracks | 6 | 1 |
+  | rate | 8000 to 48000 | 44100 (12 streams) and 48000 (269) |
+  | audio flags | only 0x4000, 0x2000, 0x1000 (`BINK_AUD_*`) | 0x7000 |
+  | revision | b, f, g, h, i, k (FFmpeg `bink.c` probe for BIK) | i |
+  | frame rate | 1 to 120 fps (`fpsNum >= fpsDen` and `fpsNum <= 120 x fpsDen`, 64-bit) | 29.97 (5000000/166833, 261 streams; 10000000/333667, 8) and 30.0 (10000000/333333, 12) |
+  | largest frame against the file | largest <= file size + 8 | below its own file size in all 281 (a frame lies inside its file) |
+  | every index span against the tracks | span >= 4 x tracks | 124 (1 track) |
+
+- Heap budget (D-15 routes every FFmpeg allocation to the Red heap the movie opens from; every
+  caller opens on Runtime). The smallest headroom is x86: Runtime cap 32,235,168 B minus the
+  largest Runtime peak of any measured mission, 19,332,704 B (`digest-kas2c_uber`, Win32 Test
+  gate 20261123-092349), leaves 12,902,464 B. x64 leaves 41,943,040 - 25,162,848 = 16,780,192 B.
+- Decoder cost, measured with a counting allocator on the in-tree `openswbf2-ffmpeg.dll`
+  (Release, video and audio decoders open, every packet decoded) on retail 800x600 streams:
+  peak 6,495,684 B x86 and 6,499,552 B x64 on 0xA62393D8 (254 frames, largest 135192),
+  6,570,507 B x86 on 0x816FEDE0 (7314 frames). From those runs: 10 B per pixel of bundles
+  (`init_bundles`, 10 x 64 B per 8x8 block), about 3.075 B per pixel of decoded frames,
+  24.65 B per frame of index (`AVIndexEntry`), one packet of the largest frame and about
+  78 KB of fixed state.
+- At the caps, with the index doubled for a realloc copy and the packet doubled for the
+  decoder's own reference: 77,829 + 13.075 x 786,432 (10,282,598) + 49.3 x 16,000 (788,800)
+  + 2 x 262,144 (524,288) + the 0x40000 read ring and its pointer arrays (262,240) + the
+  decoder's audio conversion block, 2048 frames x 2 channels x 2 B (8,192) + `MovieAudio`'s
+  packets and hold, (16 x 4800 + 48000) x 2 channels x 2 B (499,200) = 12,443,147 B, inside the
+  x86 headroom of 12,902,464 B with 459,317 B to spare. A 1280x720 cap (921,600 pixels) adds
+  1.77 MB and does not fit.
+- Audio (51-17, review CR-01): the decoder kept every sample of a take in a buffer that grew up
+  to `kMovieAllocCap`, so one hostile frame of minimal DCT blocks could hold 11.8 MB of Runtime at
+  the realloc peak, and neither that buffer nor `MovieAudio`'s 499,200 B block was in this budget.
+  Both had to be counted: with 32000 frames the caps came to 12,724,555 + 499,200 = 13,223,755 B
+  before any decoder buffer, 321,291 B over. The decoder now converts each decoded audio frame
+  (Bink gives at most 1920 sample frames per frame) into one fixed block allocated at open and
+  hands it straight to `MovieAudio::Feed`, which keeps what it holds and counts the rest as
+  dropped, so audio costs a constant 8,192 B in the decoder. The frame cap went from 32000 to
+  16000, still above twice the retail maximum of 7314, to make room for `MovieAudio`'s block.
+  The largest retail take is 36,480 sample frames in one frame (`crawl.mvs` 0x72EA78A3 frame 0,
+  measured over all 281 streams), the same samples now reach the player in the same order, and
+  no frame pin, golden or digest moved. `movie header caps fit the x86 runtime heap budget`
+  (`tests/unit/movie_decoder.cpp`) recomputes this sum from the cap constants and fails above the
+  headroom, so a cap can't move without the budget.
+- Textures: the player's 3 `X8R8G8B8` textures are `D3DPOOL_MANAGED` and are created by D3D
+  (`pcRedTexture.cpp` `pcInit`), outside the Red arena, so they are not in the heap budget.
+  At the caps they take 3 x 1024 x 768 x 4 = 9,437,184 B of managed memory, against 5,760,000 B
+  for retail. Counted against the heap as well, even retail `trailer.mvs` would not fit the x86
+  headroom above, so that model is wrong rather than the caps.
+- Frames: the header plus the whole index has to fit the first read the player makes, 0x20000
+  bytes (`RedMovie::Open` default read size, used by every caller). At 6 tracks and BIKk the
+  header end is 44 + 4 + 72 + 4 x (16000 + 1) = 64,124 B, inside 131,072.
+- Largest frame: 0x40000 is the player's read ring (`RedMovie::Open` default buffer size), so
+  one whole frame always fits the ring.
+- Tracks: retail ships one locale per file (`crawl`, `crawluk`, `crawlfr`, `crawlgr`,
+  `crawlit`, `crawlsp`), so a single stream carrying every locale holds 6 tracks.
+- Rate: 48000 Hz is the Snd engine's mix rate (`sndsoftoutput.cpp`), and 8000 Hz is the lowest
+  standard rate; a zero rate would divide the audio clock by zero.
+- Index: the first entry with bit 0 cleared must equal the header end, 44 + 12 x tracks +
+  4 x (frames + 1), plus 4 for BIKk; it holds in all 281 retail streams and removes the
+  demuxer's only seek. Entries must rise strictly, each span at most the largest cap, and the
+  last entry must equal the file size + 8 with bit 0 cleared, because FFmpeg ends the last frame
+  at the file size rather than at the last entry. All 281 retail streams have it equal. The
+  file size + 8 must not exceed the segment length.
+- Check: `tests/unit/movie_header.cpp` (retail shapes pass, each cap passes, each field one past
+  its cap rejects with its reason, every truncation returns NeedMore at a guard page), the
+  guard rows `MOVIE-HDR-*` and their `-X64` twins, and the MOVIE-10 T2
+  `tests/unit/movie_retail.cpp`, which fails on any retail stream outside the measured set.
+- Frame rate (51-17): the retail set has three rates, measured over all 281 streams with
+  `artifacts\gate51\p17\scan_audio.py` (the 51-07 note of one rate was wrong). Zero was the only
+  rate rejected before, so a rate of 1/0xFFFFFFFF fps passed and froze playback: the shell
+  background never advanced and an in-game movie stayed in state 3. Below 1 fps a frame is held
+  longer than a second, which no movie needs; above 120 fps a frame is due faster than any
+  display shows it, and the player decodes at most one frame per update. Both bounds are
+  compared as 64-bit products, so `120 x fpsDen` can't wrap.
+- Clock arithmetic (51-17): `MovieFrameDue` and `MovieFrameDueTicks` (`pcRedMovieClock.h`)
+  compare exact 128-bit products built by `MovieMulWide`. `(frame - 1) x fpsDen` is a product of
+  two 32-bit values and fits 64 bits for any header; times the 32-bit sample rate or the 64-bit
+  QPC frequency it fits 128 bits, as does the 64-bit played count or tick count times the 32-bit
+  `fpsNum`. So no compare wraps at any header value or counter frequency. Before, a 10 MHz
+  counter, 32000 frames (the cap then) and an `fpsDen` near 2^32 gave about 1.4e21 and wrapped. The timer
+  fallback now restarts from the frame it starts at (`muTimerFrame`) instead of rebasing with a
+  division of the same product.
+- Largest frame against the file (51-17): FFmpeg's `read_header` rejects `largest frame size
+  greater than file size`; the check now rejects it as `largest` too, so an accepted header is
+  one FFmpeg's `read_header` accepts.
+- Index span against the tracks (51-17): every Bink frame starts with one 4-byte audio size per
+  track, and upstream `read_packet` tests `audio_size > remain_packet_size - 4` in `uint32_t`,
+  which wraps on a shorter frame. The check rejects a span below `4 x tracks` as `order`.
+- Status: in force, 51-07, 2026-11-23; frame rate, largest and span bounds added 51-17,
+  2026-11-24.
+
+### C-MOVIE-FRAMES
+
+- No digest row moved. No table in this directory changed; `movie-frames.txt` is new.
+- What: `movie-frames.txt` pins the FFmpeg path's frames exactly (D-11). Its `## ffmpeg frames`
+  section holds the FNV-1a 64 hash of the B, G and R bytes of every frame of the three
+  `movie-goldens.txt` segments, 2941 lines, decoded by `MovieDecoder` from block reads of the
+  `.mvs` and converted by `ConvertYuv420ToXrgb` into a pitch-padded buffer.
+- Cause: the FFmpeg decoder replaces binkw32, so its own output needs an exact pin that does not
+  depend on binkw32 staying in the tree. Two Win32 Test runs gave byte-identical hashes and the
+  x64 Test run gave the same bytes. The path is integer-only (FFmpeg's Bink decoder with asm off
+  and the integer converter), so one table is shared by both platforms and there is no
+  `v143-x64` sibling. Under the exact colour model (`model=exact` in `movie-goldens.txt`) every
+  line equals the binkw32 hash of the same frame.
+- Check: the data-gated T2 `movie frame hashes match the pinned FFmpeg path`
+  (`tests/unit/movie_retail.cpp`) decodes the three segments on Win32 and x64 and requires every
+  hash to equal its pin and, under `model=exact`, its binkw32 golden. The guard row
+  `MOVIE-FRAME-SWAPUV` and its `-X64` twin swap the decoder's U and V planes and turn it RED.
+- Status: in force, 51-10, 2026-11-23.
+
+### C-FFMPEG-TX-LEAK
+
+- No digest row moved. No table in this directory changed.
+- What: `src/FFmpegFL/patches/tx-subtx-free.patch`, a second local FFmpeg patch, applied by
+  `tools/update-ffmpeg.ps1` after the upstream bink fix and pinned by its SHA-256
+  (`$TxPatchSha256`). In `libavutil/tx.c` `ff_tx_init_subtx`, when no codelet initialised
+  (`!s->nb_sub`), it frees `s->sub[0].sub` before `s->sub`. It is not upstream: FFmpeg master
+  has the same code.
+- Cause: a codelet init such as `ff_tx_dct_init` or `ff_tx_rdft_init` first calls
+  `ff_tx_init_subtx` on its own context, which allocates that context's `sub` array, and can
+  then fail its own `exp` allocation. The parent's failure path `reset_ctx(sctx, 0)` resets the
+  children but keeps `sctx->sub` for the next attempt, so when no attempt succeeds the array is
+  lost when `s->sub` is freed. Measured in 51-12 by failing each FFmpeg allocation of a
+  `binkaudio_dct` decoder open in turn: failing allocation 71 (`ff_tx_rdft_init_float_c`,
+  `tx_template.c:1622`) or 72 (`ff_tx_dct_init_float_c`, `tx_template.c:1853`) rejected the open
+  and left one 416-byte block, `TX_MAX_SUB` (4) x `sizeof(AVTXContext)` (104 on x86), allocated
+  at 67 or 64 by the nested `ff_tx_init_subtx`. A hostile or oversized movie under memory
+  pressure could repeat it on every open.
+- Check: the T1s in `tests/unit/movie_oom.cpp` fail every FFmpeg allocation of a decoder open and
+  of a decode in turn and require zero bytes left after `Close` at every point. The guard row
+  `MOVIE-TX-LEAK` and its `-X64` twin drop the added free and turn them RED.
+- Status: in force, 51-12, 2026-11-23.
+
+### C-BINK-GONE-ROW
+
+- No digest row moved. `hardening.txt` gains one row, `[PASS] hardening:bink-gone`, after
+  `unicows-staged`; no other row moves.
+- Cause: a new check (MOVIE-07). binkw32 is deleted: `lib\Win32\binkw32.lib`, its link input,
+  its `GameDataFile` staging, the `BINK`, `BINKFILE` and `BINKIO` mirrors and the Test switch
+  `-moviedump` are gone, and `StageVendor` deletes a stale `binkw32.dll` from the output folder.
+  `bink-gone` keeps it out on both platforms. It fails on `binkw32.dll` or `binkw64.dll` in either
+  import section of the exe, a `binkw32.dll` in the output folder, a `binkw*` file under `lib`, a
+  `.vcxproj`, `.vcxproj.filters` or `.props` element other than a `Delete` that names binkw32, a
+  `StageVendor` without the `Delete` of `$(OutDir)binkw32.dll`, binkw32 in `tests\smoke\cases.ps1`
+  or `tests\common.ps1` or in either platform's worker file list, and a `Bink<Upper>...(` call or
+  a `BINK`, `BINKIO` or `BINKFILE` identifier in `src` (outside `LuaFL`, `ZlibFL`, `mimalloc` and
+  `FFmpegFL`) or `tests\unit`, and (51-17) a `binkw32` or `binkw64` name in `src` outside
+  those trees, which catches a run-time `LoadLibrary` the import checks can not see. The FFmpeg
+  Bink decoder and demuxer keep their format name, and
+  `tests\baseline\census` and the `## binkw32 ...` sections of `movie-goldens.txt` are historical
+  records the check does not read. Nothing names binkw32, so the row passes and the hardening
+  output has one more line.
+- Captured from `run.ps1 -Platform Win32 -Configuration Release -NoBuild -Smoke None -Hardening`
+  with `capture-vs2013.ps1 -NoBuild -Tables -Baseline v143 -HardeningDir` into a scratch
+  `-OutDir`; the capture equals the pinned file plus that one line, byte for byte.
+- Status: re-pinned under MOVIE-07, 51-15, 2026-11-24.
+
+### C-FFMPEG-CONFIG-FIXED
+
+- No digest row moved. No table in this directory changed.
+- What: `tools/update-ffmpeg.ps1` (`Edit-ConfigH`) writes `CONFIG_THIS_YEAR 2026` and the
+  `CC_IDENT` of cl 19.44.35230 for the platform ("... for x86" or "... for x64") into each
+  generated `config.h` in place of the values configure produced, and records the edit in
+  `src/FFmpegFL/UPSTREAM.md`; `changes.diff` holds the diff against configure's output.
+- Cause: configure writes the current year (`date`) and the installed compiler's banner into
+  `config.h`, and `-Verify` byte-compares the regenerated file. So from 2027-01-01, or after any
+  Visual Studio update, `-Verify` failed although the subset was byte-exact, a verdict that
+  depended on the calendar and on another installed program. No compiled source reads either
+  name (a grep of the vendored `.c` and `.h` files finds neither; only `fftools`, which is not
+  vendored, reads them), so the fixed values change no compiled byte.
+- Guard: the script fails unless configure generated exactly one definition of each, in the
+  expected form (four digits; the cl banner for x86 or x64), and fails if any vendored `.c` or
+  `.h` uses either name, so the "unused" fact stays proven on every update.
+- Check: a selftest fixture runs `Edit-ConfigH` on synthetic `config.h` files with another year
+  and another cl version and gets the committed bytes, and shows that the subset compare passes
+  on equal trees and fails on a one-byte change.
+- Status: in force, 51-17, 2026-11-24.
+
+### C-MOVIE-HWGAIN
+
+- No digest row moved. No table in this directory changed.
+- What: `MovieAudioRenderer::UpdateObject` (`pcRedMovieAudio.cpp`) sets `DSBufferRenderer` flag
+  0x10 before every call of the base `UpdateObject`, so the base applies the movie gain as
+  DirectSound volume (19004 -> -473 mB, Bink's level, 51-11).
+- Cause: no retail code sets flag 0x10, and `DSBufferRenderer::Flush` keeps only bit 8
+  (`mFlags & 8u`), so every flush clears it; the subclass sets it again on the sound thread
+  before each tick. Within the tick whose stopped-state `Flush` clears it, and in `SetFormat`
+  during `Open` (which resets the DirectSound volume to full), the renderer briefly runs in the
+  other gain mode, and the next tick restores it. The design is correct only by that ordering,
+  so it is pinned.
+- Played count: bytes are counted only when the tick did not start with a desired stop, because
+  a stop `Flush` zeroes `mLeftToPlay` without playing it. A cursor that advances more than one
+  whole buffer between ticks is counted modulo the buffer size, the same arithmetic the base
+  uses for `mLeftToPlay`: DirectSound exposes only the cursor, and with the 500 ms buffer the
+  case needs the sound thread to stall for more than half a second.
+- Check: `tests/unit/movie_audio.cpp` (a source pin that the flag is set before the base call
+  and that `Flush` keeps only bit 8; the played step across a wrap, at the end and on a stop),
+  with the guard rows `MOVIE-AUDIO-HWGAIN` and `MOVIE-AUDIO-STOPCOUNT` and their `-X64` twins.
+- Status: in force, 51-17, 2026-11-24.
+
+### C-X87-INVENTORY-RESYNC
+
+- No digest row moved. `x87-inventory.tsv` gains three rows, all `match:exact` from the rule:
+  `NetGame.obj ?FinishSend@@...`, `NetGame.obj ?Remove@@YAXPAVNetObj@@_N@Z` and
+  `pcRedMovieConvert.obj ?ConvertAudioToS16@@...`. No other row moved.
+- Cause, FinishSend and Remove: `x87-inventory.ps1` took function boundaries from the labels of
+  dumpbin's linear disassembly. MSVC places a switch jump table after the function's code, and
+  `NetGame.cpp` builds with optimization off. When the table's bytes decode into an instruction
+  that runs past the next function's first byte, dumpbin loses sync, prints no label for that
+  function, and the inventory dropped its code (the predecessor's walk stops at its own table).
+  On main (e2577761) `FinishSend` (0x0061D240, after `AddSend`'s table), `Remove`,
+  `SentStats`, `GetLastObjState` and `SpawnDisplay::Read` started inside a decoded instruction;
+  the 51 code moved `NetGame.obj` by 0x460, so `FinishSend` and `SentStats` came back and the
+  branch gate's `x87-inventory` step failed with `new ... FinishSend`. Both functions are
+  unchanged since main; `FinishSend` stores `GetMaxHealth()` and `Remove` stores one float
+  return, each a single `fstp`.
+- Fix: the inventory decodes again with `dumpbin /range` from every map function (`f`) start
+  that is not an instruction boundary of the linear decode, so the rows no longer depend on
+  layout; `-Disasm` has nothing to decode again with and fails naming the function. With the
+  fix, main gains exactly the `FinishSend` and `Remove` rows and main and 51 differ by one row.
+- Cause, ConvertAudioToS16: new 51 code (`pcRedMovieConvert.cpp`, the decoder's float to S16
+  conversion); its x87 use is loads and stores only.
+- Check: a selftest fixture feeds a disassembly whose map start falls inside a decoded
+  instruction and requires the failure; the 51-17 tool exits 0 on it and folds the lost
+  function's `fmul`/`fstp` into its predecessor. Regenerating with `-Out` over the pinned file
+  gives the same bytes, and `-Check` passes on the Release exe.
+- Status: re-pinned, 51-18, 2026-11-24.
+
 ## Policy
 
 The v143 files in `tests/corpus/` and this directory are the reference from now on. The digest

@@ -348,7 +348,7 @@ public static class StallStub
     $preDir = Join-Path $smokeTmp 'precheck'
     New-Item -ItemType Directory -Force -Path (Join-Path $preDir 'retail\_lvl_pc') | Out-Null
     Set-Content -Path (Join-Path $preDir 'retail\_lvl_pc\shell.lvl') -Value 'x'
-    foreach ($f in 'BattlefrontII.exe', 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll') { Set-Content -Path (Join-Path $preDir $f) -Value 'x' }
+    foreach ($f in 'BattlefrontII.exe', 'Galaxy.dll', 'GalaxyPeer.dll', 'openswbf2-ffmpeg.dll', 'steam_api.dll') { Set-Content -Path (Join-Path $preDir $f) -Value 'x' }
     & cmd /c mklink /J "$(Join-Path $preDir 'data')" "$(Join-Path $preDir 'retail')" | Out-Null
     $pre = Get-SmokePrecheck $smokeTmp $preDir
     & cmd /c rmdir "$(Join-Path $preDir 'data')" | Out-Null
@@ -384,11 +384,13 @@ public static class StallStub
     New-Item -ItemType Directory -Force -Path (Join-Path $pxDir 'data\_lvl_pc') | Out-Null
     Set-Content -Path (Join-Path $pxDir 'data\_lvl_pc\shell.lvl') -Value 'x'
     foreach ($f in 'BattlefrontII.exe', 'steam_appid.txt') { Set-Content -Path (Join-Path $pxDir $f) -Value 'x' }
+    $pxMiss = Get-SmokePrecheck $smokeTmp $pxDir $false 'x64'
+    Set-Content -Path (Join-Path $pxDir 'openswbf2-ffmpeg.dll') -Value 'x'
     $pxX = Get-SmokePrecheck $smokeTmp $pxDir $false 'x64'
     $pxW = Get-SmokePrecheck $smokeTmp $pxDir $false 'Win32'
     $pxA = Get-SmokePrecheck $smokeTmp $pxDir $true 'x64'
-    if ($null -ne $pxX -or $pxW -notmatch '^binkw32\.dll missing beside the exe' -or $pxA -notmatch '^clang_rt\.asan_dynamic-x86_64\.dll missing') { $failed++; Write-Host "FAILED ${n}: smoke precheck per platform: x64 '$pxX', Win32 '$pxW', x64 asan '$pxA'" }
-    else { Write-Host "OK $n smoke precheck on x64 needs no vendor DLL, Win32 still needs binkw32.dll and the x64 ASan runtime is still required" }
+    if ($pxMiss -notmatch '^openswbf2-ffmpeg\.dll missing beside the exe' -or $null -ne $pxX -or $pxW -notmatch '^Galaxy\.dll missing beside the exe' -or $pxA -notmatch '^clang_rt\.asan_dynamic-x86_64\.dll missing') { $failed++; Write-Host "FAILED ${n}: smoke precheck per platform: x64 without the movie DLL '$pxMiss', x64 '$pxX', Win32 '$pxW', x64 asan '$pxA'" }
+    else { Write-Host "OK $n smoke precheck on x64 needs openswbf2-ffmpeg.dll beside the exe and no vendor DLL, Win32 still needs its vendor DLLs from Galaxy.dll on and the x64 ASan runtime is still required" }
     $n++
     $ao = $null
     try { $ao = Get-AsanOptions 'C:\x\case' } catch {}
@@ -1225,9 +1227,12 @@ $n++
 $gpRoot = Split-Path $PSScriptRoot -Parent
 $gp = @(Get-GameProjects $gpRoot $Configuration)
 $gpHave = @($gp | ForEach-Object { $_.Vcxproj.ToLowerInvariant() } | Sort-Object)
-$gpWant = @(@((Join-Path $gpRoot 'BattlefrontII.vcxproj')) + @(Get-ChildItem -LiteralPath (Join-Path $gpRoot 'src') -Recurse -Filter '*.vcxproj' -File | ForEach-Object { $_.FullName }) | ForEach-Object { $_.ToLowerInvariant() } | Sort-Object)
+$gpSrc = @(Get-ChildItem -LiteralPath (Join-Path $gpRoot 'src') -Recurse -Filter '*.vcxproj' -File)
+$gpDll = @($gpSrc | Where-Object { [IO.File]::ReadAllText($_.FullName).Contains('<ConfigurationType>DynamicLibrary</ConfigurationType>') } | ForEach-Object { $_.FullName.ToLowerInvariant() } | Sort-Object)
+$gpWant = @(@((Join-Path $gpRoot 'BattlefrontII.vcxproj')) + @($gpSrc | ForEach-Object { $_.FullName }) | ForEach-Object { $_.ToLowerInvariant() } | Where-Object { $gpDll -notcontains $_ } | Sort-Object)
 $gpWhy = $null
 if (($gpHave -join '|') -ne ($gpWant -join '|')) { $gpWhy = "projects $($gpHave -join ', ') differ from disk $($gpWant -join ', ')" }
+elseif (($gpDll -join '|') -ne (Join-Path $gpRoot 'src\FFmpegFL\FFmpegFL.vcxproj').ToLowerInvariant()) { $gpWhy = "DLL projects $($gpDll -join ', ') are not exactly src\FFmpegFL\FFmpegFL.vcxproj" }
 elseif (@($gp | Select-Object -ExpandProperty TlogDir -Unique).Count -ne $gp.Count) { $gpWhy = 'two projects share a tlog dir' }
 else {
     foreach ($p in $gp) {
@@ -1237,9 +1242,19 @@ else {
         }
     }
     if ($script:GuardGlobalTriggers -notcontains 'OpenSWBF2.Game.props') { $gpWhy = 'OpenSWBF2.Game.props is not a guard-revert global trigger' }
+    $ffp = Get-FFmpegProject $gpRoot $Configuration
+    $ffRel = $ffp.Vcxproj.Substring($gpRoot.Length + 1)
+    if ($gpDll -notcontains $ffp.Vcxproj.ToLowerInvariant()) { $gpWhy = "the ffmpeg-* rows read $ffRel, which is not the DLL project" }
+    foreach ($t in @($ffRel, "$ffRel.filters", 'src\FFmpegFL\FFmpegFL.files.props')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $gpRoot $t))) { $gpWhy = "$t not found" }
+        elseif ($script:GuardGlobalTriggers -notcontains $t) { $gpWhy = "$t is not a guard-revert global trigger" }
+    }
+    $ffInt = [regex]::Match([IO.File]::ReadAllText($ffp.Vcxproj), '<IntDir>\$\(OpenSWBF2Root\)(obj\\\$\(Platform\)\\\$\(Configuration\)\\[^<]+)</IntDir>')
+    $ffWant = $(if ($ffInt.Success) { Join-Path $gpRoot ($ffInt.Groups[1].Value.Replace('$(Platform)', $script:SmokePlatform).Replace('$(Configuration)', $Configuration).TrimEnd('\')) } else { '' })
+    if ($ffp.IntDir -ne $ffWant -or $ffp.TlogDir -ne (Join-Path $ffWant 'FFmpegFL.tlog')) { $gpWhy = "the ffmpeg-flags row reads $($ffp.TlogDir), not the FFmpegFL IntDir '$ffWant'" }
 }
 if ($gpWhy) { $failed++; Write-Host "FAILED ${n}: Get-GameProjects covers every game project: $gpWhy" }
-else { Write-Host "OK $n Get-GameProjects returns the exe and every src vcxproj, and each is a guard-revert trigger" }
+else { Write-Host "OK $n Get-GameProjects returns the exe and every src static-library vcxproj, each is a guard-revert trigger, FFmpegFL is the only DLL project, its project files are guard-revert triggers and the ffmpeg-* rows read its IntDir tlog" }
 $n++
 $addrDir = Join-Path $env:TEMP ("openswbf2-addrorder-" + [guid]::NewGuid().ToString('N'))
 try {
@@ -1262,16 +1277,17 @@ finally {
 $n++
 $crtBanDir = Join-Path $env:TEMP ("openswbf2-crtban-" + [guid]::NewGuid().ToString('N'))
 try {
-    foreach ($d in 'src\Foo', 'src\mimalloc\src', 'src\PebbleFL\Common') { New-Item -ItemType Directory -Path (Join-Path $crtBanDir $d) | Out-Null }
+    foreach ($d in 'src\Foo', 'src\mimalloc\src', 'src\PebbleFL\Common', 'src\FFmpegFL\libavutil', 'src\RedEngineFL\Memory') { New-Item -ItemType Directory -Path (Join-Path $crtBanDir $d) | Out-Null }
     Set-Content -Encoding ASCII -Path (Join-Path $crtBanDir 'src\Foo\a.cpp') -Value @('void* p = malloc(1);', 'void* q = calloc (1, 2);', 'p = realloc(p, 4);', 'free(p);', 'char* s = _strdup("x");', 'size_t z = _msize(q);', 'pBackend->free(p);', 'mFree(p);', 'RedFreeToHeap(0, p, 0);', 'PblCrtFree(p);', 'int free_count = 0;', 'std::free(p);')
     Set-Content -Encoding ASCII -Path (Join-Path $crtBanDir 'src\mimalloc\src\x.c') -Value @('void* p = malloc(1);')
     Set-Content -Encoding ASCII -Path (Join-Path $crtBanDir 'src\PebbleFL\Common\PblCrtHeap.cpp') -Value @('void* p = malloc(1);', 'free(p);')
+    foreach ($f in 'src\FFmpegFL\libavutil\mem.c', 'src\RedEngineFL\Memory\m.cpp') { Set-Content -Encoding ASCII -Path (Join-Path $crtBanDir $f) -Value @('void* p = _aligned_malloc(1, 16);') }
     $bad = @(Get-SourceChecks $crtBanDir -Only 'crt-heap-ban')
-    Remove-Item -LiteralPath (Join-Path $crtBanDir 'src\Foo\a.cpp')
+    Remove-Item -LiteralPath (Join-Path $crtBanDir 'src\Foo\a.cpp'), (Join-Path $crtBanDir 'src\RedEngineFL\Memory\m.cpp')
     $good = @(Get-SourceChecks $crtBanDir -Only 'crt-heap-ban')
-    if ($bad.Count -ne 1 -or $bad[0].Ok -or $bad[0].Detail -ne 'src\Foo\a.cpp:1, src\Foo\a.cpp:2, src\Foo\a.cpp:3, src\Foo\a.cpp:4, src\Foo\a.cpp:5, src\Foo\a.cpp:6') { $failed++; Write-Host "FAILED ${n}: crt-heap-ban flags CRT heap calls outside src\mimalloc and PblCrtHeap.cpp: $($bad.Detail)" }
-    elseif ($good.Count -ne 1 -or -not $good[0].Ok) { $failed++; Write-Host "FAILED ${n}: crt-heap-ban flags CRT heap calls outside src\mimalloc and PblCrtHeap.cpp: allowed files flagged $($good.Detail)" }
-    else { Write-Host "OK $n crt-heap-ban flags CRT heap calls outside src\mimalloc and PblCrtHeap.cpp" }
+    if ($bad.Count -ne 1 -or $bad[0].Ok -or $bad[0].Detail -ne 'src\Foo\a.cpp:1, src\Foo\a.cpp:2, src\Foo\a.cpp:3, src\Foo\a.cpp:4, src\Foo\a.cpp:5, src\Foo\a.cpp:6, src\RedEngineFL\Memory\m.cpp:1') { $failed++; Write-Host "FAILED ${n}: crt-heap-ban flags CRT heap calls outside src\mimalloc, src\FFmpegFL and PblCrtHeap.cpp: $($bad.Detail)" }
+    elseif ($good.Count -ne 1 -or -not $good[0].Ok) { $failed++; Write-Host "FAILED ${n}: crt-heap-ban flags CRT heap calls outside src\mimalloc, src\FFmpegFL and PblCrtHeap.cpp: allowed files flagged $($good.Detail)" }
+    else { Write-Host "OK $n crt-heap-ban flags CRT heap calls outside src\mimalloc, src\FFmpegFL and PblCrtHeap.cpp" }
 }
 finally {
     Remove-Item -Recurse -Force $crtBanDir -ErrorAction SilentlyContinue
@@ -1315,7 +1331,8 @@ $readersDir = Join-Path $env:TEMP ("openswbf2-readers-" + [guid]::NewGuid().ToSt
 try {
     foreach ($d in 'tests\baseline', 'tests\unit') { New-Item -ItemType Directory -Path (Join-Path $readersDir $d) | Out-Null }
     foreach ($fd in 'v143', 'v143-x64') { Copy-Item -LiteralPath (Join-Path (Split-Path $PSScriptRoot -Parent) "tests\baseline\$fd") -Destination (Join-Path $readersDir 'tests\baseline') -Recurse }
-    foreach ($f in 'tests\baseline\compare-tables.ps1', 'tests\baseline\capture-vs2013.ps1', 'tests\unit\memory_baseline.cpp') { Copy-Item -LiteralPath (Join-Path (Split-Path $PSScriptRoot -Parent) $f) -Destination (Join-Path $readersDir $f) }
+    $readerT1 = @([regex]::Matches([IO.File]::ReadAllText((Join-Path (Split-Path $PSScriptRoot -Parent) 'tests\baseline\compare-tables.ps1')), "Reader = 't1:([^']+)'") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+    foreach ($f in @('tests\baseline\compare-tables.ps1', 'tests\baseline\capture-vs2013.ps1') + $readerT1) { Copy-Item -LiteralPath (Join-Path (Split-Path $PSScriptRoot -Parent) $f) -Destination (Join-Path $readersDir $f) }
     $good = @(Get-SourceChecks $readersDir -Only 'baseline-readers')
     Set-Content -Encoding ASCII -Path (Join-Path $readersDir 'tests\baseline\v143\extra-table.txt') -Value 'x'
     $bad = @(Get-SourceChecks $readersDir -Only 'baseline-readers')
@@ -1432,7 +1449,7 @@ if ($why) { $failed++; Write-Host "FAILED ${n}: crt-trig-route fails an object o
 else { Write-Host "OK $n crt-trig-route passes the helper's references, names an extra referencing object, fails an object with no symbols and a link without the helper" }
 $n++
 $impDelay = $impGood + "`n  Section contains the following delay load imports:`n`n    steam_api.dll`n              00000001 Characteristics`n              0041C958 Address of HMODULE`n              0041C944 Import Address Table`n              0041B7EC Import Name Table`n              0041B808 Bound Import Name Table`n              00000000 Unload Import Name Table`n                     0 time date stamp`n`n          0040125A             313 SteamAPI_Shutdown`n`n  Summary`n`n        1000 .data`n"
-$impBink = $impGood + "`n    binkw32.dll`n                   0 _BinkOpen@8`n"
+$impVc1 = $impGood + "`n    VCRUNTIME140_1.dll`n                   0 __CxxFrameHandler4`n"
 $delayAllowSaved = $script:ImportDelayAllow
 foreach ($plat in 'Win32', 'x64') {
     $why = $null
@@ -1456,14 +1473,14 @@ foreach ($plat in 'Win32', 'x64') {
     else { Write-Host "OK $n import-delay-modules on $plat fails an unlisted delay import, passes a listed one and keeps it out of import-modules" }
     $n++
 }
-$bw = Get-SelImportRow $impBink 'Win32' 'import-modules'
-$bx = Get-SelImportRow $impBink 'x64' 'import-modules'
-if (-not $bw[0].Ok -or $bx[0].Ok -or $bx[0].Detail -notmatch 'binkw32\.dll') { $failed++; Write-Host "FAILED ${n}: import-modules lists are per platform: Win32=$($bw[0].Ok) x64=$($bx[0].Ok) $($bx[0].Detail)" }
-else { Write-Host "OK $n import-modules lists are per platform (binkw32.dll passes on Win32, fails on x64)" }
+$bw = Get-SelImportRow $impVc1 'Win32' 'import-modules'
+$bx = Get-SelImportRow $impVc1 'x64' 'import-modules'
+if (-not $bx[0].Ok -or $bw[0].Ok -or $bw[0].Detail -notmatch 'vcruntime140_1\.dll') { $failed++; Write-Host "FAILED ${n}: import-modules lists are per platform: Win32=$($bw[0].Ok) x64=$($bx[0].Ok) $($bw[0].Detail)" }
+else { Write-Host "OK $n import-modules lists are per platform (vcruntime140_1.dll passes on x64, fails on Win32)" }
 $n++
 $bx64 = Get-SelImportRow ($impGood + "`n    binkw64.dll`n                   0 BinkOpen`n") 'x64' 'import-modules'
 if ($bx64.Count -ne 1 -or $bx64[0].Ok -or $bx64[0].Detail -notmatch 'binkw64\.dll') { $failed++; Write-Host "FAILED ${n}: x64 import-modules fails a binkw64.dll import: ok=$($bx64.Ok) $($bx64.Detail)" }
-else { Write-Host "OK $n x64 import-modules fails a binkw64.dll import (x64 links the null movie player and no Bink)" }
+else { Write-Host "OK $n x64 import-modules fails a binkw64.dll import (x64 plays movies through openswbf2-ffmpeg.dll and links no Bink)" }
 $n++
 $impAnchor = 'Section contains the following delay load imports:'
 $impDef = (Get-Command Get-ImportChecks).Definition
@@ -1635,22 +1652,24 @@ $script:SmokePlatform = $btPlat
 $btNames = @('boot-shell', 'boot-sound-on', 'boot-hot1g_con', 'boot-tat2g_eli', 'boot-nab2g_c')
 $btSndRx = @('OPENSWBF2 SOUND open=ok', 'OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 SOAK turns=300\r?$', '(?s)\A(?!.*OPENSWBF2 CURSOR warp)')
 $btGood = @(
-    'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x1C5080F0000 arena_end=0x1C50C0F0000 laa=1 steam=1 steam_api=0x1C5074D0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x100000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=0 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x1F780000000 arena_end=0x1F790000000 laa=1 steam=0 steam_api=0x1F790030000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000'
+    'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x1C5080F0000 arena_end=0x1C50C0F0000 laa=1 steam=1 steam_api=0x1C5074D0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x100000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=0 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x1F780000000 arena_end=0x1F790000000 laa=1 steam=0 steam_api=0x1F790030000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000'
 )
 $btBad = @(
-    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=0 steam_api=0x7FFF0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x7FFF0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x80000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0xFFFFFFFF Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=0 steam_api=0x80000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x86E3CD80 arena_end=0x86E40D80 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x609B0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000',
-    'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x16E3C350000 GalaxyPeer=0x00000000 binkw32=0x00000000'
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=0 steam_api=0x7FFF0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x7FFF0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x80000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0xFFFFFFFF Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=0 steam_api=0x80000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x86E3CD80 arena_end=0x86E40D80 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x609B0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x16E3C350000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000',
+    'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x00000000',
+    'OPENSWBF2 ADDRSPACE arena=0x16E3CD80000 arena_end=0x16E40D80000 laa=1 steam=1 steam_api=0x16E3B350000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x6F2D0000'
 )
 $btShellRx = @('(?m)OPENSWBF2 SOAK shell=300\r?$', 'OPENSWBF2 RUN COMPLETE', '(?s)\A(?!.*OPENSWBF2 MISSION RUNNING)')
 if ((@($btWin32 | ForEach-Object { $_.Name }) -join ',') -cne 'boot-shell,boot-sound-on') { $why = "Win32 Boot holds $(@($btWin32 | ForEach-Object { $_.Name }) -join ', ')" }
@@ -1680,7 +1699,7 @@ else {
 if (-not $why) { foreach ($btg in $btGood) { if ($btg -cnotmatch $script:SmokeAddrSpaceRxX64) { $why = "the x64 ADDRSPACE pattern rejects $btg"; break } } }
 if (-not $why) { foreach ($btb in $btBad) { if ($btb -cmatch $script:SmokeAddrSpaceRxX64) { $why = "the x64 ADDRSPACE pattern accepts $btb"; break } } }
 if ($why) { $failed++; Write-Host "FAILED ${n}: x64 Boot case: $why" }
-else { Write-Host "OK $n Boot runs the shell to 300 updates without a mission and geo1c_con to 300 turns with sound on and the SOUND open=ok line on both platforms (x64 under -hogaddrspace, Win32 without), x64 runs hot1g_con, tat2g_eli and nab2g_c under -hogaddrspace without a pool refusal or cursor warp, and x64 requires an ADDRSPACE line above 4 GB without Galaxy or Bink and steam_api64 not loaded (Steam off) or above the hog limit whether or not Steam initialized" }
+else { Write-Host "OK $n Boot runs the shell to 300 updates without a mission and geo1c_con to 300 turns with sound on and the SOUND open=ok line on both platforms (x64 under -hogaddrspace, Win32 without), x64 runs hot1g_con, tat2g_eli and nab2g_c under -hogaddrspace without a pool refusal or cursor warp, and x64 requires an ADDRSPACE line above 4 GB without Galaxy, with openswbf2-ffmpeg.dll loaded above 4 GB, and steam_api64 not loaded (Steam off) or above the hog limit whether or not Steam initialized" }
 $n++
 $soJudge = {
     param($cases, $excl)
@@ -1731,7 +1750,7 @@ else {
     . ([scriptblock]::Create($sojFn.Extent.Text))
     $sojSnd = "[t=0.700] [f=0] LogAudio Inform Battlefront2\Source\GameSoundEngine.cpp:199: OPENSWBF2 SOUND open=ok`r`n"
     $sojOff = "[t=9.000] [f=9000] LogMemory Inform Battlefront2\Source\GameMemory.cpp:1: OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0`r`n"
-    $sojAddr = "[t=0.010] [f=0] LogCore Inform Battlefront2\Source\pcMain.cpp:1: OPENSWBF2 ADDRSPACE arena=0x100000000 arena_end=0x104000000 laa=1 steam=0 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000`r`n"
+    $sojAddr = "[t=0.010] [f=0] LogCore Inform Battlefront2\Source\pcMain.cpp:1: OPENSWBF2 ADDRSPACE arena=0x100000000 arena_end=0x104000000 laa=1 steam=0 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000`r`n"
     $sojWarp = "[t=1.000] [f=30] LogCore Inform RedEngineFL\input\pc\pcRedMouse.cpp:436: OPENSWBF2 CURSOR warp x=0 y=0`r`n"
     $sojFocus = "[t=0.900] [f=0] LogCore Inform Battlefront2\Source\pcMain.cpp:315: OPENSWBF2 FOCUS activated`r`n"
     $sojCases = @(
@@ -1975,7 +1994,7 @@ try {
     $n++
     $owLogDir = Join-Path $owTmp 'logcase'
     New-Item -ItemType Directory -Path $owLogDir | Out-Null
-    $owOff = "[t=0.100] [f=1] LogCore Warning pcRedMoviePlayerNull.cpp:36: OPENSWBF2 MOVIE off: no movie decoder in this build`r`n"
+    $owOff = "[t=0.100] [f=1] LogCore Warning SyntheticMovie.cpp:36: OPENSWBF2 MOVIE off: no movie decoder in this build`r`n"
     $owOpen = "[t=0.100] [f=1] LogCore Inform pcRedMoviePlayer.cpp:1: OPENSWBF2 MOVIE open x.mvs`r`n"
     $owClose = "[t=2.000] [f=30] LogCore Inform pcRedMoviePlayer.cpp:1: OPENSWBF2 MOVIE close`r`n"
     $owRun = "[t=3.800] [f=62] LogCore Inform GameLoop.cpp:1: OPENSWBF2 MISSION RUNNING nab2g_c`r`n"
@@ -2025,18 +2044,39 @@ try {
     else { Write-Host "OK $n owned log entry: its class, required lines and SOAK line with no forbidden line is OWNED; a missing required or SOAK line, a forbidden line or another class fails as usual naming the part; a pass of the case expectation fails naming the entry to remove; SoakTurns replaces the work cap on the owned platform only; Win32 ignores the x64 entry" }
     $n++
     $why = $null
-    $owReal = @(Get-SmokeCases 'Standard' @() $false $null $true | Where-Object { $_.Name -ceq 'campaign-movies' })
-    $owMovieSrc = [IO.File]::ReadAllText((Join-Path (Split-Path $PSScriptRoot -Parent) 'src\RedEngineFL\movie\pc\pcRedMoviePlayerNull.cpp'))
-    if ($owReal.Count -ne 1) { $why = "x64 Test Standard has $($owReal.Count) campaign-movies cases" }
-    else {
-        $o = $owReal[0].OwnedOn
-        if (@($o.Keys).Count -ne 1 -or -not $o.x64) { $why = "campaign-movies owned platforms: $(@($o.Keys) -join ',')" }
-        elseif ($o.x64.Owner -cne 'Phase 51 MOVIE-04' -or $o.x64.Class -cne 'Pass' -or (@($o.x64.LogRx) -join '|') -cne 'OPENSWBF2 MOVIE off: no movie decoder in this build|OPENSWBF2 MISSION RUNNING nab2g_c' -or (@($o.x64.NoLogRx) -join '|') -cne 'OPENSWBF2 MOVIE open|OPENSWBF2 CURSOR warp|OPENSWBF2 FOCUS activated' -or $o.x64.SoakTurns -ne 300 -or $o.x64.Function) { $why = 'campaign-movies must carry exactly the x64 Phase 51 MOVIE-04 Pass entry with the MOVIE off and MISSION RUNNING lines, no MOVIE open, CURSOR warp or FOCUS activated line and SoakTurns 300' }
-        elseif (-not $owReal[0].Args.EndsWith(' -win -exitonmovieclose -soakturns 300') -or [regex]::Matches($owReal[0].Args, ' -soakturns \d+').Count -ne 1) { $why = "x64 campaign-movies runs $($owReal[0].Args)" }
-        elseif ($owMovieSrc -cnotmatch [regex]::Escape('"' + $o.x64.LogRx[0] + '"')) { $why = 'the MOVIE off line is not the text of the null movie player' }
+    $onPlat = $script:SmokePlatform
+    $onCfg = $script:SmokeDigestConfiguration
+    $owOwned = @()
+    $owArgs = @{}
+    $owMovies = @('campaign-movies', 'ingame-movie-digest', 'shell-movie-loop', 'movie-reject-width', 'movie-reject-magic', 'movie-reject-loop', 'movie-skip', 'movie-texture-wait', 'movie-texture-reject', 'movie-surface-fail')
+    try {
+        foreach ($p in 'Win32', 'x64') {
+            $script:SmokePlatform = $p
+            foreach ($cfg in 'Release', 'Test', 'Asan') {
+                $script:SmokeDigestConfiguration = $cfg
+                foreach ($g in 'Standard', 'Twice', 'Dedicated', 'Crash', 'All', 'Perturb', 'Soak', 'Vendor', 'Boot') {
+                    foreach ($hg in $false, $true) {
+                        foreach ($c in @(Get-SmokeCases $g @() $false $null $hg)) {
+                            if ($c.OwnedOn) { $owOwned += "$p/$cfg/$g/$hg/$($c.Name)" }
+                            if ($cfg -eq 'Test' -and $g -eq 'Standard' -and -not $hg -and $owMovies -ccontains $c.Name) { $owArgs["$p/$($c.Name)"] = [string]$c.Args }
+                        }
+                    }
+                }
+            }
+        }
     }
-    if ($why) { $failed++; Write-Host "FAILED ${n}: campaign-movies owned entry: $why" }
-    else { Write-Host "OK $n x64 campaign-movies is owned by Phase 51 MOVIE-04 with the null movie player line, MISSION RUNNING, no MOVIE open, CURSOR warp or FOCUS activated line and a 300-turn run" }
+    catch { $why = "threw: $($_.Exception.Message)" }
+    finally {
+        $script:SmokePlatform = $onPlat
+        $script:SmokeDigestConfiguration = $onCfg
+    }
+    if (-not $why -and $owOwned.Count) { $why = "cases with an owned entry: $(($owOwned | Sort-Object -Unique) -join ',')" }
+    foreach ($m in $owMovies) {
+        if ($why) { break }
+        if (-not $owArgs["Win32/$m"] -or $owArgs["Win32/$m"] -cne $owArgs["x64/$m"]) { $why = "$m runs '$($owArgs["Win32/$m"])' on Win32 and '$($owArgs["x64/$m"])' on x64" }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: no owned entries: $why" }
+    else { Write-Host "OK $n no real case carries an owned entry on either platform in any configuration or group, and the seven movie cases run the same arguments on Win32 and x64 Test" }
     $n++
     $owNew = { param([hashtable]$owned, [string]$row) $o = New-Object PSObject -Property @{ Name = 'x-case'; Expect = @{ Class = 'Pass' } }; if ($owned) { $o | Add-Member -NotePropertyName OwnedOn -NotePropertyValue @{ x64 = $owned } }; if ($row) { $o | Add-Member -NotePropertyName DigestRow -NotePropertyValue $row }; $o }
     $owRefused = { param($c) try { Assert-SmokeCaseData @($c); return $false } catch { return $true } }
@@ -2076,7 +2116,7 @@ try {
         if ($owX64.Count -ne 1 -or $owX64[0].Name -cne 'crash-delayload-x64' -or $owX64[0].DigestRow -cne 'crash-delayload') { $why = "x64 digest row names: $(@($owX64 | ForEach-Object { "$($_.Name)=$($_.DigestRow)" }) -join ', ')" }
         $script:SmokePlatform = 'Win32'
         $owMarked = @(@(Get-SmokeCases 'Standard' @() $false $null) + @(Get-SmokeCases 'All' @() $false $null) | Where-Object { $_.DigestRow -or $_.OwnedOn } | ForEach-Object { $_.Name }) -join ','
-        if (-not $why -and $owMarked -cne 'campaign-movies') { $why = "Win32 cases with a digest row name or an owned entry: $owMarked" }
+        if (-not $why -and $owMarked -cne '') { $why = "Win32 cases with a digest row name or an owned entry: $owMarked" }
     }
     if ($why) { $failed++; Write-Host "FAILED ${n}: case data load check: $why" }
     else { Write-Host "OK $n case data load check refuses an owned entry without a Phase <n> <REQ-NN> owner, or that is neither the full Fatal form (function, failing class) nor the full log form (class, LogRx, NoLogRx, SoakTurns 1 to 9300), and a digest row name onto a row with a digest, a missing row or a case of the same run; only crash-delayload-x64 names crash-delayload" }
@@ -2114,9 +2154,9 @@ finally {
 }
 $hrx = $script:SmokeAddrSpaceRx
 $hrxPlat = Get-SmokeAddrSpaceRx
-$okLine = 'OPENSWBF2 ADDRSPACE arena=0x82000000 arena_end=0x86000000 laa=1 steam=1 steam_api=0x65740000 Galaxy=0x652E0000 GalaxyPeer=0x00000000 binkw32=0x18000000'
+$okLine = 'OPENSWBF2 ADDRSPACE arena=0x82000000 arena_end=0x86000000 laa=1 steam=1 steam_api=0x65740000 Galaxy=0x652E0000 GalaxyPeer=0x00000000 ffmpeg=0x6F2D0000'
 $okClosedLine = $okLine.Replace('steam=1 steam_api=0x65740000', 'steam=0 steam_api=0x75140000')
-$badLines = @($okLine.Replace('arena=0x82000000', 'arena=0x02000000'), $okLine.Replace('laa=1', 'laa=0'), $okLine.Replace('steam=1', 'steam=2'), $okClosedLine.Replace('steam_api=0x75140000', 'steam_api=0x00000000'), $okLine.Replace('steam=1 ', ''), $okLine.Replace('Galaxy=0x652E0000', 'Galaxy=0x00000000'), $okLine.Replace('binkw32=0x18000000', 'binkw32=0x00000000'), $okLine.Replace('steam_api=0x65740000', 'steam_api=0x00000000'))
+$badLines = @($okLine.Replace('arena=0x82000000', 'arena=0x02000000'), $okLine.Replace('laa=1', 'laa=0'), $okLine.Replace('steam=1', 'steam=2'), $okClosedLine.Replace('steam_api=0x75140000', 'steam_api=0x00000000'), $okLine.Replace('steam=1 ', ''), $okLine.Replace('Galaxy=0x652E0000', 'Galaxy=0x00000000'), $okLine.Replace('ffmpeg=0x6F2D0000', 'ffmpeg=0x00000000'), $okLine.Replace('steam_api=0x65740000', 'steam_api=0x00000000'))
 $hogCases = @(Get-SmokeCases 'All' @('foo1c_ctf TimeOut', 'tat3c_con Fatal', 'bar1c_con') $false $null $true)
 $hogByName = @{}
 foreach ($c in $hogCases) { $hogByName[$c.Name] = $c }
@@ -2224,14 +2264,14 @@ $script:SmokePlatform = 'Win32'
 try {
     New-Item -ItemType Directory -Path (Join-Path $psrc 'data') | Out-Null
     Copy-Item -LiteralPath $env:ComSpec -Destination (Join-Path $psrc 'BattlefrontII.exe')
-    Set-Content -Path (Join-Path $psrc 'binkw32.dll') -Value 'x'
+    Set-Content -Path (Join-Path $psrc 'openswbf2-ffmpeg.dll') -Value 'x'
     Set-Content -Path (Join-Path $psrc 'data\marker.txt') -Value 'x'
     foreach ($w in 1, 2) {
         $d = Join-Path $psrc "artifacts\smoke-workers\Win32\Release\smoke\w$w"
         New-SmokeWorkerDir $psrc $d
         $pdirs += $d
         $link = Get-Item -LiteralPath (Join-Path $d 'data') -Force
-        if (-not (Test-Path -LiteralPath (Join-Path $d 'BattlefrontII.exe')) -or -not (Test-Path -LiteralPath (Join-Path $d 'binkw32.dll'))) { $why = "worker $w lacks exe or dll" }
+        if (-not (Test-Path -LiteralPath (Join-Path $d 'BattlefrontII.exe')) -or -not (Test-Path -LiteralPath (Join-Path $d 'openswbf2-ffmpeg.dll'))) { $why = "worker $w lacks exe or dll" }
         elseif (-not ($link.Attributes -band [IO.FileAttributes]::ReparsePoint) -or -not (Test-Path -LiteralPath (Join-Path $d 'data\marker.txt'))) { $why = "worker $w data is not a junction to the source data" }
         New-Item -ItemType Directory -Path (Join-Path $d 'SaveGames') | Out-Null
         Set-Content -Path (Join-Path $d 'SaveGames\Player 1.profile') -Value 'x'
@@ -2256,7 +2296,7 @@ try {
         foreach ($d in $pdirs) {
             if ($why) { break }
             $left = @(Get-ChildItem -LiteralPath $d -Force | ForEach-Object { $_.Name } | Sort-Object)
-            if (($left -join ',') -ne ((@('BattlefrontII-alt.exe', 'BattlefrontII.exe', 'binkw32.dll', 'data', 'steam_appid.txt') | Sort-Object) -join ',') -or -not (Test-Path -LiteralPath (Join-Path $d 'data\marker.txt'))) { $why = "worker $d not cleared before its case: $($left -join ',')" }
+            if (($left -join ',') -ne ((@('BattlefrontII-alt.exe', 'BattlefrontII.exe', 'data', 'openswbf2-ffmpeg.dll', 'steam_appid.txt') | Sort-Object) -join ',') -or -not (Test-Path -LiteralPath (Join-Path $d 'data\marker.txt'))) { $why = "worker $d not cleared before its case: $($left -join ',')" }
         }
         if (-not $why) {
             $pl = Join-Path $psrc 'outside'
@@ -2298,7 +2338,7 @@ function Get-SelSha([string]$p) {
 try {
     New-Item -ItemType Directory -Path (Join-Path $vsrc 'data'), (Split-Path $vswap) | Out-Null
     Copy-Item -LiteralPath $env:ComSpec -Destination (Join-Path $vsrc 'BattlefrontII.exe')
-    foreach ($f in 'binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll') { Set-Content -Path (Join-Path $vsrc $f) -Value "std $f" -Encoding ASCII }
+    foreach ($f in 'Galaxy.dll', 'GalaxyPeer.dll', 'openswbf2-ffmpeg.dll', 'steam_api.dll') { Set-Content -Path (Join-Path $vsrc $f) -Value "std $f" -Encoding ASCII }
     Set-Content -Path $vswap -Value 'swap source' -Encoding ASCII
     $vapi = Join-Path $vdir 'steam_api.dll'
     $omitCase = New-Object PSObject -Property @{ Name = 'omit'; Omit = @('steam_api.dll') }
@@ -2535,7 +2575,7 @@ try {
         $plat = $(if ($exe -match '\\x64\\') { 'x64' } else { 'Win32' })
         $sg = Join-Path $workDir 'SaveGames'
         $log = @()
-        if ($plat -eq 'x64') { $log += 'OPENSWBF2 ADDRSPACE arena=0x100000000 arena_end=0x104000000 laa=1 steam=0 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000' }
+        if ($plat -eq 'x64') { $log += 'OPENSWBF2 ADDRSPACE arena=0x100000000 arena_end=0x104000000 laa=1 steam=0 steam_api=0x00000000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000' }
         if ($argLine -match ' -savetest write( |$)') {
             New-Item -ItemType Directory -Force -Path $sg | Out-Null
             $pb = [byte[]](1..40)
@@ -2829,7 +2869,7 @@ try {
     $script:SmokeDigestConfiguration = $hoCfg
     $env:OPENSWBF2_DIGEST_EXPECTED = $hoEnv
     if (-not $hoWhy -and -not $hoReal) { $hoWhy = 'Win32 Test Standard has no campaign-movies case' }
-    if (-not $hoWhy -and ($hoNames | Sort-Object -Unique) -join ',' -cne 'Win32/Test/campaign-movies,Win32/Test/render-sound-on,x64/Test/campaign-movies,x64/Test/render-sound-on') { $hoWhy = "rendered default cases are $(($hoNames | Sort-Object -Unique) -join ','), expected campaign-movies and render-sound-on in Win32 and x64 Test" }
+    if (-not $hoWhy -and ($hoNames | Sort-Object -Unique) -join ',' -cne 'Win32/Test/campaign-movies,Win32/Test/ingame-movie-digest,Win32/Test/movie-reject-loop,Win32/Test/movie-reject-magic,Win32/Test/movie-reject-width,Win32/Test/movie-skip,Win32/Test/movie-surface-fail,Win32/Test/movie-texture-reject,Win32/Test/movie-texture-wait,Win32/Test/render-sound-on,Win32/Test/shell-movie-loop,x64/Test/campaign-movies,x64/Test/ingame-movie-digest,x64/Test/movie-reject-loop,x64/Test/movie-reject-magic,x64/Test/movie-reject-width,x64/Test/movie-skip,x64/Test/movie-surface-fail,x64/Test/movie-texture-reject,x64/Test/movie-texture-wait,x64/Test/render-sound-on,x64/Test/shell-movie-loop') { $hoWhy = "rendered default cases are $(($hoNames | Sort-Object -Unique) -join ','), expected campaign-movies, ingame-movie-digest, the movie-reject, movie-skip, movie-surface-fail and movie-texture cases, render-sound-on and shell-movie-loop in Win32 and x64 Test" }
     foreach ($p in 'Win32', 'x64') {
         if ($hoWhy) { break }
         $w = & $hoRsoJudge $hoRso[$p]
@@ -2855,15 +2895,17 @@ try {
         if ((& $hoRsoJudge $mc) -cne 'render-sound-on accepts a headless log') { $hoWhy = 'the check accepts render-sound-on with a PACING line any timer matches' }
         $hoPace = $hoPaceReal
     }
-    if (-not $hoWhy -and -not ($hoReal.OwnedOn -and $hoReal.OwnedOn.x64 -and -not $hoReal.OwnedOn.x64.Function)) { $hoWhy = 'Win32 Test campaign-movies carries no x64 owned log entry to mutate' }
+    $hoOwnedFull = @{ Owner = 'Phase 98 SYN-04'; Class = 'Pass'; LogRx = @('OPENSWBF2 MISSION RUNNING nab2g_c'); NoLogRx = @('OPENSWBF2 MOVIE open', 'OPENSWBF2 CURSOR warp', 'OPENSWBF2 FOCUS activated'); SoakTurns = 300 }
+    if (-not $hoWhy -and $hoReal.OwnedOn) { $hoWhy = 'Win32 Test campaign-movies carries an owned entry' }
+    if (-not $hoWhy -and (& $hoJudge (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args; Expect = $hoReal.Expect; OwnedOn = @{ x64 = $hoOwnedFull }; Twice = 0 }) $true)) { $hoWhy = 'the check refuses campaign-movies with a synthetic x64 owned entry that forbids both lines' }
     if (-not $hoWhy) {
-        $hoOwnedNo = { param([string]$drop) $o = $hoReal.OwnedOn.x64.Clone(); $o.NoLogRx = @(@($o.NoLogRx) | Where-Object { $_ -cne $drop }); $o }
+        $hoOwnedNo = { param([string]$drop) $o = $hoOwnedFull.Clone(); $o.NoLogRx = @(@($o.NoLogRx) | Where-Object { $_ -cne $drop }); $o }
         $hoMuts = @(
             @('campaign-movies without -handsoff', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args.Replace(' -handsoff', ''); Expect = $hoReal.Expect; Twice = 0 })),
             @('campaign-movies without the no-warp LogRx', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args; Expect = @{ Class = 'Pass'; LogRx = @(@($hoReal.Expect.LogRx) | Where-Object { $_ -cne $hoWarp }) }; Twice = 0 })),
             @('campaign-movies without the no-focus LogRx', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args; Expect = @{ Class = 'Pass'; LogRx = @(@($hoReal.Expect.LogRx) | Where-Object { $_ -cne $hoFocus }) }; Twice = 0 })),
-            @('campaign-movies whose x64 owned entry allows a cursor warp', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args; Expect = $hoReal.Expect; OwnedOn = @{ x64 = (& $hoOwnedNo 'OPENSWBF2 CURSOR warp') }; Twice = 0 })),
-            @('campaign-movies whose x64 owned entry allows a focus grab', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args; Expect = $hoReal.Expect; OwnedOn = @{ x64 = (& $hoOwnedNo 'OPENSWBF2 FOCUS activated') }; Twice = 0 })),
+            @('campaign-movies whose synthetic x64 owned entry allows a cursor warp', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args; Expect = $hoReal.Expect; OwnedOn = @{ x64 = (& $hoOwnedNo 'OPENSWBF2 CURSOR warp') }; Twice = 0 })),
+            @('campaign-movies whose synthetic x64 owned entry allows a focus grab', (New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = $hoReal.Args; Expect = $hoReal.Expect; OwnedOn = @{ x64 = (& $hoOwnedNo 'OPENSWBF2 FOCUS activated') }; Twice = 0 })),
             @('a synthetic rendered case without -handsoff', (New-Object PSObject -Property @{ Name = 'selftest-rendered'; Args = 'geo1c_con -nosound -fixedrate 30 -nowait -exitongameover -soakturns 300 -hangtimeout 0'; Expect = @{ Class = 'Pass'; LogRx = @($hoWarp, $hoFocus) }; Twice = 0 })),
             @('a rendered Then step without -handsoff', (New-Object PSObject -Property @{ Name = 'selftest-then'; Args = '-norender -nosound -savetest write'; Then = @('-nosound -savetest load 1 SaveTest'); Expect = @{ Class = 'Pass'; LogRx = @($hoWarp, $hoFocus) }; Twice = 0 }))
         )
@@ -2887,9 +2929,10 @@ try {
             All = @(Get-Content (Join-Path $PSScriptRoot 'smoke\missions-all.txt') | Where-Object { $_.Trim() })
             Other = @(Get-Content (Join-Path $PSScriptRoot 'smoke\missions.txt') | Where-Object { $_.Trim() })
         }
-        $spNames = @('sound-on', 'boot-sound-on', 'render-sound-on')
+        $spMovies = @('campaign-movies', 'ingame-movie-digest', 'shell-movie-loop', 'movie-reject-width', 'movie-reject-magic', 'movie-reject-loop', 'movie-skip', 'movie-texture-wait', 'movie-texture-reject', 'movie-surface-fail')
+        $spNames = @('sound-on', 'boot-sound-on', 'render-sound-on') + $spMovies
         $spTierOrder = @('plan', 'pr', 'branch', 'milestone')
-        $spShared = @('sound-on Release/Standard plan,branch,milestone', 'sound-on Test/Standard pr,milestone', 'boot-sound-on Release/Boot plan,branch,milestone', 'render-sound-on Test/Standard pr,milestone')
+        $spShared = @('sound-on Release/Standard plan,branch,milestone', 'sound-on Test/Standard pr,milestone', 'boot-sound-on Release/Boot plan,branch,milestone', 'render-sound-on Test/Standard pr,milestone') + @($spMovies | ForEach-Object { "$_ Test/Standard pr,milestone" })
         $spAsan = @{
             Win32 = @('sound-on Asan/Standard pr,milestone')
             x64 = @('boot-sound-on Asan/Boot excluded=C-DSOUND-LFQUEUE-ASAN branch,milestone')
@@ -2955,15 +2998,40 @@ try {
             if ($miss.Count -or $extra.Count) { return "placement differs: missing [$($miss -join '; ')] extra [$($extra -join '; ')]" }
             return $null
         }
+        $spMovieSet = {
+            param($caseFn)
+            foreach ($p in 'Win32', 'x64') {
+                foreach ($g in 'Standard', 'Boot', 'Crash', 'Vendor') {
+                    foreach ($cfg in 'Release', 'Test', 'Asan') {
+                        $found = @(& $caseFn $p $cfg $g $false 'Short' | Where-Object { $_.Name -ceq 'campaign-movies' -or $_.Args -match '(^| )-movie\w*( |$)' -or $_.MovieFile -or $_.GoldenDigest } | ForEach-Object { $_.Name })
+                        $extra = @($found | Where-Object { $spMovies -cnotcontains $_ })
+                        if ($extra.Count) { return "$p $cfg $g movie case not pinned in the placement list: $($extra -join ', ')" }
+                    }
+                }
+            }
+            return $null
+        }
         $spSteps = & $spLoad $spText
-        $spWhy = & $spCheck $spSteps $spRealCases
+        $spWhy = & $spMovieSet $spRealCases
+        if (-not $spWhy) {
+            $spNewMovie = { param($p, $cfg, $g, $hg, $soak) @(& $spRealCases $p $cfg $g $hg $soak) + @(New-Object PSObject -Property @{ Name = 'movie-new'; Args = '-movietest a.mvs:0x1:5 -handsoff -win'; Expect = @{ Class = 'Pass' }; Twice = 0 }) }
+            $w = & $spMovieSet $spNewMovie
+            if (-not $w) { $spWhy = 'mutant survived: an unpinned -movietest case' } else { $spRed += "an unpinned -movietest case -> $w" }
+            $spNewGolden = { param($p, $cfg, $g, $hg, $soak) @(& $spRealCases $p $cfg $g $hg $soak) + @(New-Object PSObject -Property @{ Name = 'golden-new'; Args = 'nab2g_c -win'; GoldenDigest = 'x'; Expect = @{ Class = 'Pass' }; Twice = 0 }) }
+            $w = & $spMovieSet $spNewGolden
+            if (-not $w) { $spWhy = 'mutant survived: an unpinned GoldenDigest case' } else { $spRed += "an unpinned GoldenDigest case -> $w" }
+        }
+        if (-not $spWhy) { $spWhy = & $spCheck $spSteps $spRealCases }
         $spAnchor = "Name = 'standard-Test'; Tiers = @('pr', 'milestone')"
         if (-not $spWhy -and ([regex]::Matches($spText, [regex]::Escape($spAnchor))).Count -ne 1) { $spWhy = 'standard-Test anchor not found once in tiers.ps1' }
         if (-not $spWhy) {
             $spNoRso = { param($p, $cfg, $g, $hg, $soak) & $spRealCases $p $cfg $g $hg $soak | Where-Object { -not ($p -eq 'x64' -and $_.Name -ceq 'render-sound-on') } }
             $spHogW = { param($p, $cfg, $g, $hg, $soak) & $spRealCases $p $cfg $g $hg $soak | ForEach-Object { if ($p -eq 'Win32' -and $_.Name -ceq 'boot-sound-on') { New-Object PSObject -Property @{ Name = $_.Name; Args = $_.Args.Replace(' -soakturns 300', ' -hogaddrspace -soakturns 300'); Expect = $_.Expect; Twice = 0 } } else { $_ } } }
+            $spNoCm = { param($p, $cfg, $g, $hg, $soak) & $spRealCases $p $cfg $g $hg $soak | Where-Object { -not ($cfg -ceq 'Test' -and $g -ceq 'Standard' -and $_.Name -ceq 'campaign-movies') } }
             $spMuts = @(
                 @('x64 standard-Test without pr', (& $spLoad $spText.Replace($spAnchor, "Name = 'standard-Test'; Tiers = @('milestone')")), $spRealCases),
+                @('a step table without standard-Test', @($spSteps | Where-Object { $_.Name -cne 'standard-Test' }), $spRealCases),
+                @('campaign-movies moved out of Test Standard', $spSteps, $spNoCm),
                 @('no render-sound-on on x64', $spSteps, $spNoRso),
                 @('Win32 boot-sound-on with -hogaddrspace', $spSteps, $spHogW)
             )
@@ -2981,7 +3049,7 @@ try {
         $env:OPENSWBF2_DIGEST_EXPECTED = $spEnv
     }
     if ($spWhy) { $failed++; Write-Host "FAILED ${n}: sound and render placement: $spWhy" }
-    else { Write-Host "OK $n sound-on, boot-sound-on and render-sound-on run at the same tiers on Win32 and x64 ($($spShared -join '; ')), the Asan group differs only as recorded (Win32 $($spAsan.Win32 -join '; '); x64 $($spAsan.x64 -join '; '); $spAsanWhy), boot-sound-on carries -hogaddrspace and the ADDRSPACE line on x64 only, and the check fails on: $($spRed -join ' | ')" }
+    else { Write-Host "OK $n sound-on, boot-sound-on, render-sound-on and the movie cases run at the same tiers on Win32 and x64 ($($spShared -join '; ')), the Asan group differs only as recorded (Win32 $($spAsan.Win32 -join '; '); x64 $($spAsan.x64 -join '; '); $spAsanWhy), boot-sound-on carries -hogaddrspace and the ADDRSPACE line on x64 only, and the check fails on: $($spRed -join ' | ')" }
     $n++
     $capWhy = $null
     $capCfg = $script:SmokeDigestConfiguration
@@ -2999,14 +3067,14 @@ try {
                     foreach ($c in @(Get-SmokeCases $g $capMissions $false $null $hg $sk)) {
                         $capSeen++
                         if ($capWhy) { continue }
-                        $req = @(@($c.Expect.LogRx) | Where-Object { $_ -ceq 'OPENSWBF2 SOAK turns=' -or $_ -ceq '(?m)OPENSWBF2 SOAK turns=1\r?$' -or $_ -ceq '(?m)OPENSWBF2 SOAK turns=300\r?$' -or $_ -ceq '(?m)OPENSWBF2 SOAK shell=300\r?$' }).Count -gt 0
+                        $req = @(@($c.Expect.LogRx) | Where-Object { $_ -ceq 'OPENSWBF2 SOAK turns=' -or $_ -ceq '(?m)OPENSWBF2 SOAK turns=1\r?$' -or $_ -ceq '(?m)OPENSWBF2 SOAK turns=300\r?$' -or $_ -ceq '(?m)OPENSWBF2 SOAK turns=1500\r?$' -or $_ -ceq '(?m)OPENSWBF2 SOAK shell=300\r?$' }).Count -gt 0
                         $forbid = @($c.Expect.LogRx) -contains $script:SmokeCapRx
                         if ($req) { $capReq++ }
                         if ($c.Expect.Class -eq 'TimeOut') { $capWhy = "$cfg $g $sk $($c.Name) expects TimeOut" }
                         elseif ([regex]::Matches($c.Args, ' -soakturns \d+').Count -ne 1) { $capWhy = "$cfg $g $sk $($c.Name) does not carry exactly one -soakturns: $($c.Args)" }
                         elseif ($req -eq $forbid) { $capWhy = "$cfg $g $sk $($c.Name) requires=$req forbids=$forbid the SOAK line" }
                         elseif ($forbid -and -not $c.Args.EndsWith(" -soakturns $(if ($c.OwnedOn -and $c.OwnedOn[$script:SmokePlatform] -and $c.OwnedOn[$script:SmokePlatform].SoakTurns) { $c.OwnedOn[$script:SmokePlatform].SoakTurns } else { $script:SmokeTurnCap })")) { $capWhy = "$cfg $g $sk $($c.Name) forbids the SOAK line but does not end at the work cap: $($c.Args)" }
-                        elseif ((@($c.PSObject.Properties.Name | Where-Object { $_ -notin 'Omit', 'Swap', 'NeedsFile', 'SkipReason', 'DigestRow', 'OwnedOn', 'Then' } | Sort-Object) -join ',') -cne 'Args,Expect,Name,Twice') { $capWhy = "$cfg $g $sk $($c.Name) carries fields other than Name, Args, Expect, Twice, the worker file fields, the Then steps and the digest row and owned entry fields: $(@($c.PSObject.Properties.Name) -join ',')" }
+                        elseif ((@($c.PSObject.Properties.Name | Where-Object { $_ -notin 'Omit', 'Swap', 'NeedsFile', 'SkipReason', 'MovieFile', 'DigestRow', 'GoldenDigest', 'OwnedOn', 'Then' } | Sort-Object) -join ',') -cne 'Args,Expect,Name,Twice') { $capWhy = "$cfg $g $sk $($c.Name) carries fields other than Name, Args, Expect, Twice, the worker file fields, the Then steps and the digest row and owned entry fields: $(@($c.PSObject.Properties.Name) -join ',')" }
                         elseif (@($c.Then | Where-Object { $_ } | Where-Object { [regex]::Matches([string]$_, ' -soakturns \d+').Count -ne 1 -or -not ([string]$_).EndsWith(" -soakturns $script:SmokeTurnCap") -or [regex]::Matches([string]$_, '(?:^| )-hangtimeout 0(?: |$)').Count -ne 1 }).Count -gt 0) { $capWhy = "$cfg $g $sk $($c.Name) has a Then step without one -soakturns at the work cap and one -hangtimeout 0: $(@($c.Then) -join ' | ')" }
                         elseif (($c.Args -replace '^.*(?:^| )-hangtimeout (\S+)(?: .*)?$', '$1') -cne $(if ($c.Name -eq 'crash-hang') { '5' } else { '0' }) -or [regex]::Matches($c.Args, '(?:^| )-hangtimeout ').Count -ne 1) { $capWhy = "$cfg $g $sk $($c.Name) does not carry exactly one -hangtimeout 0 (crash-hang: 5): $($c.Args)" }
                     }
@@ -3513,8 +3581,8 @@ try {
     $pCases = @{}
     foreach ($c in (Get-SmokeCases 'Perturb' @() $false $null)) { $pCases[$c.Name] = $c }
     $env:OPENSWBF2_PERTURB_MISSIONS = $savedPm
-    $addr = 'OPENSWBF2 ADDRSPACE arena=0x82000000 arena_end=0x86000000 laa=1 steam=1 steam_api=0x65740000 Galaxy=0x652E0000 GalaxyPeer=0x00000000 binkw32=0x18000000'
-    if ($script:SmokePlatform -eq 'x64') { $addr = 'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x1C5074D0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 binkw32=0x00000000' }
+    $addr = 'OPENSWBF2 ADDRSPACE arena=0x82000000 arena_end=0x86000000 laa=1 steam=1 steam_api=0x65740000 Galaxy=0x652E0000 GalaxyPeer=0x00000000 ffmpeg=0x6F2D0000'
+    if ($script:SmokePlatform -eq 'x64') { $addr = 'OPENSWBF2 ADDRSPACE arena=0x219E5F80000 arena_end=0x219E9F80000 laa=1 steam=1 steam_api=0x1C5074D0000 Galaxy=0x00000000 GalaxyPeer=0x00000000 ffmpeg=0x7FFB22900000' }
     $pLine = "[t=0.100] [f=0] LogCore Inform pcMain.cpp:1: OPENSWBF2 PERTURB seed=1 modes=pad`r`n"
     $prBad = @()
     if (@(Get-PerturbProofMissing $pCases['perturb-geo1c_con-pad-1'] "x`r`n$pLine").Count -ne 0) { $prBad += 'pad line rejected' }
@@ -4278,6 +4346,71 @@ catch { "threw: $($_.Exception.Message)"; exit 0 }
     if ($why) { $failed++; Write-Host "FAILED ${n}: guard proof merge drops orphan records of its own platform: $why" }
     else { Write-Host "OK $n guard proof merge drops orphan records of its own platform and records with no platform, keeps the other platform's records and prunes nothing without proofs; mutants fail: $opMut; $opMut2" }
     $n++
+    $rcFix = Join-Path $grTmp "records$n.ps1"
+    Set-Content -LiteralPath $rcFix -Encoding ASCII -Value @'
+param([string]$gr, [string]$keys, [string]$dir, [string]$from, [string]$to)
+$ErrorActionPreference = 'Stop'
+. $keys
+$names = @('Invoke-Git', 'Get-GuardRecordPathspecs')
+$ast = [Management.Automation.Language.Parser]::ParseFile($gr, [ref]$null, [ref]$null)
+$defs = @($ast.FindAll({ param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst] -and $names -contains $a.Name }, $false))
+if ($defs.Count -ne $names.Count) { "found $($defs.Count) of $($names.Count) functions"; exit 0 }
+$text = @($defs | ForEach-Object { $_.Extent.Text }) -join "`r`n"
+if ($from) {
+    if ([regex]::Matches($text, [regex]::Escape($from)).Count -ne 1) { "mutant anchor '$from' not found once"; exit 0 }
+    $text = $text.Replace($from, $to)
+}
+. ([scriptblock]::Create($text))
+try {
+    $repo = Join-Path $dir 'repo'
+    $files = @('tests\guardrevert\steps.tsv', 'tests\guardrevert\proven.tsv', 'tests\baseline\gate-times.tsv', 'src\a.txt')
+    foreach ($f in $files) {
+        $p = Join-Path $repo $f
+        New-Item -ItemType Directory -Force -Path (Split-Path $p -Parent) | Out-Null
+        [IO.File]::WriteAllText($p, "a`r`n")
+    }
+    Invoke-Git $dir @('init', '-q', $repo) | Out-Null
+    Invoke-Git $repo @('add', '-A') | Out-Null
+    Invoke-Git $repo @('-c', 'user.name=selftest', '-c', 'user.email=selftest@invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'init') | Out-Null
+    foreach ($f in $files[0..2]) { [IO.File]::WriteAllText((Join-Path $repo $f), "b`r`n") }
+    $custom = Join-Path $repo 'out\proven.tsv'
+    New-Item -ItemType Directory -Force -Path (Split-Path $custom -Parent) | Out-Null
+    [IO.File]::WriteAllText($custom, "c`r`n")
+    $specs = @(Get-GuardRecordPathspecs $repo $custom)
+    $status = (Invoke-Git $repo (@('status', '--porcelain', '--untracked-files=normal', '--', '.') + $specs)) -join ' '
+    if ($status) { "record files alone dirty the tree: $status"; exit 0 }
+    $patch = Join-Path $dir 'overlay.patch'
+    Invoke-Git $repo (@('diff', 'HEAD', '--binary', "--output=$patch", '--', '.') + $specs) | Out-Null
+    if ((Get-Item -LiteralPath $patch).Length -ne 0) { "record files reach the overlay: $([IO.File]::ReadAllText($patch))"; exit 0 }
+    [IO.File]::WriteAllText((Join-Path $repo 'src\a.txt'), "b`r`n")
+    $status = (Invoke-Git $repo (@('status', '--porcelain', '--untracked-files=normal', '--', '.') + $specs)) -join ' '
+    if ($status -notmatch 'src/a\.txt' -or $status -match 'tsv') { "a source change gives status '$status'"; exit 0 }
+    Invoke-Git $repo (@('diff', 'HEAD', '--binary', "--output=$patch", '--', '.') + $specs) | Out-Null
+    $ptext = [IO.File]::ReadAllText($patch)
+    if ($ptext -notmatch 'src/a\.txt' -or $ptext -match '\.tsv') { "a source change gives the overlay '$ptext'"; exit 0 }
+}
+catch { "threw: $($_.Exception.Message)"; exit 0 }
+'OK'
+'@
+    $rcRun = {
+        param([string]$tag, [string]$from, [string]$to)
+        $d = Join-Path $grTmp "records$n-$tag"
+        New-Item -ItemType Directory -Force -Path $d | Out-Null
+        $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $rcFix, '-gr', $grScript, '-keys', (Join-Path $PSScriptRoot 'gate\keys.ps1'), '-dir', $d)
+        if ($from) { $a += @('-from', $from, '-to', $to) }
+        ((& powershell @a 2>&1 | ForEach-Object { "$_" }) -join ' / ').Trim()
+    }
+    $why = $null
+    $rcMut = $null
+    $rcReal = & $rcRun 'real' '' ''
+    if ($rcReal -cne 'OK') { $why = $rcReal }
+    else {
+        $rcMut = & $rcRun 'proven-only' '@($script:KeyRecordFiles | ' '@(@(''tests\guardrevert\proven.tsv'') | '
+        if ($rcMut -ceq 'OK' -or $rcMut -match 'mutant anchor') { $why = "mutant proven-only survived: $rcMut" }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: guard-revert treats the gate record files as records: $why" }
+    else { Write-Host "OK $n guard-revert leaves steps.tsv, proven.tsv, gate-times.tsv and its proven file out of the clean check and the overlay, and still sees a source change; mutant fails: $rcMut" }
+    $n++
     $skFix = Join-Path $grTmp "skip$n.ps1"
     Set-Content -LiteralPath $skFix -Encoding ASCII -Value @'
 param([string]$gr, [string]$dir, [string]$from, [string]$to)
@@ -4663,7 +4796,7 @@ catch { "threw: $($_.Exception.Message)"; exit 0 }
             [pscustomobject]$o
         })
     }
-    $rsClean = -not ((& git -C $repo status --porcelain --untracked-files=normal -- . ':!tests/guardrevert/proven.tsv') -join '')
+    $rsClean = -not ((& git -C $repo status --porcelain --untracked-files=normal -- . @($script:KeyRecordFiles | ForEach-Object { ':!' + $_.Replace('\', '/') })) -join '')
     $n++
     $rsOut = Join-Path $grTmp "out$n"
     $rsCount = Join-Path $grTmp "count$n.txt"
@@ -6171,7 +6304,7 @@ try {
     else { Write-Host "OK $n the hardening run code names no file KindRunUnread lists, and the scan finds an injected read" }
     $n++
     $ctText = [IO.File]::ReadAllText((Join-Path $repo 'tests\baseline\compare-tables.ps1'))
-    $ctFiles = @([regex]::Matches($ctText, "@\{ File = '([^']+)'(?:; Folder = '([^']+)')?") | Where-Object { $_.Groups[1].Value -notlike '*.md' } | ForEach-Object { $fd = $(if ($_.Groups[2].Success) { $_.Groups[2].Value } else { 'v143' }); "tests\baseline\$fd\$($_.Groups[1].Value)" } | Sort-Object)
+    $ctFiles = @([regex]::Matches($ctText, "@\{ File = '([^']+)'(?:; Folder = '([^']+)')?; Reader = '([^']+)'") | Where-Object { $_.Groups[3].Value -notlike 't1:*' -and $_.Groups[3].Value -notlike 'verify-*' } | ForEach-Object { $fd = $(if ($_.Groups[2].Success) { $_.Groups[2].Value } else { 'v143' }); "tests\baseline\$fd\$($_.Groups[1].Value)" } | Sort-Object)
     if (($ctFiles -join '|') -cne (@($script:KeyComparedTables | Sort-Object) -join '|')) { $failed++; Write-Host "FAILED ${n}: keys.ps1 compared tables differ from compare-tables.ps1 readers: $($ctFiles -join ', ')" }
     else { Write-Host "OK $n keys.ps1 compared tables equal the compare-tables.ps1 data readers" }
     $n++
@@ -6277,6 +6410,7 @@ try {
             Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'smoke') -File | Copy-Item -Destination (Join-Path $t 'smoke')
             New-Item -ItemType Directory -Force -Path (Join-Path $t 'baseline\v143') | Out-Null
             Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'baseline\v143\smoke-all-digests.txt') -Destination (Join-Path $t 'baseline\v143')
+            Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'baseline\v143\movie-goldens.txt') -Destination (Join-Path $t 'baseline\v143')
             return $t
         }
         $rcCase = {
@@ -7381,6 +7515,7 @@ try {
     }
     $x87Run = {
         param([string[]]$A)
+        $ErrorActionPreference = 'Continue'
         $o = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $x87Script @A 2>&1 | ForEach-Object { "$_" })
         return @{ Code = $LASTEXITCODE; Text = ($o -join "`n") }
     }
@@ -7441,6 +7576,15 @@ try {
     $r = & $x87Run @('-Check', $fake, '-Disasm', (Join-Path $x87Tmp 'base.txt'), '-Map', (Join-Path $x87Tmp 'base.map'))
     if ($r.Code -ne 1 -or $r.Text -notmatch "(?m)^    rule verdict EntitySoldier\.obj \?Alpha@@YAMXZ pinned 'offpath:sound' generated ''$") { $failed++; Write-Host "FAILED ${n}: x87 inventory -Check fails a hand verdict that takes a rule name: exit $($r.Code): $($r.Text)" }
     else { Write-Host "OK $n x87 inventory -Check fails a hand verdict that takes a rule name" }
+    $n++
+    $lostD = @('', 'Dump of file fixture.exe', '', 'File Type: EXECUTABLE IMAGE', '', '?Alpha@@YAMXZ:', '  00401000: fld         dword ptr [ecx+4]', '  00401003: fmul        dword ptr [ecx+8]', '  00401006: fadd        dword ptr [ecx+0Ch]', '  00401009: ret', '?Beta@@YAMXZ:', '  00401010: fld         dword ptr [ecx+4]', '  00401013: ret', '  0040101F: add         byte ptr [ebp-75h],dl', '  00401022: fmul        dword ptr [ecx]', '  00401024: fstp        dword ptr [ecx+4]', '  00401027: ret')
+    $lostM = @(' fixture', '', ' 0001:00000000       ?Alpha@@YAMXZ 00401000 f   EntitySoldier.obj', ' 0001:00000010       ?Beta@@YAMXZ 00401010 f   EntitySoldier.obj', ' 0001:00000020       ?Gamma@@YAXXZ 00401020 f   EntitySoldier.obj')
+    [IO.File]::WriteAllText((Join-Path $x87Tmp 'lost.txt'), ($lostD -join "`r`n") + "`r`n")
+    [IO.File]::WriteAllText((Join-Path $x87Tmp 'lost.map'), ($lostM -join "`r`n") + "`r`n")
+    $lostOut = Join-Path $x87Tmp 'lost.tsv'
+    $r = & $x87Run @('-Disasm', (Join-Path $x87Tmp 'lost.txt'), '-Map', (Join-Path $x87Tmp 'lost.map'), '-Out', $lostOut)
+    if ($r.Code -eq 0 -or (Test-Path -LiteralPath $lostOut) -or $r.Text -notmatch 'map function \?Gamma@@YAXXZ at 00401020 starts inside a decoded instruction') { $failed++; Write-Host "FAILED ${n}: x87 inventory fails a map function whose start the disassembly decoded through: exit $($r.Code): $($r.Text)" }
+    else { Write-Host "OK $n x87 inventory fails a map function whose start the disassembly decoded through" }
     $n++
 }
 catch { $failed++; Write-Host "FAILED: x87 inventory block threw: $_" }
@@ -7536,6 +7680,639 @@ finally {
     Remove-Item -LiteralPath $stTmp -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $rjTmp -Recurse -Force -ErrorAction SilentlyContinue
 }
+$n++
+$ffCfgDir = Join-Path (Split-Path $PSScriptRoot -Parent) 'src\FFmpegFL\config'
+$ffConf = [IO.File]::ReadAllText((Join-Path $ffCfgDir 'Win32\config.h'))
+$ffComp = [IO.File]::ReadAllText((Join-Path $ffCfgDir 'common\config_components.h'))
+$ffNotice = [IO.File]::ReadAllText((Join-Path (Split-Path $ffCfgDir -Parent) 'NOTICE.txt'))
+$ffChanges = [IO.File]::ReadAllText((Join-Path (Split-Path $ffCfgDir -Parent) 'changes.diff'))
+$ffLicCases = @(
+    @('committed config', $ffConf, $ffComp, $null, $ffNotice, $ffChanges),
+    @('CONFIG_GPL 1', ($ffConf -replace '(?m)^#define CONFIG_GPL 0', '#define CONFIG_GPL 1'), $ffComp, 'licence flag: #define CONFIG_GPL 1', $ffNotice, $ffChanges),
+    @('--enable-nonfree in the configure line', ($ffConf -replace '(?m)^(#define FFMPEG_CONFIGURATION "[^"\r\n]*)"', '$1 --enable-nonfree"'), $ffComp, 'configure line: #define FFMPEG_CONFIGURATION "', $ffNotice, $ffChanges),
+    @('CONFIG_MOV_DEMUXER 1', $ffConf, ($ffComp -replace '(?m)^#define CONFIG_MOV_DEMUXER 0', '#define CONFIG_MOV_DEMUXER 1'), 'component: #define CONFIG_MOV_DEMUXER 1', $ffNotice, $ffChanges),
+    @('no config_components.h', $ffConf, '', 'config_components.h missing or empty', $ffNotice, $ffChanges),
+    @('a notice without the source repository', $ffConf, $ffComp, 'notice: NOTICE.txt does not name', ($ffNotice -replace 'https://github\.com/OpenSWBF2/OpenSWBF2 under src/FFmpegFL', 'the source repository'), $ffChanges),
+    @('a missing notice', $ffConf, $ffComp, 'notice: NOTICE.txt does not name', '', $ffChanges),
+    @('changes.diff without the allocator shim', $ffConf, $ffComp, 'changes: changes.diff lacks +++ b/openswbf2/ossf2_alloc.c', $ffNotice, ($ffChanges -replace '\+\+\+ b/openswbf2/ossf2_alloc\.c', '+++ b/other.c')),
+    @('changes.diff without the export list', $ffConf, $ffComp, 'changes: changes.diff lacks +++ b/openswbf2-ffmpeg.def', $ffNotice, ($ffChanges -replace '\+\+\+ b/openswbf2-ffmpeg\.def', '+++ b/other.def'))
+)
+$why = @()
+foreach ($lc in $ffLicCases) {
+    if ($lc[3] -and $lc[1] -ceq $ffConf -and $lc[2] -ceq $ffComp -and $lc[4] -ceq $ffNotice -and $lc[5] -ceq $ffChanges) { $why += "$($lc[0]) mutant did not change the input"; break }
+    $r = Get-FFmpegLicenceCheck $lc[1] $lc[2] $lc[4] $lc[5]
+    if ($r.Name -ne 'ffmpeg-license') { $why += "$($lc[0]) row named $($r.Name)" }
+    elseif ($null -eq $lc[3] -and -not $r.Ok) { $why += "$($lc[0]) failed: $($r.Detail)" }
+    elseif ($null -ne $lc[3] -and ($r.Ok -or -not $r.Detail.StartsWith($lc[3]))) { $why += "$($lc[0]) ok=$($r.Ok) detail '$($r.Detail)'" }
+}
+if ($why) { $failed++; Write-Host "FAILED ${n}: ffmpeg-license passes the committed config and fails CONFIG_GPL 1, --enable-nonfree and an extra demuxer: $($why -join ' | ')" }
+else { Write-Host "OK $n ffmpeg-license passes the committed config, NOTICE.txt and changes.diff and fails CONFIG_GPL 1, --enable-nonfree, an extra demuxer, a missing file, a notice without the source repository and a changes.diff without the allocator shim or the export list, each named" }
+$n++
+$ffUnits = @('libavutil\encryption_info.c', 'libavformat\url.c', 'libavformat\av1.c', 'libavformat\avio.c', 'libavcodec\raw.c', 'libavcodec\avcodec.c', 'libavcodec\bink.c', 'openswbf2\ossf2_alloc.c')
+$ffFlagSet = {
+    param([string]$Cfg, [string]$Plat, [scriptblock]$Edit)
+    $t = @{}
+    foreach ($u in $ffUnits) {
+        $opt = $(if ($Cfg -ne 'Debug') { '/O2' } elseif ($u -eq 'libavcodec\avcodec.c') { '/O1' } else { '/Od' })
+        $we = $(if ($Plat -eq 'x64') { ' /we4311 /we4312 /we4302 /we4477' } else { '' })
+        $wd = $(if ($u -in 'libavutil\encryption_info.c', 'libavformat\url.c', 'libavformat\av1.c', 'libavformat\avio.c', 'libavcodec\raw.c') { ' /wd4703' } else { '' })
+        $key = 'C:\X\SRC\FFMPEGFL\' + $u.ToUpperInvariant()
+        $line = "/c /IC:\X\SRC\FFMPEGFL\CONFIG\WIN32 /Z7 /nologo /W3 /WX- /sdl $opt /Oy- /D HAVE_AV_CONFIG_H /Gm- /MD /GS /Gy /fp:precise /std:c17 /Fo`"C:\X\OBJ\\`" /Gd /TC$we /Zc:alignedNew-  /wd4146$wd $key"
+        if ($Edit) { $line = & $Edit $u $line }
+        $t[$key] = $line
+    }
+    return $t
+}
+$ffBink = { param($u, $l, $from, $to) if ($u -eq 'libavcodec\bink.c') { return $l.Replace($from, $to) } return $l }
+$ffFlagCases = @(
+    @('good Debug Win32', 'Debug', 'Win32', $null, $null),
+    @('good Release Win32', 'Release', 'Win32', $null, $null),
+    @('good Debug x64', 'Debug', 'x64', $null, $null),
+    @('good Asan x64', 'Asan', 'x64', $null, $null),
+    @('/wd4146 before /sdl', 'Debug', 'Win32', { param($u, $l) if ($u -eq 'libavcodec\bink.c') { return $l.Replace('  /wd4146', '').Replace(' /sdl ', ' /wd4146 /sdl ') } return $l }, 'libavcodec\bink.c has /wd4146 before /sdl'),
+    @('/wd4703 on a sixth file', 'Release', 'Win32', { param($u, $l) & $ffBink $u $l '/wd4146 ' '/wd4146 /wd4703 ' }, "/wd4703 on 'libavcodec\bink.c libavcodec\raw.c"),
+    @('/O1 on a second file in Debug', 'Debug', 'Win32', { param($u, $l) & $ffBink $u $l ' /Od ' ' /O1 ' }, "libavcodec\bink.c has '/O1' want /Od"),
+    @('/O1 on avcodec.c in Release', 'Release', 'Win32', { param($u, $l) if ($u -eq 'libavcodec\avcodec.c') { return $l.Replace(' /O2 ', ' /O1 ') } return $l }, "libavcodec\avcodec.c has '/O1' want /O2"),
+    @('an extra /wd4018', 'Release', 'x64', { param($u, $l) & $ffBink $u $l '/wd4146 ' '/wd4146 /wd4018 ' }, 'libavcodec\bink.c has /wd4018, not a named exemption'),
+    @('a missing /GS', 'Release', 'Win32', { param($u, $l) & $ffBink $u $l ' /GS ' ' ' }, 'libavcodec\bink.c lacks /GS'),
+    @('a missing /sdl', 'Release', 'Win32', { param($u, $l) & $ffBink $u $l ' /sdl ' ' ' }, 'libavcodec\bink.c lacks /sdl'),
+    @('a missing /Gy', 'Release', 'Win32', { param($u, $l) & $ffBink $u $l ' /Gy ' ' ' }, 'libavcodec\bink.c lacks /Gy'),
+    @('a banned /GL', 'Release', 'Win32', { param($u, $l) & $ffBink $u $l ' /GS ' ' /GS /GL ' }, 'libavcodec\bink.c has banned /GL'),
+    @('x64 without /we4311', 'Test', 'x64', { param($u, $l) & $ffBink $u $l ' /we4311 ' ' ' }, 'libavcodec\bink.c lacks /we4311'),
+    @('an empty tlog', 'Release', 'Win32', 'empty', 'no FFmpegFL cl tlog lines')
+)
+$why = @()
+foreach ($fc in $ffFlagCases) {
+    $set = $(if ($fc[3] -eq 'empty') { @{} } else { & $ffFlagSet $fc[1] $fc[2] $fc[3] })
+    $r = Get-FFmpegFlagCheck $set $fc[1] $fc[2]
+    if ($r.Name -ne 'ffmpeg-flags' -or -not $r.Detail.Contains('(C-FFMPEG-WD4146)') -or -not $r.Detail.Contains('(C-FFMPEG-WD4703)') -or -not $r.Detail.Contains('(C-FFMPEG-DEBUG-O1)')) { $why += "$($fc[0]) row $($r.Name) does not name the three causes: $($r.Detail)" }
+    elseif ($null -eq $fc[4] -and -not $r.Ok) { $why += "$($fc[0]) failed: $($r.Detail)" }
+    elseif ($null -ne $fc[4] -and ($r.Ok -or -not $r.Detail.Contains($fc[4]))) { $why += "$($fc[0]) ok=$($r.Ok) detail '$($r.Detail)'" }
+}
+if ($why) { $failed++; Write-Host "FAILED ${n}: ffmpeg-flags tlog fixtures: $($why -join ' | ')" }
+else { Write-Host "OK $n ffmpeg-flags passes good Debug, Release and x64 tlogs and fails /wd4146 before /sdl, a sixth /wd4703, a second /O1, /O1 outside Debug, /wd4018, a missing /GS, /sdl or /Gy, /GL, a missing x64 /we and an empty tlog, each named" }
+$n++
+$ffHdr = "  FILE HEADER VALUES`n            2102 characteristics`n                   Executable`n                   32 bit word machine`n                   DLL`n`n  OPTIONAL HEADER VALUES`n            0140 DLL characteristics`n                   Dynamic base`n                   NX compatible`n           B8000 [    9E04] RVA [size] of Base Relocation Directory`n  SECTION HEADER #5`n  .reloc name`n"
+$ffLc = "            100F4004 Security Cookie`n            100D6B20 Safe Exception Handler Table`n                 2D2 Safe Exception Handler Count`n"
+$ffLc64 = "         0000000180130040 Security Cookie`n"
+$ffDllCases = @(
+    @('good Win32', $ffHdr, $ffLc, 'Win32', $null),
+    @('good x64', $ffHdr, $ffLc64, 'x64', $null),
+    @('no DYNAMICBASE', $ffHdr.Replace('Dynamic base', 'Something else'), $ffLc, 'Win32', 'Dynamic base flag missing'),
+    @('no NX', $ffHdr.Replace('NX compatible', 'Something else'), $ffLc64, 'x64', 'NX compatible flag missing'),
+    @('relocations stripped', $ffHdr.Replace('B8000 [    9E04]', '    0 [       0]'), $ffLc, 'Win32', 'relocations missing'),
+    @('no security cookie', $ffHdr, $ffLc.Replace('Security Cookie', 'Something'), 'Win32', 'security cookie missing'),
+    @('Win32 without SafeSEH', $ffHdr, $ffLc64, 'Win32', 'Safe Exception Handler Count=0'),
+    @('an exe', $ffHdr.Replace('                   DLL', '                   Application can handle large (>2GB) addresses'), $ffLc, 'Win32', 'not a DLL')
+)
+$why = @()
+foreach ($dc in $ffDllCases) {
+    $r = Get-FFmpegDllCheck $dc[1] $dc[2] $dc[3]
+    if ($r.Name -ne 'ffmpeg-dll') { $why += "$($dc[0]) row named $($r.Name)" }
+    elseif ($null -eq $dc[4] -and -not $r.Ok) { $why += "$($dc[0]) failed: $($r.Detail)" }
+    elseif ($null -ne $dc[4] -and ($r.Ok -or -not $r.Detail.Contains($dc[4]))) { $why += "$($dc[0]) ok=$($r.Ok) detail '$($r.Detail)'" }
+}
+if ($why) { $failed++; Write-Host "FAILED ${n}: ffmpeg-dll header fixtures: $($why -join ' | ')" }
+else { Write-Host "OK $n ffmpeg-dll passes a hardened Win32 and x64 DLL and fails no DYNAMICBASE, no NX, no relocations, no cookie, no Win32 SafeSEH and an exe, each named" }
+$n++
+$ffImpText = {
+    param($Mods)
+    $s = "`r`nDump of file x.dll`r`n`r`nFile Type: DLL`r`n`r`n  Section contains the following imports:`r`n`r`n"
+    foreach ($k in $Mods.Keys) {
+        $s += "    $k`r`n              100B9210 Import Address Table`r`n              1014A8C8 Import Name Table`r`n                     0 time date stamp`r`n                     0 Index of first forwarder reference`r`n`r`n"
+        $i = 1
+        foreach ($f in $Mods[$k]) { $s += ('{0,21:X} {1}' -f $i, $f) + "`r`n"; $i++ }
+        $s += "`r`n"
+    }
+    return $s + "  Summary`r`n`r`n        1000 .data`r`n       11000 .reloc`r`n       B8000 .text`r`n"
+}
+$ffBase = {
+    $m = [ordered]@{ 'bcrypt.dll' = @('BCryptGenRandom'); 'KERNEL32.dll' = @('GetLastError'); 'VCRUNTIME140.dll' = @('memcpy') }
+    foreach ($c in 'runtime', 'math', 'utility', 'convert', 'string', 'stdio', 'time', 'environment') { $m["api-ms-win-crt-$c-l1-1-0.dll"] = @('x_' + $c) }
+    return $m
+}
+$ffAsanHeap = @('calloc', 'free', 'malloc')
+$ffImpCases = @(
+    @('good Release Win32', 'Win32', 'Release', $null, @(), $null, $null),
+    @('good Debug x64', 'x64', 'Debug', $null, @(), $null, $null),
+    @('good Asan Win32', 'Win32', 'Asan', { param($m) $m['clang_rt.asan_dynamic-i386.dll'] = @('__asan_init'); $m['api-ms-win-crt-heap-l1-1-0.dll'] = @('calloc', 'free', 'malloc') }, $ffAsanHeap, $null, $null),
+    @('good Asan x64', 'x64', 'Asan', { param($m) $m['clang_rt.asan_dynamic-x86_64.dll'] = @('__asan_init'); $m['VCRUNTIME140_1.dll'] = @('__CxxFrameHandler4'); $m['api-ms-win-crt-heap-l1-1-0.dll'] = @('free', 'malloc') }, $ffAsanHeap, $null, $null),
+    @('an extra WS2_32.dll', 'Win32', 'Release', { param($m) $m['WS2_32.dll'] = @('socket') }, @(), 'imports outside the allow list: ws2_32.dll', $null),
+    @('clang_rt outside Asan', 'Win32', 'Test', { param($m) $m['clang_rt.asan_dynamic-i386.dll'] = @('__asan_init') }, @(), 'imports outside the allow list: clang_rt.asan_dynamic-i386.dll', $null),
+    @('a _aligned_malloc import', 'Win32', 'Release', { param($m) $m['api-ms-win-crt-heap-l1-1-0.dll'] = @('_aligned_malloc') }, @(), 'imports outside the allow list: api-ms-win-crt-heap-l1-1-0.dll', 'api-ms-win-crt-heap-l1-1-0.dll!_aligned_malloc'),
+    @('free from another CRT module', 'x64', 'Debug', { param($m) $m['api-ms-win-crt-runtime-l1-1-0.dll'] = @('x_runtime', 'free') }, @(), $null, 'api-ms-win-crt-runtime-l1-1-0.dll!free'),
+    @('an Asan heap import vcasan.obj lacks', 'x64', 'Asan', { param($m) $m['clang_rt.asan_dynamic-x86_64.dll'] = @('__asan_init'); $m['api-ms-win-crt-heap-l1-1-0.dll'] = @('malloc', '_aligned_malloc') }, $ffAsanHeap, $null, 'api-ms-win-crt-heap-l1-1-0.dll!_aligned_malloc is not a vcasan.obj import'),
+    @('Asan with no vcasan.obj names', 'Win32', 'Asan', { param($m) $m['clang_rt.asan_dynamic-i386.dll'] = @('__asan_init'); $m['api-ms-win-crt-heap-l1-1-0.dll'] = @('malloc') }, @(), $null, 'no vcasan.obj heap imports read')
+)
+$why = @()
+foreach ($ic in $ffImpCases) {
+    $m = & $ffBase
+    if ($ic[3]) { & $ic[3] $m }
+    $rows = @(Get-FFmpegImportChecks (& $ffImpText $m) $ic[1] $ic[2] $ic[4])
+    $ri = @($rows | Where-Object { $_.Name -eq 'ffmpeg-imports' })
+    $rh = @($rows | Where-Object { $_.Name -eq 'ffmpeg-crt-heap' })
+    if ($rows.Count -ne 2 -or $ri.Count -ne 1 -or $rh.Count -ne 1) { $why += "$($ic[0]) gave rows $(@($rows | ForEach-Object { $_.Name }) -join ', ')"; break }
+    if (-not $ri[0].Detail.Contains('bcrypt.dll (C-FFMPEG-BCRYPT)') -or -not $rh[0].Detail.Contains('C-FFMPEG-ALLOC-CONFIG, C-FFMPEG-VENDOR-SCOPE')) { $why += "$($ic[0]) does not name its causes: $($ri[0].Detail) | $($rh[0].Detail)" }
+    elseif ($null -eq $ic[5] -and -not $ri[0].Ok) { $why += "$($ic[0]) ffmpeg-imports failed: $($ri[0].Detail)" }
+    elseif ($null -ne $ic[5] -and ($ri[0].Ok -or -not $ri[0].Detail.Contains($ic[5]))) { $why += "$($ic[0]) ffmpeg-imports ok=$($ri[0].Ok) detail '$($ri[0].Detail)'" }
+    elseif ($null -eq $ic[6] -and -not $rh[0].Ok) { $why += "$($ic[0]) ffmpeg-crt-heap failed: $($rh[0].Detail)" }
+    elseif ($null -ne $ic[6] -and ($rh[0].Ok -or -not $rh[0].Detail.Contains($ic[6]))) { $why += "$($ic[0]) ffmpeg-crt-heap ok=$($rh[0].Ok) detail '$($rh[0].Detail)'" }
+    elseif ($ic[2] -eq 'Asan' -and -not $rh[0].Detail.Contains('C-FFMPEG-ASAN-IMPORTS')) { $why += "$($ic[0]) Asan detail does not name C-FFMPEG-ASAN-IMPORTS: $($rh[0].Detail)" }
+}
+if ($why) { $failed++; Write-Host "FAILED ${n}: ffmpeg-imports and ffmpeg-crt-heap fixtures: $($why -join ' | ')" }
+else { Write-Host "OK $n ffmpeg-imports and ffmpeg-crt-heap pass good Release, Debug and Asan import tables and fail WS2_32.dll, clang_rt outside Asan, _aligned_malloc, free from another module, an Asan heap import vcasan.obj lacks and Asan without vcasan names, each named" }
+$n++
+$why = @()
+$shPlat = $script:SmokePlatform
+$shCfg = $script:SmokeDigestConfiguration
+$script:SmokePlatform = 'x64'
+$script:SmokeDigestConfiguration = 'Test'
+$shDir = Join-Path $env:TEMP ('openswbf2-shellsoak-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $shDir | Out-Null
+$shOff = "[t=1.600] [f=1] LogCore Warning SyntheticMovie.cpp:1: OPENSWBF2 MOVIE off: no movie decoder in this build`r`n"
+$shShell = "[t=9.000] [f=300] LogSim Inform GameState.cpp:1: OPENSWBF2 SOAK shell=300`r`n"
+$shTurns = "[t=9.000] [f=300] LogSim Inform GameLoop.cpp:1: OPENSWBF2 SOAK turns=300`r`n"
+$shRes = { param([string]$log) New-Object PSObject -Property @{ Class = 'Pass'; Code = [uint32]0; Ms = 1; LogText = $log; Stall = 0; Dumps = @(); Turns = '-'; CaseDir = $shDir } }
+$shEntry = @{ Owner = 'Phase 98 SYN-03'; Class = 'Pass'; LogRx = @('OPENSWBF2 MOVIE off: no movie decoder in this build'); NoLogRx = @('OPENSWBF2 MOVIE open'); SoakTurns = 300 }
+$shNew = { param([string]$a, $owned) New-Object PSObject -Property @{ Name = 'x-shell'; Args = $a; Expect = @{ Class = 'Pass'; LogRx = @('OPENSWBF2 MOVIE loops=2') }; Twice = 0; OwnedOn = @{ x64 = $owned } } }
+$shCase = & $shNew '-movieloops 2 -hangtimeout 0' $shEntry
+$shMission = & $shNew 'nab2g_c -movieloops 2 -hangtimeout 0' $shEntry
+try {
+    if (-not (Test-SmokeShellOnly $shCase) -or (Test-SmokeShellOnly $shMission)) { $why += 'Test-SmokeShellOnly does not tell a shell-only case from a mission case' }
+    try { Assert-SmokeCaseData @($shCase, $shMission) } catch { $why += "a shell-only log entry is refused: $($_.Exception.Message)" }
+    $shBad = $shEntry.Clone()
+    $shBad.LogRx = @('OPENSWBF2 MOVIE off: no movie decoder in this build', 'OPENSWBF2 MISSION RUNNING')
+    $shRefused = $false
+    try { Assert-SmokeCaseData @((& $shNew '-movieloops 2' $shBad)) } catch { $shRefused = $_.Exception.Message.Contains('runs only the shell, which has no turns') }
+    if (-not $shRefused) { $why += 'a shell-only log entry that names MISSION RUNNING is accepted' }
+    $shSpecs = @(
+        @('shell-only, SOAK shell line', $shCase, ($shOff + $shShell), 'OWNED', '[OWNED] smoke:x-shell class=Pass exit=0x00000000 (1 ms) - Phase 98 SYN-03'),
+        @('shell-only, SOAK turns line only', $shCase, ($shOff + $shTurns), $null, ' - owned entry Phase 98 SYN-03: log lacks OPENSWBF2 SOAK shell=300'),
+        @('shell-only, SOAK shell line at another count', $shCase, ($shOff + $shShell.Replace('shell=300', 'shell=3000')), $null, ' - owned entry Phase 98 SYN-03: log lacks OPENSWBF2 SOAK shell=300'),
+        @('mission, SOAK turns line', $shMission, ($shOff + $shTurns), 'OWNED', '[OWNED] smoke:x-shell class=Pass exit=0x00000000 (1 ms) - Phase 98 SYN-03'),
+        @('mission, SOAK shell line only', $shMission, ($shOff + $shShell), $null, ' - owned entry Phase 98 SYN-03: log lacks OPENSWBF2 SOAK turns=300')
+    )
+    foreach ($s in $shSpecs) {
+        $v = Get-SmokeOwnedVerdict $s[1] (& $shRes $s[2]) $false
+        $got = $(if ($v -and $v.Line) { $v.Line } elseif ($v) { $v.Note } else { '' })
+        if (-not $v -or $v.Tok -cne $s[3] -or $got -cne $s[4]) { $why += "$($s[0]): $($v.Tok) $got" }
+    }
+    $script:SmokeDigestConfiguration = 'Test'
+    $shArgs = @{}
+    foreach ($p in 'Win32', 'x64') {
+        $script:SmokePlatform = $p
+        $shReal = @(Get-SmokeCases 'Standard' @() $false $null ($p -eq 'x64') | Where-Object { $_.Name -ceq 'shell-movie-loop' })
+        if ($shReal.Count -ne 1) { $why += "$p Test Standard has $($shReal.Count) shell-movie-loop cases"; continue }
+        if (-not (Test-SmokeShellOnly $shReal[0])) { $why += "$p shell-movie-loop is not shell-only: $($shReal[0].Args)" }
+        if ($shReal[0].OwnedOn) { $why += "$p shell-movie-loop carries an owned entry" }
+        $shArgs[$p] = [string]$shReal[0].Args -replace ' -hogaddrspace(?= |$)', ''
+    }
+    if ($shArgs.Count -eq 2 -and $shArgs['Win32'] -cne $shArgs['x64']) { $why += "shell-movie-loop runs '$($shArgs['Win32'])' on Win32 and '$($shArgs['x64'])' on x64" }
+}
+finally {
+    $script:SmokePlatform = $shPlat
+    $script:SmokeDigestConfiguration = $shCfg
+    Remove-Item -LiteralPath $shDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+if ($why) { $failed++; Write-Host "FAILED ${n}: shell-only owned log entry: $($why -join ' | ')" }
+else { Write-Host "OK $n a shell-only owned log entry is bound by OPENSWBF2 SOAK shell=N and a mission entry by SOAK turns=N, each failing on the other's line or another count; a shell-only entry naming MISSION RUNNING is refused; shell-movie-loop is shell-only, carries no owned entry and runs the same arguments on Win32 and x64 (hog)" }
+$n++
+$why = @()
+$gdPlat = $script:SmokePlatform
+$gdCfg = $script:SmokeDigestConfiguration
+$gdEnvD = $env:OPENSWBF2_DIGEST_EXPECTED
+$gdEnvG = $env:OPENSWBF2_MOVIE_GOLDENS
+$gdDir = Join-Path $env:TEMP ('openswbf2-golden-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $gdDir | Out-Null
+try {
+    $env:OPENSWBF2_DIGEST_EXPECTED = Join-Path $PSScriptRoot 'smoke\digest-expected.txt'
+    $env:OPENSWBF2_MOVIE_GOLDENS = $null
+    $script:SmokeDigestConfiguration = 'Test'
+    $gdLine = Get-MovieGoldenDigest 'ingame-movie-digest'
+    if ($gdLine -cnotmatch '^OPENSWBF2 SIM DIGEST turns=1500 time=\S+ rand=\d+/\d+ snd=\S+ state=0x[0-9A-F]{8}$') { $why += "the archived ingame-movie-digest line is '$gdLine'" }
+    $gdNew = { param([string]$name, $golden, $row) $p = @{ Name = $name; Args = 'nab2g_c -hangtimeout 0 -soakturns 1500'; Expect = @{ Class = 'Pass' }; Twice = 0 }; if ($golden) { $p.GoldenDigest = $golden }; if ($row) { $p.DigestRow = $row }; New-Object PSObject -Property $p }
+    $gdRefused = { param($c, [string]$msg) try { Assert-SmokeCaseData @($c); $false } catch { $_.Exception.Message.Contains($msg) } }
+    $gdOther = Join-Path $gdDir 'other.txt'
+    [IO.File]::WriteAllText($gdOther, "## binkw32 facts`r`n`r`ningame-movie-digest`t$gdLine`r`n")
+    $gdTwice = Join-Path $gdDir 'twice.txt'
+    [IO.File]::WriteAllText($gdTwice, "## binkw32 ingame digest`r`n`r`ningame-movie-digest`t$gdLine`r`ningame-movie-digest`t$gdLine`r`n")
+    $gdShape = Join-Path $gdDir 'shape.txt'
+    [IO.File]::WriteAllText($gdShape, "## binkw32 ingame digest`r`n`r`ningame-movie-digest`tOPENSWBF2 SIM DIGEST turns=1500`r`n")
+    $gdSpecs = @(
+        @('a golden digest on a case with a digest-expected row', (& $gdNew 'nab2g_c' 'ingame-movie-digest' $null), $null, 'has a digest-expected row and a golden digest'),
+        @('a golden digest and a digest row name', (& $gdNew 'x-golden' 'ingame-movie-digest' 'crash-delayload'), $null, 'has a digest row name and a golden digest'),
+        @('a golden digest naming no archived line', (& $gdNew 'x-golden' 'no-such-digest' $null), $null, 'must be one SIM DIGEST line'),
+        @('a golden digest outside its section', (& $gdNew 'x-golden' 'ingame-movie-digest' $null), $gdOther, 'must be one SIM DIGEST line'),
+        @('a golden digest archived twice', (& $gdNew 'x-golden' 'ingame-movie-digest' $null), $gdTwice, 'must be one SIM DIGEST line'),
+        @('a golden digest that is not a SIM DIGEST line', (& $gdNew 'x-golden' 'ingame-movie-digest' $null), $gdShape, 'must be one SIM DIGEST line')
+    )
+    foreach ($s in $gdSpecs) {
+        $env:OPENSWBF2_MOVIE_GOLDENS = $s[2]
+        if (-not (& $gdRefused $s[1] $s[3])) { $why += "$($s[0]) is not refused" }
+    }
+    $env:OPENSWBF2_MOVIE_GOLDENS = $null
+    try { Assert-SmokeCaseData @((& $gdNew 'x-golden' 'ingame-movie-digest' $null)) } catch { $why += "a good golden digest is refused: $($_.Exception.Message)" }
+    $gdCase = & $gdNew 'x-golden' 'ingame-movie-digest' $null
+    $gdJudge = {
+        param([string]$digest)
+        $log = "[t=9.000] [f=2877] LogSim Inform GameLoop.cpp:1: $digest`r`n[t=9.100] [f=2877] LogSim Inform GameLoop.cpp:1: OPENSWBF2 SOAK turns=1500`r`n"
+        [IO.File]::WriteAllText((Join-Path $gdDir 'run.log'), $log)
+        $r = New-Object PSObject -Property @{ Class = 'Pass'; Code = [uint32]0; Ms = 1; LogText = $log; Stall = 0; Dumps = @(); Turns = '1500'; CaseDir = $gdDir }
+        Test-SmokeExpect $gdCase $r 6>$null
+    }
+    $gdState = [regex]::Match($gdLine, 'state=0x([0-9A-F]{8})$').Groups[1].Value
+    $gdFlip = $(if ($gdState.EndsWith('0')) { $gdState.Substring(0, 7) + '1' } else { $gdState.Substring(0, 7) + '0' })
+    $gdJudgeSpecs = @(
+        @('the archived digest', $gdLine, $true),
+        @('another state', $gdLine.Replace("state=0x$gdState", "state=0x$gdFlip"), $false),
+        @('another mission time', ($gdLine -replace ' time=\S+ ', ' time=0.000 '), $false),
+        @('the headless nab2g_c digest', (Get-DigestExpected 'nab2g_c'), $false)
+    )
+    foreach ($s in $gdJudgeSpecs) {
+        if ((& $gdJudge $s[1]) -ne $s[2]) { $why += "the judge passed=$(-not $s[2]) for $($s[0])" }
+    }
+    $env:OPENSWBF2_MOVIE_GOLDENS = $gdOther
+    if (& $gdJudge $gdLine) { $why += 'the judge passes a case whose golden digest is not archived' }
+    $env:OPENSWBF2_MOVIE_GOLDENS = $null
+    $gdAll = @()
+    foreach ($p in 'Win32', 'x64') {
+        $script:SmokePlatform = $p
+        foreach ($cfg in 'Release', 'Test', 'Asan') {
+            $script:SmokeDigestConfiguration = $cfg
+            foreach ($g in 'Standard', 'Twice', 'Dedicated', 'Crash', 'All', 'Perturb', 'Soak', 'Vendor', 'Boot') {
+                foreach ($hg in $false, $true) {
+                    $gdAll += @(Get-SmokeCases $g @() $false $null $hg | Where-Object { $_.GoldenDigest } | ForEach-Object { "$p/$cfg/$hg/$($_.Name)=$($_.GoldenDigest)" })
+                }
+            }
+        }
+    }
+    if (($gdAll | Sort-Object -Unique) -join ',' -cne 'Win32/Test/False/ingame-movie-digest=ingame-movie-digest,Win32/Test/True/ingame-movie-digest=ingame-movie-digest,x64/Test/False/ingame-movie-digest=ingame-movie-digest,x64/Test/True/ingame-movie-digest=ingame-movie-digest') { $why += "cases with a golden digest: $(($gdAll | Sort-Object -Unique) -join ',')" }
+    $script:SmokePlatform = 'x64'
+    $script:SmokeDigestConfiguration = 'Test'
+    $gdReal = @(Get-SmokeCases 'Standard' @() $false $null $true | Where-Object { $_.Name -ceq 'ingame-movie-digest' })
+    if ($gdReal.Count -ne 1) { $why += "x64 Test Standard has $($gdReal.Count) ingame-movie-digest cases" }
+    else {
+        if ($gdReal[0].OwnedOn) { $why += 'x64 ingame-movie-digest carries an owned entry' }
+        if (-not $gdReal[0].Args.StartsWith('nab2g_c -fixedrate 30 ') -or -not $gdReal[0].Args.EndsWith(' -handsoff -win -soakturns 1500') -or $gdReal[0].Args -match '(?:^| )-(norender|nosound|exitonmovieclose)(?: |$)' -or [regex]::Matches($gdReal[0].Args, ' -seed 1 ').Count -ne 1) { $why += "ingame-movie-digest runs $($gdReal[0].Args)" }
+        foreach ($rx in 'OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', '(?m)OPENSWBF2 SOAK turns=1500\r?$', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0') {
+            if (@($gdReal[0].Expect.LogRx) -notcontains $rx) { $why += "ingame-movie-digest does not require $rx" }
+        }
+    }
+}
+finally {
+    $script:SmokePlatform = $gdPlat
+    $script:SmokeDigestConfiguration = $gdCfg
+    $env:OPENSWBF2_DIGEST_EXPECTED = $gdEnvD
+    $env:OPENSWBF2_MOVIE_GOLDENS = $gdEnvG
+    Remove-Item -LiteralPath $gdDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+if ($why) { $failed++; Write-Host "FAILED ${n}: golden digest: $($why -join ' | ')" }
+else { Write-Host "OK $n a GoldenDigest field names one SIM DIGEST line under ## binkw32 ingame digest in v143\movie-goldens.txt; a case with its own digest-expected row or a digest row name, and a missing, duplicated, misplaced or malformed line are refused; the judge passes the archived line and fails another state, another mission time, the headless nab2g_c digest and an unarchived name; only ingame-movie-digest carries one, with no owned entry and a rendered fixed-rate 1500-turn run on x64 as on Win32" }
+$n++
+$why = @()
+$ffDir = Join-Path ([IO.Path]::GetTempPath()) ('ossf2-ffprecheck-' + [guid]::NewGuid().ToString('N'))
+try {
+    New-Item -ItemType Directory -Force -Path (Join-Path $ffDir 'data\_lvl_pc') | Out-Null
+    Set-Content -Path (Join-Path $ffDir 'data\_lvl_pc\shell.lvl') -Value 'x'
+    foreach ($f in 'BattlefrontII.exe', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll') { Set-Content -Path (Join-Path $ffDir $f) -Value 'x' }
+    $ffMissing = Get-SmokePrecheck $ffDir $ffDir $false 'Win32'
+    $ffX64 = Get-SmokePrecheck $ffDir $ffDir $false 'x64'
+    Set-Content -Path (Join-Path $ffDir 'openswbf2-ffmpeg.dll') -Value 'x'
+    $ffFull = Get-SmokePrecheck $ffDir $ffDir $false 'Win32'
+    $ffX64Full = Get-SmokePrecheck $ffDir $ffDir $false 'x64'
+    if ($ffMissing -notmatch '^openswbf2-ffmpeg\.dll missing beside the exe') { $why += "a Win32 worker without the FFmpeg DLL gives '$ffMissing'" }
+    if ($null -ne $ffFull) { $why += "a Win32 worker with every DLL gives '$ffFull'" }
+    if ($ffX64 -notmatch '^openswbf2-ffmpeg\.dll missing beside the exe') { $why += "an x64 worker without the FFmpeg DLL gives '$ffX64'" }
+    if ($null -ne $ffX64Full) { $why += "an x64 worker with the FFmpeg DLL gives '$ffX64Full'" }
+    foreach ($p in 'Win32', 'x64') {
+        $ffFiles = @(Get-SmokeWorkerFiles $p)
+        foreach ($f in 'openswbf2-ffmpeg.dll', 'COPYING.LGPLv2.1', 'NOTICE.txt') {
+            if ($ffFiles -cnotcontains $f) { $why += "$p workers do not get $f" }
+        }
+        if (@($script:ImportStaticAllow[$p]) -cnotcontains 'openswbf2-ffmpeg.dll') { $why += "the $p exe may not import openswbf2-ffmpeg.dll" }
+    }
+    $ffStage = {
+        param([string]$text)
+        $x = New-Object xml
+        $x.LoadXml($text)
+        $ns = New-Object Xml.XmlNamespaceManager $x.NameTable
+        $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
+        @($x.SelectNodes("//m:Target[@Name='StageTestsFFmpeg']/m:Copy", $ns) | ForEach-Object { $_.GetAttribute('SourceFiles') -split ';' } | ForEach-Object { Split-Path $_ -Leaf })
+    }
+    $ffTestsText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'OpenSWBF2Tests.vcxproj'))
+    $ffTests = @(& $ffStage $ffTestsText)
+    foreach ($f in 'openswbf2-ffmpeg.dll', 'COPYING.LGPLv2.1', 'NOTICE.txt') {
+        if ($ffTests -cnotcontains $f) { $why += "the tests output folder does not get $f" }
+    }
+    $ffTestsCut = @(& $ffStage ($ffTestsText -replace ';\$\(MSBuildThisFileDirectory\)\.\.\\src\\FFmpegFL\\NOTICE\.txt', ''))
+    if ($ffTestsCut -ccontains 'NOTICE.txt' -or $ffTestsCut -cnotcontains 'openswbf2-ffmpeg.dll') { $why += "a tests project without the NOTICE.txt copy still reads as staging it: $($ffTestsCut -join ',')" }
+}
+finally {
+    Remove-Item -LiteralPath $ffDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+if ($why) { $failed++; Write-Host "FAILED ${n}: FFmpeg DLL precheck: $($why -join ' | ')" }
+else { Write-Host "OK $n a Win32 or x64 smoke worker without openswbf2-ffmpeg.dll fails the precheck, workers of both platforms and the tests output folder get the DLL and its notices, a tests project without the NOTICE.txt copy is seen, and both exes may import it" }
+$n++
+$why = @()
+$ufRoot = Join-Path ([IO.Path]::GetTempPath()) ('ossf2-ffverify-' + [guid]::NewGuid().ToString('N'))
+try {
+    $ufAst = [Management.Automation.Language.Parser]::ParseFile((Join-Path (Split-Path $PSScriptRoot -Parent) 'tools\update-ffmpeg.ps1'), [ref]$null, [ref]$null)
+    $ufFns = @($ufAst.FindAll({ param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst] -and @('Get-FileSha256', 'Edit-ConfigH', 'Compare-Trees') -contains $a.Name }, $true))
+    $ufOwned = @($ufAst.FindAll({ param($a) $a -is [Management.Automation.Language.AssignmentStatementAst] -and $a.Left.Extent.Text -ceq '$notOwned' }, $true))
+    if ($ufFns.Count -ne 3 -or $ufOwned.Count -ne 1) { throw "update-ffmpeg.ps1 has $($ufFns.Count) of the 3 functions and $($ufOwned.Count) notOwned lists" }
+    $ufWhy = & {
+        function Fail([string]$msg) { throw "update-ffmpeg: $msg" }
+        $utf8 = New-Object Text.UTF8Encoding($false)
+        . ([scriptblock]::Create((@($ufFns | ForEach-Object { $_.Extent.Text }) + $ufOwned[0].Extent.Text) -join "`n"))
+        $w = @()
+        $cfg = {
+            param([string]$year, [string]$cl, [string]$bits)
+            "#ifndef FFMPEG_CONFIG_H`n#define FFMPEG_CONFIG_H`n#define FFMPEG_CONFIGURATION `"x`"`n#define CONFIG_THIS_YEAR $year`n#define FFMPEG_LICENSE `"LGPL version 2.1 or later`"`n#define CC_IDENT `"Microsoft (R) C/C++ Optimizing Compiler Version $cl for x$bits`"`n#define HAVE_ALIGNED_MALLOC 1`n#define HAVE_POSIX_MEMALIGN 0`n#define CONFIG_GPL 0`n#define CONFIG_NONFREE 0`n#define CONFIG_GPLV3 0`n#endif`n"
+        }
+        $edit = {
+            param([string]$name, [string]$text, [string]$plat)
+            $path = Join-Path $ufRoot $name
+            [IO.File]::WriteAllBytes($path, $utf8.GetBytes($text))
+            Edit-ConfigH $path $plat
+            [IO.File]::ReadAllText($path)
+        }
+        New-Item -ItemType Directory -Force -Path $ufRoot | Out-Null
+        $base = & $edit 'a.h' (& $cfg '2026' '19.44.35230' '86') 'Win32'
+        $later = & $edit 'b.h' (& $cfg '2031' '19.50.36001' '86') 'Win32'
+        $x64 = & $edit 'c.h' (& $cfg '2027' '19.45.1' '64') 'x64'
+        if ($later -cne $base) { $w += 'another year and cl version give other bytes' }
+        if ($base -cnotmatch '(?m)^#define CONFIG_THIS_YEAR 2026$' -or $base -cnotmatch '(?m)^#define CC_IDENT "Microsoft \(R\) C/C\+\+ Optimizing Compiler Version 19\.44\.35230 for x86"$') { $w += 'the fixed values are not written' }
+        if ($x64 -cnotmatch '(?m)^#define CC_IDENT "Microsoft \(R\) C/C\+\+ Optimizing Compiler Version 19\.44\.35230 for x64"$' -or $x64 -cnotmatch '(?m)^#define CONFIG_THIS_YEAR 2026$') { $w += 'the x64 fixed values are not written' }
+        if ($base -cnotmatch '(?m)^#define HAVE_POSIX_MEMALIGN 1$') { $w += 'the allocator edit is lost' }
+        $refused = 0
+        foreach ($bad in @((& $cfg '20311' '19.44.35230' '86'), ((& $cfg '2026' '19.44.35230' '86') + "#define CC_IDENT `"x`"`n"), ((& $cfg '2026' '19.44.35230' '86') -replace '#define CONFIG_THIS_YEAR 2026\n', ''))) {
+            try { & $edit 'd.h' $bad 'Win32' | Out-Null } catch { if ("$_" -match '^update-ffmpeg: ') { $refused++ } }
+        }
+        if ($refused -ne 3) { $w += "only $refused of 3 malformed year or CC_IDENT definitions were refused" }
+        $ta = Join-Path $ufRoot 'ta'
+        $tb = Join-Path $ufRoot 'tb'
+        foreach ($t in $ta, $tb) {
+            New-Item -ItemType Directory -Force -Path (Join-Path $t 'config\Win32') | Out-Null
+            [IO.File]::WriteAllText((Join-Path $t 'config\Win32\config.h'), $base)
+            [IO.File]::WriteAllText((Join-Path $t 'UPSTREAM.md'), "# x`r`nGenerated: 2026-11-24`r`n")
+        }
+        if (@(Compare-Trees $ta $tb).Count -ne 0) { $w += 'equal trees differ' }
+        $bytes = [IO.File]::ReadAllBytes((Join-Path $tb 'config\Win32\config.h'))
+        $bytes[20] = [byte]($bytes[20] -bxor 1)
+        [IO.File]::WriteAllBytes((Join-Path $tb 'config\Win32\config.h'), $bytes)
+        $d = @(Compare-Trees $ta $tb)
+        if ($d.Count -ne 1 -or $d[0] -cne 'differs: config\Win32\config.h') { $w += "a one-byte change gives '$($d -join ', ')'" }
+        $w
+    }
+    $why += @($ufWhy)
+}
+catch { $why += "threw: $($_.Exception.Message)" }
+finally { Remove-Item -LiteralPath $ufRoot -Recurse -Force -ErrorAction SilentlyContinue }
+if ($why) { $failed++; Write-Host "FAILED ${n}: update-ffmpeg fixed config values: $($why -join ' | ')" }
+else { Write-Host "OK $n update-ffmpeg writes the same config.h for another year and cl version, writes the recorded x86 and x64 CC_IDENT, refuses a malformed year and a doubled or missing definition, and its subset compare passes equal trees and fails a one-byte change" }
+$n++
+$why = @()
+$mvPlat = $script:SmokePlatform
+$mvCfg = $script:SmokeDigestConfiguration
+$mvRoot = Join-Path $env:TEMP ('openswbf2-moviefile-' + [guid]::NewGuid().ToString('N'))
+$mvSrc = Join-Path $mvRoot 'src'
+$mvDir = Join-Path $mvRoot 'artifacts\smoke-workers\Win32\Test\smoke\w1'
+$mvBatch = $null
+try {
+    $mvCap = [regex]::Match([IO.File]::ReadAllText((Join-Path (Split-Path $PSScriptRoot -Parent) 'src\RedEngineFL\movie\pc\pcRedMovieHeader.h')), 'kMovieMaxWidth = (\d+);')
+    if (-not $mvCap.Success) { $why += 'no kMovieMaxWidth in pcRedMovieHeader.h' }
+    foreach ($mm in 'width', 'magic') {
+        $b = Get-SmokeMovieBytes $mm
+        $u = { param([int]$at) [BitConverter]::ToUInt32($b, $at) }
+        if ($b.Length -ne 6144 -or [Text.Encoding]::ASCII.GetString($b, 0, 4) -cne 'ucfb' -or (& $u 4) -ne 6136) { $why += "$mm container size" }
+        if ((& $u 8) -ne [Convert]::ToUInt32('2F1F7060', 16) -or (& $u 16) -ne [Convert]::ToUInt32('F9F40518', 16) -or (& $u 24) -ne [Convert]::ToUInt32('0FB40705', 16) -or (& $u 28) -ne 2008) { $why += "$mm chunk tree" }
+        if ((& $u 2040) -ne [Convert]::ToUInt32('D872E2A5', 16) -or (& $u 2044) -ne 4096) { $why += "$mm Data chunk" }
+        if ((& $u 44) -ne 1 -or (& $u 60) -ne $script:SmokeMovieSegment -or (& $u 68) -ne 68 -or (& $u 76) -ne 4028 -or (& $u 80) -ne [Convert]::ToUInt32('7DB1D043', 16)) { $why += "$mm segment table" }
+        $magic = [Text.Encoding]::ASCII.GetString($b, 2048, 4)
+        if ($magic -cne $(if ($mm -ceq 'magic') { 'XYZi' } else { 'BIKi' })) { $why += "$mm magic '$magic'" }
+        if ((& $u 2052) + 8 -ne 68 -or (& $u 2056) -ne 1 -or (& $u 2088) -ne 0 -or (& $u 2092) -ne 53 -or (& $u 2096) -ne 68) { $why += "$mm bink header" }
+        $w = & $u 2068
+        if ($mvCap.Success -and $w -ne $(if ($mm -ceq 'width') { [int]$mvCap.Groups[1].Value + 1 } else { 800 })) { $why += "$mm width $w" }
+    }
+    $mvGood = { param($m, [string]$a = '-movielocal -movietest x.mvs:0x1:5') New-Object PSObject -Property @{ Name = 'mv'; Args = $a; MovieFile = $m; Expect = @{ Class = 'Pass' } } }
+    try { Assert-SmokeCaseData @((& $mvGood @{ Name = 'a-b_9.mvs'; Mutation = 'width' }), (& $mvGood @{ Name = 'b.mvs'; Mutation = 'magic' } '-movieloops 2 -movielocal')) }
+    catch { $why += "a good MovieFile was refused: $($_.Exception.Message)" }
+    $mvBad = @(
+        @('not a table', (& $mvGood 'a.mvs')),
+        @('no mutation', (& $mvGood @{ Name = 'a.mvs' })),
+        @('an extra key', (& $mvGood @{ Name = 'a.mvs'; Mutation = 'width'; Segment = 1 })),
+        @('a parent path', (& $mvGood @{ Name = '..\a.mvs'; Mutation = 'width' })),
+        @('a sub folder', (& $mvGood @{ Name = 'sub\a.mvs'; Mutation = 'width' })),
+        @('a bik name', (& $mvGood @{ Name = 'a.bik'; Mutation = 'width' })),
+        @('the data folder', (& $mvGood @{ Name = 'data'; Mutation = 'width' })),
+        @('a 28 character name', (& $mvGood @{ Name = 'abcdefghijklmnopqrstuvwxyz12.mvs'; Mutation = 'width' })),
+        @('an unknown mutation', (& $mvGood @{ Name = 'a.mvs'; Mutation = 'height' })),
+        @('a mutation in another case', (& $mvGood @{ Name = 'a.mvs'; Mutation = 'Width' })),
+        @('no -movielocal', (& $mvGood @{ Name = 'a.mvs'; Mutation = 'width' } '-movietest a.mvs:0x1:5 -movielocalx'))
+    )
+    foreach ($s in $mvBad) {
+        $refused = $false
+        try { Assert-SmokeCaseData @($s[1]) } catch { $refused = $_.Exception.Message -like '*MovieFile*' }
+        if (-not $refused) { $why += "$($s[0]) was not refused" }
+    }
+    if ([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'run.ps1')) -cnotmatch 'MovieFile = \$sc\.MovieFile;') { $why += 'run.ps1 does not pass MovieFile to the smoke workers' }
+    $script:SmokePlatform = 'Win32'
+    New-Item -ItemType Directory -Force -Path (Join-Path $mvSrc 'data') | Out-Null
+    Copy-Item -LiteralPath $env:ComSpec -Destination (Join-Path $mvSrc 'BattlefrontII.exe')
+    New-SmokeWorkerDir $mvSrc $mvDir
+    $mvCases = @(
+        (New-Object PSObject -Property @{ Name = 'with'; ExeName = 'BattlefrontII.exe'; ArgLine = '/c dir /b *.mvs'; CaseDir = (Join-Path $mvRoot 'case-with'); MovieFile = @{ Name = 'b.mvs'; Mutation = 'magic' } }),
+        (New-Object PSObject -Property @{ Name = 'plain'; ExeName = 'BattlefrontII.exe'; ArgLine = '/c dir /b *.mvs'; CaseDir = (Join-Path $mvRoot 'case-plain') }),
+        (New-Object PSObject -Property @{ Name = 'last'; ExeName = 'BattlefrontII.exe'; ArgLine = '/c dir /b *.mvs'; CaseDir = (Join-Path $mvRoot 'case-last'); MovieFile = @{ Name = 'c.mvs'; Mutation = 'width' } })
+    )
+    $mvBatch = Start-SmokeBatch $mvCases @($mvDir) $mvSrc
+    $mvRes = @(for ($i = 0; $i -lt $mvCases.Count; $i++) { Receive-SmokeCase $mvBatch $i })
+    if ($mvRes[0].LogText -cnotmatch '(?m)^b\.mvs\r?$') { $why += 'a case with MovieFile did not find its file in the worker at launch' }
+    if ($mvRes[1].LogText -cmatch '\.mvs') { $why += 'the next case without MovieFile still found a .mvs in the worker' }
+    $mvLast = Join-Path $mvDir 'c.mvs'
+    if (-not [IO.File]::Exists($mvLast)) { $why += 'the last case left no c.mvs' }
+    elseif ([Convert]::ToBase64String([IO.File]::ReadAllBytes($mvLast)) -cne [Convert]::ToBase64String((Get-SmokeMovieBytes 'width'))) { $why += 'the worker c.mvs is not the width movie' }
+    $script:SmokeDigestConfiguration = 'Test'
+    $mvReal = @(Get-SmokeCases 'Standard' @() $false $null | Where-Object { $_.MovieFile })
+    if ((@($mvReal | ForEach-Object { "$($_.Name)=$($_.MovieFile.Name):$($_.MovieFile.Mutation)" }) -join ',') -cne 'movie-reject-width=reject-width.mvs:width,movie-reject-magic=reject-magic.mvs:magic,movie-reject-loop=shell.mvs:width') { $why += "Win32 Test MovieFile cases: $(@($mvReal | ForEach-Object { $_.Name }) -join ',')" }
+    foreach ($c in $mvReal) {
+        if ($c.Name -ceq 'movie-reject-loop') {
+            if ($c.Args -cnotmatch ' -movieloops 2 -movielocal ') { $why += "movie-reject-loop runs $($c.Args)" }
+        }
+        elseif ($c.Args -cnotmatch (' -movietest ' + [regex]::Escape($c.MovieFile.Name) + ':0x' + $script:SmokeMovieSegment.ToString('X8') + ':30 -movielocal ')) { $why += "$($c.Name) runs $($c.Args)" }
+        if (@($c.Expect.LogRx) -join "`n" -cnotmatch [regex]::Escape("OPENSWBF2 MOVIE reject reason=$($c.MovieFile.Mutation)")) { $why += "$($c.Name) does not require reason=$($c.MovieFile.Mutation)" }
+    }
+}
+catch { $why += "threw: $($_.Exception.Message)" }
+finally {
+    if ($mvBatch) { Stop-SmokeBatch $mvBatch }
+    if ([IO.Directory]::Exists($mvDir)) { Remove-HarnessTree $mvDir }
+    Remove-Item -LiteralPath $mvRoot -Recurse -Force -ErrorAction SilentlyContinue
+    $script:SmokePlatform = $mvPlat
+    $script:SmokeDigestConfiguration = $mvCfg
+}
+if ($why) { $failed++; Write-Host "FAILED ${n}: synthetic movie file: $($why -join ' | ')" }
+else { Write-Host "OK $n the synthetic hostile .mvs is a ucfb movie of one 68-byte segment whose Bink header is one past the width cap or has magic XYZi; a MovieFile must be a plain <name>.mvs with mutation width or magic on a -movielocal case; the batch writes it into the worker before launch and the next case does not see it; the three Win32 Test reject cases carry it" }
+$n++
+$bgRoot = Join-Path $env:TEMP ('openswbf2-binkgone-' + [guid]::NewGuid().ToString('N'))
+$bgProj = '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"><ItemDefinitionGroup><Link><AdditionalDependencies>kernel32.lib;{0}</AdditionalDependencies></Link></ItemDefinitionGroup><ItemGroup>{1}</ItemGroup><Target Name="StageVendor"><Delete Files="$(OutDir)unicows.dll" />{2}</Target></Project>'
+$bgDelete = '<Delete Files="$(OutDir)binkw32.dll" />'
+$bgWorkers = @('BattlefrontII.exe', 'openswbf2-ffmpeg.dll')
+$bgCases = @(
+    @('a clean tree', $true, @{}, $false, $impGood, $bgWorkers, $null),
+    @('a FFmpegFL source calling BinkOpen and a game source with PixelBink, IsBinkRevision and bink in lower case', $true, @{ 'src\FFmpegFL\libavcodec\x.c' = 'BinkOpen(p);'; 'src\Game\a.cpp' = 'PixelBink(1); IsBinkRevision(c); av_find_input_format("bink");' }, $false, $impGood, $bgWorkers, $null),
+    @('binkw32.dll in the static import section', $false, @{}, $false, ($impGood + "`n    binkw32.dll`n                   0 _BinkOpen@8`n"), $bgWorkers, 'static import binkw32.dll'),
+    @('binkw32.dll in the delay import section', $false, @{}, $false, ($impDelay.Replace('    steam_api.dll', '    binkw32.dll')), $bgWorkers, 'delay import binkw32.dll'),
+    @('binkw32.dll in the output folder', $false, @{}, $true, $impGood, $bgWorkers, 'staged in '),
+    @('lib\Win32\binkw32.lib', $false, @{ 'lib\Win32\binkw32.lib' = 'x' }, $false, $impGood, $bgWorkers, 'lib file lib\Win32\binkw32.lib'),
+    @('binkw32.lib in AdditionalDependencies', $false, @{ 'BattlefrontII.vcxproj' = ($bgProj -f 'lib\Win32\binkw32.lib', '', $bgDelete) }, $false, $impGood, $bgWorkers, 'BattlefrontII.vcxproj AdditionalDependencies'),
+    @('a GameDataFile staging binkw32.dll', $false, @{ 'BattlefrontII.vcxproj' = ($bgProj -f '', '<GameDataFile Include="$(SWBF2_GAMEDATA)\binkw32.dll" />', $bgDelete) }, $false, $impGood, $bgWorkers, 'BattlefrontII.vcxproj GameDataFile'),
+    @('a library project linking binkw32', $false, @{ 'src\Game\Game.vcxproj' = ($bgProj -f 'binkw32.lib', '', '') }, $false, $impGood, $bgWorkers, 'src\Game\Game.vcxproj AdditionalDependencies'),
+    @('a StageVendor without the binkw32.dll Delete', $false, @{ 'BattlefrontII.vcxproj' = ($bgProj -f '', '', '') }, $false, $impGood, $bgWorkers, 'StageVendor does not delete a stale binkw32.dll'),
+    @('binkw32 named in tests\smoke\cases.ps1', $false, @{ 'tests\smoke\cases.ps1' = '$a = @(''binkw32.dll'')' }, $false, $impGood, $bgWorkers, 'named in tests\smoke\cases.ps1'),
+    @('binkw32 named in tests\common.ps1', $false, @{ 'tests\common.ps1' = '$a = @(''BINKW32.DLL'')' }, $false, $impGood, $bgWorkers, 'named in tests\common.ps1'),
+    @('binkw32.dll in the worker list', $false, @{}, $false, $impGood, @('BattlefrontII.exe', 'binkw32.dll'), 'worker list'),
+    @('a game source calling BinkOpen', $false, @{ 'src\Game\a.cpp' = "int a;`r`nvoid f() { BinkOpen(0, 0); }" }, $false, $impGood, $bgWorkers, 'source src\Game\a.cpp:2'),
+    @('a test source using BINK', $false, @{ 'tests\unit\b.cpp' = 'static_assert(sizeof(BINK) == 0xd4, "");' }, $false, $impGood, $bgWorkers, 'source tests\unit\b.cpp:1'),
+    @('a game header declaring BINKIO', $false, @{ 'src\Game\a.h' = 'struct BINKIO;' }, $false, $impGood, $bgWorkers, 'source src\Game\a.h:1'),
+    @('a game header declaring BINKFILE', $false, @{ 'src\Game\a.h' = 'struct BINKFILE;' }, $false, $impGood, $bgWorkers, 'source src\Game\a.h:1'),
+    @('a game source loading binkw32.dll at run time', $false, @{ 'src\Game\a.cpp' = "int a;`r`nvoid f() { LoadLibraryA(`"binkw32.dll`"); }" }, $false, $impGood, $bgWorkers, 'source src\Game\a.cpp:2'),
+    @('a game source naming BinkW64 without the extension', $false, @{ 'src\Game\a.cpp' = 'const char* p = "BinkW64";' }, $false, $impGood, $bgWorkers, 'source src\Game\a.cpp:1'),
+    @('a test source naming the binkw32 golden section', $true, @{ 'tests\unit\b.cpp' = 'const char* s = "binkw32 frames";' }, $false, $impGood, $bgWorkers, '')
+)
+$why = @()
+try {
+    $bgShipped = Get-BinkGoneCheck (Split-Path $PSScriptRoot -Parent) $bgRoot $impGood
+    if ($bgShipped.Name -ne 'bink-gone' -or -not $bgShipped.Ok -or $bgShipped.Detail) { $why += "the shipped tree: ok=$($bgShipped.Ok) $($bgShipped.Detail)" }
+    $k = 0
+    foreach ($bg in $bgCases) {
+        $k++
+        $d = Join-Path $bgRoot "t$k"
+        $files = @{ 'BattlefrontII.vcxproj' = ($bgProj -f '', '', $bgDelete); 'src\Game\a.cpp' = 'int a;'; 'tests\unit\b.cpp' = 'int b;'; 'tests\smoke\cases.ps1' = '$a = 1'; 'tests\common.ps1' = '$b = 1' }
+        foreach ($f in $bg[2].Keys) { $files[$f] = $bg[2][$f] }
+        foreach ($f in $files.Keys) {
+            $p = Join-Path $d $f
+            New-Item -ItemType Directory -Force -Path (Split-Path $p) | Out-Null
+            [IO.File]::WriteAllText($p, $files[$f])
+        }
+        New-Item -ItemType Directory -Force -Path (Join-Path $d 'lib\Win32'), (Join-Path $d 'out') | Out-Null
+        if ($bg[3]) { [IO.File]::WriteAllText((Join-Path $d 'out\binkw32.dll'), 'x') }
+        $c = Get-BinkGoneCheck $d (Join-Path $d 'out') $bg[4] $bg[5]
+        if ($c.Name -ne 'bink-gone' -or $c.Ok -ne $bg[1]) { $why += "$($bg[0]): ok=$($c.Ok) $($c.Detail)" }
+        elseif ($bg[1] -and $c.Detail) { $why += "$($bg[0]): passing case has detail $($c.Detail)" }
+        elseif ($bg[6] -and $c.Detail -cne $bg[6] -and -not $c.Detail.StartsWith($bg[6])) { $why += "$($bg[0]): detail '$($c.Detail)' does not name '$($bg[6])'" }
+    }
+}
+catch { $why += "threw: $($_.Exception.Message)" }
+finally { Remove-Item -LiteralPath $bgRoot -Recurse -Force -ErrorAction SilentlyContinue }
+if ($why) { $failed++; Write-Host "FAILED ${n}: bink-gone: $($why -join ' | ')" }
+else { Write-Host "OK $n bink-gone passes the shipped tree, a clean tree and Bink names inside FFmpegFL or not at a word start; it fails a binkw32 static or delay import, a staged binkw32.dll, lib\Win32\binkw32.lib, a project element naming binkw32, a StageVendor without its Delete, binkw32 in cases.ps1, common.ps1 or the worker list, a Bink call or BINK, BINKIO or BINKFILE in game or test source, and a binkw32 or binkw64 name in game source; a test source may name the archived binkw32 golden sections" }
+$n++
+$mtWhy = $null
+$mtRed = @()
+try {
+    $mtRoot = Split-Path $PSScriptRoot -Parent
+    $mtStepsText = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'gate\tiers.ps1'))
+    $mtSteps = & { $GateSteps = $null; . ([scriptblock]::Create($mtStepsText)); , @($GateSteps) }
+    $mtVcx = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'OpenSWBF2Tests.vcxproj'))
+    $mtRun = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'run.ps1'))
+    $mtSrc = @{}
+    foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'unit') -Filter 'movie_*.cpp' | Sort-Object Name)) { $mtSrc[$f.Name] = [IO.File]::ReadAllText($f.FullName) }
+    $mtLua = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'unit\lua_bytecode_retail.cpp'))
+    $mtTierOrder = @('plan', 'pr', 'branch', 'milestone')
+    $mtT1Want = @('Win32 Asan pr,milestone', 'Win32 Debug plan,branch,milestone', 'Win32 Test pr,milestone', 'x64 Asan branch,milestone', 'x64 Test plan,branch,milestone')
+    $mtFrameHash = 'movie frame hashes match the pinned FFmpeg path'
+    $mtCorpus = 'movie corpus decodes every retail stream'
+    $mtCases = {
+        param([string]$text, [string]$file)
+        $ms = [regex]::Matches($text, 'TEST_CASE\("((?:[^"\\]|\\.)*)"\s*\*\s*doctest::test_suite\("(\w+)"\)')
+        if ($ms.Count -ne [regex]::Matches($text, '\bTEST_CASE\(').Count) { throw "$file has a TEST_CASE whose suite is not readable" }
+        @($ms | ForEach-Object { New-Object PSObject -Property @{ File = $file; Name = $_.Groups[1].Value; Suite = $_.Groups[2].Value } })
+    }
+    $mtCheck = {
+        param($steps, [string]$vcx, $src, [string]$lua, $notFor, [string]$runText)
+        $t = @{}
+        foreach ($s in $steps) {
+            $a = @($s.Args)
+            if ($s.Kind -cne 'run' -or $a -notcontains 'tests\run.ps1') { continue }
+            $i = [Array]::IndexOf($a, '-Smoke')
+            if ($i -ge 0 -and $a[$i + 1] -cne 'None') { continue }
+            if ($i -lt 0 -and $a -contains '-Hardening') { continue }
+            if (@($a | Where-Object { $_ -ceq '-Suite' -or $_ -ceq '-Filter' -or $_ -ceq '-Fuzz' }).Count) { continue }
+            if (@($s.JudgeKinds) -notcontains 't1') { return "$($s.Name) runs T1 without the t1 judge kind" }
+            $c = 'Debug'
+            $j = [Array]::IndexOf($a, '-Configuration')
+            if ($j -ge 0) { $c = $a[$j + 1] }
+            if ($a -contains '-Asan') { $c = 'Asan' }
+            foreach ($p in $(if ($s.Platform) { @($s.Platform) } else { @('Win32', 'x64') })) {
+                $k = "$p $c"
+                if (-not $t.ContainsKey($k)) { $t[$k] = @() }
+                $t[$k] += @($s.Tiers)
+            }
+        }
+        $rows = @($t.Keys | ForEach-Object { $v = $t[$_]; "$_ " + (@($mtTierOrder | Where-Object { $v -contains $_ }) -join ',') } | Sort-Object)
+        $miss = @($mtT1Want | Where-Object { $rows -cnotcontains $_ })
+        $extra = @($rows | Where-Object { $mtT1Want -cnotcontains $_ })
+        if ($miss.Count -or $extra.Count) { return "T1 placement differs: missing [$($miss -join '; ')] extra [$($extra -join '; ')]" }
+        if ([regex]::Matches($runText, [regex]::Escape("if (`$Fuzz) { `$suites = @('stress') }")).Count -ne 1) { return 'run.ps1 does not run exactly the stress suite under -Fuzz' }
+        if ([regex]::Matches($runText, [regex]::Escape("else { `$suites = `$allSuites | Where-Object { `$_ -ne 'stress' } }")).Count -ne 1) { return 'run.ps1 does not run every suite but stress by default' }
+        $glob = [regex]::Matches($vcx, '<ClCompile Include="unit\\\*\.cpp" Exclude="([^"]*)" />')
+        if ($glob.Count -ne 1) { return 'the tests project has no single unit\*.cpp item' }
+        $ex = @($glob[0].Groups[1].Value.Split(';'))
+        $corpusItem = [regex]::Matches($vcx, '<ClCompile Include="unit\\movie_corpus\.cpp"([^>]*)/>')
+        if ($ex -notcontains 'unit\movie_corpus.cpp' -or $corpusItem.Count -ne 1 -or $corpusItem[0].Groups[1].Value.Trim() -cne "Condition=`"'`$(Configuration)'=='Asan'`"") { return 'movie_corpus.cpp is not compiled in Asan only' }
+        $cases = @()
+        foreach ($f in @($src.Keys | Sort-Object)) {
+            if ($f -cne 'movie_corpus.cpp' -and ($ex -contains "unit\$f" -or [regex]::Matches($vcx, 'Include="unit\\' + [regex]::Escape($f) + '"').Count)) { return "$f is not compiled by the unit\*.cpp item in every configuration and platform" }
+            $cases += @(& $mtCases $src[$f] $f)
+        }
+        $fh = @($cases | Where-Object { $_.Name -ceq $mtFrameHash })
+        if ($fh.Count -ne 1 -or $fh[0].Suite -cne 'unit' -or $fh[0].File -cne 'movie_retail.cpp') { return 'the frame-hash T2 is not one unit case in movie_retail.cpp' }
+        $co = @($cases | Where-Object { $_.File -ceq 'movie_corpus.cpp' })
+        if ($co.Count -ne 1 -or $co[0].Name -cne $mtCorpus -or $co[0].Suite -cne 'unit') { return 'movie_corpus.cpp does not hold exactly the unit corpus case' }
+        $default = @($script:T1Suites | Where-Object { $_ -cne 'stress' })
+        if ($default -cnotcontains 'unit' -or $default -cnotcontains 'fuzz') { return 'unit or fuzz is not a default T1 suite' }
+        foreach ($c in $cases) {
+            if ($script:T1Suites -cnotcontains $c.Suite) { return "$($c.Name) is in suite $($c.Suite), which no T1 run lists" }
+            if ($c.Suite -ceq 'stress' -and $c.File -cne 'movie_fuzz.cpp') { return "$($c.Name) runs only under -Fuzz" }
+        }
+        $fz = @($cases | Where-Object { $_.File -ceq 'movie_fuzz.cpp' } | ForEach-Object { $_.Suite } | Sort-Object -Unique)
+        $lz = @(& $mtCases $lua 'lua_bytecode_retail.cpp' | Where-Object { $_.Suite -ceq 'fuzz' -or $_.Suite -ceq 'stress' } | ForEach-Object { $_.Suite } | Sort-Object -Unique)
+        if (($fz -join ',') -cne ($lz -join ',') -or $lz.Count -ne 2) { return "movie fuzz suites [$($fz -join ',')] are not the lua fuzz suites [$($lz -join ',')]" }
+        $names = @($cases | ForEach-Object { $_.Name })
+        $nf = @($notFor | Where-Object { $names -ccontains $_.Name })
+        if ($nf.Count) { return "$($nf[0].Name) is not run on $($nf[0].Platform)" }
+        return $null
+    }
+    $mtWhy = & $mtCheck $mtSteps $mtVcx $mtSrc $mtLua $script:T1NotForPlatform $mtRun
+    if (-not $mtWhy) {
+        $mtSrcWith = { param([string]$f, [string]$from, [string]$to) $c = $mtSrc.Clone(); if (-not $c[$f].Contains($from)) { throw "mutant anchor not in $f" }; $c[$f] = $c[$f].Replace($from, $to); $c }
+        $mtStepWith = { param([string]$name, [scriptblock]$edit) @($mtSteps | ForEach-Object { if ($_.Name -ceq $name) { $h = $_.Clone(); & $edit $h; $h } else { $_ } }) }
+        $mtCorpusFrom = "<ClCompile Include=`"unit\movie_corpus.cpp`" Condition=`"'`$(Configuration)'=='Asan'`" />"
+        $mtGlobFrom = 'Exclude="unit\movie_corpus.cpp;'
+        foreach ($a in @($mtCorpusFrom, $mtGlobFrom)) { if ([regex]::Matches($mtVcx, [regex]::Escape($a)).Count -ne 1) { throw "mutant anchor not found once in the tests project: $a" } }
+        $mtMuts = @(
+            @('a step table without run-Asan', @($mtSteps | Where-Object { $_.Name -cne 'run-Asan' }), $mtVcx, $mtSrc, $script:T1NotForPlatform, $mtRun),
+            @('a step table without x64-t1-Asan', @($mtSteps | Where-Object { $_.Name -cne 'x64-t1-Asan' }), $mtVcx, $mtSrc, $script:T1NotForPlatform, $mtRun),
+            @('x64-t1 without plan', (& $mtStepWith 'x64-t1' { param($h) $h.Tiers = @('branch', 'milestone') }), $mtVcx, $mtSrc, $script:T1NotForPlatform, $mtRun),
+            @('run-default narrowed to -Suite regression', (& $mtStepWith 'run-default' { param($h) $h.Args = @($h.Args) + @('-Suite', 'regression') }), $mtVcx, $mtSrc, $script:T1NotForPlatform, $mtRun),
+            @('movie_corpus.cpp compiled in every configuration', $mtSteps, $mtVcx.Replace($mtCorpusFrom, '<ClCompile Include="unit\movie_corpus.cpp" />').Replace($mtGlobFrom, 'Exclude="'), $mtSrc, $script:T1NotForPlatform, $mtRun),
+            @('movie_retail.cpp left out of the unit glob', $mtSteps, $mtVcx.Replace($mtGlobFrom, 'Exclude="unit\movie_retail.cpp;unit\movie_corpus.cpp;'), $mtSrc, $script:T1NotForPlatform, $mtRun),
+            @('the frame-hash T2 moved to stress', $mtSteps, $mtVcx, (& $mtSrcWith 'movie_retail.cpp' "TEST_CASE(`"$mtFrameHash`" * doctest::test_suite(`"unit`"))" "TEST_CASE(`"$mtFrameHash`" * doctest::test_suite(`"stress`"))"), $script:T1NotForPlatform, $mtRun),
+            @('the movie fuzz default seeds moved to stress', $mtSteps, $mtVcx, (& $mtSrcWith 'movie_fuzz.cpp' 'doctest::test_suite("fuzz")' 'doctest::test_suite("stress")'), $script:T1NotForPlatform, $mtRun),
+            @('a movie case not run on x64', $mtSteps, $mtVcx, $mtSrc, (@($script:T1NotForPlatform) + @(@{ Platform = 'x64'; Name = $mtFrameHash; Reason = 'mutant' })), $mtRun),
+            @('run.ps1 running stress under the default suites', $mtSteps, $mtVcx, $mtSrc, $script:T1NotForPlatform, $mtRun.Replace("Where-Object { `$_ -ne 'stress' }", 'Where-Object { $_ }'))
+        )
+        foreach ($m in $mtMuts) {
+            $w = & $mtCheck $m[1] $m[2] $m[3] $mtLua $m[4] $m[5]
+            if (-not $w) { $mtWhy = "mutant survived: $($m[0])"; break }
+            $mtRed += "$($m[0]) -> $w"
+        }
+    }
+}
+catch { $mtWhy = "threw: $($_.Exception.Message)" }
+if ($mtWhy) { $failed++; Write-Host "FAILED ${n}: movie T1 placement: $mtWhy" }
+else { Write-Host "OK $n the movie T1s, the frame-hash T2 and the movie fuzz default seeds run in every T1 step ($($mtT1Want -join '; ')), the Asan corpus is compiled in Asan only and runs in run-Asan and x64-t1-Asan, the movie fuzz soaks run under -Fuzz like the lua fuzz soak, and the check fails on: $($mtRed -join ' | ')" }
 $n++
 if ($failed -gt 0) { exit 1 }
 exit 0

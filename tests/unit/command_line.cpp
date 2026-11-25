@@ -68,7 +68,8 @@ TEST_CASE("command line keeps -perturbheap and -repeatmission out of the mission
 
 TEST_CASE("command line reports test-only switches it ignores" * doctest::test_suite("regression"))
 {
-    Parse("-perturbheap 1:pad -repeatmission 2 -shellfirst -exitonmovieclose -digestdetail 4 -savetest write -handsoff geo1c_con");
+    Parse("-perturbheap 1:pad -repeatmission 2 -shellfirst -exitonmovieclose -digestdetail 4 -savetest write -handsoff "
+          "-movietest shell.mvs:0xB4A21ED9:10 -movieloops 2 -movielocal -movieskip 300 -moviefault hold geo1c_con");
     std::string ignored;
     const char* pcName = 0;
     int iCount = 0;
@@ -81,12 +82,13 @@ TEST_CASE("command line reports test-only switches it ignores" * doctest::test_s
             ignored += " ";
         }
     }
-    CHECK(iCount == 7);
+    CHECK(iCount == 12);
     CHECK(Mission() == "geo1c_con");
 #ifdef OPENSWBF2_TEST
     CHECK(ignored == "");
 #else
-    CHECK(ignored == "perturbheap repeatmission shellfirst exitonmovieclose digestdetail savetest handsoff ");
+    CHECK(ignored == "perturbheap repeatmission shellfirst exitonmovieclose digestdetail savetest handsoff movietest "
+                     "movieloops movielocal movieskip moviefault ");
 #endif
 
     Parse("geo1c_con");
@@ -134,6 +136,148 @@ TEST_CASE("command line -digestdetail takes a turn in Test builds and keeps it o
     CHECK(Mission() == "geo1c_con");
     Parse("geo1c_con");
     CHECK(gDigestDetail == 0);
+}
+
+TEST_CASE("command line switches movietest and movieloops take checked values in Test builds and keep them out of the mission name" * doctest::test_suite("regression"))
+{
+    {
+        LogCapture capture;
+        Parse("-movietest shell.mvs:0xB4A21ED9:1349 -movieloops 2 geo1c_con");
+        CHECK(Mission() == "geo1c_con");
+#ifdef OPENSWBF2_TEST
+        CHECK(std::string(gMovieTestFile) == "shell.mvs");
+        CHECK(gMovieTestSegment == 0xB4A21ED9u);
+        CHECK(gMovieTestFrames == 1349);
+        CHECK(gMovieLoops == 2);
+#else
+        CHECK(gMovieTestFile[0] == 0);
+        CHECK(gMovieTestFrames == 0);
+        CHECK(gMovieLoops == 0);
+#endif
+        CHECK(capture.Count("ignored") == 0);
+    }
+    {
+        LogCapture capture;
+        Parse("geo1c_con -movietest In-Game_2.MVS:shell:100000");
+        CHECK(Mission() == "geo1c_con");
+#ifdef OPENSWBF2_TEST
+        CHECK(std::string(gMovieTestFile) == "In-Game_2.MVS");
+        CHECK(gMovieTestSegment == 0x11E1FC01u);
+        CHECK(gMovieTestFrames == 100000);
+#endif
+        CHECK(capture.Count("-movietest needs") == 0);
+    }
+    const char* apcBadTest[] = { "-movietest shell.mvs:0xB4A21ED9 geo1c_con", "-movietest shell.bik:0x1:5 geo1c_con",
+        "-movietest ..\shell.mvs:0x1:5 geo1c_con", "-movietest a/b.mvs:0x1:5 geo1c_con", "-movietest .mvs:0x1:5 geo1c_con",
+        "-movietest shell.mvs:0x:5 geo1c_con", "-movietest shell.mvs:0x123456789:5 geo1c_con",
+        "-movietest shell.mvs:0x1G:5 geo1c_con", "-movietest shell.mvs:a.b:5 geo1c_con", "-movietest shell.mvs::5 geo1c_con",
+        "-movietest shell.mvs:0x1:0 geo1c_con", "-movietest shell.mvs:0x1:100001 geo1c_con",
+        "-movietest shell.mvs:0x1:5x geo1c_con", "-movietest shell.mvs:0x1:+5 geo1c_con", "-movietest shell.mvs:0x1:5:6 geo1c_con",
+        "-movietest abcdefghijklmnopqrstuvwxyz12.mvs:0x1:5 geo1c_con", "-movietest -movieloops 2 geo1c_con" };
+    for (int n = 0; n < (int)(sizeof(apcBadTest) / sizeof(apcBadTest[0])); ++n)
+    {
+        CAPTURE(n);
+        LogCapture capture;
+        Parse(apcBadTest[n]);
+        CHECK(Mission() == "geo1c_con");
+        CHECK(gMovieTestFile[0] == 0);
+        CHECK(gMovieTestFrames == 0);
+        CHECK(capture.Count("-movietest needs <name>.mvs:<segment>:<frames from 1 to 100000>, ignored") == 1);
+    }
+    const char* apcBadLoops[] = { "-movieloops 0 geo1c_con", "-movieloops 1001 geo1c_con", "-movieloops 2x geo1c_con",
+        "-movieloops +2 geo1c_con", "geo1c_con -movieloops" };
+    for (int n = 0; n < (int)(sizeof(apcBadLoops) / sizeof(apcBadLoops[0])); ++n)
+    {
+        CAPTURE(n);
+        LogCapture capture;
+        Parse(apcBadLoops[n]);
+        CHECK(Mission() == "geo1c_con");
+        CHECK(gMovieLoops == 0);
+        CHECK(capture.Count("-movieloops needs a count from 1 to 1000, ignored") == 1);
+    }
+    Parse("geo1c_con");
+    CHECK(gMovieTestFile[0] == 0);
+    CHECK(gMovieTestSegment == 0u);
+    CHECK(gMovieTestFrames == 0);
+    CHECK(gMovieLoops == 0);
+}
+
+TEST_CASE("command line switches movielocal and movieskip take checked values in Test builds and keep them out of the mission name" * doctest::test_suite("regression"))
+{
+    {
+        LogCapture capture;
+        Parse("-movielocal -movieskip 300 geo1c_con");
+        CHECK(Mission() == "geo1c_con");
+#ifdef OPENSWBF2_TEST
+        CHECK(gMovieLocal);
+        CHECK(gMovieSkip == 300);
+#else
+        CHECK_FALSE(gMovieLocal);
+        CHECK(gMovieSkip == 0);
+#endif
+        CHECK(capture.Count("ignored") == 0);
+    }
+    {
+        LogCapture capture;
+        Parse("geo1c_con -movieskip 100000 -movielocal");
+        CHECK(Mission() == "geo1c_con");
+#ifdef OPENSWBF2_TEST
+        CHECK(gMovieLocal);
+        CHECK(gMovieSkip == 100000);
+#endif
+        CHECK(capture.Count("-movieskip needs") == 0);
+    }
+    const char* apcBadSkip[] = { "-movieskip 0 geo1c_con", "-movieskip 100001 geo1c_con", "-movieskip 30x geo1c_con",
+        "-movieskip +30 geo1c_con", "geo1c_con -movieskip", "-movieskip -movielocal geo1c_con" };
+    for (int n = 0; n < (int)(sizeof(apcBadSkip) / sizeof(apcBadSkip[0])); ++n)
+    {
+        CAPTURE(n);
+        LogCapture capture;
+        Parse(apcBadSkip[n]);
+        CHECK(Mission() == "geo1c_con");
+        CHECK(gMovieSkip == 0);
+        CHECK(capture.Count("-movieskip needs a frame from 1 to 100000, ignored") == 1);
+    }
+    Parse("geo1c_con");
+    CHECK_FALSE(gMovieLocal);
+    CHECK(gMovieSkip == 0);
+}
+
+TEST_CASE("command line switch moviefault takes a named fault in Test builds and keeps it out of the mission name" * doctest::test_suite("regression"))
+{
+    const char* apcGood[] = { "-moviefault texture geo1c_con", "geo1c_con -moviefault SURFACE", "-moviefault hold geo1c_con" };
+    const int aiWant[] = { kMovieFaultTexture, kMovieFaultSurface, kMovieFaultHold };
+    CHECK(kMovieFaultTexture == 1);
+    CHECK(kMovieFaultSurface == 2);
+    CHECK(kMovieFaultHold == 3);
+    for (int n = 0; n < 3; ++n)
+    {
+        CAPTURE(n);
+        LogCapture capture;
+        Parse(apcGood[n]);
+        CHECK(Mission() == "geo1c_con");
+#ifdef OPENSWBF2_TEST
+        CHECK(gMovieFault == aiWant[n]);
+#else
+        (void)aiWant;
+        CHECK(gMovieFault == 0);
+#endif
+        CHECK(capture.Count("-moviefault needs") == 0);
+    }
+    const char* apcBad[] = { "-moviefault textures geo1c_con", "-moviefault 1 geo1c_con", "geo1c_con -moviefault",
+        "-moviefault -movielocal geo1c_con", "-moviefault hol geo1c_con" };
+    for (int n = 0; n < (int)(sizeof(apcBad) / sizeof(apcBad[0])); ++n)
+    {
+        CAPTURE(n);
+        LogCapture capture;
+        Parse(apcBad[n]);
+        CHECK(Mission() == "geo1c_con");
+        CHECK(gMovieFault == 0);
+        CHECK(capture.Count("-moviefault needs texture, surface or hold, ignored") == 1);
+    }
+    Parse("-moviefault hold geo1c_con");
+    Parse("geo1c_con");
+    CHECK(gMovieFault == 0);
 }
 
 TEST_CASE("command line -savetest takes write or load with a checked type and name and keeps them out of the mission name" * doctest::test_suite("regression"))

@@ -1,0 +1,50 @@
+From 5195d6f9729ad00b93e4d0f0bea309416fb4713e Mon Sep 17 00:00:00 2001
+From: Michael Niedermayer <michael@niedermayer.cc>
+Date: Tue, 3 Nov 2026 01:22:43 +0100
+Subject: [PATCH] avcodec/bink: check init_get_bits8() for failure
+
+Fixes: 5uCy7fcyAjx7
+Fixes: AISLE-2026-0150-00206
+Fixes: null pointer dereference
+Null pointer dereference Replicated through UnModified FFmpeg with ASAN
+(BIKb file with one 2^28 + 16 byte frame)
+
+Found-by: Joshua Rogers (AISLE)
+---
+ libavcodec/bink.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/libavcodec/bink.c b/libavcodec/bink.c
+index e10c8e0966..9025745377 100644
+--- a/libavcodec/bink.c
++++ b/libavcodec/bink.c
+@@ -1260,7 +1260,6 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
+     BinkContext * const c = avctx->priv_data;
+     GetBitContext gb;
+     int plane, plane_idx, ret;
+-    int bits_count = pkt->size << 3;
+ 
+     if (c->version > 'b') {
+         if ((ret = ff_get_buffer(avctx, frame, AV_GET_BUFFER_FLAG_REF)) < 0)
+@@ -1272,7 +1271,8 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
+             return ret;
+     }
+ 
+-    init_get_bits(&gb, pkt->data, bits_count);
++    if ((ret = init_get_bits8(&gb, pkt->data, pkt->size)) < 0)
++        return ret;
+     if (c->has_alpha) {
+         if (c->version >= 'i')
+             skip_bits_long(&gb, 32);
+@@ -1295,7 +1295,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
+                                           c->frame_num == 1, !!plane)) < 0)
+                 return ret;
+         }
+-        if (get_bits_count(&gb) >= bits_count)
++        if (get_bits_left(&gb) <= 0)
+             break;
+     }
+ 
+-- 
+2.52.0
+

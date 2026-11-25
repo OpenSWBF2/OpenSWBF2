@@ -5,9 +5,15 @@
 #include "RedEngineFL/Util/RedLocalizeDB.h"
 #include "PebbleFL/Common/PblChunk.h"
 #include "PebbleFL/Common/PblFile.h"
-#include "SoundFL/source/sndbus.h"
+#include "RedEngineFL/movie/RedMovieGain.h"
 
 #include <stdlib.h>
+
+#ifdef OPENSWBF2_TEST
+#include "RedEngineFL/Util/RedLog.h"
+
+unsigned int gRedMovieNotifyEnds;
+#endif
 
 namespace FLRenderer
 {
@@ -27,7 +33,7 @@ RedMovie::Properties::Properties()
 RedMovie::RedMovie()
     : mPlayTime(0.0f), mNumLoops(0), mPropertiesCur(0), mSegmentCur(0), mPropertiesPrev(0),
       mPropertiesNext(0), mSegmentNext(0), mPosX(0), mPosY(0), mWidth(0), mHeight(0),
-      mAudioBus(0), mChangedSegmentTime(0.0f), mCurSubtitles(0), mDisplaySubtitle(0), mFlags(0)
+      mAudioBusHash(0), mChangedSegmentTime(0.0f), mCurSubtitles(0), mDisplaySubtitle(0), mFlags(0)
 {
     SetNotifyCallback(MovieNotification, this);
     mTextures.Clear();
@@ -438,6 +444,19 @@ void RedMovie::MovieNotification(RedMoviePlayerBase* pPlayer, NotifyType eType, 
     RedMovie* pMovie = (RedMovie*)pData;
     const SegmentInfo* pSegmentInfo = pMovie->mSegmentCur;
     bool bEmpty = pMovie->mPropertyQueue.IsEmpty();
+#ifdef OPENSWBF2_TEST
+    {
+        static const char* const apcType[] = { "Invalid", "BufferingComplete", "End", "Discontinuity" };
+        const Segment* pRead = pPlayer->GetCurrentSegment();
+        LOG(LogCore, Inform, "OPENSWBF2 MOVIE notify type=%s seg=0x%08X read=0x%08X",
+            (unsigned int)eType < 4 ? apcType[eType] : "?", pSegmentInfo ? pSegmentInfo->GetHashID() : 0u,
+            pRead ? pRead->GetHashID() : 0u);
+        if (eType == notifyType_End || eType == notifyType_Discontinuity)
+        {
+            ++gRedMovieNotifyEnds;
+        }
+    }
+#endif
 
     switch (eType)
     {
@@ -768,9 +787,9 @@ void RedMovie::Render()
 }
 
 // FUNCTION: SWBF2 0x006f6560
-void RedMovie::SetAudioBus(Snd::Bus* pBus)
+void RedMovie::SetAudioBus(unsigned int uiBusHash)
 {
-    mAudioBus = pBus;
+    mAudioBusHash = uiBusHash;
 }
 
 // FUNCTION: SWBF2 0x006f6570
@@ -908,9 +927,10 @@ void RedMovie::Update(float fDeltaTime)
 
     if (IsPlaying())
     {
-        if (mAudioBus)
+        float fBusGain;
+        if (MovieBusGain(mAudioBusHash, &fBusGain))
         {
-            SetGain(mAudioBus->mFinalGain);
+            SetGain(fBusGain);
         }
 
         if (mCurSubtitles)

@@ -27,6 +27,10 @@ const LibProject kLibs[] = {
     {"src\\ZlibFL", "src\\ZlibFL\\ZLibFL.vcxproj"},
 };
 
+const LibProject kDlls[] = {
+    {"src\\FFmpegFL", "src\\FFmpegFL\\FFmpegFL.vcxproj"},
+};
+
 std::string Lower(std::string s)
 {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return (char)tolower(c); });
@@ -109,8 +113,8 @@ TEST_CASE("game projects together compile every game TU exactly once" * doctest:
             ++uiCount;
         }
     }
-    CHECK(uiCount == 789);
-    CHECK(kSeen.size() == 789);
+    CHECK(uiCount == 792);
+    CHECK(kSeen.size() == 792);
 }
 
 TEST_CASE("adler32 links only from unzip.cpp as the one copy in the retail exe" * doctest::test_suite("regression"))
@@ -143,6 +147,10 @@ TEST_CASE("each library project compiles only its own directory and the exe proj
         {
             CHECK_MESSAGE(!StartsWith(sItem, std::string(kLib.pcDir) + "\\"), sItem);
         }
+        for (const LibProject& kDll : kDlls)
+        {
+            CHECK_MESSAGE(!StartsWith(sItem, std::string(kDll.pcDir) + "\\"), sItem);
+        }
     }
 }
 
@@ -156,6 +164,10 @@ TEST_CASE("every game project imports the shared props and the exe links library
     {
         vExpected.push_back(Lower(kLib.pcProject));
     }
+    for (const LibProject& kDll : kDlls)
+    {
+        vExpected.push_back(Lower(kDll.pcProject));
+    }
     std::sort(vExpected.begin(), vExpected.end());
     CHECK(vFound == vExpected);
     for (const LibProject& kLib : kLibs)
@@ -163,6 +175,12 @@ TEST_CASE("every game project imports the shared props and the exe links library
         const std::string sText = ReadProject(kLib.pcProject);
         CHECK_MESSAGE(sText.find("<Import Project=\"..\\..\\OpenSWBF2.Game.props\" />") != std::string::npos, kLib.pcProject);
         CHECK_MESSAGE(sText.find("<ConfigurationType>StaticLibrary</ConfigurationType>") != std::string::npos, kLib.pcProject);
+    }
+    for (const LibProject& kDll : kDlls)
+    {
+        const std::string sText = ReadProject(kDll.pcProject);
+        CHECK_MESSAGE(sText.find("<Import Project=\"..\\..\\OpenSWBF2.Game.props\" />") != std::string::npos, kDll.pcProject);
+        CHECK_MESSAGE(sText.find("<ConfigurationType>DynamicLibrary</ConfigurationType>") != std::string::npos, kDll.pcProject);
     }
     const std::string sExe = ReadProject("BattlefrontII.vcxproj");
     CHECK(sExe.find("<Import Project=\"OpenSWBF2.Game.props\" />") != std::string::npos);

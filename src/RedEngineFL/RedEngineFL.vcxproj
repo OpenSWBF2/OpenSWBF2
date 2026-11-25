@@ -153,9 +153,14 @@
     <ClCompile Include="movie\RedMovie.cpp" />
     <ClCompile Include="movie\RedMoviePlayerBase.cpp" />
     <ClCompile Include="movie\RedMoviePlayerRenderer.cpp" />
-    <ClCompile Include="movie\pc\pcRedMoviePlayer.cpp" Condition="'$(Platform)'=='Win32'" />
-    <ClCompile Include="movie\pc\pcRedMoviePlayerNull.cpp" Condition="'$(Platform)'=='x64'" />
-    <ClCompile Include="movie\pc\pcRedMoviePlayerNullObject.cpp" Condition="'$(Platform)'=='x64'" />
+    <ClCompile Include="movie\pc\pcRedMoviePlayer.cpp" />
+    <ClCompile Include="movie\pc\pcRedMovieHeader.cpp" />
+    <ClCompile Include="movie\pc\pcRedMovieConvert.cpp" />
+    <ClCompile Include="movie\pc\pcRedMovieAlloc.cpp" />
+    <ClCompile Include="movie\pc\pcRedMovieAudio.cpp" />
+    <ClCompile Include="movie\pc\pcRedMovieDecoder.cpp">
+      <AdditionalIncludeDirectories>$(ProjectDir)..\FFmpegFL;$(ProjectDir)..\FFmpegFL\config\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application\RedPath.h" />
@@ -288,7 +293,15 @@
     <ClInclude Include="movie\RedMovie.h" />
     <ClInclude Include="movie\RedMoviePlayerBase.h" />
     <ClInclude Include="movie\RedMoviePlayerRenderer.h" />
+    <ClInclude Include="movie\pc\pcRedMovieHeader.h" />
+    <ClInclude Include="movie\pc\pcRedMovieConvert.h" />
+    <ClInclude Include="movie\pc\pcRedMovieAlloc.h" />
     <ClInclude Include="movie\pc\pcRedMovieLayout.h" />
+    <ClInclude Include="movie\pc\pcRedMovieClock.h" />
+    <ClInclude Include="movie\pc\pcRedMovieAudio.h" />
+    <ClInclude Include="movie\pc\pcRedMovieAudioQueue.h" />
+    <ClInclude Include="movie\pc\pcRedMovieDecoder.h" />
+    <ClInclude Include="movie\RedMovieGain.h" />
     <ClInclude Include="movie\pc\pcRedMoviePlayer.h" />
     <ClInclude Include="movie\redpipe.h" />
     <ClInclude Include="Graphics\PC\pcDisplaySettings.h" />

@@ -66,7 +66,8 @@ int gSaveTestMode;
 int gSaveTestType;
 char gSaveTestName[16];
 static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", "shellfirst", "exitonmovieclose",
-    "digestdetail", "savetest", "handsoff" };
+    "digestdetail", "savetest", "handsoff", "movietest", "movieloops", "movielocal",
+    "movieskip", "moviefault" };
 // GLOBAL: SWBF2 0x007e6310
 int gBootLaggerPing = 300;
 
@@ -409,6 +410,86 @@ static int ParseSaveTestArgs(char** const apcArgs, int iCount)
     return 0;
 }
 
+static bool MovieNameChar(char c)
+{
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+}
+
+static bool ParseMovieTestArg(char const* pcValue)
+{
+    if (!pcValue)
+    {
+        return false;
+    }
+    char const* pcSeg = strchr(pcValue, ':');
+    char const* pcFrames = pcSeg ? strchr(pcSeg + 1, ':') : 0;
+    if (!pcFrames)
+    {
+        return false;
+    }
+    const size_t uFileLen = (size_t)(pcSeg - pcValue);
+    if (uFileLen < 5 || uFileLen >= sizeof(gMovieTestFile) || _strnicmp(pcSeg - 4, ".mvs", 4) != 0)
+    {
+        return false;
+    }
+    for (size_t i = 0; i < uFileLen - 4; ++i)
+    {
+        if (!MovieNameChar(pcValue[i]))
+        {
+            return false;
+        }
+    }
+    char acSeg[64];
+    const size_t uSegLen = (size_t)(pcFrames - pcSeg - 1);
+    if (uSegLen < 1 || uSegLen >= sizeof(acSeg))
+    {
+        return false;
+    }
+    memcpy(acSeg, pcSeg + 1, uSegLen);
+    acSeg[uSegLen] = 0;
+    unsigned int uSegment = 0;
+    if (uSegLen >= 2 && acSeg[0] == '0' && (acSeg[1] == 'x' || acSeg[1] == 'X'))
+    {
+        if (uSegLen > 10)
+        {
+            return false;
+        }
+        char* pcEnd = 0;
+        uSegment = (unsigned int)strtoul(acSeg + 2, &pcEnd, 16);
+        if (*pcEnd || pcEnd == acSeg + 2)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < uSegLen; ++i)
+        {
+            if (!MovieNameChar(acSeg[i]))
+            {
+                return false;
+            }
+        }
+        uSegment = PblHash(acSeg);
+    }
+    char* pcEnd = 0;
+    const unsigned long ulFrames = strtoul(pcFrames + 1, &pcEnd, 10);
+    if (pcEnd == pcFrames + 1 || *pcEnd || pcFrames[1] == '-' || pcFrames[1] == '+' || ulFrames < 1 ||
+        ulFrames > 100000ul)
+    {
+        return false;
+    }
+#ifdef OPENSWBF2_TEST
+    memcpy(gMovieTestFile, pcValue, uFileLen);
+    gMovieTestFile[uFileLen] = 0;
+    gMovieTestSegment = uSegment;
+    gMovieTestFrames = (int)ulFrames;
+#else
+    (void)uSegment;
+#endif
+    return true;
+}
+
 // FUNCTION: SWBF2 0x00479740
 void ParseCommandLine(int iArgc, char** const apcArgv)
 {
@@ -424,6 +505,13 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
     gSaveTestMode = 0;
     gSaveTestType = 0;
     gSaveTestName[0] = 0;
+    gMovieTestFile[0] = 0;
+    gMovieTestSegment = 0;
+    gMovieTestFrames = 0;
+    gMovieLoops = 0;
+    gMovieLocal = false;
+    gMovieSkip = 0;
+    gMovieFault = 0;
     gMissionOnCommandLine = false;
     sbNoVictoryNetLogged = false;
     suTestOnlyIgnored = 0;
@@ -715,6 +803,102 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
         {
             i += ParseSaveTestArgs(apcArgv + i + 1, iArgc - i - 1);
             NoteTestOnlyArg(5);
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "movietest") == 0)
+        {
+            const char* pcValue = i + 1 < iArgc && apcArgv[i + 1][0] != '-' ? apcArgv[i + 1] : 0;
+            if (pcValue)
+            {
+                ++i;
+            }
+            if (!ParseMovieTestArg(pcValue))
+            {
+                LOG(LogCore, Warning, "-movietest needs <name>.mvs:<segment>:<frames from 1 to 100000>, ignored");
+            }
+            NoteTestOnlyArg(7);
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "movieloops") == 0)
+        {
+            const char* pcValue = i + 1 < iArgc && apcArgv[i + 1][0] != '-' ? apcArgv[i + 1] : 0;
+            char* pcEnd = 0;
+            const unsigned long ulValue = pcValue ? strtoul(pcValue, &pcEnd, 10) : 0;
+            if (pcValue)
+            {
+                ++i;
+            }
+            if (!pcValue || pcEnd == pcValue || *pcEnd || pcValue[0] == '+' || ulValue < 1 || ulValue > 1000ul)
+            {
+                LOG(LogCore, Warning, "-movieloops needs a count from 1 to 1000, ignored");
+            }
+            else
+            {
+#ifdef OPENSWBF2_TEST
+                gMovieLoops = (int)ulValue;
+#endif
+            }
+            NoteTestOnlyArg(8);
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "movielocal") == 0)
+        {
+#ifdef OPENSWBF2_TEST
+            gMovieLocal = true;
+#endif
+            NoteTestOnlyArg(9);
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "movieskip") == 0)
+        {
+            const char* pcValue = i + 1 < iArgc && apcArgv[i + 1][0] != '-' ? apcArgv[i + 1] : 0;
+            char* pcEnd = 0;
+            const unsigned long ulValue = pcValue ? strtoul(pcValue, &pcEnd, 10) : 0;
+            if (pcValue)
+            {
+                ++i;
+            }
+            if (!pcValue || pcEnd == pcValue || *pcEnd || pcValue[0] == '+' || ulValue < 1 || ulValue > 100000ul)
+            {
+                LOG(LogCore, Warning, "-movieskip needs a frame from 1 to 100000, ignored");
+            }
+            else
+            {
+#ifdef OPENSWBF2_TEST
+                gMovieSkip = (int)ulValue;
+#endif
+            }
+            NoteTestOnlyArg(10);
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "moviefault") == 0)
+        {
+            const char* pcValue = i + 1 < iArgc && apcArgv[i + 1][0] != '-' ? apcArgv[i + 1] : 0;
+            if (pcValue)
+            {
+                ++i;
+            }
+            const int iFault = !pcValue                             ? 0
+                               : _stricmp(pcValue, "texture") == 0 ? kMovieFaultTexture
+                               : _stricmp(pcValue, "surface") == 0 ? kMovieFaultSurface
+                               : _stricmp(pcValue, "hold") == 0    ? kMovieFaultHold
+                                                                   : 0;
+            if (iFault == 0)
+            {
+                LOG(LogCore, Warning, "-moviefault needs texture, surface or hold, ignored");
+            }
+            else
+            {
+#ifdef OPENSWBF2_TEST
+                gMovieFault = iFault;
+#endif
+            }
+            NoteTestOnlyArg(11);
             continue;
         }
 
@@ -1212,3 +1396,11 @@ bool gProfileOptionEnabled = false;
 // GLOBAL: SWBF2 0x007e802e
 
 bool gUseValues = true;
+
+char gMovieTestFile[32];
+unsigned int gMovieTestSegment;
+int gMovieTestFrames;
+int gMovieLoops;
+bool gMovieLocal;
+int gMovieSkip;
+int gMovieFault;

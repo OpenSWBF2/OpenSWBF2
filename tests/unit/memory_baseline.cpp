@@ -1,5 +1,6 @@
 #include "third_party/doctest/doctest.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <map>
@@ -544,4 +545,118 @@ TEST_CASE("baseline causes add exactly one digest cause since the milestone base
         CHECK_MESSAGE(sCause.find("state=0x") == std::string::npos, vCauses[i].sName);
     }
     CHECK(sSerial.find("No digest row moved") == std::string::npos);
+}
+
+TEST_CASE("baseline movie goldens hold every binkw32 frame of the three segments and pin the content frames" * doctest::test_suite("regression"))
+{
+    std::vector<std::string> vLines;
+    ReadBaselineLines("tests\\baseline\\v143\\movie-goldens.txt", vLines);
+    struct Segment
+    {
+        const char* pcMvs;
+        const char* pcHash;
+        unsigned int uFrames;
+        const char* pcFrame30;
+        const char* pcFrame300;
+    };
+    const Segment aSegments[] = { { "shell.mvs", "0xB4A21ED9", 1349, "578C6031CB845B6A", "4CAA07E9C37B43BD" },
+        { "ingame.mvs", "0x2AB9757F", 1369, "5F6C7B0BF14F0103", "43BDE01AE68ADC34" },
+        { "ingame.mvs", "0x0B78EBBC", 223, "8F9A77BA3D6D5E2A", "" } };
+    const size_t uSegments = sizeof(aSegments) / sizeof(aSegments[0]);
+    std::map<std::string, std::vector<std::string> > kFrames;
+    std::map<std::string, std::string> kCheck;
+    std::map<std::string, std::string> kColour;
+    std::map<std::string, std::string> kDigest;
+    std::string sSection;
+    int iFacts = 0;
+    for (size_t i = 0; i < vLines.size(); i++)
+    {
+        const std::string& sLine = vLines[i];
+        if (sLine.compare(0, 3, "## ") == 0)
+        {
+            sSection = sLine.substr(3);
+            continue;
+        }
+        if (sLine[0] == '#')
+        {
+            continue;
+        }
+        if (sSection == "colour")
+        {
+            const size_t uEq = sLine.find('=');
+            REQUIRE_MESSAGE(uEq != std::string::npos, sLine);
+            CHECK_MESSAGE(kColour.count(sLine.substr(0, uEq)) == 0, sLine);
+            kColour[sLine.substr(0, uEq)] = sLine.substr(uEq + 1);
+            continue;
+        }
+        std::vector<std::string> vRow;
+        SplitOn(sLine, '\t', vRow);
+        if (sSection == "binkw32 ingame digest")
+        {
+            REQUIRE_MESSAGE(vRow.size() == 2, sLine);
+            CHECK_MESSAGE(kDigest.count(vRow[0]) == 0, sLine);
+            kDigest[vRow[0]] = vRow[1];
+            continue;
+        }
+        if (sSection == "binkw32 facts")
+        {
+            CHECK_MESSAGE(vRow.size() == 3, sLine);
+            ++iFacts;
+            continue;
+        }
+        REQUIRE_MESSAGE(vRow.size() == 4, sLine);
+        CHECK_MESSAGE(vRow[3].size() == 16, sLine);
+        CHECK_MESSAGE(vRow[3].find_first_not_of("0123456789ABCDEF") == std::string::npos, sLine);
+        const std::string sKey = vRow[0] + " " + vRow[1];
+        if (sSection == "binkw32 frames")
+        {
+            std::vector<std::string>& v = kFrames[sKey];
+            CHECK_MESSAGE(atoi(vRow[2].c_str()) == (int)v.size() + 1, sLine);
+            v.push_back(vRow[3]);
+        }
+        else
+        {
+            REQUIRE_MESSAGE(sSection == "binkw32 check set", sLine);
+            kCheck[sKey + " " + vRow[2]] = vRow[3];
+        }
+    }
+    CHECK(kFrames.size() == uSegments);
+    CHECK(iFacts > 0);
+    size_t uTotal = 0;
+    for (size_t s = 0; s < uSegments; s++)
+    {
+        const Segment& rSeg = aSegments[s];
+        const std::string sKey = std::string(rSeg.pcMvs) + " " + rSeg.pcHash;
+        CAPTURE(sKey);
+        const std::vector<std::string>& v = kFrames[sKey];
+        REQUIRE(v.size() == rSeg.uFrames);
+        uTotal += v.size();
+        CHECK(v[29] == rSeg.pcFrame30);
+        CHECK(kCheck[sKey + " 30"] == rSeg.pcFrame30);
+        if (rSeg.pcFrame300[0])
+        {
+            CHECK(v[299] == rSeg.pcFrame300);
+            CHECK(kCheck[sKey + " 300"] == rSeg.pcFrame300);
+        }
+        const unsigned int auCheck[] = { 1, 2, 3, 30, 300, rSeg.uFrames };
+        for (size_t k = 0; k < sizeof(auCheck) / sizeof(auCheck[0]); k++)
+        {
+            if (auCheck[k] > rSeg.uFrames)
+            {
+                continue;
+            }
+            char acKey[16];
+            sprintf(acKey, " %u", auCheck[k]);
+            CHECK_MESSAGE(kCheck[sKey + acKey] == v[auCheck[k] - 1], acKey);
+        }
+    }
+    CHECK(uTotal == 2941);
+    CHECK(kCheck.size() == 17);
+    CHECK(kColour.size() == 4);
+    CHECK(kColour["model"] == "exact");
+    CHECK(kColour["spec"].find("B=cv(5*u+y+24205) G=cv(y-(u+v)+30887) R=cv(2*v+y+25040)") != std::string::npos);
+    CHECK(kColour["match"].find("2941/2941") == 0);
+    CHECK(kDigest.size() == 1);
+    CHECK(kDigest["ingame-movie-digest"].find("OPENSWBF2 SIM DIGEST turns=1500 time=") == 0);
+    CHECK(kDigest["ingame-movie-digest"].find(" state=0x") != std::string::npos);
 }

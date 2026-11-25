@@ -1,0 +1,220 @@
+From 5195d6f9729ad00b93e4d0f0bea309416fb4713e Mon Sep 17 00:00:00 2001
+From: Michael Niedermayer <michael@niedermayer.cc>
+Date: Tue, 3 Nov 2026 01:22:43 +0100
+Subject: [PATCH] avcodec/bink: check init_get_bits8() for failure
+
+Fixes: 5uCy7fcyAjx7
+Fixes: AISLE-2026-0150-00206
+Fixes: null pointer dereference
+Null pointer dereference Replicated through UnModified FFmpeg with ASAN
+(BIKb file with one 2^28 + 16 byte frame)
+
+Found-by: Joshua Rogers (AISLE)
+---
+ libavcodec/bink.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/libavcodec/bink.c b/libavcodec/bink.c
+index e10c8e0966..9025745377 100644
+--- a/libavcodec/bink.c
++++ b/libavcodec/bink.c
+@@ -1260,7 +1260,6 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
+     BinkContext * const c = avctx->priv_data;
+     GetBitContext gb;
+     int plane, plane_idx, ret;
+-    int bits_count = pkt->size << 3;
+ 
+     if (c->version > 'b') {
+         if ((ret = ff_get_buffer(avctx, frame, AV_GET_BUFFER_FLAG_REF)) < 0)
+@@ -1272,7 +1271,8 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
+             return ret;
+     }
+ 
+-    init_get_bits(&gb, pkt->data, bits_count);
++    if ((ret = init_get_bits8(&gb, pkt->data, pkt->size)) < 0)
++        return ret;
+     if (c->has_alpha) {
+         if (c->version >= 'i')
+             skip_bits_long(&gb, 32);
+@@ -1295,7 +1295,7 @@ static int decode_frame(AVCodecContext *avctx, AVFrame *frame,
+                                           c->frame_num == 1, !!plane)) < 0)
+                 return ret;
+         }
+-        if (get_bits_count(&gb) >= bits_count)
++        if (get_bits_left(&gb) <= 0)
+             break;
+     }
+ 
+-- 
+2.52.0
+
+Subject: [PATCH] avutil/tx: free the sub-transform array of a failed codelet
+
+A codelet init such as ff_tx_dct_init() or ff_tx_rdft_init() calls
+ff_tx_init_subtx() on its own context, which allocates that context's
+sub array, and can then fail. reset_ctx(sctx, 0) keeps sctx->sub for the
+next codelet attempt, so when no attempt succeeds the array is lost when
+s->sub is freed. Free it there.
+
+Found by failing each allocation of a binkaudio_dct decoder open in turn:
+an allocation failure in ff_tx_dct_init() or ff_tx_rdft_init() leaked
+one TX_MAX_SUB * sizeof(AVTXContext) block.
+---
+ libavutil/tx.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/libavutil/tx.c b/libavutil/tx.c
+--- a/libavutil/tx.c
++++ b/libavutil/tx.c
+@@ -892,8 +892,10 @@
+             break;
+     }
+ 
+-    if (!s->nb_sub)
++    if (!s->nb_sub) {
++        av_freep(&s->sub[0].sub);
+         av_freep(&s->sub);
++    }
+ 
+ end:
+     av_free(cd_matches);
+diff -u a/config/Win32/config.h b/config/Win32/config.h
+--- a/config/Win32/config.h
++++ b/config/Win32/config.h
+@@ -321,7 +321,7 @@
+ #define HAVE_UWP 0
+ #define HAVE_WINRT 0
+ #define HAVE_ACCESS 1
+-#define HAVE_ALIGNED_MALLOC 1
++#define HAVE_ALIGNED_MALLOC 0
+ #define HAVE_ARC4RANDOM_BUF 0
+ #define HAVE_CLOCK_GETTIME 0
+ #define HAVE_CLOSESOCKET 0
+@@ -359,7 +359,7 @@
+ #define HAVE_MPROTECT 0
+ #define HAVE_NANOSLEEP 0
+ #define HAVE_PEEKNAMEDPIPE 1
+-#define HAVE_POSIX_MEMALIGN 0
++#define HAVE_POSIX_MEMALIGN 1
+ #define HAVE_PRCTL 0
+ #define HAVE_PTHREAD_CANCEL 0
+ #define HAVE_PTHREAD_SET_NAME_NP 0
+diff -u a/config/x64/config.h b/config/x64/config.h
+--- a/config/x64/config.h
++++ b/config/x64/config.h
+@@ -321,7 +321,7 @@
+ #define HAVE_UWP 0
+ #define HAVE_WINRT 0
+ #define HAVE_ACCESS 1
+-#define HAVE_ALIGNED_MALLOC 1
++#define HAVE_ALIGNED_MALLOC 0
+ #define HAVE_ARC4RANDOM_BUF 0
+ #define HAVE_CLOCK_GETTIME 0
+ #define HAVE_CLOSESOCKET 0
+@@ -359,7 +359,7 @@
+ #define HAVE_MPROTECT 0
+ #define HAVE_NANOSLEEP 0
+ #define HAVE_PEEKNAMEDPIPE 1
+-#define HAVE_POSIX_MEMALIGN 0
++#define HAVE_POSIX_MEMALIGN 1
+ #define HAVE_PRCTL 0
+ #define HAVE_PTHREAD_CANCEL 0
+ #define HAVE_PTHREAD_SET_NAME_NP 0
+diff -u /dev/null b/openswbf2/ossf2_alloc.c
+--- /dev/null
++++ b/openswbf2/ossf2_alloc.c
+@@ -0,0 +1,58 @@
++#include <stddef.h>
++#include <stdint.h>
++
++static void* (*s_alloc)(size_t);
++static void* (*s_realloc)(void*, size_t);
++static void (*s_free)(void*);
++
++void ossf2_set_allocator(void* (*a)(size_t), void* (*r)(void*, size_t), void (*f)(void*))
++{
++    s_alloc = a;
++    s_realloc = r;
++    s_free = f;
++}
++
++static int ossf2_misaligned(const void* p)
++{
++    return ((uintptr_t)p & 15) != 0;
++}
++
++int ossf2_posix_memalign(void** pp, size_t align, size_t size)
++{
++    void* p;
++
++    *pp = 0;
++    if (!s_alloc || !s_free || align > 16)
++    {
++        return 12;
++    }
++    p = s_alloc(size);
++    if (!p)
++    {
++        return 12;
++    }
++    if (ossf2_misaligned(p))
++    {
++        s_free(p);
++        return 12;
++    }
++    *pp = p;
++    return 0;
++}
++
++void* ossf2_realloc(void* ptr, size_t size)
++{
++    if (!s_realloc || !s_free)
++    {
++        return 0;
++    }
++    return s_realloc(ptr, size);
++}
++
++void ossf2_free(void* ptr)
++{
++    if (ptr && s_free)
++    {
++        s_free(ptr);
++    }
++}
+diff -u /dev/null b/openswbf2-ffmpeg.def
+--- /dev/null
++++ b/openswbf2-ffmpeg.def
+@@ -0,0 +1,32 @@
++LIBRARY openswbf2-ffmpeg
++EXPORTS
++    avformat_alloc_context
++    avformat_open_input
++    avformat_close_input
++    av_find_input_format
++    av_read_frame
++    avio_alloc_context
++    avio_context_free
++    av_malloc
++    av_realloc
++    av_free
++    av_freep
++    av_max_alloc
++    avcodec_find_decoder
++    avcodec_alloc_context3
++    avcodec_parameters_to_context
++    avcodec_open2
++    avcodec_free_context
++    avcodec_send_packet
++    avcodec_receive_frame
++    av_packet_alloc
++    av_packet_free
++    av_packet_unref
++    av_frame_alloc
++    av_frame_free
++    av_frame_unref
++    av_log_set_level
++    avutil_license
++    avcodec_license
++    avformat_license
++    ossf2_set_allocator

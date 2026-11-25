@@ -9,6 +9,10 @@
 #include "PebbleFL/Common/PblRandom.h"
 
 class PblFileChunk;
+
+#ifdef OPENSWBF2_TEST
+extern unsigned int gRedMovieNotifyEnds;
+#endif
 class RedTexture;
 
 namespace Snd
@@ -138,7 +142,7 @@ public:
     // FUNCTION: SWBF2 0x006f4cd0
     RedMovie();
 
-    void SetAudioBus(Snd::Bus* pBus);
+    void SetAudioBus(unsigned int uiBusHash);
 
     bool Open(const char* const pFileName, int iHeap, int iUnused, unsigned int uiArg4,
               unsigned int uiBufferSize, unsigned int uiReadSize, unsigned int uiNumTextures);
@@ -189,7 +193,7 @@ public:
     int mPosY;
     unsigned int mWidth;
     unsigned int mHeight;
-    Snd::Bus* mAudioBus;
+    unsigned int mAudioBusHash;
     float mChangedSegmentTime;
     RedScreenGroupElement mSubtitleGroup;
     RedTextElement mSubtitles;

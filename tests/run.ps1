@@ -311,7 +311,7 @@ if ($hardenActive -and -not $Rejudge) {
     $exeLines | Add-Content -Path (Join-Path $outDir 'run-params.txt') -Encoding ASCII
     $reason = Get-SmokePrecheck $gameDataRoot $exeDir $asanSmoke $Platform
 
-    $vendorHits = @(Get-ChildItem -LiteralPath (Join-Path $root 'src\LuaFL'), (Join-Path $root 'src\ZlibFL'), (Join-Path $root 'src\mimalloc') -Recurse -File -ErrorAction SilentlyContinue |
+    $vendorHits = @(Get-ChildItem -LiteralPath (Join-Path $root 'src\LuaFL'), (Join-Path $root 'src\ZlibFL'), (Join-Path $root 'src\mimalloc'), (Join-Path $root 'src\FFmpegFL') -Recurse -File -ErrorAction SilentlyContinue |
         Where-Object { Select-String -LiteralPath $_.FullName -Pattern 'RedLog.h' -SimpleMatch -Quiet })
     if ($vendorHits.Count -eq 0) { Add-SmokeResult '[PASS] hardening:redlog-vendor' 'PASS' }
     else {
@@ -360,7 +360,7 @@ if ($hardenActive -and -not $Rejudge) {
                 $bad++
             }
             else {
-                foreach ($c in @(Get-ImportChecks $imp $Platform) + @(Get-UnicowsCheck $root $Platform $exeDir $imp) + @(Get-D3dxPinsCheck $root) + @(Get-SteamApi64PinsCheck $root)) {
+                foreach ($c in @(Get-ImportChecks $imp $Platform) + @(Get-UnicowsCheck $root $Platform $exeDir $imp) + @(Get-BinkGoneCheck $root $exeDir $imp) + @(Get-D3dxPinsCheck $root) + @(Get-SteamApi64PinsCheck $root)) {
                     if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
                     else {
                         Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
@@ -427,7 +427,7 @@ if ($hardenActive -and -not $Rejudge) {
                     $bad++
                 }
             }
-            foreach ($c in @(Get-ImportChecks $imp $Platform) + @(Get-UnicowsCheck $root $Platform $exeDir $imp) + @(Get-D3dxPinsCheck $root) + @(Get-SteamApi64PinsCheck $root)) {
+            foreach ($c in @(Get-ImportChecks $imp $Platform) + @(Get-UnicowsCheck $root $Platform $exeDir $imp) + @(Get-BinkGoneCheck $root $exeDir $imp) + @(Get-D3dxPinsCheck $root) + @(Get-SteamApi64PinsCheck $root)) {
                 if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
                 else {
                     Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
@@ -447,6 +447,13 @@ if ($hardenActive -and -not $Rejudge) {
                 }
             }
             if ($aslrExes.Count -eq 1) { Add-SmokeResult '[SKIP] hardening:aslr-pe-tests - tests not built' 'SKIP' }
+        }
+    }
+    foreach ($c in (Get-FFmpegChecks $root $Platform $SmokeConfiguration)) {
+        if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
+        else {
+            Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
+            $bad++
         }
     }
     New-Item -ItemType Directory -Force -Path $hardDir | Out-Null
@@ -622,7 +629,7 @@ if ($smokeActive) {
         $items = @()
         foreach ($sc in $smokeCases) {
             $caseDir = Join-Path $outDir "smoke\$($sc.Name)"
-            $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $extraArg; CaseDir = $caseDir; AsanOptions = (Get-SmokeCaseAsan $caseDir); Omit = $sc.Omit; Swap = $sc.Swap; NeedsFile = $sc.NeedsFile; SkipReason = $sc.SkipReason; Then = @(Get-SmokeThenSteps $sc $caseDir $extraArg ([bool]$asanSmoke)) }
+            $items += New-Object PSObject -Property @{ Name = $sc.Name; ExeName = 'BattlefrontII.exe'; ArgLine = $sc.Args.Replace('{CASEDIR}', $caseDir) + $extraArg; CaseDir = $caseDir; AsanOptions = (Get-SmokeCaseAsan $caseDir); Omit = $sc.Omit; Swap = $sc.Swap; MovieFile = $sc.MovieFile; NeedsFile = $sc.NeedsFile; SkipReason = $sc.SkipReason; Then = @(Get-SmokeThenSteps $sc $caseDir $extraArg ([bool]$asanSmoke)) }
         }
         try {
             foreach ($d in $workDirs) { New-SmokeWorkerDir $exeDir $d }

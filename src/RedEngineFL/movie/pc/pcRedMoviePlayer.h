@@ -3,75 +3,14 @@
 #include "RedEngineFL/movie/RedMoviePlayerBase.h"
 #include "RedEngineFL/movie/RedMoviePlayerRenderer.h"
 
-struct BINK
-{
-    unsigned long Width;
-    unsigned long Height;
-    unsigned long Frames;
-    unsigned long FrameNum;
-    unsigned long LastFrameNum;
-    unsigned long FrameRate;
-    unsigned long FrameRateDiv;
-    unsigned char pad1c[0xd0 - 0x1c];
-    long NumTracks;
-};
-
-class RedMoviePlayer;
-
-struct BINKFILE
-{
-    RedMoviePlayer* fileHandle;
-    unsigned long fileIOPos;
-    unsigned long fileBufPos;
-    unsigned char* bufPos;
-    unsigned long bufEmpty;
-    long inIdle;
-    unsigned char* buffer;
-    unsigned char* bufEnd;
-    unsigned char* bufBack;
-    unsigned long dontClose;
-    unsigned long startFile;
-    unsigned long fileSize;
-    unsigned long simulate;
-    long adjustRate;
-};
-
-struct BINKIO
-{
-    unsigned long(__stdcall* ReadHeader)(BINKIO*, long, void*, unsigned long);
-    unsigned long(__stdcall* ReadFrame)(BINKIO*, unsigned long, long, void*, unsigned long);
-    unsigned long(__stdcall* GetBufferSize)(BINKIO*, unsigned long);
-    void(__stdcall* SetInfo)(BINKIO*, void*, unsigned long, unsigned long, unsigned long);
-    unsigned long(__stdcall* Idle)(BINKIO*);
-    void(__stdcall* Close)(BINKIO*);
-    void* slot18;
-    BINK* bink;
-    volatile unsigned long ReadError;
-    volatile unsigned long DoingARead;
-    volatile unsigned long BytesRead;
-    volatile unsigned long Working;
-    volatile unsigned long TotalTime;
-    volatile unsigned long ForegroundTime;
-    volatile unsigned long IdleTime;
-    volatile unsigned long ThreadTime;
-    volatile unsigned long BufSize;
-    volatile unsigned long BufHighUsed;
-    volatile unsigned long CurBufSize;
-    volatile unsigned long CurBufUsed;
-    volatile unsigned long field50;
-    unsigned char iodata[160];
-    void(__stdcall* suspend_callback)(BINKIO*);
-    long(__stdcall* try_suspend_callback)(BINKIO*);
-    void(__stdcall* resume_callback)(BINKIO*);
-    void(__stdcall* idle_on_callback)(BINKIO*);
-    unsigned long callback_control[16];
-};
- 
- 
 class RedBitmapElement;
+struct MoviePlayback;
 
 #ifdef OPENSWBF2_TEST
 extern unsigned int gRedMovieCloses;
+extern unsigned int gRedMovieTestFrames;
+extern unsigned int gRedMovieTestFrameNum;
+extern bool gRedMovieTestEnd;
 #endif
 
 // VTABLE: SWBF2 0x00783ff0
@@ -107,31 +46,24 @@ public:
     virtual void FreeTexture(RedTexture* pTexture, const unsigned int uiIndex,
                              const unsigned char ucFlags);
 
-    bool CreateBinkDecoder();
-    void DestroyBinkDecoder(bool bForce);
+    bool CreateMovieDecoder();
+    void DestroyMovieDecoder(bool bForce);
+    bool FixedRateFrameDue();
+    bool FixedRateBufferFull();
+    void FeedMovieAudio();
 
-    static BINKFILE* __cdecl BinkFile(BINKIO* bio);
-    static long __stdcall BinkFileOpen(BINKIO* bio, const char* pName, unsigned long uiFlags);
-    static unsigned long __stdcall BinkFileReadHeader(BINKIO* bio, long iOffset, void* pDest,
-                                                      unsigned long uiSize);
-    static unsigned long __stdcall BinkFileReadFrame(BINKIO* bio, unsigned long uiFrame,
-                                                     long iOffset, void* pDest,
-                                                     unsigned long uiSize);
-    static unsigned long __stdcall BinkFileGetBufferSize(BINKIO* bio, unsigned long uiSize);
-    static void __stdcall BinkFileSetInfo(BINKIO* bio, void* pBuffer, unsigned long uiSize,
-                                          unsigned long uiFileSize, unsigned long uiSimulate);
-    static unsigned long __stdcall BinkFileIdle(BINKIO* bio);
-    static void __stdcall BinkFileClose(BINKIO* bio);
-    static void __cdecl BinkIOSuspend(BINKIO* bio);
-    static bool __cdecl BinkIOSuspendTry(BINKIO* bio);
-    static void __cdecl BinkIOResume(BINKIO* bio);
-    static void __cdecl BinkIOIdleRun(BINKIO* bio);
+    static unsigned int __cdecl SourcePeek(void* pContext, unsigned char* pOut, unsigned int uSize);
+    static unsigned int __cdecl SourceRead(void* pContext, unsigned char* pOut, unsigned int uSize);
+    static int __cdecl SourceState(void* pContext);
+    static void __cdecl SourcePump(void* pContext);
 
     static RedMoviePlayer* sMoviePlayer;
 
     static unsigned int sReadSize;
 
-    BINK* mBink;
+    static float sFixedRateStart;
+
+    MoviePlayback* mPlayback;
 
     unsigned char mFlags;
 };

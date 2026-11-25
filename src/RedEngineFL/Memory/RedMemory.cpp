@@ -621,6 +621,7 @@ extern "C" bool RedCommitParts(unsigned int* puPrivate, unsigned int* puHeaps, u
     {
         return false;
     }
+    memset(sPrivateRegions, 0, sizeof(sPrivateRegions));
     CommitSet kThreads;
     InitCommitSet(kThreads);
     CommitSet kHeaps;
@@ -690,6 +691,14 @@ extern "C" bool RedCommitParts(unsigned int* puPrivate, unsigned int* puHeaps, u
     *puThreadCount = uThreads;
     return true;
 }
+
+#ifdef OPENSWBF2_TEST
+extern "C" const void* RedCommitPartsBuffer(unsigned int* puBytes)
+{
+    *puBytes = (unsigned int)sizeof(sPrivateRegions);
+    return sPrivateRegions;
+}
+#endif
 
 static bool OffThreadSlotMatches(const OffThreadSlot& rSlot, unsigned int uiTid, int heap, void* const* apv,
                                  unsigned int uFrames)
@@ -897,10 +906,8 @@ static void NoteOffThreadAlloc(int heap, size_t size)
 }
 #endif
 
-// FUNCTION: SWBF2 0x006c38d0
-void* RedAllocFromHeap(int heap, size_t size, bool bTop)
+static void* AllocFromHeap(int heap, size_t size)
 {
-    (void)bTop;
     if (!isHeapObjInitialized)
     {
         Startup_RedInitHeap(0x80, 0x80);
@@ -929,6 +936,14 @@ void* RedAllocFromHeap(int heap, size_t size, bool bTop)
 #else
     void* p = AllocFromSlot(heap, size);
 #endif
+    return p;
+}
+
+// FUNCTION: SWBF2 0x006c38d0
+void* RedAllocFromHeap(int heap, size_t size, bool bTop)
+{
+    (void)bTop;
+    void* p = AllocFromHeap(heap, size);
     if (!p)
     {
         if (OnFailure)
@@ -938,6 +953,11 @@ void* RedAllocFromHeap(int heap, size_t size, bool bTop)
         return 0;
     }
     return p;
+}
+
+void* RedTryAllocFromHeap(int heap, size_t size)
+{
+    return AllocFromHeap(heap, size);
 }
 
 void* RedReallocInHeap(int heap, void* block, size_t oldSize, size_t size)

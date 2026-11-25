@@ -408,10 +408,19 @@
     <ClCompile Include="movie\pc\pcRedMoviePlayer.cpp">
       <Filter>movie\pc</Filter>
     </ClCompile>
-    <ClCompile Include="movie\pc\pcRedMoviePlayerNull.cpp">
+    <ClCompile Include="movie\pc\pcRedMovieHeader.cpp">
       <Filter>movie\pc</Filter>
     </ClCompile>
-    <ClCompile Include="movie\pc\pcRedMoviePlayerNullObject.cpp">
+    <ClCompile Include="movie\pc\pcRedMovieConvert.cpp">
+      <Filter>movie\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="movie\pc\pcRedMovieAlloc.cpp">
+      <Filter>movie\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="movie\pc\pcRedMovieAudio.cpp">
+      <Filter>movie\pc</Filter>
+    </ClCompile>
+    <ClCompile Include="movie\pc\pcRedMovieDecoder.cpp">
       <Filter>movie\pc</Filter>
     </ClCompile>
     <ClCompile Include="input\pc\pcRedLogitechLCD.cpp">
@@ -839,8 +848,32 @@
     <ClInclude Include="movie\RedMoviePlayerRenderer.h">
       <Filter>movie</Filter>
     </ClInclude>
+    <ClInclude Include="movie\pc\pcRedMovieHeader.h">
+      <Filter>movie\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\pc\pcRedMovieConvert.h">
+      <Filter>movie\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\pc\pcRedMovieAlloc.h">
+      <Filter>movie\pc</Filter>
+    </ClInclude>
     <ClInclude Include="movie\pc\pcRedMovieLayout.h">
       <Filter>movie\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\pc\pcRedMovieClock.h">
+      <Filter>movie\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\pc\pcRedMovieAudio.h">
+      <Filter>movie\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\pc\pcRedMovieAudioQueue.h">
+      <Filter>movie\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\pc\pcRedMovieDecoder.h">
+      <Filter>movie\pc</Filter>
+    </ClInclude>
+    <ClInclude Include="movie\RedMovieGain.h">
+      <Filter>movie</Filter>
     </ClInclude>
     <ClInclude Include="movie\pc\pcRedMoviePlayer.h">
       <Filter>movie\pc</Filter>

@@ -66,7 +66,7 @@ function Find-GameDataRoot {
     return $null
 }
 
-$script:SmokeRequiredDlls = @{ Win32 = @('binkw32.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll'); x64 = @() }
+$script:SmokeRequiredDlls = @{ Win32 = @('Galaxy.dll', 'GalaxyPeer.dll', 'openswbf2-ffmpeg.dll', 'steam_api.dll'); x64 = @('openswbf2-ffmpeg.dll') }
 
 function Get-SmokePrecheck($gameDataRoot, $exeDir, $asan = $false, [ValidateSet('Win32', 'x64')][string]$platform = $script:SmokePlatform) {
     if (-not $gameDataRoot) { return 'no retail GameData found (set SWBF2_GAMEDATA or install Steam App 6060)' }
