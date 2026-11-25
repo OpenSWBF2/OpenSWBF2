@@ -35,8 +35,8 @@
       <GenerateMapFile>true</GenerateMapFile>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <MapFileName>$(IntDir)$(TargetName).map</MapFileName>
-      <AdditionalDependencies Condition="'$(Platform)'=='Win32'">kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;lib\Win32\binkw32.lib;lib\Win32\steam_api.lib;lib\Win32\Galaxy.lib;delayimp.lib</AdditionalDependencies>
-      <AdditionalDependencies Condition="'$(Platform)'=='x64'">kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;$(IntDir)steam_api64.lib;$(IntDir)Galaxy64.lib;delayimp.lib</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Platform)'=='Win32'">kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;$(IntDir)FFmpegFL\openswbf2-ffmpeg.lib;lib\Win32\steam_api.lib;lib\Win32\Galaxy.lib;delayimp.lib</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Platform)'=='x64'">kernel32.lib;user32.lib;gdi32.lib;advapi32.lib;winmm.lib;d3d9.lib;d3dx9.lib;ws2_32.lib;dinput8.lib;dxguid.lib;dsound.lib;ole32.lib;dmoguids.lib;$(IntDir)FFmpegFL\openswbf2-ffmpeg.lib;$(IntDir)steam_api64.lib;$(IntDir)Galaxy64.lib;delayimp.lib</AdditionalDependencies>
       <DelayLoadDLLs Condition="'$(Platform)'=='Win32'">steam_api.dll;Galaxy.dll</DelayLoadDLLs>
       <DelayLoadDLLs Condition="'$(Platform)'=='x64'">steam_api64.dll;Galaxy64.dll</DelayLoadDLLs>
     </Link>
@@ -1242,6 +1242,10 @@
       <Project>{8E0BC5D7-03D1-5947-AEC7-5EAA5F25A967}</Project>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
+    <ProjectReference Include="src\FFmpegFL\FFmpegFL.vcxproj">
+      <Project>{FB9761BA-C926-4F38-9FFF-05A352FD4310}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
     <ProjectReference Include="src\LuaFL\LuaFL.vcxproj">
       <Project>{DD72C068-B8B9-5F2D-9E36-3960F2129E79}</Project>
       <LinkLibraryDependencies>true</LinkLibraryDependencies>
@@ -1294,7 +1298,6 @@
   <Target Name="StageGameData" AfterTargets="Build" Condition="'$(SWBF2_GAMEDATA)' != '' and '$(SWBF2_NOSTAGE)' != 'true'">
     <Exec WorkingDirectory="$(ProjectDir)" Command="&quot;$(OutDir)LuaCompiler.exe&quot; stage --retail &quot;$(SWBF2_GAMEDATA)&quot; --out &quot;$(OutDir).&quot;" />
     <ItemGroup>
-      <GameDataFile Include="$(SWBF2_GAMEDATA)\binkw32.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\binkw32.dll')" />
       <GameDataFile Include="$(SWBF2_GAMEDATA)\Galaxy.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\Galaxy.dll')" />
       <GameDataFile Include="$(SWBF2_GAMEDATA)\GalaxyPeer.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\GalaxyPeer.dll')" />
       <GameDataFile Include="$(SWBF2_GAMEDATA)\steam_api.dll" Condition="'$(Platform)'=='Win32' and Exists('$(SWBF2_GAMEDATA)\steam_api.dll')" />
@@ -1317,6 +1320,7 @@
   </PropertyGroup>
   <Target Name="StageVendor" AfterTargets="Build" Condition="'$(SWBF2_NOSTAGE)' != 'true'">
     <Delete Files="$(OutDir)unicows.dll" />
+    <Delete Files="$(OutDir)binkw32.dll" />
     <DownloadFile Condition="!Exists('$(D3dxNupkg)')" SourceUrl="$(D3dxNupkgUrl)" DestinationFolder="$(D3dxCache)" DestinationFileName="$(D3dxDownloadName)" />
     <VerifyFileHash Condition="!Exists('$(D3dxNupkg)')" File="$(D3dxCache)$(D3dxDownloadName)" Algorithm="SHA256" Hash="$(D3dxNupkgSha256)" />
     <Move Condition="!Exists('$(D3dxNupkg)')" SourceFiles="$(D3dxCache)$(D3dxDownloadName)" DestinationFiles="$(D3dxNupkg)" />

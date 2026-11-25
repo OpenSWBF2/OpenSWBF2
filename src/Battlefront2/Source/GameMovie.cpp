@@ -20,6 +20,11 @@
 #include "SoundFL/source/sndqueue.h"
 #include "GameSoundEngine.h"
 #include "PebbleFL/Common/PblTime.h"
+#ifdef OPENSWBF2_TEST
+#include "CommandLine.h"
+#include "GameLoop.h"
+#include "RedEngineFL/Util/RedLog.h"
+#endif
 
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Interface/Red3DModelElement.h"
@@ -63,6 +68,15 @@ char* GameMovie::sFilename;
 // GLOBAL: SWBF2 0x01faa680
 unsigned int gMovieOpenFailures;
 
+#ifdef OPENSWBF2_TEST
+static bool sbMovieTestOwner;
+
+static bool MovieTestBlocks()
+{
+    return (gMovieTestFile[0] || gMovieLoops > 0) && !sbMovieTestOwner;
+}
+#endif
+
 // FUNCTION: SWBF2 0x005343f0
 void GameMovie::Create(const int defaultHeap)
 {
@@ -85,7 +99,7 @@ void GameMovie::Create(const int defaultHeap)
                 pBus = &Snd::Bus::smRootBus;
             }
 
-            sRedMovie->SetAudioBus(pBus);
+            sRedMovie->SetAudioBus(pBus->mHashID);
         }
 
         sMemoryReserved = (sRedMovie != 0);
@@ -127,6 +141,12 @@ void GameMovie::DestroyKeepProperty()
 // FUNCTION: SWBF2 0x00534550
 void GameMovie::Open()
 {
+#ifdef OPENSWBF2_TEST
+    if (MovieTestBlocks())
+    {
+        return;
+    }
+#endif
     if (GameMovie::sUseMovies)
     {
         Open(sFilename, sFilename + strlen(sFilename), GameMovie::sDataHeap, GameMovie::sTextureHeap);
@@ -142,6 +162,13 @@ void GameMovie::Open(const char* const pszFile, const char* const pszName, const
     {
         return;
     }
+
+#ifdef OPENSWBF2_TEST
+    if (MovieTestBlocks())
+    {
+        return;
+    }
+#endif
 
     if (sFilename != pszFile)
     {
@@ -182,6 +209,12 @@ void GameMovie::Open(const char* const pszFile, const char* const pszName, const
 // FUNCTION: SWBF2 0x00534750
 void GameMovie::Close()
 {
+#ifdef OPENSWBF2_TEST
+    if (MovieTestBlocks())
+    {
+        return;
+    }
+#endif
     if (GameMovie::sUseMovies)
     {
         if (sRedMovie && sRedMovie->IsOpen())
@@ -200,6 +233,13 @@ void GameMovie::Close()
 // FUNCTION: SWBF2 0x00534a30
 void GameMovie::Render()
 {
+#ifdef OPENSWBF2_TEST
+    static unsigned int suHeldRenders;
+    if (gMovieFault == kMovieFaultHold && ++suHeldRenders % 3 != 0)
+    {
+        return;
+    }
+#endif
     if (GameMovie::sUseMovies && sRedMovie && sRedMovie->IsOpen() && sRedMovie->IsPlaying())
     {
         sRedMovie->Render();
@@ -218,6 +258,12 @@ void GameMovie::EndFrame()
 // FUNCTION: SWBF2 0x00534960
 void GameMovie::Stop()
 {
+#ifdef OPENSWBF2_TEST
+    if (MovieTestBlocks())
+    {
+        return;
+    }
+#endif
     if (GameMovie::sUseMovies && sRedMovie && sRedMovie->IsOpen() && sRedMovie->IsPlaying())
     {
         sRedMovie->Stop(true);
@@ -283,6 +329,129 @@ void EnableSceneAndInterface(bool bEnable)
     }
 }
 
+#ifdef OPENSWBF2_TEST
+static bool sbMovieTestStarted;
+
+static void MovieTestOpen(const char* pcFile)
+{
+    sbMovieTestOwner = true;
+    if (gMovieLocal)
+    {
+        const size_t uLen = strlen(pcFile);
+        if (GameMovie::sFilename)
+        {
+            RedFreeToHeap(GameMovie::sDefaultHeap, GameMovie::sFilename, 0);
+        }
+        GameMovie::sFilename = (char*)RedAllocFromHeap(GameMovie::sDefaultHeap, uLen + 2, 0);
+        if (GameMovie::sFilename)
+        {
+            memcpy(GameMovie::sFilename, pcFile, uLen + 1);
+            GameMovie::sFilename[uLen + 1] = 0;
+            GameMovie::Open(GameMovie::sFilename, GameMovie::sFilename + uLen + 1, GameMemory::RunTimeHeap,
+                            GameMemory::RunTimeHeap);
+        }
+    }
+    else
+    {
+        char acPath[64];
+        strcpy(acPath, "movies\\");
+        strcat(acPath, pcFile);
+        GameMovie::Open(acPath, "", GameMemory::RunTimeHeap, GameMemory::RunTimeHeap);
+    }
+    sbMovieTestOwner = false;
+}
+
+static void MovieTestStart()
+{
+    if (sbMovieTestStarted || !GameMovie::sRedMovie || GameMemory::TempLoadHeap)
+    {
+        return;
+    }
+    sbMovieTestStarted = true;
+    MovieTestOpen(gMovieTestFile);
+    LOG(LogCore, Inform, "OPENSWBF2 MOVIETEST play file=%s seg=0x%08X frames=%d open=%d", gMovieTestFile,
+        gMovieTestSegment, gMovieTestFrames, GameMovie::sRedMovie->IsOpen() ? 1 : 0);
+    if (!GameMovie::sRedMovie->IsOpen() || !GameMovie::sRedMovie->GetInfo()->FindSegmentByHashID(gMovieTestSegment))
+    {
+        LOG(LogCore, Warning, "OPENSWBF2 MOVIETEST no segment 0x%08X in %s", gMovieTestSegment, gMovieTestFile);
+        gRedMovieTestEnd = true;
+        return;
+    }
+    const int iOldHeap = RedSetCurrentHeap(GameMovie::sDefaultHeap);
+    RedMovie::Properties* pProperties = new RedMovie::Properties;
+    new RedMovie::SegmentInfo(gMovieTestSegment, 0.0f, 0, pProperties->mList);
+    RedSetCurrentHeap(iOldHeap);
+    FLRenderer::EnableCursor(false);
+    GameMovie::sRedMovie->SetDimensions(0, 0, RedInterfaceScreen::GetScreenWidth(), RedInterfaceScreen::GetScreenHeight(),
+                                        true);
+    GameMovie::sRedMovie->Play(pProperties, false);
+    GameMovie::sRedMovie->SetLooping(false);
+}
+
+static void MovieLoopsStart()
+{
+    if (sbMovieTestStarted || !GameMovie::sRedMovie || GameMemory::TempLoadHeap)
+    {
+        return;
+    }
+    sbMovieTestStarted = true;
+    MovieTestOpen("shell.mvs");
+    const RedMovie::Properties* pProperties = RedMovie::Properties::FindByHashID(0xB4A21ED9);
+    if (GameMovie::sRedMovie->IsOpen() && pProperties)
+    {
+        FLRenderer::EnableCursor(false);
+        GameMovie::sRedMovie->SetDimensions(0, 0, RedInterfaceScreen::GetScreenWidth(),
+                                            RedInterfaceScreen::GetScreenHeight(), true);
+        GameMovie::sRedMovie->Play(pProperties, false);
+        GameMovie::sRedMovie->SetLooping(true);
+    }
+    LOG(LogCore, Inform, "OPENSWBF2 MOVIE loops start properties=0xB4A21ED9 found=%d open=%d playing=%d",
+        pProperties ? 1 : 0, GameMovie::sRedMovie->IsOpen() ? 1 : 0, GameMovie::sRedMovie->IsPlaying() ? 1 : 0);
+}
+
+static void MovieSkipUpdate()
+{
+    static bool sbSkipped;
+    if (sbSkipped || gMovieSkip <= 0 || g_InGameMoviePlayerState != 3 || gRedMovieTestFrameNum < (unsigned int)gMovieSkip)
+    {
+        return;
+    }
+    sbSkipped = true;
+    LOG(LogCore, Inform, "OPENSWBF2 MOVIE skip frame=%u", gRedMovieTestFrameNum);
+    StopInGameMoviePlay();
+}
+
+static void MovieTestUpdate()
+{
+    static bool sbPosted;
+    MovieSkipUpdate();
+    if (sbPosted || GameState::GetState() != 0x11E1FC01)
+    {
+        return;
+    }
+    if (gMovieTestFile[0])
+    {
+        MovieTestStart();
+    }
+    else if (gMovieLoops > 0)
+    {
+        MovieLoopsStart();
+    }
+    if (gMovieTestFile[0] && (gRedMovieTestEnd || gRedMovieNotifyEnds != 0))
+    {
+        sbPosted = true;
+        LOG(LogCore, Inform, "OPENSWBF2 MOVIETEST done frames=%u", gRedMovieTestFrames);
+        GameLoop::PostRunComplete();
+    }
+    else if (gMovieLoops > 0 && gRedMovieNotifyEnds >= (unsigned int)gMovieLoops)
+    {
+        sbPosted = true;
+        LOG(LogCore, Inform, "OPENSWBF2 MOVIE loops=%d", gMovieLoops);
+        GameLoop::PostRunComplete();
+    }
+}
+#endif
+
 // FUNCTION: SWBF2 0x005347a0
 void GameMovie::Play(const char* const pcProperties, const char* const pcPropertiesAtEnd,
                      unsigned int uiY, unsigned int uiX, unsigned int uiWidth,
@@ -290,6 +459,12 @@ void GameMovie::Play(const char* const pcProperties, const char* const pcPropert
 {
     if (GameMovie::sUseMovies && sRedMovie && sRedMovie->IsOpen())
     {
+#ifdef OPENSWBF2_TEST
+        if (MovieTestBlocks())
+        {
+            return;
+        }
+#endif
         const RedMovie::Properties* pProperties =
             RedMovie::Properties::FindByHashID(PblHash(pcProperties));
         const RedMovie::Properties* pPropertiesAtEnd =
@@ -355,13 +530,16 @@ void GameMovie::SetAudioBus(const char* const pcBusName)
 {
     if (GameMovie::sUseMovies && sRedMovie)
     {
-        sRedMovie->SetAudioBus(Snd::Bus::FindByHashID(PblHash(pcBusName)));
+        sRedMovie->SetAudioBus(PblHash(pcBusName));
     }
 }
 
 // FUNCTION: SWBF2 0x005349f0
 void GameMovie::Update(float fDeltaTime)
 {
+#ifdef OPENSWBF2_TEST
+    MovieTestUpdate();
+#endif
     if (GameMovie::sUseMovies && sRedMovie && sRedMovie->IsOpen())
     {
         sRedMovie->Update(fDeltaTime);

@@ -48,7 +48,6 @@
 #include "Battlefront2/Platform/Pc/pcSpawnDisplay.h"
 #include "RedEngineFL/Interface/RedBorderElement.h"
 #include "RedEngineFL/Graphics/RedAmbientLight.h"
-#include "RedEngineFL/movie/pc/pcRedMoviePlayer.h"
 #include "lglcd/lgLcd.h"
 #include "Battlefront2/Source/pcNetSocket.h"
 #include "Battlefront2/Source/EntityPathFollower.h"
@@ -59,6 +58,8 @@
 #include "Battlefront2/Source/GameVoiceChatEncoder.h"
 #include "Battlefront2/Source/VoiceChatNode.h"
 #include "Battlefront2/Source/VoiceChatTransport.h"
+#include "RedEngineFL/movie/pc/pcRedMoviePlayer.h"
+#include "RedEngineFL/movie/RedMovie.h"
 #include "GameSpyFL/md5.h"
 #include "Battlefront2/Source/NetAdmin.h"
 #include "Battlefront2/Source/ParticleEmitterObject.h"
@@ -356,8 +357,6 @@ static_assert(offsetof(RenderOptionsT, defaultWidth) == 0x2c, "render options de
 static_assert(offsetof(RenderOptionsT, bumpMapping) == 0x3c, "render options bump mapping");
 static_assert(offsetof(RenderOptionsT, mReservedAfterBumpMapping) == 0x3d, "render options reserved after bump mapping");
 static_assert(offsetof(RenderOptionsT, specularQuality) == 0x40, "render options specular quality");
-static_assert(sizeof(BINK) == 0xd4, "bink size");
-static_assert(offsetof(BINK, NumTracks) == 0xd0, "bink num tracks");
 static_assert(sizeof(CNetFindGame) == 0x6c, "find game size");
 static_assert(alignof(CNetFindGame) == 0x4, "find game alignment");
 static_assert(offsetof(CNetFindGame, queryTimer) == 0x34, "find game query timer");
@@ -527,6 +526,14 @@ TEST_CASE("game object damageable base and vanish bits keep the retail offsets" 
     pDamage->mVanishing = 0;
     memcpy(&uWord, acRaw + 0xbc, sizeof(uWord));
     CHECK(uWord == 0xFFFFFFE7u);
+}
+
+TEST_CASE("movie player and movie keep the retail x86 layout" * doctest::test_suite("unit"))
+{
+    CHECK(sizeof(RedMoviePlayer) == 0x210);
+    CHECK(offsetof(RedMoviePlayer, mPlayback) == 0x200);
+    CHECK(offsetof(RedMoviePlayer, mFlags) == 0x204);
+    CHECK(sizeof(RedMovie) == 0x440);
 }
 
 #endif

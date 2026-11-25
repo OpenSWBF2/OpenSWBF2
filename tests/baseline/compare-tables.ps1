@@ -62,6 +62,8 @@ $script:BaselineReaders = @(
     @{ File = 'digests-debug.txt'; Reader = 'DebugDigests'; Label = 'debug:digests-debug' }
     @{ File = 'x87-inventory.tsv'; Reader = 'X87Inventory'; Label = 'tables:x87-inventory'; Script = 'x87-inventory.ps1' }
     @{ File = 'CAUSES.md'; Reader = 't1:tests\unit\memory_baseline.cpp' }
+    @{ File = 'movie-goldens.txt'; Reader = 't1:tests\unit\memory_baseline.cpp' }
+    @{ File = 'movie-frames.txt'; Reader = 't1:tests\unit\movie_retail.cpp' }
     @{ File = 'MANIFEST.md'; Reader = 'verify-v143' }
     @{ File = 'CAUSES.md'; Folder = 'v143-x64'; Reader = 'verify-v143-x64' }
     @{ File = 'MANIFEST.md'; Folder = 'v143-x64'; Reader = 'verify-v143-x64' }

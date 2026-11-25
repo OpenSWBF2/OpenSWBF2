@@ -19,12 +19,12 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 
 | File | SHA-256 | Produced by |
 |------|---------|-------------|
-| `CAUSES.md` | 8AFC2E1294C49221DF3EA3BA4DFCF6A2B130D46048ADA703F67AFE5FBEC8A260 | written by hand from the comparison against `tests/baseline/vs2013/` |
+| `CAUSES.md` | 65AD8B16776219FE6DBBC66C54DCBDC7E144F423904A9CBB1345C3EEE86FCDA4 | written by hand from the comparison against `tests/baseline/vs2013/` |
 | `smoke-all-digests.txt` | 60FE9252FB11AAD362EEF5FBA927BD2CCD2BBC041258E0A585FACE34C676F833 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `pool-sizes.txt` | A2FA679AC1174C9082D1E3DE216F82FC16B5E20B35A41C09AC4F081CF9643D72 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `mem-peaks.txt` | D24B076240DC0D686B07C7F1D33EF273F88E928C863E9C11878061FF3A7D41B0 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
 | `cloth-headroom.txt` | 7C388EDBA9ADC4CF1D82A8C66FD7409CAF534B023E630AB59F9844312104F720 | `capture-vs2013.ps1 -Tables` from `run.ps1 -Smoke All` |
-| `hardening.txt` | EE9BFB670D013FE8F08DBA3111FBBAE3C1FBEF982045687911EDACA814EA525A | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
+| `hardening.txt` | AD181084A9C20B017CF56E5C98806540D4C3A68B2F29708C10CBE79D858E58ED | `capture-vs2013.ps1 -Tables` from `run.ps1 -Hardening` |
 | `offthread.txt` | 2D70A010C5B9E2DA6F6A2E79D230A3D505C72D065FE5066F17207379561E4DD5 | `capture-vs2013.ps1 -Configuration Test -Tables -OffThreadDir` from `run.ps1 -Smoke All -SmokeConfiguration Test` and `-OffThreadSoundDir` from `soundon.ps1` |
 | `lua-bins.txt` | A6E3FF46D1E8A6D69232061361199590BC6FB0C1AEEF6EFF0A0E19F69DA5936A | `capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All` |
 | `lua-hist.txt` | CB394BFAF9FDEF86E9C4A51C16F9AAEDFABD0882A150490E6A8EEFE3F88B488A | `capture-vs2013.ps1 -Configuration Test -Tables -LuaBinsDir` from `run.ps1 -Configuration Test -Smoke All` |
@@ -44,7 +44,9 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 | `initializers.txt` | DFAB8F8E42253C47AA0D88E56845E8E39DBAA531EA828E06A1FD7C74721B5320 | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
 | `initializers-di.txt` | 2C89B86B8D5836A6069AA6F99237253E30635B9C99FF7A17BCF4AE4D3BAA7D80 | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
 | `initializers-discarded.txt` | F9656D1101DEA5FE04D1DC5F96876DBAC83954CA710272BBE4D8DCFEED4BCCA0 | `capture-vs2013.ps1 -Map -OutDir tests\baseline\v143` |
-| `x87-inventory.tsv` | 008588BA8F7251BE602D304B0A2B44B151D9DA892D4AC0B92C4E03C5DDC960B3 | `x87-inventory.ps1 -Exe bin\Win32\Release\BattlefrontII.exe -Map obj\Win32\Release\BattlefrontII.map -Out tests\baseline\v143\x87-inventory.tsv` |
+| `x87-inventory.tsv` | 8B1B550A6B5524704B51DC49747FF9C8FF9B9E6F3C0E3AFC89597B39F4D524AC | `x87-inventory.ps1 -Exe bin\Win32\Release\BattlefrontII.exe -Map obj\Win32\Release\BattlefrontII.map -Out tests\baseline\v143\x87-inventory.tsv` |
+| `movie-goldens.txt` | A0514A9F758942EE48F428EE98C0C6A4EAEE1153B1284F2F0F87CA824F34FF41 | built from the `OPENSWBF2 MOVIE frame` lines of the 51-04 `-movietest` runs on the Win32 Test build, two byte-identical runs per segment; the `## binkw32 ingame digest` line from the 51-06 `ingame-movie-digest` runs, two byte-identical sound-on runs and one `-nosound` run |
+| `movie-frames.txt` | 467DDFDE166F59741D202D0CCE369E7114C4B9F6B824F5B753AFFEBF3CAA0839 | the hashes the T2 `movie frame hashes match the pinned FFmpeg path` computes through `MovieDecoder` and `ConvertYuv420ToXrgb` on the Win32 Test build, two byte-identical runs; the x64 Test run gave the same bytes |
 
 ## Notes
 
@@ -96,5 +98,21 @@ Differences from `tests/baseline/vs2013/` and their causes are in [CAUSES.md](CA
 - Phase 49 (plan 49-13) marked C-HEAPCAP-X64-Lua and C-HEAPCAP-X64-Runtime as superseded by C-HEAPCAP-X64-Lua-RETUNE and pointed C-MEMPEAKS-X64-PARITY at the re-captured x64 table (both in `tests/baseline/v143-x64/CAUSES.md`); no table changed.
 - Phase 49 (plan 49-16) added `digest-trace-dag1c_ctf.txt` and `digest-trace-kas2c_uber.txt`, the per-turn references for the digest smoke cases of those missions, from two byte-identical Win32 `-Collect` captures (an x64 capture gives the same bytes). Every other `-Collect` file equals its pinned copy byte for byte.
 - Phase 49 (plan 49-17) added C-DIGEST-TRACE-49 to `CAUSES.md`, the cause of those two traces; no table changed.
+- Phase 51 (plan 51-01) added C-FFMPEG-VENDOR-SCOPE and C-FFMPEG-ALLOC-CONFIG to `CAUSES.md`; no table changed.
+- Phase 51 (plan 51-02) added C-FFMPEG-WD4146, C-FFMPEG-WD4703, C-FFMPEG-DEBUG-O1 and C-FFMPEG-BCRYPT to `CAUSES.md` and corrected the source count in C-FFMPEG-VENDOR-SCOPE to 179; no table changed.
+- Phase 51 (plan 51-03) added the `ffmpeg-license`, `ffmpeg-flags`, `ffmpeg-dll`, `ffmpeg-imports` and `ffmpeg-crt-heap` lines to `hardening.txt` (C-FFMPEG-HARDENING-ROWS) and C-FFMPEG-ASAN-IMPORTS to `CAUSES.md`; no other table changed.
+- Phase 51 (plan 51-04) added `movie-goldens.txt`, the binkw32 frame hashes and facts captured before the FFmpeg switch (C-MOVIE-GOLDENS), and C-MOVIE-GOLDENS to `CAUSES.md`; no other table changed.
+- Phase 51 (plan 51-05) added the `## colour` section to `movie-goldens.txt`, the exact binkw32 colour model the FFmpeg player implements, and its paragraph to C-MOVIE-GOLDENS in `CAUSES.md`; no other table changed.
+- Phase 51 (plan 51-06) added the `## binkw32 ingame digest` section to `movie-goldens.txt`, the rendered fixed-rate `nab2g_c` digest the FFmpeg player must reproduce (MOVIE-09), and C-MOVIE-INGAME-DIGEST to `CAUSES.md`; no other table changed.
+- Phase 51 (plan 51-07) added C-MOVIE-HEADER-CAPS to `CAUSES.md`, the Bink header caps and their budget; no table changed.
+- Phase 51 (plan 51-10) added `movie-frames.txt`, the exact FFmpeg-path frame pins shared by Win32 and x64, each equal to its binkw32 golden (C-MOVIE-FRAMES), and C-MOVIE-FRAMES to `CAUSES.md`; no other table changed.
+- Phase 51 (plan 51-12) added C-FFMPEG-TX-LEAK to `CAUSES.md`, the second local FFmpeg patch; no table changed.
+- Phase 51 (plan 51-15) added the `bink-gone` line to `hardening.txt` (C-BINK-GONE-ROW); no other table changed.
+- Phase 51 (plan 51-17) added C-FFMPEG-CONFIG-FIXED to `CAUSES.md`, the fixed configure date and compiler in each FFmpeg `config.h`; no table changed.
+- Phase 51 (plan 51-17) extended C-BINK-GONE-ROW in `CAUSES.md` with the binkw32 and binkw64 name rule for game source; no table changed.
+- Phase 51 (plan 51-17) extended C-MOVIE-HEADER-CAPS in `CAUSES.md` with the frame rate, largest frame and frame span bounds and the exact clock compare; no table changed.
+- Phase 51 (plan 51-17) added C-MOVIE-HWGAIN to `CAUSES.md`, the movie renderer gain flag and the played-byte count; no table changed.
+- Phase 51 (plan 51-17) lowered the movie frame cap to 16000 and counted the movie audio in C-MOVIE-HEADER-CAPS in `CAUSES.md`; no table changed.
+- Phase 51 (plan 51-18) added C-X87-INVENTORY-RESYNC to `CAUSES.md` and three `match:exact` rows to `x87-inventory.tsv` (`FinishSend` and `Remove`, which the inventory lost where dumpbin decoded through a switch table, and the new `ConvertAudioToS16`), regenerated with `-Out` over the pinned file from the 51-18 Release build; no other row and no other table changed.
 - `capture-vs2013.ps1 -Verify -Baseline v143` checks this manifest. `-Archive` assumes the VS2013 build identity and is not used for this directory.
 - `compare-tables.ps1` holds the reader of every file here, and the `baseline-readers` hardening check fails on a file with no reader.

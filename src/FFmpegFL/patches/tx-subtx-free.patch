@@ -1,0 +1,30 @@
+Subject: [PATCH] avutil/tx: free the sub-transform array of a failed codelet
+
+A codelet init such as ff_tx_dct_init() or ff_tx_rdft_init() calls
+ff_tx_init_subtx() on its own context, which allocates that context's
+sub array, and can then fail. reset_ctx(sctx, 0) keeps sctx->sub for the
+next codelet attempt, so when no attempt succeeds the array is lost when
+s->sub is freed. Free it there.
+
+Found by failing each allocation of a binkaudio_dct decoder open in turn:
+an allocation failure in ff_tx_dct_init() or ff_tx_rdft_init() leaked
+one TX_MAX_SUB * sizeof(AVTXContext) block.
+---
+ libavutil/tx.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/libavutil/tx.c b/libavutil/tx.c
+--- a/libavutil/tx.c
++++ b/libavutil/tx.c
+@@ -892,8 +892,10 @@
+             break;
+     }
+ 
+-    if (!s->nb_sub)
++    if (!s->nb_sub) {
++        av_freep(&s->sub[0].sub);
+         av_freep(&s->sub);
++    }
+ 
+ end:
+     av_free(cd_matches);

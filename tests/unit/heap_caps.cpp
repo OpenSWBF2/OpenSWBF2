@@ -976,3 +976,56 @@ TEST_CASE("raised heap cap does not change the heap size reading" * doctest::tes
     REQUIRE(gRedHeapSlots[iH].cap == uSize * 3);
     CHECK(RedGetHeapSize(iH) == uSize);
 }
+
+TEST_CASE("heap try allocation fails without the failure handler" * doctest::test_suite("regression"))
+{
+    ScratchHeap kScratch(sacCapsArena, sacCapsArena + sizeof(sacCapsArena), 0x10, "CapsTry");
+    const int iH = kScratch.miHeap;
+    REQUIRE(iH >= 0);
+    FailureCapture kCapture;
+    const unsigned int uCap = gRedHeapSlots[iH].cap;
+    REQUIRE(CapsStats(iH).uUsed == 0);
+    gRedHeapSlots[iH].cap = 256;
+    REQUIRE(Need(240, 0x10) == 256);
+    REQUIRE(Need(241, 0x10) == 272);
+    const unsigned int uFailed = CapsStats(iH).uFailed;
+    void* pExact = RedTryAllocFromHeap(iH, 240);
+    CHECK(pExact != nullptr);
+    CHECK(((uintptr_t)pExact & 0xF) == 0);
+    CHECK(CapsStats(iH).uUsed == 256);
+    if (pExact)
+    {
+        RedFreeToHeap(iH, pExact, 0);
+    }
+    void* pOver = RedTryAllocFromHeap(iH, 241);
+    CHECK(pOver == nullptr);
+    CHECK(CapsStats(iH).uFailed == uFailed + 1);
+    CHECK(siFailCalls == 0);
+    void* pZero = RedTryAllocFromHeap(iH, 0);
+    CHECK(pZero != nullptr);
+    CHECK(((uintptr_t)pZero & 0xF) == 0);
+    if (pZero)
+    {
+        RedFreeToHeap(iH, pZero, 0);
+    }
+    gRedHeapSlots[iH].cap = uCap;
+    for (unsigned int u = 1; u <= 48; ++u)
+    {
+        CAPTURE(u);
+        void* p = RedTryAllocFromHeap(iH, u);
+        CHECK(p != nullptr);
+        CHECK(((uintptr_t)p & 0xF) == 0);
+        if (p)
+        {
+            RedFreeToHeap(iH, p, 0);
+        }
+    }
+    CHECK(CapsStats(iH).uUsed == 0);
+    CHECK(siFailCalls == 0);
+    gRedHeapSlots[iH].cap = 256;
+    void* pReported = RedAllocFromHeap(iH, 241, false);
+    gRedHeapSlots[iH].cap = uCap;
+    CHECK(pReported == nullptr);
+    CHECK(siFailCalls == 1);
+    CHECK(suFailSize == 241);
+}

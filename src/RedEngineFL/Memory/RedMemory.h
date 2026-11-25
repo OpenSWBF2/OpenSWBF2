@@ -41,6 +41,7 @@ extern "C"
     int RedSetCurrentHeap(int heap);
     void RedSetDebugHeap(int heap);
     void* RedAllocFromHeap(int heap, size_t size, bool bTop);
+    void* RedTryAllocFromHeap(int heap, size_t size);
     void* RedReallocInHeap(int heap, void* block, size_t oldSize, size_t size);
     void RedFreeToHeap(int heap, void* block, unsigned int flags);
     void RedMarkHeapPermanent(int heap, bool permanent);
@@ -69,6 +70,7 @@ extern "C"
     bool RedRangeCommitted(const void* pStart, unsigned int uSize, unsigned int* puCommitted);
     bool RedCommitParts(unsigned int* puPrivate, unsigned int* puHeaps, unsigned int* puThreads,
                         unsigned int* puThreadCount, void (*pfnBeforeWalk)(void*), void* pArg);
+    const void* RedCommitPartsBuffer(unsigned int* puBytes);
     void RedVmLedgerAdd(const void* p);
     void RedVmLedgerRemove(const void* p);
     bool RedVmLedgerCommitted(const void* pSkip, size_t uSkipSize, unsigned int* puBytes);

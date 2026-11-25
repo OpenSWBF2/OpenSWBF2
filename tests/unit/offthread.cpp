@@ -559,3 +559,30 @@ TEST_CASE("commit parts count a thread and a heap made during the walk as thread
     CHECK(!RedCommitParts(0, &uHeaps, &uThreads, &uCount, 0, 0));
 }
 #endif
+
+#if defined(__SANITIZE_ADDRESS__)
+#include <sanitizer/asan_interface.h>
+
+TEST_CASE("commit parts make their whole region buffer resident before the walk" * doctest::test_suite("regression"))
+{
+    unsigned int uPrivate = 0;
+    unsigned int uHeaps = 0;
+    unsigned int uThreads = 0;
+    unsigned int uCount = 0;
+    REQUIRE(RedCommitParts(&uPrivate, &uHeaps, &uThreads, &uCount, 0, 0));
+    unsigned int uBytes = 0;
+    const char* pBuffer = (const char*)RedCommitPartsBuffer(&uBytes);
+    REQUIRE(pBuffer != nullptr);
+    REQUIRE(uBytes > 0x10000);
+    size_t uScale = 0;
+    size_t uOffset = 0;
+    __asan_get_shadow_mapping(&uScale, &uOffset);
+    const uintptr_t uPage = 0x1000;
+    const uintptr_t uFirst = (((uintptr_t)pBuffer >> uScale) + uOffset) & ~(uPage - 1);
+    const uintptr_t uLast = ((((uintptr_t)pBuffer + uBytes - 1) >> uScale) + uOffset) | (uPage - 1);
+    const unsigned int uShadow = (unsigned int)(uLast + 1 - uFirst);
+    unsigned int uCommitted = 0;
+    REQUIRE(RedRangeCommitted((const void*)uFirst, uShadow, &uCommitted));
+    CHECK(uCommitted == uShadow);
+}
+#endif

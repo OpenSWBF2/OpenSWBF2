@@ -546,13 +546,13 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         RedMiFirstArena(&uArena, &uArenaSize);
         LOG(LogCore, Inform,
             "OPENSWBF2 ADDRSPACE arena=0x%08IX arena_end=0x%08IX laa=%d steam=%d steam_api=0x%08IX "
-            "Galaxy=0x%08IX GalaxyPeer=0x%08IX binkw32=0x%08IX",
+            "Galaxy=0x%08IX GalaxyPeer=0x%08IX ffmpeg=0x%08IX",
             uArena, uArena + uArenaSize,
             pcCrash::IsLargeAddressAware() ? 1 : 0, gf::_sap()->IsInitialized() ? 1 : 0,
             (uintptr_t)GetModuleHandleA(gf::vendor::DllName("steam_api.dll", "steam_api64.dll")),
             (uintptr_t)GetModuleHandleA(gf::vendor::DllName("Galaxy.dll", "Galaxy64.dll")),
             (uintptr_t)GetModuleHandleA(gf::vendor::DllName("GalaxyPeer.dll", "GalaxyPeer64.dll")),
-            (uintptr_t)GetModuleHandleA("binkw32.dll"));
+            (uintptr_t)GetModuleHandleA("openswbf2-ffmpeg.dll"));
         gf::vendor::WriteLog();
         RedMiRegisterOutput();
         char acMiOptions[256];

@@ -357,8 +357,8 @@ function Get-InboundAllowPrograms {
 }
 
 $script:SmokeWorkerFiles = @{
-    Win32 = @('BattlefrontII.exe', 'binkw32.dll', 'd3dx9_43.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'steam_api.dll', 'steam_appid.txt')
-    x64 = @('BattlefrontII.exe', 'd3dx9_43.dll', 'steam_api64.dll', 'steam_appid.txt')
+    Win32 = @('BattlefrontII.exe', 'COPYING.LGPLv2.1', 'd3dx9_43.dll', 'Galaxy.dll', 'GalaxyPeer.dll', 'NOTICE.txt', 'openswbf2-ffmpeg.dll', 'steam_api.dll', 'steam_appid.txt')
+    x64 = @('BattlefrontII.exe', 'COPYING.LGPLv2.1', 'd3dx9_43.dll', 'NOTICE.txt', 'openswbf2-ffmpeg.dll', 'steam_api64.dll', 'steam_appid.txt')
 }
 
 function Get-SmokeWorkerFiles([ValidateSet('Win32', 'x64')][string]$platform = $script:SmokePlatform) {
@@ -401,6 +401,62 @@ function Get-SmokeCaseSwap($case) {
     if ($null -eq $swap) { return @() }
     if ($swap -isnot [Collections.IDictionary]) { throw "case $($case.Name): Swap must map a target name to a source path" }
     return @($swap.Keys | ForEach-Object { New-Object PSObject -Property @{ Target = [string]$_; Source = [string]$swap[$_] } })
+}
+
+$script:SmokeMovieSegment = [Convert]::ToUInt32('B4A21ED9', 16)
+$script:SmokeMovieInfoName = [Convert]::ToUInt32('0BADF11E', 16)
+
+function Get-SmokeMovieBytes([string]$mutation) {
+    $bik = New-Object byte[] 68
+    $put = { param([byte[]]$b, [int]$at, [uint32]$v) [BitConverter]::GetBytes($v).CopyTo($b, $at) }
+    $magic = $(if ($mutation -ceq 'magic') { 'XYZi' } else { 'BIKi' })
+    [Text.Encoding]::ASCII.GetBytes($magic).CopyTo($bik, 0)
+    & $put $bik 4 60
+    & $put $bik 8 1
+    & $put $bik 12 16
+    & $put $bik 20 $(if ($mutation -ceq 'width') { 1025 } else { 800 })
+    & $put $bik 24 600
+    & $put $bik 28 30
+    & $put $bik 32 1
+    & $put $bik 44 53
+    & $put $bik 48 68
+    $file = New-Object byte[] 6144
+    & $put $file 0 ([BitConverter]::ToUInt32([Text.Encoding]::ASCII.GetBytes('ucfb'), 0))
+    & $put $file 4 6136
+    & $put $file 8 ([Convert]::ToUInt32('2F1F7060', 16))
+    & $put $file 12 6128
+    & $put $file 16 ([Convert]::ToUInt32('F9F40518', 16))
+    & $put $file 20 6120
+    & $put $file 24 ([Convert]::ToUInt32('0FB40705', 16))
+    & $put $file 28 2008
+    $words = @([Convert]::ToUInt32('8D39BDE6', 16), $script:SmokeMovieInfoName, [Convert]::ToUInt32('40FBDEBD', 16), 1, [Convert]::ToUInt32('B969BE96', 16), [Convert]::ToUInt32('F3C342E6', 16), [Convert]::ToUInt32('8D39BDE6', 16), $script:SmokeMovieSegment, [Convert]::ToUInt32('83D03615', 16), 68, [Convert]::ToUInt32('809608B6', 16), 4028, [Convert]::ToUInt32('7DB1D043', 16))
+    for ($i = 0; $i -lt $words.Count; $i++) { & $put $file (32 + 4 * $i) ([uint32]$words[$i]) }
+    & $put $file 2040 ([Convert]::ToUInt32('D872E2A5', 16))
+    & $put $file 2044 4096
+    $bik.CopyTo($file, 2048)
+    return ,$file
+}
+
+function Assert-SmokeMovieSpec($case) {
+    $m = $case.MovieFile
+    if ($m -isnot [hashtable]) { throw "case $($case.Name): MovieFile must be a table" }
+    $keys = (@($m.Keys | ForEach-Object { [string]$_ } | Sort-Object) -join ',')
+    if ($keys -cne 'Mutation,Name') { throw "case $($case.Name): MovieFile takes exactly Name and Mutation, got $keys" }
+    if ([string]$m.Name -cnotmatch '^[A-Za-z0-9_-]{1,27}\.mvs$') { throw "case $($case.Name): MovieFile name '$($m.Name)' must be a plain <name>.mvs shorter than 32 characters" }
+    if ([string]$m.Mutation -cnotin 'width', 'magic') { throw "case $($case.Name): MovieFile mutation '$($m.Mutation)' must be width or magic" }
+}
+
+function Assert-SmokeMovieFile($case) {
+    if ($null -eq $case.MovieFile) { return }
+    Assert-SmokeMovieSpec $case
+    if ([string]$case.Args -cnotmatch '(^| )-movielocal( |$)') { throw "case $($case.Name): a MovieFile case must pass -movielocal" }
+}
+
+function Write-SmokeMovieFile($dir, $case) {
+    if ($null -eq $case.MovieFile) { return }
+    Assert-SmokeMovieSpec $case
+    Assert-SmokeWorkerName ([string]$case.MovieFile.Name)
+    [IO.File]::WriteAllBytes((Join-Path $dir ([string]$case.MovieFile.Name)), (Get-SmokeMovieBytes ([string]$case.MovieFile.Mutation)))
 }
 
 function Get-SmokeCaseSkip($case) {
@@ -453,6 +509,7 @@ function Sync-SmokeWorkerFiles($srcDir, $dir, $case) {
         }
         [IO.File]::Copy($s.Source, $d)
     }
+    Write-SmokeMovieFile $full $case
 }
 
 function Get-SmokeSkipLine($name, [string]$reason) {
@@ -782,9 +839,26 @@ function Get-SharedDigestRow([string]$name) {
     return $null
 }
 
+function Get-MovieGoldenDigest([string]$name) {
+    $file = $env:OPENSWBF2_MOVIE_GOLDENS
+    if (-not $file) { $file = Join-Path $PSScriptRoot 'baseline\v143\movie-goldens.txt' }
+    if (-not (Test-Path -LiteralPath $file)) { throw "movie goldens not found: $file" }
+    $section = ''
+    $found = @()
+    foreach ($line in [IO.File]::ReadAllLines($file)) {
+        if ($line.StartsWith('## ')) { $section = $line.Substring(3); continue }
+        if ($section -cne 'binkw32 ingame digest') { continue }
+        $i = $line.IndexOf("`t")
+        if ($i -gt 0 -and $line.Substring(0, $i) -ceq $name) { $found += $line.Substring($i + 1) }
+    }
+    if ($found.Count -ne 1) { return $null }
+    return $found[0]
+}
+
 function Assert-SmokeCaseData($cases) {
     $names = @($cases | ForEach-Object { $_.Name })
     foreach ($c in $cases) {
+        Assert-SmokeMovieFile $c
         if ($c.OwnedOn) {
             foreach ($p in @($c.OwnedOn.Keys)) {
                 $o = $c.OwnedOn[$p]
@@ -809,6 +883,7 @@ function Assert-SmokeCaseData($cases) {
                     }
                 }
                 if ($o.SoakTurns -isnot [int] -or $o.SoakTurns -lt 1 -or $o.SoakTurns -gt 9300) { throw "$($c.Name) owned entry on $p needs SoakTurns from 1 to 9300, got '$($o.SoakTurns)'" }
+                if ((Test-SmokeShellOnly $c) -and @(@($o.LogRx) | Where-Object { $_ -cmatch 'SOAK turns=|MISSION RUNNING' }).Count) { throw "$($c.Name) owned entry on $p runs only the shell, which has no turns, so its LogRx cannot name SOAK turns= or MISSION RUNNING" }
             }
         }
         if ($c.DigestRow) {
@@ -818,15 +893,27 @@ function Assert-SmokeCaseData($cases) {
             $row = Get-SharedDigestRow $t
             if ($row -cne "none`tnone") { throw "$($c.Name) digest row $t must be a none row of v143\smoke-all-digests.txt, found '$row'" }
         }
+        if ($c.GoldenDigest) {
+            $g = [string]$c.GoldenDigest
+            if (Get-DigestExpected $c.Name) { throw "$($c.Name) has a digest-expected row and a golden digest" }
+            if ($c.DigestRow) { throw "$($c.Name) has a digest row name and a golden digest" }
+            $line = Get-MovieGoldenDigest $g
+            if ($line -cnotmatch '^OPENSWBF2 SIM DIGEST turns=\d+ time=\S+ rand=\d+/\d+ snd=\S+ state=0x[0-9A-F]{8}$') { throw "$($c.Name) golden digest $g must be one SIM DIGEST line under ## binkw32 ingame digest in v143\movie-goldens.txt, found '$line'" }
+        }
     }
 }
 
-function Get-OwnedMismatch($owned, $res, [string]$mapFile) {
+function Test-SmokeShellOnly($case) {
+    return ([string]$case.Args).TrimStart().StartsWith('-')
+}
+
+function Get-OwnedMismatch($owned, $res, [string]$mapFile, [bool]$shellOnly = $false) {
     if ($res.Class -cne $owned.Class) { return "class $($res.Class), recorded $($owned.Class)" }
     if (-not $owned.Function) {
         $log = [string]$res.LogText
         foreach ($rx in @($owned.LogRx)) { if ($log -cnotmatch $rx) { return "log lacks $rx" } }
-        if ($log -cnotmatch "(?m)OPENSWBF2 SOAK turns=$($owned.SoakTurns)\r?$") { return "log lacks OPENSWBF2 SOAK turns=$($owned.SoakTurns)" }
+        $bound = $(if ($shellOnly) { 'shell' } else { 'turns' })
+        if ($log -cnotmatch "(?m)OPENSWBF2 SOAK $bound=$($owned.SoakTurns)\r?$") { return "log lacks OPENSWBF2 SOAK $bound=$($owned.SoakTurns)" }
         foreach ($rx in @($owned.NoLogRx)) { if ($log -cmatch $rx) { return "log has $rx" } }
         return $null
     }
@@ -861,7 +948,7 @@ function Get-SmokeOwnedVerdict($case, $res, [bool]$ok, [string]$mapFile = (Get-S
     $owned = $case.OwnedOn[$script:SmokePlatform]
     if (-not $owned) { return $null }
     if ($ok) { return @{ Tok = 'FAIL'; Line = "[FAIL] smoke:$($case.Name) - owned failure no longer fails; remove the $($owned.Owner) entry" } }
-    $why = Get-OwnedMismatch $owned $res $mapFile
+    $why = Get-OwnedMismatch $owned $res $mapFile (Test-SmokeShellOnly $case)
     $sig = $(if ($owned.Function) { "$($owned.Owner) $($owned.Function)" } else { [string]$owned.Owner })
     if ($why) { return @{ Tok = $null; Note = " - owned entry ${sig}: $why" } }
     return @{ Tok = 'OWNED'; Line = ('[OWNED] smoke:{0} class={1} exit=0x{2:X8} ({3} ms) - {4}' -f $case.Name, $res.Class, $res.Code, $res.Ms, $sig) }
@@ -936,6 +1023,13 @@ function Test-SmokeExpect($case, $res) {
     }
     if (-not $script:SmokeDigestConfiguration -or $script:SmokeDigestConfiguration -in 'Release', 'Test') {
         $want = Get-DigestExpected $case.Name
+        if ($case.GoldenDigest) {
+            $want = Get-MovieGoldenDigest ([string]$case.GoldenDigest)
+            if (-not $want) {
+                Write-Host "    golden digest $($case.GoldenDigest) not found in movie-goldens.txt"
+                return $false
+            }
+        }
         if ($want) {
             $got = Get-DigestKey $res.CaseDir
             if ($want -cne $got) {
@@ -1567,6 +1661,61 @@ function Get-UnicowsCheck([string]$root, [ValidateSet('Win32', 'x64')][string]$p
     return New-Object PSObject -Property @{ Name = 'unicows-staged'; Ok = ($hits.Count -eq 0); Detail = ($hits -join ', ') }
 }
 
+function Get-BinkGoneCheck([string]$root, [string]$exeDir, $imp, [string[]]$workerFiles = $null) {
+    $hits = New-Object System.Collections.Generic.List[string]
+    $text = [string]$imp
+    $hdrAt = $text.IndexOf('Section contains the following delay load imports:')
+    $static = $text
+    $delay = ''
+    if ($hdrAt -ge 0) {
+        $static = $text.Substring(0, $hdrAt)
+        $delay = $text.Substring($hdrAt)
+    }
+    if ($static -match '(?mi)^\s+(binkw(32|64)\.dll)\s*$') { $hits.Add("static import $($Matches[1])") }
+    if ($delay -match '(?mi)^\s+(binkw(32|64)\.dll)\s*$') { $hits.Add("delay import $($Matches[1])") }
+    if ($exeDir -and (Test-Path -LiteralPath (Join-Path $exeDir 'binkw32.dll'))) { $hits.Add("staged in $exeDir") }
+    $libDir = Join-Path $root 'lib'
+    foreach ($f in @(Get-ChildItem -LiteralPath $libDir -Recurse -File -Filter 'binkw*' -ErrorAction SilentlyContinue)) { $hits.Add("lib file $($f.FullName.Substring($root.Length).TrimStart('\'))") }
+    $projDirs = @($root, (Join-Path $root 'lib'), (Join-Path $root 'tests')) + @(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+    $projFiles = @(foreach ($d in $projDirs) { Get-ChildItem -LiteralPath $d -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '\.(vcxproj|vcxproj\.filters|props)$' } })
+    foreach ($f in $projFiles) {
+        $xml = New-Object xml
+        $xml.Load($f.FullName)
+        $rel = $f.FullName.Substring($root.Length).TrimStart('\')
+        foreach ($e in @($xml.SelectNodes('//*'))) {
+            if ($e.LocalName -eq 'Delete') { continue }
+            $named = @($e.Attributes | Where-Object { $_.Value -match '(?i)binkw32' }).Count -gt 0
+            if (-not $named) { $named = @($e.ChildNodes | Where-Object { $_.NodeType -eq 'Text' -and $_.Value -match '(?i)binkw32' }).Count -gt 0 }
+            if ($named) { $hits.Add("$rel $($e.LocalName)") }
+        }
+    }
+    $mainProj = Join-Path $root 'BattlefrontII.vcxproj'
+    $hasDelete = $false
+    if (Test-Path -LiteralPath $mainProj) {
+        $xml = New-Object xml
+        $xml.Load($mainProj)
+        $ns = New-Object Xml.XmlNamespaceManager $xml.NameTable
+        $ns.AddNamespace('m', 'http://schemas.microsoft.com/developer/msbuild/2003')
+        $hasDelete = @($xml.SelectNodes("//m:Target[@Name='StageVendor']/m:Delete[@Files='`$(OutDir)binkw32.dll']", $ns)).Count -eq 1
+    }
+    if (-not $hasDelete) { $hits.Add('StageVendor does not delete a stale binkw32.dll') }
+    foreach ($rel in 'tests\smoke\cases.ps1', 'tests\common.ps1') {
+        $p = Join-Path $root $rel
+        if ((Test-Path -LiteralPath $p) -and [IO.File]::ReadAllText($p) -match '(?i)binkw32') { $hits.Add("named in $rel") }
+    }
+    if ($null -eq $workerFiles) { $workerFiles = @(Get-SmokeWorkerFiles 'Win32') + @(Get-SmokeWorkerFiles 'x64') }
+    if (@($workerFiles | Where-Object { $_ -match '(?i)binkw' }).Count) { $hits.Add('worker list') }
+    $srcFiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL|mimalloc|FFmpegFL)\\' }) + @(Get-ChildItem -LiteralPath (Join-Path $root 'tests\unit') -Recurse -File -ErrorAction SilentlyContinue)
+    foreach ($f in @($srcFiles | Where-Object { $script:SourceExtensions -contains $_.Extension })) {
+        $lines = [IO.File]::ReadAllLines($f.FullName)
+        for ($i = 0; $i -lt $lines.Length; $i++) {
+            $game = $f.FullName.StartsWith((Join-Path $root 'src') + '\', [StringComparison]::OrdinalIgnoreCase)
+            if ($lines[$i] -cmatch '\bBink[A-Z]\w*\s*\(|\bBINK(IO|FILE)?\b' -or ($game -and $lines[$i] -match '(?i)\bbinkw(32|64)\b')) { $hits.Add("source $($f.FullName.Substring($root.Length).TrimStart('\')):$($i + 1)") }
+        }
+    }
+    return New-Object PSObject -Property @{ Name = 'bink-gone'; Ok = ($hits.Count -eq 0); Detail = ($hits -join ', ') }
+}
+
 $script:D3dxPinNames = @('D3dxNupkgSha256', 'D3dxWin32Sha256', 'D3dxX64Sha256')
 
 function Get-VendorPins([string]$root, [string]$pinsText = $null) {
@@ -1854,7 +2003,7 @@ function Get-X64SizeLiteralCheck([string]$root, [string[]]$allow = $script:SizeL
         $left[$vm.Groups[1].Value] = 1 + [int]$left[$vm.Groups[1].Value]
     }
     $src = Join-Path $root 'src'
-    $files = @(Get-ChildItem -LiteralPath $src -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $script:SourceExtensions -contains $_.Extension -and $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL|mimalloc)\\' })
+    $files = @(Get-ChildItem -LiteralPath $src -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $script:SourceExtensions -contains $_.Extension -and $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL|mimalloc|FFmpegFL)\\' })
     foreach ($f in @($files | Sort-Object FullName)) {
         $text = [IO.File]::ReadAllText($f.FullName)
         $blank = $script:ByteCommentRx.Replace($text, { param($m) if ($m.Value[0] -eq '/') { [regex]::Replace($m.Value, '[^\r\n]', ' ') } else { $m.Value } })
@@ -2032,6 +2181,212 @@ function Get-MiCrtHookCheck([string]$mapText) {
         }
     }
     return New-Object PSObject -Property @{ Name = 'mimalloc-crt-hooks'; Ok = ($bad.Count -eq 0); Detail = ($bad -join '; ') }
+}
+
+$script:FFmpegLicenceRules = @(
+    @('licence flag', '(?m)^#define CONFIG_(?:GPL|NONFREE|GPLV3|VERSION3|LGPLV3) 1\b[^\r\n]*'),
+    @('configure line', '(?m)^#define FFMPEG_CONFIGURATION "[^\r\n]*--enable-(?:gpl|nonfree|version3)\b[^\r\n]*'),
+    @('component', '(?m)^#define CONFIG_(?!(?:BINK_DECODER|BINKAUDIO_DCT_DECODER|BINKAUDIO_RDFT_DECODER|BINK_DEMUXER) )\w+_(?:DECODER|DEMUXER|PARSER|BSF|PROTOCOL|MUXER|ENCODER|FILTER|INDEV|OUTDEV|HWACCEL) 1\b[^\r\n]*')
+)
+$script:FFmpegNoticeSource = 'https://github.com/OpenSWBF2/OpenSWBF2 under src/FFmpegFL'
+$script:FFmpegChangesNeed = @('+++ b/openswbf2/ossf2_alloc.c', '+++ b/openswbf2-ffmpeg.def')
+$script:FFmpegWd4703 = @('libavutil\encryption_info.c', 'libavformat\url.c', 'libavformat\av1.c', 'libavformat\avio.c', 'libavcodec\raw.c')
+$script:FFmpegDebugO1 = @('libavcodec\avcodec.c')
+$script:FFmpegFlagCauses = 'exemptions: /wd4146 after /sdl on every file (C-FFMPEG-WD4146); /wd4703 on ' + ($script:FFmpegWd4703 -join ' ') + ' (C-FFMPEG-WD4703); /O1 on ' + ($script:FFmpegDebugO1 -join ' ') + ' in Debug (C-FFMPEG-DEBUG-O1)'
+$script:FFmpegImportAllow = @('kernel32.dll', 'vcruntime140.dll', 'api-ms-win-crt-runtime-l1-1-0.dll', 'api-ms-win-crt-math-l1-1-0.dll', 'api-ms-win-crt-stdio-l1-1-0.dll', 'api-ms-win-crt-string-l1-1-0.dll', 'api-ms-win-crt-time-l1-1-0.dll', 'api-ms-win-crt-convert-l1-1-0.dll', 'api-ms-win-crt-environment-l1-1-0.dll', 'api-ms-win-crt-utility-l1-1-0.dll')
+$script:FFmpegImportCaused = [ordered]@{ 'bcrypt.dll' = 'C-FFMPEG-BCRYPT' }
+$script:FFmpegAsanImportCaused = @{
+    Win32 = [ordered]@{ 'clang_rt.asan_dynamic-i386.dll' = 'C-FFMPEG-ASAN-IMPORTS'; 'api-ms-win-crt-heap-l1-1-0.dll' = 'C-FFMPEG-ASAN-IMPORTS' }
+    x64 = [ordered]@{ 'clang_rt.asan_dynamic-x86_64.dll' = 'C-FFMPEG-ASAN-IMPORTS'; 'api-ms-win-crt-heap-l1-1-0.dll' = 'C-FFMPEG-ASAN-IMPORTS'; 'vcruntime140_1.dll' = 'C-FFMPEG-ASAN-IMPORTS' }
+}
+$script:FFmpegCrtHeapModule = 'api-ms-win-crt-heap-l1-1-0.dll'
+$script:FFmpegCrtHeapNameRx = '^(?:malloc|realloc|free|calloc|_aligned_\w+)$'
+
+function Get-FFmpegProject([string]$root, [string]$config) {
+    $root = $root.TrimEnd('\')
+    $int = Join-Path $root "obj\$script:SmokePlatform\$config\FFmpegFL"
+    return New-Object PSObject -Property @{
+        Vcxproj = (Join-Path $root 'src\FFmpegFL\FFmpegFL.vcxproj'); IntDir = $int; TlogDir = (Join-Path $int 'FFmpegFL.tlog')
+        Dll = (Join-Path $root "bin\$script:SmokePlatform\$config\openswbf2-ffmpeg.dll"); ConfigDir = (Join-Path $root 'src\FFmpegFL\config')
+    }
+}
+
+function Get-FFmpegLicenceCheck([string]$configText, [string]$componentsText, $noticeText = $null, $changesText = $null) {
+    $bad = @()
+    if (-not $configText) { $bad += 'config.h missing or empty' }
+    if (-not $componentsText) { $bad += 'config_components.h missing or empty' }
+    $text = $configText + "`n" + $componentsText
+    foreach ($r in $script:FFmpegLicenceRules) {
+        $m = [regex]::Match($text, $r[1])
+        if ($m.Success) { $bad += ('{0}: {1}' -f $r[0], $m.Value.Trim()) }
+    }
+    if ($null -ne $noticeText -and -not ([string]$noticeText).Contains($script:FFmpegNoticeSource)) { $bad += "notice: NOTICE.txt does not name $script:FFmpegNoticeSource" }
+    if ($null -ne $changesText) {
+        foreach ($c in $script:FFmpegChangesNeed) { if (-not ([string]$changesText).Contains($c)) { $bad += "changes: changes.diff lacks $c" } }
+    }
+    return New-Object PSObject -Property @{ Name = 'ffmpeg-license'; Ok = ($bad.Count -eq 0); Detail = $(if ($bad.Count) { $bad[0] } else { '' }) }
+}
+
+function Get-FFmpegFlagCheck($flags, [string]$config, [string]$platform) {
+    $bad = New-Object System.Collections.Generic.List[string]
+    $units = @($flags.Keys | Sort-Object)
+    if ($units.Count -eq 0) { $bad.Add('no FFmpegFL cl tlog lines') }
+    $wd4703 = @()
+    $o1 = @()
+    foreach ($u in $units) {
+        $at = $u.ToUpperInvariant().LastIndexOf('\SRC\FFMPEGFL\')
+        $rel = $(if ($at -ge 0) { $u.Substring($at + 14) } else { $u }).ToLowerInvariant()
+        $tok = @(([string]$flags[$u]).Split(' ') | Where-Object { $_ })
+        foreach ($need in '/sdl', '/GS', '/Gy') { if ($tok -cnotcontains $need) { $bad.Add("$rel lacks $need") } }
+        if ($platform -eq 'x64') { foreach ($need in '/we4311', '/we4312', '/we4302', '/we4477') { if ($tok -cnotcontains $need) { $bad.Add("$rel lacks $need") } } }
+        foreach ($ban in '/GS-', '/GL', '/fp:fast', '/fp:contract', '/Zc:throwingNew') { if ($tok -ccontains $ban) { $bad.Add("$rel has banned $ban") } }
+        $sdlAt = [Array]::IndexOf([string[]]$tok, '/sdl')
+        $wdAt = [Array]::IndexOf([string[]]$tok, '/wd4146')
+        if ($wdAt -lt 0) { $bad.Add("$rel lacks /wd4146") }
+        elseif ($sdlAt -ge 0 -and $wdAt -lt $sdlAt) { $bad.Add("$rel has /wd4146 before /sdl") }
+        foreach ($w in @($tok | Where-Object { $_ -match '^[/-]wd' })) {
+            if ($w -ceq '/wd4146') { continue }
+            if ($w -ceq '/wd4703') { $wd4703 += $rel; continue }
+            $bad.Add("$rel has $w, not a named exemption")
+        }
+        $opt = @($tok | Where-Object { $_ -cmatch '^/O[d12x]$' })
+        if ($opt -ccontains '/O1') { $o1 += $rel }
+        $want = $(if ($config -ne 'Debug') { '/O2' } elseif ($script:FFmpegDebugO1 -contains $rel) { '/O1' } else { '/Od' })
+        if ($opt.Count -ne 1 -or $opt[0] -cne $want) { $bad.Add("$rel has '$($opt -join ' ')' want $want") }
+    }
+    $wd4703Want = @($script:FFmpegWd4703 | Sort-Object)
+    if ((@($wd4703 | Sort-Object -Unique) -join ' ') -ne ($wd4703Want -join ' ')) { $bad.Add("/wd4703 on '$(@($wd4703 | Sort-Object -Unique) -join ' ')' want '$($wd4703Want -join ' ')'") }
+    $o1Want = $(if ($config -eq 'Debug') { @($script:FFmpegDebugO1 | Sort-Object) } else { @() })
+    if ((@($o1 | Sort-Object -Unique) -join ' ') -ne ($o1Want -join ' ')) { $bad.Add("/O1 on '$(@($o1 | Sort-Object -Unique) -join ' ')' want '$($o1Want -join ' ')'") }
+    $head = @($bad | Select-Object -First 4)
+    $more = $(if ($bad.Count -gt 4) { " (+$($bad.Count - 4) more)" } else { '' })
+    $detail = ('cl entries={0}' -f $units.Count)
+    if ($bad.Count) { $detail += '; ' + ($head -join '; ') + $more }
+    return New-Object PSObject -Property @{ Name = 'ffmpeg-flags'; Ok = ($bad.Count -eq 0); Detail = ($detail + '; ' + $script:FFmpegFlagCauses) }
+}
+
+function Get-FFmpegDllCheck($hdr, $cfg, [string]$platform) {
+    $bad = @()
+    if ($hdr -notmatch '(?m)^\s+DLL\s*$') { $bad += 'not a DLL' }
+    if ($hdr -notmatch '(?m)^\s+Dynamic base\s*$') { $bad += 'Dynamic base flag missing' }
+    if ($hdr -notmatch '(?m)^\s+NX compatible\s*$') { $bad += 'NX compatible flag missing' }
+    $relocSize = 0
+    if ($hdr -match '(?m)^\s+[0-9A-F]+ \[\s*([0-9A-F]+)\] RVA \[size\] of Base Relocation Directory') { $relocSize = [Convert]::ToInt32($Matches[1], 16) }
+    if ($hdr -notmatch '(?m)^\s+\.reloc name\s*$' -or $relocSize -le 0 -or $hdr -match '(?m)^\s+Relocations stripped\s*$') { $bad += "relocations missing (reloc-dir-size=$relocSize)" }
+    $cookie = 0
+    if ($cfg -match '(?m)^\s+([0-9A-F]+) Security Cookie') { $cookie = [Convert]::ToInt64($Matches[1], 16) }
+    if ($cookie -eq 0) { $bad += 'security cookie missing' }
+    if ($platform -eq 'Win32') {
+        $seh = 0
+        if ($cfg -match '(?m)^\s+([0-9A-F]+) Safe Exception Handler Count') { $seh = [Convert]::ToInt32($Matches[1], 16) }
+        if ($seh -le 0) { $bad += "Safe Exception Handler Count=$seh" }
+    }
+    return New-Object PSObject -Property @{ Name = 'ffmpeg-dll'; Ok = ($bad.Count -eq 0); Detail = ($bad -join '; ') }
+}
+
+function Read-DumpbinImportNames([string]$imp) {
+    $mods = [ordered]@{}
+    $cur = $null
+    foreach ($l in ($imp -split "`r?`n")) {
+        if ($l -cmatch '^\s*Summary\s*$') { break }
+        if ($l -match '^\s+(\S+\.dll)\s*$') {
+            $cur = $Matches[1].ToLowerInvariant()
+            if (-not $mods.Contains($cur)) { $mods[$cur] = New-Object System.Collections.Generic.List[string] }
+        }
+        elseif ($cur -and $l -cmatch '^\s+[0-9A-F]+\s+(\S+)\s*$') { $mods[$cur].Add($Matches[1]) }
+    }
+    return $mods
+}
+
+function Get-FFmpegAsanHeapNames([string]$tlogDir, [string]$platform) {
+    $libs = @()
+    foreach ($f in @(Get-ChildItem -LiteralPath $tlogDir -Filter 'link.read*.tlog' -File -ErrorAction SilentlyContinue)) {
+        foreach ($l in [IO.File]::ReadAllLines($f.FullName, [Text.Encoding]::Unicode)) {
+            foreach ($p in $l.TrimStart([char]0xFEFF, '^').Split('|')) { if ($p.EndsWith('\VCASAN.LIB', [StringComparison]::OrdinalIgnoreCase)) { $libs += $p } }
+        }
+    }
+    $libs = @($libs | Sort-Object -Unique)
+    if ($libs.Count -ne 1) { throw "FFmpegFL link read $($libs.Count) vcasan.lib paths in $tlogDir" }
+    $sym = (& (Find-Dumpbin $platform) /nologo /symbols $libs[0]) -join "`n"
+    if ($LASTEXITCODE -ne 0) { throw "dumpbin /symbols $($libs[0]) exit $LASTEXITCODE" }
+    $pre = $(if ($platform -eq 'Win32') { '__imp__' } else { '__imp_' })
+    return @([regex]::Matches($sym, '(?m)\sUNDEF\s.*\|\s+' + [regex]::Escape($pre) + '(\w+)\s*$') | ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ -match $script:FFmpegCrtHeapNameRx } | Sort-Object -Unique)
+}
+
+function Get-FFmpegImportChecks($imp, [string]$platform, [string]$config, [string[]]$asanHeap) {
+    $mods = Read-DumpbinImportNames ([string]$imp)
+    $caused = [ordered]@{}
+    foreach ($k in $script:FFmpegImportCaused.Keys) { $caused[$k] = $script:FFmpegImportCaused[$k] }
+    if ($config -eq 'Asan') { foreach ($k in $script:FFmpegAsanImportCaused[$platform].Keys) { $caused[$k] = $script:FFmpegAsanImportCaused[$platform][$k] } }
+    $extra = @($mods.Keys | Where-Object { $script:FFmpegImportAllow -notcontains $_ -and -not $caused.Contains($_) })
+    $impBad = @()
+    if (-not $mods.Contains('kernel32.dll')) { $impBad += "kernel32.dll not found in the dumpbin /imports output ($($mods.Count) DLLs parsed)" }
+    if ($extra.Count) { $impBad += 'imports outside the allow list: ' + ($extra -join ' ') }
+    $causeText = 'caused: ' + (@($caused.Keys | Where-Object { $mods.Contains($_) } | ForEach-Object { "$_ ($($caused[$_]))" }) -join ', ')
+    $rows = @(New-Object PSObject -Property @{ Name = 'ffmpeg-imports'; Ok = ($impBad.Count -eq 0); Detail = ((@($impBad) + @($causeText)) -join '; ') })
+    $heap = @()
+    foreach ($k in $mods.Keys) {
+        foreach ($fn in $mods[$k]) {
+            if ($k -eq $script:FFmpegCrtHeapModule -or $fn -match $script:FFmpegCrtHeapNameRx) { $heap += "${k}!$fn" }
+        }
+    }
+    $heapBad = @()
+    if ($config -eq 'Asan') {
+        if (@($asanHeap).Count -eq 0) { $heapBad += 'no vcasan.obj heap imports read' }
+        foreach ($h in $heap) { if (@($asanHeap) -cnotcontains $h.Split('!')[1]) { $heapBad += "$h is not a vcasan.obj import" } }
+    }
+    else { $heapBad = $heap }
+    $heapCause = $(if ($config -eq 'Asan') { 'C-FFMPEG-ALLOC-CONFIG, C-FFMPEG-VENDOR-SCOPE, C-FFMPEG-ASAN-IMPORTS (vcasan.obj imports ' + (@($asanHeap) -join ' ') + ')' } else { 'C-FFMPEG-ALLOC-CONFIG, C-FFMPEG-VENDOR-SCOPE' })
+    $heapDetail = $(if ($heapBad.Count) { 'CRT heap imports: ' + ($heapBad -join ' ') + '; ' } else { '' }) + $heapCause
+    $rows += New-Object PSObject -Property @{ Name = 'ffmpeg-crt-heap'; Ok = ($heapBad.Count -eq 0 -and $mods.Contains('kernel32.dll')); Detail = $heapDetail }
+    return $rows
+}
+
+function Get-FFmpegChecks([string]$root, [string]$platform, [string]$config) {
+    $p = Get-FFmpegProject $root $config
+    $texts = @()
+    foreach ($f in (Join-Path $p.ConfigDir "$platform\config.h"), (Join-Path $p.ConfigDir 'common\config_components.h')) {
+        $texts += $(if (Test-Path -LiteralPath $f -PathType Leaf) { [IO.File]::ReadAllText($f) } else { '' })
+    }
+    foreach ($f in 'NOTICE.txt', 'changes.diff') {
+        $fp = Join-Path (Split-Path $p.ConfigDir -Parent) $f
+        $texts += $(if (Test-Path -LiteralPath $fp -PathType Leaf) { [IO.File]::ReadAllText($fp) } else { '' })
+    }
+    $rows = @(Get-FFmpegLicenceCheck $texts[0] $texts[1] $texts[2] $texts[3])
+    $flags = @{}
+    $flagWhy = $null
+    try { $flags = Read-ClTlog $p.TlogDir }
+    catch { $flagWhy = $_.Exception.Message }
+    $fc = Get-FFmpegFlagCheck $flags $config $platform
+    if ($flagWhy) { $fc.Detail = "$flagWhy; $($fc.Detail)" }
+    $rows += $fc
+    $names = @('ffmpeg-dll', 'ffmpeg-imports', 'ffmpeg-crt-heap')
+    if (-not (Test-Path -LiteralPath $p.Dll -PathType Leaf)) {
+        foreach ($n in $names) { $rows += New-Object PSObject -Property @{ Name = $n; Ok = $false; Detail = "not found: $($p.Dll)" } }
+        return $rows
+    }
+    $db = Find-Dumpbin $platform
+    $hdr = (& $db /nologo /headers $p.Dll) -join "`n"
+    $code = $LASTEXITCODE
+    $lc = (& $db /nologo /loadconfig $p.Dll) -join "`n"
+    if ($code -eq 0) { $code = $LASTEXITCODE }
+    $imp = (& $db /nologo /imports $p.Dll) -join "`n"
+    if ($code -eq 0) { $code = $LASTEXITCODE }
+    if ($code -ne 0) {
+        foreach ($n in $names) { $rows += New-Object PSObject -Property @{ Name = $n; Ok = $false; Detail = "dumpbin exit $code on $($p.Dll)" } }
+        return $rows
+    }
+    $rows += Get-FFmpegDllCheck $hdr $lc $platform
+    $asanHeap = @()
+    $asanWhy = $null
+    if ($config -eq 'Asan') {
+        try { $asanHeap = @(Get-FFmpegAsanHeapNames $p.TlogDir $platform) }
+        catch { $asanWhy = $_.Exception.Message }
+    }
+    $ic = @(Get-FFmpegImportChecks $imp $platform $config $asanHeap)
+    if ($asanWhy) { $ic[1].Detail = "$asanWhy; $($ic[1].Detail)" }
+    $rows += $ic
+    return $rows
 }
 
 
@@ -2270,7 +2625,7 @@ function Get-SourceChecks([string]$root, [string[]]$spacerAllow = $script:Spacer
     }
     $srcFiles = @()
     if ($runDefs.Count -or $doSpacer -or $doOffset) {
-        $srcFiles = @($allFiles | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL|mimalloc)\\' })
+        $srcFiles = @($allFiles | Where-Object { $_.FullName -notmatch '\\src\\(LuaFL|ZlibFL|mimalloc|FFmpegFL)\\' })
     }
     $testsDir = Join-Path $root 'tests'
     $testFiles = @()

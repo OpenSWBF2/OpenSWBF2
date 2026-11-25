@@ -7,8 +7,8 @@ $script:SmokeCapRx = '(?s)\A(?!.*OPENSWBF2 SOAK turns=)'
 $script:SteamIfaceRx = @('OPENSWBF2 STEAM iface=SteamClient ok', 'OPENSWBF2 STEAM iface=SteamUser ok', 'OPENSWBF2 STEAM iface=SteamFriends ok', 'OPENSWBF2 STEAM iface=SteamUtils ok')
 $script:SmokeAsanExcluded = @('crash-nullderef', 'crash-divzero', 'crash-stackoverflow', 'crash-debugbreak', 'crash-abort', 'crash-invalidparam', 'crash-fastfail', 'crash-delayload', 'crash-delayload-x64', 'crash-early', 'crash-heapinit', 'crash-check', 'crash-hang', 'crash-stall', 'crash-arenaoom', 'crash-debugheapoom', 'crash-luapanic', 'crash-resetfatal', 'fatal-init', 'crash-midoublefree', 'commit-flat', 'crash-capexhaust', 'vendor-x64-none', 'vendor-x64-steam-wrongbits', 'vendor-x64-galaxy-wrongbits', 'vendor-x64-steam-on')
 $script:SmokeExcludedPlatform = @([pscustomobject]@{ Platform = 'x64'; Config = 'Asan'; Case = 'boot-sound-on'; Cause = 'C-DSOUND-LFQUEUE-ASAN: DSOUND LFQueue 43-bit pointer pack vs ASan heap >16 TB' })
-$script:SmokeAddrSpaceRx = 'OPENSWBF2 ADDRSPACE arena=0x[89A-F][0-9A-F]{7} arena_end=0x[0-9A-F]{8} laa=1 steam=[01] steam_api=0x(?!0{8})[0-9A-F]{8} Galaxy=0x(?!0{8})[0-9A-F]{8} GalaxyPeer=0x[0-9A-F]{8} binkw32=0x(?!0{8})[0-9A-F]{8}'
-$script:SmokeAddrSpaceRxX64 = 'OPENSWBF2 ADDRSPACE arena=0x[1-9A-F][0-9A-F]{8,15} arena_end=0x[1-9A-F][0-9A-F]{8,15} laa=1 steam=(?:0 steam_api=0x0{8}|[01] steam_api=0x[1-9A-F][0-9A-F]{8,15}) Galaxy=0x0{8} GalaxyPeer=0x0{8} binkw32=0x0{8}'
+$script:SmokeAddrSpaceRx = 'OPENSWBF2 ADDRSPACE arena=0x[89A-F][0-9A-F]{7} arena_end=0x[0-9A-F]{8} laa=1 steam=[01] steam_api=0x(?!0{8})[0-9A-F]{8} Galaxy=0x(?!0{8})[0-9A-F]{8} GalaxyPeer=0x[0-9A-F]{8} ffmpeg=0x(?!0{8})[0-9A-F]{8}'
+$script:SmokeAddrSpaceRxX64 = 'OPENSWBF2 ADDRSPACE arena=0x[1-9A-F][0-9A-F]{8,15} arena_end=0x[1-9A-F][0-9A-F]{8,15} laa=1 steam=(?:0 steam_api=0x0{8}|[01] steam_api=0x[1-9A-F][0-9A-F]{8,15}) Galaxy=0x0{8} GalaxyPeer=0x0{8} ffmpeg=0x[1-9A-F][0-9A-F]{8,15}'
 $script:ImportStaticAllow = @{
     Win32 = @(
         'advapi32.dll',
@@ -23,7 +23,6 @@ $script:ImportStaticAllow = @{
         'api-ms-win-crt-string-l1-1-0.dll',
         'api-ms-win-crt-time-l1-1-0.dll',
         'api-ms-win-crt-utility-l1-1-0.dll',
-        'binkw32.dll',
         'd3d9.dll',
         'd3dx9_43.dll',
         'dinput8.dll',
@@ -32,6 +31,7 @@ $script:ImportStaticAllow = @{
         'kernel32.dll',
         'msvcp140.dll',
         'ole32.dll',
+        'openswbf2-ffmpeg.dll',
         'user32.dll',
         'vcruntime140.dll',
         'winmm.dll',
@@ -58,6 +58,7 @@ $script:ImportStaticAllow = @{
         'kernel32.dll',
         'msvcp140.dll',
         'ole32.dll',
+        'openswbf2-ffmpeg.dll',
         'user32.dll',
         'vcruntime140.dll',
         'vcruntime140_1.dll',
@@ -146,7 +147,6 @@ $script:SpacerAllow = @(
     'src\RedEngineFL\Interface\RedBorderElement.h|mOtherPositionAttributes|[0x0c-0x08]|x64:safe:bytes inside a float vertex record that is 0x1c bytes on both platforms',
     'src\RedEngineFL\Interface\RedBorderElement.h|mOtherTextureAttributes|[0x1c-0x14]|x64:safe:bytes inside a float vertex record that is 0x1c bytes on both platforms',
     'src\RedEngineFL\Interface\RedBorderElement.h|mReservedTail|[0x260-0x254]|x64:safe:unread tail pad bytes; members are read by name and the class size is sizeof on each platform',
-    'src\RedEngineFL\movie\pc\pcRedMoviePlayer.h|pad1c|[0xd0-0x1c]|x64:safe:mirror of the binkw32 BINK struct, read only by the Win32 Bink player; x64 links the null movie player and no Bink',
     'src\SoundFL\source\sndenginebase.h|smVoiceStorage|[]|x64:fixed:45-08 sizes the storage as count * sizeof(T) with alignas(T) and a static_assert at the definition',
     'src\SoundFL\source\sndenginebase.h|smStreamStorage|[]|x64:fixed:45-08 sizes the storage as count * sizeof(T) with alignas(T) and a static_assert at the definition',
     'src\SoundFL\source\sndglobals.cpp|acMessage|[0x800]|x64:safe:char buffer bounded by sizeof or a fixed char count; no pointer-sized element',
@@ -372,7 +372,23 @@ function Get-SmokeCases($which, $missions, $movies, $dedicatedSpec, $hog = $fals
                     '(?s)\A(?!.*OPENSWBF2 SAVE (rejected|profile CRC mismatch))'
                 )
                 $cases += New-Object PSObject -Property @{ Name = 'save-roundtrip'; Args = "$htail -savetest write"; Then = @("$htail -savetest load 1 SaveTest", "$htail -savetest load 3 SaveTest"); Expect = @{ Class = 'Pass'; LogRx = ($saveRx + $hrx) }; Twice = 0 }
-                $cases += New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = "nab2g_c $mvTail -handsoff -win -exitonmovieclose"; OwnedOn = @{ x64 = @{ Owner = 'Phase 51 MOVIE-04'; Class = 'Pass'; LogRx = @('OPENSWBF2 MOVIE off: no movie decoder in this build', 'OPENSWBF2 MISSION RUNNING nab2g_c'); NoLogRx = @('OPENSWBF2 MOVIE open', 'OPENSWBF2 CURSOR warp', 'OPENSWBF2 FOCUS activated'); SoakTurns = 300 } }; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', 'OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
+                $mvEndRx = '(?m)\A(?![\s\S]*OPENSWBF2 MOVIE end seg=0x[0-9A-F]{8} (?!frames=(\d+) shown=\1 header=\1 waits=\d+\r?$))'
+                $mvRejectRx = '(?s)\A(?!.*OPENSWBF2 MOVIE reject)'
+                $cases += New-Object PSObject -Property @{ Name = 'campaign-movies'; Args = "nab2g_c $mvTail -handsoff -win -exitonmovieclose"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE end seg=0x2AB9757F frames=1369 shown=1369 header=1369', $mvEndRx, $mvRejectRx, 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', 'OPENSWBF2 MEMREPORT source=exit', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
+                $cases += New-Object PSObject -Property @{ Name = 'ingame-movie-digest'; Args = "nab2g_c $mvTail -handsoff -win -soakturns 1500"; GoldenDigest = 'ingame-movie-digest'; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE end seg=0x2AB9757F frames=1369 shown=1369 header=1369', $mvEndRx, $mvRejectRx, 'OPENSWBF2 MOVIE close', 'OPENSWBF2 MISSION RUNNING nab2g_c', '(?m)OPENSWBF2 SOAK turns=1500\r?$', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
+                $shellLoopRx = '(?s)OPENSWBF2 MOVIE open\r?\n.*OPENSWBF2 MOVIE close\r?\n.*OPENSWBF2 MOVIE notify type=End .*OPENSWBF2 MOVIE open\r?\n.*OPENSWBF2 MOVIE close\r?\n.*OPENSWBF2 MOVIE notify type=End .*OPENSWBF2 MOVIE loops=2\r?\n'
+                $cases += New-Object PSObject -Property @{ Name = 'shell-movie-loop'; Args = "$mvTail -movieloops 2 -handsoff -win"; Expect = @{ Class = 'Pass'; LogRx = (@($shellLoopRx, 'OPENSWBF2 MOVIE end seg=0xB4A21ED9 frames=1349 shown=1349 header=1349', $mvEndRx, $mvRejectRx, 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
+                $mvOneRejectRx = '(?s)\A(?!.*OPENSWBF2 MOVIE reject.*OPENSWBF2 MOVIE reject)'
+                $mvNoOpenRx = '(?s)\A(?!.*OPENSWBF2 MOVIE open)'
+                $mvNoFatalRx = '(?s)\A(?!.*FATAL)'
+                foreach ($mvBad in 'width', 'magic') {
+                    $cases += New-Object PSObject -Property @{ Name = "movie-reject-$mvBad"; Args = "$mvTail -movietest reject-$mvBad.mvs:0xB4A21ED9:30 -movielocal -handsoff -win"; MovieFile = @{ Name = "reject-$mvBad.mvs"; Mutation = $mvBad }; Expect = @{ Class = 'Pass'; LogRx = (@("(?s)OPENSWBF2 MOVIE reject reason=$mvBad\r?\n.*OPENSWBF2 MOVIE notify type=End .*OPENSWBF2 MOVIETEST done frames=0\r?\n", $mvOneRejectRx, $mvNoOpenRx, $mvNoFatalRx, 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
+                }
+                $cases += New-Object PSObject -Property @{ Name = 'movie-reject-loop'; Args = "$mvTail -movieloops 2 -movielocal -handsoff -win"; MovieFile = @{ Name = 'shell.mvs'; Mutation = 'width' }; Expect = @{ Class = 'Pass'; LogRx = (@('(?s)OPENSWBF2 MOVIE reject reason=width\r?\n.*OPENSWBF2 MOVIE notify type=End .*OPENSWBF2 MOVIE notify type=End .*OPENSWBF2 MOVIE loops=2\r?\n', $mvOneRejectRx, $mvNoOpenRx, $mvNoFatalRx, 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
+                $cases += New-Object PSObject -Property @{ Name = 'movie-texture-wait'; Args = "$mvTail -movietest shell.mvs:0xB4A21ED9:30 -moviefault hold -handsoff -win"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', '(?s)OPENSWBF2 MOVIETEST done frames=30\r?\n.*OPENSWBF2 MOVIE close\r?\n[^\r\n]*OPENSWBF2 MOVIE heap blocks=0\r?\n[^\r\n]*OPENSWBF2 MOVIE playback shown=(3\d|[4-9]\d|\d{3,}) waits=[1-9]\d*\r?\n', $mvRejectRx, $mvNoFatalRx, 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
+                $cases += New-Object PSObject -Property @{ Name = 'movie-texture-reject'; Args = "$mvTail -movietest shell.mvs:0xB4A21ED9:30 -moviefault texture -handsoff -win"; Expect = @{ Class = 'Pass'; LogRx = (@('(?s)OPENSWBF2 MOVIE reject reason=texture\r?\n.*OPENSWBF2 MOVIE notify type=End .*OPENSWBF2 MOVIETEST done frames=0\r?\n', $mvOneRejectRx, $mvNoOpenRx, $mvNoFatalRx, 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
+                $cases += New-Object PSObject -Property @{ Name = 'movie-surface-fail'; Args = "$mvTail -movietest shell.mvs:0xB4A21ED9:30 -moviefault surface -handsoff -win"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', 'OPENSWBF2 MOVIE end seg=0xB4A21ED9 frames=1349 shown=0 header=1349 waits=0', '(?s)\A(?!.*OPENSWBF2 MOVIE frame seg=)', '(?s)OPENSWBF2 MOVIE notify type=End .*OPENSWBF2 MOVIETEST done frames=0\r?\n', $mvRejectRx, $mvNoFatalRx, 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
+                $cases += New-Object PSObject -Property @{ Name = 'movie-skip';Args = "nab2g_c $mvTail -handsoff -win -movieskip 300 -soakturns 300"; Expect = @{ Class = 'Pass'; LogRx = (@('OPENSWBF2 MOVIE open', '(?s)OPENSWBF2 MOVIE frame seg=0x2AB9757F n=300 fnv=43BDE01AE68ADC34\r?\n.*OPENSWBF2 MOVIE skip frame=300\r?\n.*OPENSWBF2 MOVIE close\r?\n[^\r\n]*OPENSWBF2 MOVIE heap blocks=0\r?\n', '(?s)\A(?!.*OPENSWBF2 MOVIE end seg=)', $mvRejectRx, 'OPENSWBF2 MISSION RUNNING nab2g_c', '(?m)OPENSWBF2 SOAK turns=300\r?$', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
                 $cases += New-Object PSObject -Property @{ Name = 'render-sound-on'; Args = "$standard $mvTail -win -handsoff -soakturns 300"; Expect = @{ Class = 'Pass'; LogRx = (@('(?m)OPENSWBF2 PACING fps=80 vsync=off interval=0x80000000 waitquery=0 timer=(hires|period)\r?$', '(?s)\A(?!.*OPENSWBF2 GAMMA path=ramp reason=norender)', 'OPENSWBF2 SOUND open=ok', 'OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 SOAK turns=300\r?$', 'OPENSWBF2 MEMREPORT offthread count=0 sources=0 dropped=0', $noWarpRx, $noFocusRx) + $hrx) }; Twice = 0 }
             }
             $cases += New-Object PSObject -Property @{ Name = 'repeat-water'; Args = "nab2g_c $htail -repeatmission -soakturns 1501"; Expect = @{ Class = 'Pass'; SameDigests = 2; LogRx = (@('OPENSWBF2 MISSION RUNNING', '(?m)OPENSWBF2 REPEAT to_shell mission=nab2g_c\r?$', '(?m)OPENSWBF2 REPEAT to_mission mission=nab2g_c\r?$', 'OPENSWBF2 SIM DIGEST turns=', 'OPENSWBF2 SOAK turns=', $noWarpRx) + $hrx) }; Twice = 0 }

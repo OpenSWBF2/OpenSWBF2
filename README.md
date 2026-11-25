@@ -19,7 +19,7 @@ Repo where I'm playing around with new features and modernization. Nothing here 
 - Visual C++ Redistributable for Visual Studio 2013 (x86), which provides `msvcr120.dll` and `msvcp120.dll` for the Galaxy DLLs; only x86 Galaxy online play needs it
   https://support.microsoft.com/help/3179560
 
-The CRT is not shipped beside the exe; install the official redistributables. The DirectX End-User Runtime is not needed: `d3dx9_43.dll` ships beside the exe. The build downloads `Microsoft.DXSDK.D3DX` 9.29.952.8 from nuget.org once into `%LOCALAPPDATA%\OpenSWBF2\vendor`, checks it against the hashes in `lib\vendor-pins.props`, and copies its `D3DX9_43.dll` for the build's platform. Later builds use the cached copy and work offline.
+`openswbf2-ffmpeg.dll`, which decodes the movies, is built from `src/FFmpegFL` under the LGPL v2.1 or later and ships beside the exe with `NOTICE.txt` and `COPYING.LGPLv2.1`. The CRT is not shipped beside the exe; install the official redistributables. The DirectX End-User Runtime is not needed: `d3dx9_43.dll` ships beside the exe. The build downloads `Microsoft.DXSDK.D3DX` 9.29.952.8 from nuget.org once into `%LOCALAPPDATA%\OpenSWBF2\vendor`, checks it against the hashes in `lib\vendor-pins.props`, and copies its `D3DX9_43.dll` for the build's platform. Later builds use the cached copy and work offline.
 
 ## Build
 

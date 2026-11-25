@@ -5,55 +5,64 @@
 
 #include "pcRedMoviePlayer.h"
 #include "pcRedMovieLayout.h"
+#include "pcRedMovieAlloc.h"
+#include "pcRedMovieAudio.h"
+#include "pcRedMovieClock.h"
+#include "pcRedMovieConvert.h"
+#include "pcRedMovieDecoder.h"
 #include "RedEngineFL/Graphics/PC/pcRedTexture.h"
 #include "RedEngineFL/Memory/RedMemory.h"
-#include "SoundFL/source/win/sndengine.h"
 #include "PebbleFL/Common/PblMath.h"
 #include "RedEngineFL/Util/RedLog.h"
 #include "Battlefront2/Platform/Pc/pcProgress.h"
+#include "Battlefront2/Source/GameState.h"
+#include "Battlefront2/Source/NetSetup.h"
 
-void __cdecl PblTraceP(const char* Format, ...);
-
-extern "C"
+struct MoviePlayback
 {
+    MoviePlayback()
+        : muFrameNum(1),
+          muShown(0),
+#ifdef OPENSWBF2_TEST
+          muWaits(0),
+#endif
+          mullTimerBase(0),
+          mullTimerFreq(0),
+          muTimerFrame(1),
+          mbAudio(false),
+          mbTimer(false)
+    {
+        memset(&mHeader, 0, sizeof(mHeader));
+    }
 
-    typedef long(__stdcall* BINKIOOPEN)(BINKIO* io, const char* name, unsigned long flags);
-    typedef void*(__stdcall* BINKMEMALLOC)(unsigned int bytes);
-    typedef void(__stdcall* BINKMEMFREE)(void* ptr);
+    MovieDecoder mDecoder;
+    MovieAudio mAudio;
+    MovieHeaderInfo mHeader;
+    unsigned int muFrameNum;
+    unsigned int muShown;
+#ifdef OPENSWBF2_TEST
+    unsigned int muWaits;
+#endif
+    unsigned long long mullTimerBase;
+    unsigned long long mullTimerFreq;
+    unsigned int muTimerFrame;
+    bool mbAudio;
+    bool mbTimer;
+};
 
-    __declspec(dllimport) int __stdcall BinkSetIOSize(unsigned int iosize);
-    __declspec(dllimport) BINKIOOPEN __stdcall BinkSetIO(BINKIOOPEN io);
-    __declspec(dllimport) void __stdcall BinkSetMemory(BINKMEMALLOC a, BINKMEMFREE f);
+#ifdef OPENSWBF2_TEST
+#include "Battlefront2/Source/CommandLine.h"
 
-    typedef void*(__stdcall* BINKSNDSYSOPEN)(uintptr_t param);
-    __declspec(dllimport) void* __stdcall BinkOpenDirectSound(uintptr_t param);
-    __declspec(dllimport) int __stdcall BinkSetSoundSystem(BINKSNDSYSOPEN open, uintptr_t param);
-    __declspec(dllimport) BINK* __stdcall BinkOpen(const char* name, unsigned int flags);
-    __declspec(dllimport) void __stdcall BinkClose(BINK* bink);
-    __declspec(dllimport) char* __stdcall BinkGetError();
-    __declspec(dllimport) int __stdcall BinkWait(BINK* bink);
-    __declspec(dllimport) int __stdcall BinkDoFrame(BINK* bink);
-    __declspec(dllimport) void __stdcall BinkNextFrame(BINK* bink);
-    __declspec(dllimport) int __stdcall BinkCopyToBuffer(BINK* bink, void* dest, int destpitch,
-                                   unsigned int destheight, unsigned int destx,
-                                   unsigned int desty, unsigned int flags);
-    __declspec(dllimport) int __stdcall BinkDX9SurfaceType(IDirect3DSurface9* surface);
-    __declspec(dllimport) void __stdcall BinkSetVolume(BINK* bink, unsigned int trackid, int volume);
-}
+void RedMovieTestOpen(const RedMoviePlayer* pPlayer);
+void RedMovieTestFrame(const MoviePlayback* pPlayback, const void* pBits, int iPitch);
+void RedMovieTestEnd(const MoviePlayback* pPlayback);
+#endif
 
-void* __stdcall local_alloc(unsigned int bytes);
-void __stdcall local_free(void* ptr);
+static MovieRejectMemo sRejected;
 
-// FUNCTION: SWBF2 0x006f4c00
-void* __stdcall local_alloc(unsigned int bytes)
+static void __cdecl FeedMovieAudioSink(void* pContext, const short* pSamples, unsigned int uFrames)
 {
-    return RedAllocFromHeap(__RedCurrHeap, bytes, 0);
-}
-
-// FUNCTION: SWBF2 0x006f4c20
-void __stdcall local_free(void* ptr)
-{
-    RedFreeToHeap(__RedCurrHeap, ptr, 0);
+    ((MovieAudio*)pContext)->Feed(pSamples, uFrames);
 }
 
 // GLOBAL: SWBF2 0x009c8420
@@ -66,14 +75,10 @@ unsigned int RedMoviePlayer::sReadSize;
 RedMoviePlayer::RedMoviePlayer()
     : RedMoviePlayerBase(0x800)
 {
-    mBink = 0;
+    mPlayback = 0;
     mFlags = 0;
 
     sMoviePlayer = this;
-
-    BinkSetIOSize(0);
-    BinkSetIO(BinkFileOpen);
-    BinkSetMemory(local_alloc, local_free);
 }
 
 // FUNCTION: SWBF2 0x006f4270
@@ -100,167 +105,56 @@ RedTexture* RedMoviePlayer::AllocTexture(const unsigned int uiNameHash,
     return pTexture;
 }
 
-// FUNCTION: SWBF2 0x006f43a0
-BINKFILE* RedMoviePlayer::BinkFile(BINKIO* bio)
+unsigned int __cdecl RedMoviePlayer::SourcePeek(void* pContext, unsigned char* pOut, unsigned int uSize)
 {
-    return (BINKFILE*)bio->iodata;
+    return ((RedMoviePlayer*)pContext)->BufferReadData(pOut, uSize, false);
 }
 
-// FUNCTION: SWBF2 0x006f43b0
-void RedMoviePlayer::BinkFileClose(BINKIO* bio)
+unsigned int __cdecl RedMoviePlayer::SourceRead(void* pContext, unsigned char* pOut, unsigned int uSize)
 {
-    BinkIOSuspend(bio);
-    BinkIOResume(bio);
+    return ((RedMoviePlayer*)pContext)->BufferReadData(pOut, uSize, true);
 }
 
-// FUNCTION: SWBF2 0x006f43d0
-unsigned long RedMoviePlayer::BinkFileGetBufferSize(BINKIO* bio, unsigned long uiSize)
+int __cdecl RedMoviePlayer::SourceState(void* pContext)
 {
-    return (uiSize / sReadSize) * sReadSize;
-}
-
-// FUNCTION: SWBF2 0x006f43f0
-unsigned long RedMoviePlayer::BinkFileIdle(BINKIO* bio)
-{
-    if (BinkIOSuspendTry(bio))
+    const RedMoviePlayer* pPlayer = (const RedMoviePlayer*)pContext;
+    if (pPlayer->IsDiscontinuity())
     {
-        bio->DoingARead = 1;
-        bio->DoingARead = 0;
-        return 0;
+        return kMovieSourceDiscontinuity;
     }
-    BinkIOIdleRun(bio);
-    return (unsigned long)-1;
-}
-
-// FUNCTION: SWBF2 0x006f4430
-long RedMoviePlayer::BinkFileOpen(BINKIO* bio, const char* pName, unsigned long uiFlags)
-{
-    memset(bio, 0, sizeof(BINKIO));
-    BINKFILE* pFile = BinkFile(bio);
-    pFile->fileHandle = sMoviePlayer;
-    pFile->dontClose = 1;
-    pFile->startFile = 0;
-    bio->ReadHeader = BinkFileReadHeader;
-    bio->ReadFrame = BinkFileReadFrame;
-    bio->GetBufferSize = BinkFileGetBufferSize;
-    bio->SetInfo = BinkFileSetInfo;
-    bio->Idle = BinkFileIdle;
-    bio->Close = BinkFileClose;
-    return 1;
-}
-
-// FUNCTION: SWBF2 0x006f44a0
-unsigned long RedMoviePlayer::BinkFileReadFrame(BINKIO* bio, unsigned long uiFrame,
-                                                long iOffset, void* pDest,
-                                                unsigned long uiSize)
-{
-    RedMoviePlayer* pPlayer = BinkFile(bio)->fileHandle;
-    BinkIOSuspend(bio);
-    while (pPlayer->BufferGetUsed() < uiSize)
+    if (pPlayer->IsEnd())
     {
-        if (pPlayer->IsDiscontinuity())
-        {
-            pPlayer->mFlags |= 4;
-        }
-        else if (pPlayer->IsEnd())
-        {
-            pPlayer->mFlags |= 2;
-        }
-        if (pPlayer->mFlags & 6)
-        {
-            return 0;
-        }
-        pPlayer->RedMoviePlayerBase::Update();
-        Sleep(0);
+        return kMovieSourceEnd;
     }
-    unsigned long uiRead = pPlayer->BufferReadData(pDest, uiSize, true);
-    BinkIOResume(bio);
-    return uiRead;
+    return kMovieSourceMore;
 }
 
-// FUNCTION: SWBF2 0x006f4550
-unsigned long RedMoviePlayer::BinkFileReadHeader(BINKIO* bio, long iOffset, void* pDest,
-                                                 unsigned long uiSize)
+void __cdecl RedMoviePlayer::SourcePump(void* pContext)
 {
-    unsigned long uiRead = 0;
-    RedMoviePlayer* pPlayer = BinkFile(bio)->fileHandle;
-    BinkIOSuspend(bio);
-    if (pPlayer->BufferGetUsed() >= uiSize)
-    {
-        uiRead = pPlayer->BufferReadData(pDest, uiSize, true);
-    }
-    BinkIOResume(bio);
-    return uiRead;
-}
-
-// FUNCTION: SWBF2 0x006f45a0
-void RedMoviePlayer::BinkFileSetInfo(BINKIO* bio, void* pBuffer, unsigned long uiSize,
-                                     unsigned long uiFileSize, unsigned long uiSimulate)
-{
-    BINKFILE* pFile = BinkFile(bio);
-    BinkIOSuspend(bio);
-    pFile->buffer = (unsigned char*)pBuffer;
-    pFile->bufPos = (unsigned char*)pBuffer;
-    pFile->bufBack = (unsigned char*)pBuffer;
-    pFile->bufEnd = (unsigned char*)pBuffer;
-    pFile->bufEmpty = uiSize;
-    pFile->fileSize = uiFileSize;
-    pFile->simulate = uiSimulate;
-    bio->BufSize = uiSize;
-    bio->CurBufUsed = 0;
-    BinkIOResume(bio);
-}
-
-// FUNCTION: SWBF2 0x006f45f0
-void RedMoviePlayer::BinkIOIdleRun(BINKIO* bio)
-{
-    if (bio->idle_on_callback)
-    {
-        bio->idle_on_callback(bio);
-    }
-}
-
-// FUNCTION: SWBF2 0x006f4610
-void RedMoviePlayer::BinkIOResume(BINKIO* bio)
-{
-    if (bio->resume_callback)
-    {
-        bio->resume_callback(bio);
-    }
-}
-
-// FUNCTION: SWBF2 0x006f4630
-void RedMoviePlayer::BinkIOSuspend(BINKIO* bio)
-{
-    if (bio->suspend_callback)
-    {
-        bio->suspend_callback(bio);
-    }
-}
-
-// FUNCTION: SWBF2 0x006f4650
-bool RedMoviePlayer::BinkIOSuspendTry(BINKIO* bio)
-{
-    if (bio->try_suspend_callback)
-    {
-        return bio->try_suspend_callback(bio) != 0;
-    }
-    return false;
+    ((RedMoviePlayer*)pContext)->RedMoviePlayerBase::Update();
+    Sleep(0);
 }
 
 // FUNCTION: SWBF2 0x006f4670
 void RedMoviePlayer::Close()
 {
-    DestroyBinkDecoder(true);
+    sRejected.Clear();
+    DestroyMovieDecoder(true);
     CloseRenderer(GetInfo()->GetRedHeap());
     RedFreeToHeap(GetInfo()->GetRedHeap(), BufferGetBuffer(), 0);
     RedMoviePlayerBase::Close();
 }
 
 // FUNCTION: SWBF2 0x006f46c0
-bool RedMoviePlayer::CreateBinkDecoder()
+bool RedMoviePlayer::CreateMovieDecoder()
 {
-    if (!CreateTextures(mBink->Width, mBink->Height, 0x20, 3))
+#ifdef OPENSWBF2_TEST
+    if (gMovieFault == kMovieFaultTexture)
+    {
+        return false;
+    }
+#endif
+    if (!CreateTextures(mPlayback->mHeader.uWidth, mPlayback->mHeader.uHeight, 0x20, 3))
     {
         return false;
     }
@@ -268,15 +162,24 @@ bool RedMoviePlayer::CreateBinkDecoder()
 }
 
 // FUNCTION: SWBF2 0x006f46e0
-void RedMoviePlayer::DestroyBinkDecoder(bool bForce)
+void RedMoviePlayer::DestroyMovieDecoder(bool bForce)
 {
-    if (mBink)
+    if (mPlayback)
     {
-        BinkClose(mBink);
-        mBink = 0;
+#ifdef OPENSWBF2_TEST
+        const unsigned int uShown = mPlayback->muShown;
+        const unsigned int uWaits = mPlayback->muWaits;
+#endif
+        mPlayback->mDecoder.Close();
+        mPlayback->mAudio.Close();
+        mPlayback->~MoviePlayback();
+        MovieFree(mPlayback);
+        mPlayback = 0;
 #ifdef OPENSWBF2_TEST
         ++gRedMovieCloses;
         LOG(LogCore, Inform, "OPENSWBF2 MOVIE close");
+        LOG(LogCore, Inform, "OPENSWBF2 MOVIE heap blocks=%u", gRedMovieLiveBlocks);
+        LOG(LogCore, Inform, "OPENSWBF2 MOVIE playback shown=%u waits=%u", uShown, uWaits);
 #endif
         DestroyTextures(bForce, 3);
     }
@@ -296,7 +199,7 @@ void RedMoviePlayer::EndFrame()
 void RedMoviePlayer::Flush()
 {
     RedMoviePlayerBase::Flush();
-    DestroyBinkDecoder(false);
+    DestroyMovieDecoder(false);
 }
 
 // FUNCTION: SWBF2 0x006f4750
@@ -311,9 +214,9 @@ void RedMoviePlayer::FreeTexture(RedTexture* pTexture, const unsigned int uiInde
 // FUNCTION: SWBF2 0x006f47a0
 float RedMoviePlayer::GetPlaybackTime() const
 {
-    if (mBink)
+    if (mPlayback)
     {
-        return (float)mBink->FrameRateDiv * (float)mBink->FrameNum / (float)mBink->FrameRate;
+        return MoviePlaybackTime(mPlayback->mHeader.uFpsNum, mPlayback->mHeader.uFpsDen, mPlayback->muFrameNum);
     }
     return 0.0f;
 }
@@ -323,6 +226,7 @@ bool RedMoviePlayer::Open(const char* const pFileName, unsigned int uiNumTexture
                           int iUnused, unsigned int uiArg4, unsigned int uiBufferSize,
                           unsigned int uiReadSize, unsigned int uiNumBitmaps)
 {
+    sRejected.Clear();
     char* pBlock = (char*)RedAllocFromHeap(
         iHeap, MovieLayout::BlockSize(uiBufferSize, uiNumTextures, uiNumBitmaps), 0);
     if (pBlock)
@@ -338,7 +242,6 @@ bool RedMoviePlayer::Open(const char* const pFileName, unsigned int uiNumTexture
                                          pBlock, uiBufferSize, uiReadSize, 0xffffffff))
             {
                 sReadSize = uiReadSize;
-                BinkSetSoundSystem(BinkOpenDirectSound, (uintptr_t)Snd::Engine::smDirectSound);
                 return true;
             }
             CloseRenderer(iHeap);
@@ -364,17 +267,14 @@ void RedMoviePlayer::SeekSegment(const RedMoviePlayerBase::Segment* const pSegme
 // FUNCTION: SWBF2 0x006f4900
 void RedMoviePlayer::SetGain(float fGain)
 {
-    if (mBink)
+    if (mPlayback)
     {
-        for (unsigned int i = 0; i < (unsigned int)mBink->NumTracks; ++i)
-        {
-            BinkSetVolume(mBink, i, (int)(fGain * 32767.0f));
-        }
+        mPlayback->mAudio.SetGain(fGain);
     }
 }
 
 // GLOBAL: SWBF2 0x009c8430
-static bool sOpeningBinkDecoder;
+static bool sOpeningMovieDecoder;
 
 #ifdef OPENSWBF2_TEST
 unsigned int gRedMovieCloses;
@@ -388,7 +288,7 @@ void RedMoviePlayer::Update()
     case playState_stopped:
         Disable();
         SetCurrentPlayState(playState_stopped);
-        DestroyBinkDecoder(false);
+        DestroyMovieDecoder(false);
         Flush();
         break;
     case playState_paused:
@@ -411,9 +311,9 @@ void RedMoviePlayer::Update()
             return;
         }
 
-        if (GetNumReallocTextures() && mBink)
+        if (GetNumReallocTextures() && mPlayback)
         {
-            ReallocTextures(mBink->Width, mBink->Height, 0x20, 3);
+            ReallocTextures(mPlayback->mHeader.uWidth, mPlayback->mHeader.uHeight, 0x20, 3);
         }
 
         if (mFlags & 6)
@@ -421,7 +321,7 @@ void RedMoviePlayer::Update()
             if (!GetNumUsedTextures())
             {
                 bool bEnd = (mFlags & 2) != 0;
-                DestroyBinkDecoder(false);
+                DestroyMovieDecoder(false);
                 if (!GetLooping())
                 {
                     Stop();
@@ -432,31 +332,78 @@ void RedMoviePlayer::Update()
                 mFlags |= 1;
             }
         }
-        else if (mBink && (mFlags & 1) && !BinkWait(mBink))
+        else if (mPlayback && (mFlags & 1) && FixedRateFrameDue())
         {
             RedTexture* pTexture = GetTexture();
-            if (pTexture && !BinkDoFrame(mBink))
+            if (pTexture)
             {
-                IDirect3DSurface9* pSurface;
-                ((IDirect3DTexture9*)pTexture->m_pTexture)->GetSurfaceLevel(0, &pSurface);
-                D3DLOCKED_RECT rect;
-                pSurface->LockRect(&rect, 0, 0);
-                if (!BinkCopyToBuffer(mBink, rect.pBits, rect.Pitch, mBink->Height, 0, 0,
-                                      BinkDX9SurfaceType(pSurface) | 0x80000000))
+                MovieFrame kFrame;
+                const int iResult = mPlayback->mDecoder.DecodeVideoFrame(&kFrame);
+                if (iResult == kMovieFrameReady && kFrame.iWidth == (int)mPlayback->mHeader.uWidth &&
+                    kFrame.iHeight == (int)mPlayback->mHeader.uHeight)
                 {
-                    TextureComplete(pTexture);
-                }
-                pSurface->UnlockRect();
-                pSurface->Release();
-                if (mBink->FrameNum < mBink->Frames)
-                {
-                    BinkNextFrame(mBink);
+                    IDirect3DSurface9* pSurface = 0;
+                    HRESULT hrSurface = ((IDirect3DTexture9*)pTexture->m_pTexture)->GetSurfaceLevel(0, &pSurface);
+#ifdef OPENSWBF2_TEST
+                    if (SUCCEEDED(hrSurface) && gMovieFault == kMovieFaultSurface)
+                    {
+                        pSurface->Release();
+                        pSurface = 0;
+                        hrSurface = D3DERR_INVALIDCALL;
+                    }
+#endif
+                    if (SUCCEEDED(hrSurface))
+                    {
+                        D3DLOCKED_RECT rect;
+                        if (SUCCEEDED(pSurface->LockRect(&rect, 0, 0)))
+                        {
+                            ConvertYuv420ToXrgb(kFrame.apPlane[0], kFrame.aiStride[0], kFrame.apPlane[1],
+                                                kFrame.aiStride[1], kFrame.apPlane[2], kFrame.aiStride[2],
+                                                kFrame.iWidth, kFrame.iHeight, kFrame.bFullRange,
+                                                (unsigned char*)rect.pBits, rect.Pitch);
+#ifdef OPENSWBF2_TEST
+                            RedMovieTestFrame(mPlayback, rect.pBits, rect.Pitch);
+#endif
+                            TextureComplete(pTexture);
+                            ++mPlayback->muShown;
+                            pSurface->UnlockRect();
+                        }
+                        pSurface->Release();
+                    }
+                    if (mPlayback->muFrameNum < mPlayback->mHeader.uFrames)
+                    {
+                        ++mPlayback->muFrameNum;
+                    }
+                    else
+                    {
+                        mFlags |= IsDiscontinuity() ? 4 : 2;
+#ifdef OPENSWBF2_TEST
+                        RedMovieTestEnd(mPlayback);
+#endif
+                    }
                 }
                 else
                 {
-                    mFlags |= IsDiscontinuity() ? 4 : 2;
+                    if (iResult != kMovieFrameEnd)
+                    {
+                        LOG(LogCore, Warning, "OPENSWBF2 MOVIE reject reason=frame");
+                    }
+                    mFlags |= mPlayback->mDecoder.EndState() == kMovieSourceDiscontinuity ? 4 : 2;
+#ifdef OPENSWBF2_TEST
+                    RedMovieTestEnd(mPlayback);
+#endif
                 }
             }
+#ifdef OPENSWBF2_TEST
+            else
+            {
+                ++mPlayback->muWaits;
+            }
+#endif
+        }
+        if (mPlayback)
+        {
+            FeedMovieAudio();
         }
     }
 
@@ -467,26 +414,70 @@ void RedMoviePlayer::Update()
 
     RedMoviePlayerBase::Update();
 
-    if (!mBink && GetReadBufferFull() && !sOpeningBinkDecoder)
+    if (!mPlayback && !sOpeningMovieDecoder && FixedRateBufferFull())
     {
-        sOpeningBinkDecoder = true;
+        sOpeningMovieDecoder = true;
         if (IsEnd() || IsDiscontinuity())
         {
             ResetStart();
         }
-        BinkSetIO(BinkFileOpen);
-        mBink = BinkOpen("", 0x0B000000);
-        if (!mBink)
+#ifdef OPENSWBF2_TEST
+        RedMovieTestOpen(this);
+#endif
+        const RedMoviePlayerBase::Segment* const pSegment = GetCurrentSegment();
+        const bool bRejected = sRejected.Skips(pSegment);
+        const char* pcReason = "memory";
+        const int iOldHeap = RedSetCurrentHeap(GetInfo()->GetRedHeap());
+        void* pMemory = bRejected ? 0 : MovieAlloc(sizeof(MoviePlayback));
+        if (pMemory)
         {
-            PblTraceP("Bink error: %s\n", BinkGetError());
+            mPlayback = new (pMemory) MoviePlayback;
+            const MovieByteSource kSource = {this, SourcePeek, SourceRead, SourceState, SourcePump};
+            const unsigned int uSegmentLength = pSegment ? pSegment->mLength : 0;
+            if (mPlayback->mDecoder.Open(kSource, uSegmentLength, &mPlayback->mHeader, &pcReason) != kMovieOpenOk)
+            {
+                mPlayback->~MoviePlayback();
+                MovieFree(mPlayback);
+                mPlayback = 0;
+                sRejected.Remember(pSegment);
+            }
+        }
+        if (!mPlayback)
+        {
+            if (!bRejected)
+            {
+                LOG(LogCore, Warning, "OPENSWBF2 MOVIE reject reason=%s", pcReason);
+            }
+            mFlags |= 2;
         }
         else
         {
-            LOG(LogCore, Inform, "OPENSWBF2 MOVIE open");
+            mPlayback->mbAudio = mPlayback->mHeader.uTracks != 0 &&
+                                 mPlayback->mAudio.Open(mPlayback->mHeader.uRate,
+                                                        (unsigned int)mPlayback->mDecoder.AudioChannels());
+            if (mPlayback->mbAudio)
+            {
+                const MovieAudioSink kSink = {&mPlayback->mAudio, FeedMovieAudioSink};
+                mPlayback->mDecoder.SetAudioSink(kSink);
+            }
+            mFlags |= 1;
         }
-        mFlags |= 1;
-        sOpeningBinkDecoder = false;
-        CreateBinkDecoder();
+        RedSetCurrentHeap(iOldHeap);
+        sOpeningMovieDecoder = false;
+        if (mPlayback)
+        {
+            if (!CreateMovieDecoder())
+            {
+                LOG(LogCore, Warning, "OPENSWBF2 MOVIE reject reason=texture");
+                sRejected.Remember(GetCurrentSegment());
+                DestroyMovieDecoder(false);
+                mFlags = (unsigned char)((mFlags & ~1) | 2);
+            }
+            else
+            {
+                LOG(LogCore, Inform, "OPENSWBF2 MOVIE open");
+            }
+        }
     }
 }
 
@@ -495,3 +486,130 @@ void RedMoviePlayer::Update()
 
 // SYNTHETIC: SWBF2 0x00409140
 // PblMath::`dynamic initializer for 'fOneOverTwoPi''
+
+void RedMoviePlayer::FeedMovieAudio()
+{
+    mPlayback->mAudio.Feed(0, 0);
+}
+
+float RedMoviePlayer::sFixedRateStart;
+
+bool RedMoviePlayer::FixedRateFrameDue()
+{
+    const MovieHeaderInfo& kHeader = mPlayback->mHeader;
+    if (!(g_fFixedRate > 0.0f))
+    {
+        if (mPlayback->mbAudio && !mPlayback->mAudio.Starved())
+        {
+            mPlayback->mbTimer = false;
+            return MovieFrameDue(mPlayback->mAudio.Played(), kHeader.uRate, kHeader.uFpsNum, kHeader.uFpsDen,
+                                 mPlayback->muFrameNum);
+        }
+        LARGE_INTEGER liNow;
+        QueryPerformanceCounter(&liNow);
+        const unsigned long long ullNow = (unsigned long long)liNow.QuadPart;
+        if (!mPlayback->mbTimer)
+        {
+            LARGE_INTEGER liFreq;
+            QueryPerformanceFrequency(&liFreq);
+            mPlayback->mullTimerFreq = (unsigned long long)liFreq.QuadPart;
+            mPlayback->mullTimerBase = ullNow;
+            mPlayback->muTimerFrame = mPlayback->muFrameNum;
+            mPlayback->mbTimer = true;
+        }
+        return MovieFrameDueTicks(ullNow - mPlayback->mullTimerBase, mPlayback->mullTimerFreq, kHeader.uFpsNum,
+                                  kHeader.uFpsDen, mPlayback->muFrameNum - mPlayback->muTimerFrame + 1);
+    }
+    const double dElapsed = (double)(GameState::GetSystemTimeBase()->GetTime() - sFixedRateStart);
+    return (double)(mPlayback->muFrameNum - 1) * (double)kHeader.uFpsDen <= dElapsed * (double)kHeader.uFpsNum;
+}
+
+bool RedMoviePlayer::FixedRateBufferFull()
+{
+    if (g_fFixedRate > 0.0f)
+    {
+        for (;;)
+        {
+            const bool bWasReading = (RedMoviePlayerBase::mFlags & flags_Reading) != 0;
+            if (GetReadBufferFull())
+            {
+                break;
+            }
+            RedMoviePlayerBase::Update();
+            if (!bWasReading && !(RedMoviePlayerBase::mFlags & flags_Reading))
+            {
+                break;
+            }
+            Sleep(0);
+        }
+        sFixedRateStart = GameState::GetSystemTimeBase()->GetTime();
+    }
+    return GetReadBufferFull();
+}
+
+#ifdef OPENSWBF2_TEST
+unsigned int gRedMovieTestFrames;
+unsigned int gRedMovieTestFrameNum;
+bool gRedMovieTestEnd;
+
+namespace
+{
+
+unsigned int suMovieSegment;
+
+bool MovieGoldenFrame(unsigned int n, unsigned int uFrames)
+{
+    return n == 1 || n == 2 || n == 3 || n == 30 || n == 300 || n == uFrames;
+}
+
+}
+
+void RedMovieTestOpen(const RedMoviePlayer* pPlayer)
+{
+    suMovieSegment = pPlayer->GetCurrentSegment() ? pPlayer->GetCurrentSegment()->GetHashID() : 0;
+}
+
+void RedMovieTestFrame(const MoviePlayback* pPlayback, const void* pBits, int iPitch)
+{
+    const unsigned int n = pPlayback->muFrameNum;
+    const unsigned int uFrames = pPlayback->mHeader.uFrames;
+    const unsigned int uWidth = pPlayback->mHeader.uWidth;
+    const unsigned int uHeight = pPlayback->mHeader.uHeight;
+    const bool bTest = gMovieTestFrames > 0;
+    const bool bGolden = MovieGoldenFrame(n, uFrames);
+    gRedMovieTestFrameNum = n;
+    if (bTest || bGolden)
+    {
+        const unsigned char* pBase = (const unsigned char*)pBits;
+        unsigned long long uHash = 0xCBF29CE484222325ull;
+        for (unsigned int y = 0; y < uHeight; ++y)
+        {
+            const unsigned char* pRow = pBase + (size_t)y * (size_t)iPitch;
+            for (unsigned int x = 0; x < uWidth; ++x)
+            {
+                for (unsigned int c = 0; c < 3; ++c)
+                {
+                    uHash ^= pRow[x * 4 + c];
+                    uHash *= 0x100000001B3ull;
+                }
+            }
+        }
+        LOG(LogCore, Inform, "OPENSWBF2 MOVIE frame seg=0x%08X n=%u fnv=%016llX", suMovieSegment, n, uHash);
+    }
+    if (bTest)
+    {
+        ++gRedMovieTestFrames;
+        if (gRedMovieTestFrames >= (unsigned int)gMovieTestFrames || n >= uFrames)
+        {
+            gRedMovieTestEnd = true;
+        }
+    }
+}
+
+void RedMovieTestEnd(const MoviePlayback* pPlayback)
+{
+    LOG(LogCore, Inform, "OPENSWBF2 MOVIE end seg=0x%08X frames=%u shown=%u header=%u waits=%u",
+        suMovieSegment, pPlayback->muFrameNum, pPlayback->muShown, pPlayback->mHeader.uFrames, pPlayback->muWaits);
+}
+
+#endif

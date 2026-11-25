@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{FB9761BA-C926-4F38-9FFF-05A352FD4310}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>FFmpegFL</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CopyAsanBinariesToOutDir Condition="'$(Configuration)'=='Asan'">true</CopyAsanBinariesToOutDir>
+  </PropertyGroup>
+  <Import Project="..\..\OpenSWBF2.Game.props" />
+  <PropertyGroup>
+    <TargetName>openswbf2-ffmpeg</TargetName>
+    <LinkIncremental>false</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
+    <OutDir>$(OpenSWBF2Root)bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(OpenSWBF2Root)obj\$(Platform)\$(Configuration)\FFmpegFL\</IntDir>
+    <FFmpegConfigDir Condition="'$(FFmpegConfigDir)'==''">$(MSBuildThisFileDirectory)config\</FFmpegConfigDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <CompileAs>CompileAsC</CompileAs>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <PreprocessorDefinitions>HAVE_AV_CONFIG_H;_ISOC11_SOURCE;_FILE_OFFSET_BITS=64;_LARGEFILE_SOURCE;WIN32_LEAN_AND_MEAN;_USE_MATH_DEFINES;_CRT_NONSTDC_NO_WARNINGS;_WIN32_WINNT=0x0600;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(FFmpegConfigDir)$(Platform);$(FFmpegConfigDir)common;$(MSBuildThisFileDirectory).;$(MSBuildThisFileDirectory)compat\atomics\win32</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /wd4146</AdditionalOptions>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>bcrypt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ModuleDefinitionFile>$(MSBuildThisFileDirectory)openswbf2-ffmpeg.def</ModuleDefinitionFile>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
+      <ImageHasSafeExceptionHandlers Condition="'$(Platform)'=='Win32'">true</ImageHasSafeExceptionHandlers>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="FFmpegFL.files.props" />
+  <ItemGroup>
+    <ClCompile Include="openswbf2\ossf2_alloc.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Update="@(ClCompile)">
+      <ObjectFileName>$(IntDir)$([MSBuild]::MakeRelative('$(MSBuildThisFileDirectory)', '%(RootDir)%(Directory)'))</ObjectFileName>
+    </ClCompile>
+    <ClCompile Update="$(MSBuildThisFileDirectory)libavutil\encryption_info.c">
+      <AdditionalOptions>%(AdditionalOptions) /wd4703</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Update="$(MSBuildThisFileDirectory)libavformat\url.c">
+      <AdditionalOptions>%(AdditionalOptions) /wd4703</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Update="$(MSBuildThisFileDirectory)libavformat\av1.c">
+      <AdditionalOptions>%(AdditionalOptions) /wd4703</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Update="$(MSBuildThisFileDirectory)libavformat\avio.c">
+      <AdditionalOptions>%(AdditionalOptions) /wd4703</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Update="$(MSBuildThisFileDirectory)libavcodec\raw.c">
+      <AdditionalOptions>%(AdditionalOptions) /wd4703</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Update="$(MSBuildThisFileDirectory)libavcodec\avcodec.c">
+      <Optimization Condition="'$(Configuration)'=='Debug'">MinSpace</Optimization>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="CheckFFmpegLicence" BeforeTargets="ClCompile">
+    <PropertyGroup>
+      <FFmpegLicenceConfig>$(FFmpegConfigDir)$(Platform)\config.h</FFmpegLicenceConfig>
+      <FFmpegLicenceComponents>$(FFmpegConfigDir)common\config_components.h</FFmpegLicenceComponents>
+      <FFmpegLicenceText>$([System.IO.File]::ReadAllText('$(FFmpegLicenceConfig)'))$([System.IO.File]::ReadAllText('$(FFmpegLicenceComponents)'))</FFmpegLicenceText>
+      <FFmpegLicenceFlag>$([System.Text.RegularExpressions.Regex]::Match($(FFmpegLicenceText), '(?m)^#define CONFIG_(?:GPL|NONFREE|GPLV3|VERSION3|LGPLV3) 1\b[^\r\n]*'))</FFmpegLicenceFlag>
+      <FFmpegLicenceLine>$([System.Text.RegularExpressions.Regex]::Match($(FFmpegLicenceText), '(?m)^#define FFMPEG_CONFIGURATION "[^\r\n]*--enable-(?:gpl|nonfree|version3)\b[^\r\n]*'))</FFmpegLicenceLine>
+      <FFmpegNoticeText>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)NOTICE.txt'))</FFmpegNoticeText>
+      <FFmpegChangesText>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)changes.diff'))</FFmpegChangesText>
+      <FFmpegLicenceExtra>$([System.Text.RegularExpressions.Regex]::Match($(FFmpegLicenceText), '(?m)^#define CONFIG_(?!(?:BINK_DECODER|BINKAUDIO_DCT_DECODER|BINKAUDIO_RDFT_DECODER|BINK_DEMUXER) )\w+_(?:DECODER|DEMUXER|PARSER|BSF|PROTOCOL|MUXER|ENCODER|FILTER|INDEV|OUTDEV|HWACCEL) 1\b[^\r\n]*'))</FFmpegLicenceExtra>
+    </PropertyGroup>
+    <Error Condition="'$(FFmpegLicenceFlag)'!=''" Text="FFmpeg licence gate: a GPL, nonfree or version3 licence flag is set: $(FFmpegLicenceFlag)" />
+    <Error Condition="'$(FFmpegLicenceLine)'!=''" Text="FFmpeg licence gate: the configure line enables a GPL, nonfree or version3 option: $(FFmpegLicenceLine)" />
+    <Error Condition="'$(FFmpegLicenceExtra)'!=''" Text="FFmpeg licence gate: a component outside the four Bink ones is enabled: $(FFmpegLicenceExtra)" />
+    <Error Condition="'$(FFmpegNoticeText.Contains(`https://github.com/OpenSWBF2/OpenSWBF2 under src/FFmpegFL`))'!='true'" Text="FFmpeg licence gate: NOTICE.txt does not say where the complete source of the DLL is published" />
+    <Error Condition="'$(FFmpegChangesText.Contains(`+++ b/openswbf2/ossf2_alloc.c`))'!='true'" Text="FFmpeg licence gate: changes.diff does not hold the allocator shim openswbf2/ossf2_alloc.c" />
+    <Error Condition="'$(FFmpegChangesText.Contains(`+++ b/openswbf2-ffmpeg.def`))'!='true'" Text="FFmpeg licence gate: changes.diff does not hold the export list openswbf2-ffmpeg.def" />
+  </Target>
+  <Target Name="StageFFmpegNotice" AfterTargets="Build">
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)COPYING.LGPLv2.1;$(MSBuildThisFileDirectory)NOTICE.txt" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

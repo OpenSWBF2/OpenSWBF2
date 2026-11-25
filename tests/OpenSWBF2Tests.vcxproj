@@ -82,7 +82,12 @@
     <ClCompile Include="..\src\PebbleFL\Common\PblRegion.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\CommandLine.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\InGameMovie.cpp" />
-    <ClCompile Include="..\src\RedEngineFL\movie\pc\pcRedMoviePlayerNull.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\movie\pc\pcRedMovieHeader.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\movie\pc\pcRedMovieConvert.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\movie\pc\pcRedMovieAlloc.cpp" />
+    <ClCompile Include="..\src\RedEngineFL\movie\pc\pcRedMovieDecoder.cpp">
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)..\src\FFmpegFL;$(MSBuildThisFileDirectory)..\src\FFmpegFL\config\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="..\src\lglcd\lgLcd.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblTime.cpp" />
     <ClCompile Include="..\src\PebbleFL\Common\PblTimeBase.cpp" />
@@ -191,6 +196,7 @@
     <ClCompile Include="..\src\SoundFL\source\sndfreelist.cpp" />
     <ClCompile Include="..\src\SoundFL\source\sndqueue.cpp" />
     <ClCompile Include="..\src\SoundFL\source\sndallocbitmap.cpp" />
+    <ClCompile Include="..\src\SoundFL\source\sndbus.cpp" />
     <ClCompile Include="..\src\RedEngineFL\Interface\RedGlyphMemoryManager.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\WalkerAnimation.cpp" />
     <ClCompile Include="..\src\Battlefront2\Source\HUDItem.cpp" />
@@ -199,7 +205,8 @@
     <ClCompile Include="testutil.cpp" />
     <ClCompile Include="nettest.cpp" />
     <ClCompile Include="stubs\*.cpp" />
-    <ClCompile Include="unit\*.cpp" Exclude="unit\fma3_x64.cpp;unit\d3dx_ref_win32.cpp;unit\d3dx_ref_x64.cpp;unit\d3dx_x87_win32.cpp;unit\d3dx_x87_x64.cpp;unit\crt_trig_ref_win32.cpp;unit\crt_trig_ref_strict_win32.cpp;unit\crt_trig_ref_x64.cpp" />
+    <ClCompile Include="unit\*.cpp" Exclude="unit\movie_corpus.cpp;unit\fma3_x64.cpp;unit\d3dx_ref_win32.cpp;unit\d3dx_ref_x64.cpp;unit\d3dx_x87_win32.cpp;unit\d3dx_x87_x64.cpp;unit\crt_trig_ref_win32.cpp;unit\crt_trig_ref_strict_win32.cpp;unit\crt_trig_ref_x64.cpp" />
+    <ClCompile Include="unit\movie_corpus.cpp" Condition="'$(Configuration)'=='Asan'" />
     <ClCompile Include="unit\fma3_x64.cpp" Condition="'$(Platform)'=='x64'" />
     <ClCompile Include="unit\d3dx_ref_win32.cpp" Condition="'$(Platform)'=='Win32'" />
     <ClCompile Include="unit\d3dx_ref_x64.cpp" Condition="'$(Platform)'=='x64'" />
@@ -225,6 +232,12 @@
   <ItemGroup>
     <ClInclude Include="testutil.h" />
     <ClInclude Include="nettest.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\src\FFmpegFL\FFmpegFL.vcxproj">
+      <Project>{FB9761BA-C926-4F38-9FFF-05A352FD4310}</Project>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
@@ -254,5 +267,8 @@
     <Unzip Condition="'$(D3dxDllHash)' != '$(D3dxDllSha256)'" SourceFiles="$(D3dxNupkg)" DestinationFolder="$(D3dxDir)" Include="build\native\release\bin\**\D3DX9_43.dll" SkipUnchangedFiles="false" OverwriteReadOnlyFiles="true" />
     <VerifyFileHash File="$(D3dxDll)" Algorithm="SHA256" Hash="$(D3dxDllSha256)" />
     <Copy SourceFiles="$(D3dxDll)" DestinationFiles="$(OutDir)d3dx9_43.dll" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="StageTestsFFmpeg" AfterTargets="Build">
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\bin\$(Platform)\$(Configuration)\openswbf2-ffmpeg.dll;$(MSBuildThisFileDirectory)..\src\FFmpegFL\COPYING.LGPLv2.1;$(MSBuildThisFileDirectory)..\src\FFmpegFL\NOTICE.txt" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
   </Target>
 </Project>

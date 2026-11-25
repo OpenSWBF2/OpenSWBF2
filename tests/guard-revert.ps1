@@ -61,6 +61,15 @@ function Invoke-Git([string]$dir, [string[]]$gitArgs) {
     return $out
 }
 
+function Get-GuardRecordPathspecs([string]$repo, [string]$proven) {
+    $specs = @($script:KeyRecordFiles | ForEach-Object { ':!' + $_.Replace('\', '/') })
+    $prefix = $repo.TrimEnd('\') + '\'
+    if ($proven.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        $specs += ':!' + $proven.Substring($prefix.Length).Replace('\', '/')
+    }
+    return $specs
+}
+
 function Build-Tests([string]$wt, [string]$logPath, [string]$config = $script:TestsConfiguration) {
     $ErrorActionPreference = 'Continue'
     $env:SWBF2_NOSTAGE = 'true'
@@ -869,11 +878,8 @@ try {
     $script:Toolset = 'unknown'
     if ($vsTools) { $script:Toolset = $vsTools.ToolsVersion }
     $script:ProofConfig = "$script:TestsConfiguration/$script:GameConfiguration"
-    $statusArgs = @('status', '--porcelain', '--untracked-files=normal', '--', '.', ':!tests/guardrevert/proven.tsv')
-    $rootPrefix = $root.TrimEnd('\') + '\'
-    if ($ProvenFile.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-        $statusArgs += ':!' + $ProvenFile.Substring($rootPrefix.Length).Replace('\', '/')
-    }
+    $recordSpecs = @(Get-GuardRecordPathspecs $root $ProvenFile)
+    $statusArgs = @('status', '--porcelain', '--untracked-files=normal', '--', '.') + $recordSpecs
     New-Item -ItemType Directory -Force -Path (Join-Path $root 'artifacts') | Out-Null
     Set-Content -Path (Join-Path $root 'artifacts\.gitignore') -Value '*' -Encoding ASCII
     $before = (Invoke-Git $root $statusArgs) -join "`n"
@@ -1046,7 +1052,7 @@ try {
     try {
         if ($rowJobs.Count -gt 0) {
             $patch = Join-Path $OutDir 'overlay.patch'
-            Invoke-Git $root @('diff', 'HEAD', '--binary', "--output=$patch") | Out-Null
+            Invoke-Git $root (@('diff', 'HEAD', '--binary', "--output=$patch", '--', '.') + $recordSpecs) | Out-Null
             $untracked = @(Invoke-Git $root @('ls-files', '--others', '--exclude-standard') | ForEach-Object { "$_".Trim() } | Where-Object { $_ })
             & git -C $root worktree prune 2>&1 | Out-Null
             for ($i = 1; $i -le $workerCount; $i++) { Sync-GuardWorktree (Get-GuardWorktree $i) $patch $untracked }

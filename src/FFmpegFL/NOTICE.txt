@@ -1,0 +1,9 @@
+This software uses code of FFmpeg (https://ffmpeg.org) licensed under the GNU Lesser General Public License version 2.1 or later (LGPLv2.1+). The license text is in COPYING.LGPLv2.1.
+
+FFmpeg version: 9.0.2
+Source: https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz
+Source SHA-256: 8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
+
+openswbf2-ffmpeg.dll is built from a subset of that source with these local changes: the patches 5195d6f9.patch (upstream commit 5195d6f9729ad00b93e4d0f0bea309416fb4713e, CVE-2026-125068) and tx-subtx-free.patch, an edit of each generated config.h (HAVE_ALIGNED_MALLOC 0, HAVE_POSIX_MEMALIGN 1, and fixed CONFIG_THIS_YEAR and CC_IDENT values), the allocator shim openswbf2/ossf2_alloc.c and the export list openswbf2-ffmpeg.def.
+
+The complete source of this DLL, with every local change and the project files that build it, is published in the OpenSWBF2 repository at https://github.com/OpenSWBF2/OpenSWBF2 under src/FFmpegFL, at the commit this build was made from. There, changes.diff holds every change against the FFmpeg source above, and UPSTREAM.md records how the subset was made.

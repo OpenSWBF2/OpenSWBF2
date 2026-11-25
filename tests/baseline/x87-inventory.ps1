@@ -149,12 +149,12 @@ function Get-CauseFiles([string]$Path, $Sources) {
 
 function Read-MapObjects([string]$Path) {
     $byAddr = @{}
-    $rx = [regex]'^\s*0001:[0-9a-f]+\s+(\S+)\s+([0-9a-f]{8})\s+f?\s*(?:i\s+)?(\S+)\s*$'
+    $rx = [regex]'^\s*0001:[0-9a-f]+\s+(\S+)\s+([0-9a-f]{8})\s+(f?)\s*(?:i\s+)?(\S+)\s*$'
     foreach ($line in [IO.File]::ReadLines($Path)) {
         $m = $rx.Match($line)
         if (-not $m.Success) { continue }
         $a = [Convert]::ToUInt32($m.Groups[2].Value, 16)
-        $e = @{ Name = $m.Groups[1].Value; Obj = $m.Groups[3].Value }
+        $e = @{ Name = $m.Groups[1].Value; Obj = $m.Groups[4].Value; Func = ($m.Groups[3].Value -ceq 'f') }
         if ($byAddr.ContainsKey($a)) { $byAddr[$a] = @($byAddr[$a]) + @($e) } else { $byAddr[$a] = @($e) }
     }
     return $byAddr
@@ -169,7 +169,7 @@ function Get-FunctionObj($Entries, [string]$Name) {
     return $objs[0]
 }
 
-function Read-DisasmFunctions([IO.TextReader]$Reader) {
+function Read-DisasmFunctions([IO.TextReader]$Reader, $Boundaries) {
     $funcs = New-Object System.Collections.Generic.List[object]
     $name = $null
     $lines = $null
@@ -191,6 +191,7 @@ function Read-DisasmFunctions([IO.TextReader]$Reader) {
             continue
         }
         if ($null -eq $name -or $line.Length -lt 13 -or $line[10] -ne ':') { continue }
+        if ($null -ne $Boundaries) { [void]$Boundaries.Add([Convert]::ToInt64($line.Substring(2, 8), 16)) }
         if ($start -lt 0) { $start = [Convert]::ToInt64($line.Substring(2, 8), 16) }
         $lines.Add($line)
         if ($line[12] -ceq 'f') { $hasF = $true }
@@ -495,6 +496,53 @@ function Get-SimCalledNoSource($Funcs, $Objs, $Sources, $Exceptions) {
     return , $names
 }
 
+function Invoke-Disasm([string]$Arguments, $Boundaries) {
+    $psi = New-Object Diagnostics.ProcessStartInfo
+    $psi.FileName = Find-Dumpbin 'Win32'
+    $psi.Arguments = $Arguments
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $proc = [Diagnostics.Process]::Start($psi)
+    $errTask = $proc.StandardError.ReadToEndAsync()
+    try { $funcs = Read-DisasmFunctions $proc.StandardOutput $Boundaries }
+    finally { $proc.WaitForExit() }
+    if ($proc.ExitCode -ne 0) { throw "x87-inventory: dumpbin exited $($proc.ExitCode): $($errTask.Result)" }
+    return , $funcs
+}
+
+function Add-LostFunctions($Funcs, $MapObjs, $Boundaries) {
+    $starts = New-Object System.Collections.Generic.List[long]
+    foreach ($f in $Funcs) { if ($f.Start -ge 0) { $starts.Add($f.Start) } }
+    if ($starts.Count -eq 0) { return , $Funcs }
+    $lo = $starts[0]
+    $hi = [Linq.Enumerable]::Max([Collections.Generic.IEnumerable[long]]$Boundaries)
+    $map = [long[]]@($MapObjs.Keys | Where-Object { @($MapObjs[$_] | Where-Object { $_.Func }).Count } | ForEach-Object { [long]$_ } | Where-Object { $_ -ge $lo -and $_ -le $hi })
+    [Array]::Sort($map)
+    $added = New-Object System.Collections.Generic.List[object]
+    for ($i = 0; $i -lt $map.Count; $i++) {
+        $a = $map[$i]
+        if ($Boundaries.Contains($a)) { continue }
+        $name = @($MapObjs[[uint32]$a] | Where-Object { $_.Func })[0].Name
+        if ($Disasm) { throw "x87-inventory: map function $name at $('{0:X8}' -f $a) starts inside a decoded instruction, and -Disasm cannot decode it again" }
+        $end = $(if ($i + 1 -lt $map.Count) { $map[$i + 1] } else { $hi + 1 })
+        $got = @(Invoke-Disasm ("/nologo /disasm:nobytes /range:0x{0:X8},0x{1:X8} `"{2}`"" -f $a, ($end - 1), [IO.Path]::GetFullPath($Exe)) $null | Where-Object { $_.Start -ge 0 })
+        if ($got.Count -eq 0 -or $got[0].Start -ne $a) { throw "x87-inventory: dumpbin did not decode map function $name at $('{0:X8}' -f $a)" }
+        foreach ($g in $got) { if ($g.Start -lt $end) { $added.Add($g) } }
+    }
+    if ($added.Count -eq 0) { return , $Funcs }
+    $all = New-Object System.Collections.Generic.List[object]
+    foreach ($f in $Funcs) { if ($f.Start -ge 0) { $all.Add($f) } }
+    foreach ($g in $added) { $all.Add($g) }
+    $arr = $all.ToArray()
+    $keys = [long[]]@($arr | ForEach-Object { $_.Start })
+    [Array]::Sort($keys, $arr)
+    $out = New-Object System.Collections.Generic.List[object]
+    foreach ($f in $arr) { $out.Add($f) }
+    return , $out
+}
+
 function New-Inventory {
     $root = Get-RepoRoot
     if (-not $Causes) { $script:CausesPath = Join-Path $PSScriptRoot 'v143\CAUSES.md' } else { $script:CausesPath = $Causes }
@@ -511,26 +559,17 @@ function New-Inventory {
         if (-not $ok) { throw "x87-inventory: off-path entry $($d.Path) builds no ClCompile item" }
     }
     $mapObjs = Read-MapObjects $Map
+    $bounds = New-Object 'System.Collections.Generic.HashSet[long]'
     if ($Disasm) {
         $reader = [IO.File]::OpenText($Disasm)
-        try { $funcs = Read-DisasmFunctions $reader }
+        try { $funcs = Read-DisasmFunctions $reader $bounds }
         finally { $reader.Dispose() }
     }
     else {
         . (Join-Path (Split-Path $PSScriptRoot -Parent) 'vstools.ps1')
-        $psi = New-Object Diagnostics.ProcessStartInfo
-        $psi.FileName = Find-Dumpbin 'Win32'
-        $psi.Arguments = "/nologo /disasm:nobytes `"$([IO.Path]::GetFullPath($Exe))`""
-        $psi.UseShellExecute = $false
-        $psi.RedirectStandardOutput = $true
-        $psi.RedirectStandardError = $true
-        $psi.CreateNoWindow = $true
-        $proc = [Diagnostics.Process]::Start($psi)
-        $errTask = $proc.StandardError.ReadToEndAsync()
-        try { $funcs = Read-DisasmFunctions $proc.StandardOutput }
-        finally { $proc.WaitForExit() }
-        if ($proc.ExitCode -ne 0) { throw "x87-inventory: dumpbin exited $($proc.ExitCode): $($errTask.Result)" }
+        $funcs = Invoke-Disasm "/nologo /disasm:nobytes `"$([IO.Path]::GetFullPath($Exe))`"" $bounds
     }
+    $funcs = Add-LostFunctions $funcs $mapObjs $bounds
     $objs = New-Object System.Collections.Generic.List[string]
     foreach ($f in $funcs) { $objs.Add((Get-FunctionObj $mapObjs[[uint32]$f.Start] $f.Name)) }
     $simCalled = Get-SimCalledNoSource $funcs $objs $sources $exceptions

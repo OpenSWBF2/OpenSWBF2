@@ -43,7 +43,13 @@
 [PASS] hardening:import-modules
 [PASS] hardening:import-delay-modules
 [PASS] hardening:unicows-staged
+[PASS] hardening:bink-gone
 [PASS] hardening:d3dx9-pins
 [PASS] hardening:steam-api64-pins
 [PASS] hardening:aslr-pe
 [PASS] hardening:aslr-pe-tests
+[PASS] hardening:ffmpeg-license
+[PASS] hardening:ffmpeg-flags
+[PASS] hardening:ffmpeg-dll
+[PASS] hardening:ffmpeg-imports
+[PASS] hardening:ffmpeg-crt-heap
