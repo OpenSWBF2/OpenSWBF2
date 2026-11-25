@@ -12,6 +12,7 @@
 
 #include "GameState.h"
 #include "pcCrash.h"
+#include "RiderLink.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "RedEngineFL/Graphics/PC/pcDisplaySettings.h"
 #include "RedEngineFL/Graphics/PC/pcDisplayLogic.h"
@@ -692,6 +693,9 @@ bool GameState::Update()
     {
         PblProfile::StartFrame();
         RedLog::NextFrame();
+#ifdef OPENSWBF2_RIDERLINK
+        RiderLink::Service();
+#endif
         FrameUpdate::Update();
         UpdateTime();
         _pCurrentState->Update(sDeltaTime, sSystemDeltaTime);
@@ -879,7 +883,7 @@ void GameState::PreStateInit(bool bMission)
         {
             char acName[256] = { 0 };
             _snprintf(acName, sizeof(acName), "MISSION\\%s.lvl", GameLoop::mMissionScript);
-            if (LoadUtil::ReadDataFile(acName, 0, 0, 0, 0, 0))
+            if (LoadUtil::HasMission(GameLoop::mMissionScript) && LoadUtil::ReadDataFile(acName, 0, 0, 0, 0, 0))
             {
                 bOpened = LuaHelper::OpenScript(GameLoop::mMissionScript);
             }

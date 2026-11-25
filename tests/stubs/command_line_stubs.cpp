@@ -175,3 +175,23 @@ bool pcCrash::SetHangTimeout(int iSeconds)
 void pcCrash::SetLogPath(char const*)
 {
 }
+
+#ifdef OPENSWBF2_RIDERLINK
+#include "Battlefront2/Source/RiderLink.h"
+
+void RiderLink::NoteSwitch()
+{
+}
+
+void RiderLink::NoteHandsOff()
+{
+}
+
+void RiderLink::SetPublishDir(char const*)
+{
+}
+
+void RiderLink::NoteHold(bool)
+{
+}
+#endif

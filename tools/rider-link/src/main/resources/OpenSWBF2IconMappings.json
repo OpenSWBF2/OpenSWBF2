@@ -1,0 +1,17 @@
+{
+    "icons": {
+        "expui": {
+            "run": {
+                "pandemicConnected.svg": "icons/run/pandemicConnected.svg",
+                "pandemicDisconnected.svg": "icons/run/pandemicDisconnected.svg",
+                "unrealFrameSkip.svg": "icons/run/unrealFrameSkip.svg",
+                "unrealStatusPause.svg": "icons/run/unrealStatusPause.svg",
+                "unrealStatusPlay.svg": "icons/run/unrealStatusPlay.svg",
+                "unrealStatusStop.svg": "icons/run/unrealStatusStop.svg"
+            },
+            "toolWindows": {
+                "toolWindowPandemicLog.svg": "icons/toolWindows/toolWindowPandemicLog.svg"
+            }
+        }
+    }
+}

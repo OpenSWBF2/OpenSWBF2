@@ -246,6 +246,12 @@
     <ClCompile Include="src\Battlefront2\Source\AutomationTests_Standard.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\RiderLink.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Battlefront2\Source\RiderLinkProtocol.cpp">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClCompile>
     <ClCompile Include="src\Battlefront2\Source\Battlefront2Lod.cpp">
       <Filter>src\Battlefront2\Source</Filter>
     </ClCompile>
@@ -1740,6 +1746,12 @@
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\AutomationTest.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\RiderLink.h">
+      <Filter>src\Battlefront2\Source</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Battlefront2\Source\RiderLinkProtocol.h">
       <Filter>src\Battlefront2\Source</Filter>
     </ClInclude>
     <ClInclude Include="src\Battlefront2\Source\Battlefront2Lod.h">

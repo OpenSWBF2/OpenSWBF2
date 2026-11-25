@@ -8,6 +8,7 @@
 #include "RedWarning.h"
 #include "RedConsole.h"
 #include "RedMissionLog.h"
+#include "RedLogTap.h"
 
 #include "PebbleFL/Common/PblFile.h"
 
@@ -45,6 +46,9 @@ unsigned int g_auiFormatToDestination[5];
 // GLOBAL: SWBF2 0x009c8478
 // g_fnLogCallback
 void(__cdecl* g_fnLogCallback)(char const*, ...);
+#ifdef OPENSWBF2_RIDERLINK
+void(__cdecl* g_fnLineTap)(char const* pcText);
+#endif
 // GLOBAL: SWBF2 0x009c847c
 // g_eSeverity
 RED_ERROR_SEVERITY g_eSeverity;
@@ -320,7 +324,12 @@ void RedWarning::Init(void)
 // FUNCTION: SWBF2 0x006f6ff0
 void RedWarning::LogMessage(char const* pcFormat, ...)
 {
+#ifdef OPENSWBF2_RIDERLINK
+    void(__cdecl* const fnTap)(char const*) = g_fnLineTap;
+    if (g_eSeverity < g_eSeverityMin && !fnTap)
+#else
     if (g_eSeverity < g_eSeverityMin)
+#endif
     {
         return;
     }
@@ -333,6 +342,17 @@ void RedWarning::LogMessage(char const* pcFormat, ...)
     char* pcText = acFormatted;
     vsnprintf(acMessage, sizeof(acMessage), pcFormat, args);
     va_end(args);
+
+#ifdef OPENSWBF2_RIDERLINK
+    if (fnTap)
+    {
+        fnTap(acMessage);
+    }
+    if (g_eSeverity < g_eSeverityMin)
+    {
+        return;
+    }
+#endif
 
     if (IsDebuggerPresent())
     {

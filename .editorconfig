@@ -20,7 +20,7 @@ indent_style = tab
 [*.{vcxproj,vcxproj.filters,props}]
 indent_size = 2
 
-[*.{lib,ico}]
+[*.{lib,ico,jar}]
 charset = unset
 end_of_line = unset
 insert_final_newline = unset

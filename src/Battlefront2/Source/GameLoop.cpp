@@ -9,6 +9,7 @@
 #include "GameLoop.h"
 #include "AutomationTest.h"
 #include "pcCrash.h"
+#include "RiderLink.h"
 #include "RedEngineFL/Application/pc/pcFrameLimiter.h"
 #include "SkyManager.h"
 #include "BootDisplay.h"
@@ -718,6 +719,9 @@ int GameLoop::EndRun()
         LOG(LogCore, Inform, "Frames count=%d", RedLog::gFrame);
         LOG(LogCore, Inform, "**** TEST COMPLETE. EXIT CODE: %d ****", siRunExitCode);
     }
+#ifdef OPENSWBF2_RIDERLINK
+    RiderLink::Stop();
+#endif
     return siRunExitCode;
 }
 

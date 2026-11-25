@@ -30,6 +30,7 @@
 #include "Steam/gfVendor.h"
 #include "CommandLine.h"
 #include "pcCrash.h"
+#include "RiderLink.h"
 #include "GameLoop.h"
 #include "GameMemory.h"
 #include "GameSoundEngine.h"
@@ -607,6 +608,14 @@ int __stdcall GameWinMain(HINSTANCE hInstance, HINSTANCE, char* lpCmdLine, int)
         }
     }
 
+#ifdef OPENSWBF2_RIDERLINK
+    RiderLink::Start(g_bNoRender);
+#else
+    if (gLinkSwitchIgnored)
+    {
+        LOG(LogCore, Warning, "-riderlink is not in this build");
+    }
+#endif
     if (GameLoop::mMissionScript[0])
     {
         GameState::SetState(0x8FF60339 /* "mission" */);

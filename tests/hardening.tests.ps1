@@ -597,6 +597,35 @@ try {
     if ($why) { $failed++; Write-Host "FAILED ${n}: mimalloc-crt-hooks map fixtures: $why" }
     else { Write-Host "OK $n mimalloc-crt-hooks passes the three static.obj hooks and fails a missing, misplaced or foreign hook" }
     $n++
+    $rlRelease = @(
+        ' 0002:00004a4c       ??_C@_09LGAOCJJ@riderlink@ 0087ea4c     CommandLine.obj',
+        ' 0002:00004a58       ??_C@_0N@DNHDPIMN@riderlinkdir@ 0087ea58     CommandLine.obj',
+        ' 0002:00004a68       ??_C@_0O@BCFKFPPB@riderlinkhold@ 0087ea68     CommandLine.obj',
+        ' 0002:00024870       ??_C@_0CA@DCCPKP@?9riderlink?5is?5not?5in?5this?5build@ 0089e870     pcMain.obj',
+        ' 0003:0002898c       ?gLinkSwitchIgnored@@3_NA  0092598c     CommandLine.obj'
+    ) -join "`r`n"
+    $rlFunction = ' 0001:00050730       ?Start@RiderLink@@YAX_N@Z  00451730 f   RiderLink.obj'
+    $rlProtocol = ' 0001:00050d50       ?Parse@RiderLinkProtocol@@YA?AW4Message@1@PBDIPADAAI@Z 00451d50 f   RiderLinkProtocol.obj'
+    $rlTap = ' 0003:005aa9c0       ?g_fnLineTap@RedWarning@@3P6AXPBD@ZA 00eba9c0     RedWarning.obj'
+    $rlCases = @(
+        @('Release map with only the lower-case literals', $rlRelease, 'Release', $true),
+        @('Release map with a RiderLink function', "$rlRelease`r`n$rlFunction", 'Release', $false),
+        @('Release map with a RiderLinkProtocol function', "$rlRelease`r`n$rlProtocol", 'Release', $false),
+        @('Release map with the tap slot', "$rlRelease`r`n$rlTap", 'Release', $false),
+        @('Test map without link symbols', $rlRelease, 'Test', $false),
+        @('Test map with link symbols', "$rlRelease`r`n$rlFunction`r`n$rlProtocol`r`n$rlTap", 'Test', $true),
+        @('Debug map with a link function', "$rlRelease`r`n$rlFunction", 'Debug', $true),
+        @('no map', $null, 'Release', $false),
+        @('no map on Test', $null, 'Test', $false)
+    )
+    $why = $null
+    foreach ($rc in $rlCases) {
+        $r = Get-RiderLinkMapCheck $rc[1] $rc[2]
+        if ($r.Name -ne 'riderlink-map' -or $r.Ok -ne $rc[3]) { $why = "$($rc[0]) ok=$($r.Ok) $($r.Detail)" }
+    }
+    if ($why) { $failed++; Write-Host "FAILED ${n}: riderlink-map map fixtures: $why" }
+    else { Write-Host "OK $n riderlink-map passes a Release map holding only the lower-case switch and Warning literals and a Test map with link symbols, and fails link code or the tap slot in Release, a Test map without link symbols and a missing map" }
+    $n++
     $addrDir = Join-Path $env:TEMP ("openswbf2-addrorder-" + [guid]::NewGuid().ToString('N'))
     try {
         foreach ($d in 'src\Battlefront2\Source', 'src\RedEngineFL') { New-Item -ItemType Directory -Path (Join-Path $addrDir $d) | Out-Null }

@@ -208,7 +208,10 @@ if ($hardenActive) {
                 $bad++
             }
             else {
-                foreach ($c in @(Get-ImportChecks $imp $Platform) + @(Get-UnicowsCheck $root $Platform $exeDir $imp) + @(Get-BinkGoneCheck $root $exeDir $imp) + @(Get-D3dxPinsCheck $root) + @(Get-SteamApi64PinsCheck $root)) {
+                $x64MapPath = Join-Path $gameProjects[0].IntDir 'BattlefrontII.map'
+                $x64MapText = $null
+                if (Test-Path -LiteralPath $x64MapPath) { $x64MapText = [IO.File]::ReadAllText($x64MapPath) }
+                foreach ($c in @(Get-ImportChecks $imp $Platform) + @(Get-UnicowsCheck $root $Platform $exeDir $imp) + @(Get-BinkGoneCheck $root $exeDir $imp) + @(Get-D3dxPinsCheck $root) + @(Get-SteamApi64PinsCheck $root) + @(Get-RiderLinkMapCheck $x64MapText $SmokeConfiguration)) {
                     if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
                     else {
                         Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'
@@ -268,7 +271,7 @@ if ($hardenActive) {
             $mapPath = Join-Path $gameProjects[0].IntDir 'BattlefrontII.map'
             $mapText = $null
             if (Test-Path -LiteralPath $mapPath) { $mapText = [IO.File]::ReadAllText($mapPath) }
-            foreach ($c in @(Get-FlagChecks $tl $tt $SmokeConfiguration $Configuration) + @(Get-MiCrtHookCheck $mapText)) {
+            foreach ($c in @(Get-FlagChecks $tl $tt $SmokeConfiguration $Configuration) + @(Get-MiCrtHookCheck $mapText) + @(Get-RiderLinkMapCheck $mapText $SmokeConfiguration)) {
                 if ($c.Ok) { Add-SmokeResult "[PASS] hardening:$($c.Name)" 'PASS' }
                 else {
                     Add-SmokeResult "[FAIL] hardening:$($c.Name) - $($c.Detail)" 'FAIL'

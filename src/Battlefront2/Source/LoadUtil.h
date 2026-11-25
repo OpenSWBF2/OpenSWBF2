@@ -33,6 +33,8 @@ bool ReadDataFileChunk(char const* pName, PblFileChunk& chunk, unsigned int cons
 void MakeFullName(char const* pName, FileType eType, char* pBuffer, int iBufferCount,
                   bool bAddPrefix);
 
+bool HasMission(char const* pcName);
+
 void LoadSoundBank(PblFileChunk& chunk, char const* pName, void* pData);
 
 char const* GetDataDirectory();
