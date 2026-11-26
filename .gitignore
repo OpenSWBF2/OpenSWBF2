@@ -8,6 +8,7 @@ ipch/
 *.suo
 *.user
 reports/
+artifacts/
 BattlefrontII_Steam.exe
 tests/baseline/census/
 tools/rider-link/build/

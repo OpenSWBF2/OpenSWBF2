@@ -346,22 +346,17 @@ int HandleCountOf(const std::string& sText, const char* pcNeedle)
     return iCount;
 }
 
-void HandleListSources(const std::string& sDir, const char* pcPattern, std::vector<std::string>& vOut)
+void HandleListSources(const std::string& sRelDir, const char* pcPattern, std::vector<std::string>& vOut)
 {
-    WIN32_FIND_DATAA kFind;
-    HANDLE hFind = FindFirstFileA((sDir + pcPattern).c_str(), &kFind);
-    if (hFind == INVALID_HANDLE_VALUE)
+    std::vector<RepoEntry> vEntries;
+    ListRepoFolder(sRelDir, pcPattern, vEntries);
+    for (size_t i = 0; i < vEntries.size(); ++i)
     {
-        return;
-    }
-    do
-    {
-        if (!(kFind.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        if (!vEntries[i].bDir)
         {
-            vOut.push_back(kFind.cFileName);
+            vOut.push_back(vEntries[i].sName);
         }
-    } while (FindNextFileA(hFind, &kFind));
-    FindClose(hFind);
+    }
 }
 
 void SplitLines(const std::string& sText, std::vector<std::string>& vOut)
@@ -413,8 +408,8 @@ TEST_CASE_NAMED(FLuaHandleArgTest7, "Unit::LuaHandleArg::lua handle sites route 
 {
     const std::string sRel = "src\\Battlefront2\\Source\\";
     std::vector<std::string> vFiles;
-    HandleListSources(RepoRoot() + "\\" + sRel, "*.cpp", vFiles);
-    HandleListSources(RepoRoot() + "\\" + sRel, "*.h", vFiles);
+    HandleListSources("src\\Battlefront2\\Source", "*.cpp", vFiles);
+    HandleListSources("src\\Battlefront2\\Source", "*.h", vFiles);
     REQUIRE(vFiles.size() > 100);
 
     const char* const apcCompareOnly[] = {

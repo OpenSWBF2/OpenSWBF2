@@ -11,7 +11,30 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $root = Split-Path $PSScriptRoot -Parent
-. (Join-Path $root 'tests\vstools.ps1')
+function Get-VsTools([ValidateSet('Win32','x64')][string]$Platform = 'Win32') {
+    $vs = $null
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (Test-Path -LiteralPath $vswhere) {
+        $vs = & $vswhere -latest -version '[17.0,18.0)' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | Select-Object -First 1
+    }
+    $tools = $null
+    if ($vs) {
+        $verFile = Join-Path $vs 'VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt'
+        if (Test-Path -LiteralPath $verFile) {
+            $ver = (Get-Content -LiteralPath $verFile | Select-Object -First 1).Trim()
+            $tools = New-Object PSObject -Property @{
+                Install = $vs
+                Bin = Join-Path $vs "VC\Tools\MSVC\$ver\bin\HostX86\$(if ($Platform -eq 'x64') { 'x64' } else { 'x86' })"
+                MSBuild = Join-Path $vs 'MSBuild\Current\Bin\MSBuild.exe'
+            }
+        }
+    }
+    if (-not $tools -or -not (Test-Path -LiteralPath $tools.Bin) -or -not (Test-Path -LiteralPath $tools.MSBuild)) {
+        Write-Host 'Visual Studio 2022 with the C++ x86/x64 build tools not found.'
+        exit 2
+    }
+    return $tools
+}
 if (-not $WorkDir) { $WorkDir = Join-Path $root 'artifacts\ffmpeg' }
 if (-not $OutDir) { $OutDir = Join-Path $root 'src\FFmpegFL' }
 $WorkDir = [IO.Path]::GetFullPath($WorkDir)

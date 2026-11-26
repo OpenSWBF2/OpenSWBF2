@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <vector>
 
+#include "testutil.h"
+
 namespace
 {
 void PortMatrixMultiply(const unsigned int* puIn, unsigned int uVariant, unsigned int* puOut)
@@ -473,7 +475,7 @@ std::string D3dxPinsText(D3dxEvalFn (*pfnRefFor)(const char*))
 
 bool D3dxReadPin(const char* pcName, unsigned int& uCases, unsigned int& uHash)
 {
-    FILE* pFile = fopen("corpus\\d3dx\\pins.txt", "rb");
+    FILE* pFile = OpenRepoFile("tests\\corpus\\d3dx\\pins.txt");
     if (!pFile)
     {
         return false;

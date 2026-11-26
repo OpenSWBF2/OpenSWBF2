@@ -855,7 +855,7 @@ static std::vector<std::string> ReadCorpusLines(const char* pcPath, unsigned int
 {
     std::vector<std::string> lines;
     uBad = 0;
-    FILE* pFile = fopen(pcPath, "rb");
+    FILE* pFile = OpenRepoFile(pcPath);
     if (!pFile)
     {
         return lines;
@@ -927,7 +927,7 @@ static bool IsX87PrecisionForm(const std::string& sLine)
 
 static unsigned int CheckMathCorpus(bool bAllowX87PrecisionForms)
 {
-    const char* pcPath = "corpus\\mathfn\\math.txt";
+    const char* pcPath = "tests\\corpus\\mathfn\\math.txt";
     WatchdogArm(pcPath);
     unsigned int uBad = 0;
     unsigned int uX87 = 0;
@@ -957,12 +957,12 @@ static unsigned int CheckMathCorpus(bool bAllowX87PrecisionForms)
 
 TEST_CASE_NAMED(FFloatCorpusTest1, "Unit::FloatCorpus::float parse corpus odf", "[ProductFilter]")
 {
-    CheckParseCorpus("corpus\\floatparse\\odf.txt", 700);
+    CheckParseCorpus("tests\\corpus\\floatparse\\odf.txt", 700);
 }
 
 TEST_CASE_NAMED(FFloatCorpusTest2, "Unit::FloatCorpus::float parse corpus edge", "[ProductFilter]")
 {
-    CheckParseCorpus("corpus\\floatparse\\edge.txt", 30);
+    CheckParseCorpus("tests\\corpus\\floatparse\\edge.txt", 30);
 }
 
 TEST_CASE_NAMED(FFloatCorpusTest3, "Unit::FloatCorpus::math corpus", "[ProductFilter]")
@@ -1095,17 +1095,17 @@ TEST_CASE_NAMED(FFloatCorpusTest4, "Unit::FloatCorpus::float corpus generator wr
     {
         INFO(sFiles[i]);
         std::string sPinned;
-        REQUIRE(ReadFileBytes(sRepo + "\\tests\\corpus\\" + sFiles[i], sPinned));
+        REQUIRE(ReadRepoBytes(std::string("tests\\corpus\\") + sFiles[i], sPinned));
         CHECK(asText[i] == sPinned);
     }
     if (sizeof(void*) == 4)
     {
         std::string sPinned;
-        REQUIRE(ReadFileBytes(sRepo + "\\tests\\corpus\\d3dx\\pins.txt", sPinned));
+        REQUIRE(ReadRepoBytes("tests\\corpus\\d3dx\\pins.txt", sPinned));
         CHECK(bPins);
         CHECK(sPins == sPinned);
         std::string sSimPinned;
-        REQUIRE(ReadFileBytes(sRepo + "\\tests\\corpus\\simmath\\crt.txt", sSimPinned));
+        REQUIRE(ReadRepoBytes("tests\\corpus\\simmath\\crt.txt", sSimPinned));
         CHECK(bSim);
         CHECK(sSim == sSimPinned);
     }

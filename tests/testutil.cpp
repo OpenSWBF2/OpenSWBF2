@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 
 #include "testutil.h"
+#include "gate/gate_readlist.h"
 #include "RedEngineFL/Util/RedWarning.h"
 #include "RedEngineFL/Util/RedLog.h"
 
@@ -145,16 +146,45 @@ std::string RepoRoot()
     return sPath;
 }
 
-bool ReadRepoText(const char* pcRelPath, std::string& sOut)
+std::string RepoPath(const std::string& sRelPath)
 {
-    std::string sPath = RepoRoot();
+    const std::string sRoot = RepoRoot();
+    return sRoot.empty() ? std::string() : sRoot + "\\" + sRelPath;
+}
+
+FILE* OpenRepoFile(const std::string& sRelPath)
+{
+    const std::string sPath = RepoPath(sRelPath);
     if (sPath.empty())
+    {
+        return 0;
+    }
+    Gate::ReadListNote(sPath);
+    return fopen(sPath.c_str(), "rb");
+}
+
+bool ReadRepoBytes(const std::string& sRelPath, std::string& sOut)
+{
+    FILE* pFile = OpenRepoFile(sRelPath);
+    if (!pFile)
     {
         return false;
     }
-    sPath += "\\";
-    sPath += pcRelPath;
-    FILE* pFile = fopen(sPath.c_str(), "rb");
+    sOut.clear();
+    char acBuf[4096];
+    size_t uiRead;
+    while ((uiRead = fread(acBuf, 1, sizeof(acBuf), pFile)) > 0)
+    {
+        sOut.append(acBuf, uiRead);
+    }
+    const bool bOk = ferror(pFile) == 0;
+    fclose(pFile);
+    return bOk;
+}
+
+bool ReadRepoText(const char* pcRelPath, std::string& sOut)
+{
+    FILE* pFile = OpenRepoFile(pcRelPath);
     if (!pFile)
     {
         return false;
@@ -173,6 +203,36 @@ bool ReadRepoText(const char* pcRelPath, std::string& sOut)
         }
     }
     fclose(pFile);
+    return true;
+}
+
+bool ListRepoFolder(const std::string& sRelDir, const char* pcPattern, std::vector<RepoEntry>& kOut)
+{
+    kOut.clear();
+    const std::string sDir = RepoPath(sRelDir);
+    if (sDir.empty())
+    {
+        return false;
+    }
+    Gate::ReadListNote(sDir);
+    WIN32_FIND_DATAA kFind;
+    HANDLE hFind = FindFirstFileA((sDir + "\\" + pcPattern).c_str(), &kFind);
+    if (hFind == INVALID_HANDLE_VALUE)
+    {
+        return false;
+    }
+    do
+    {
+        if (strcmp(kFind.cFileName, ".") == 0 || strcmp(kFind.cFileName, "..") == 0)
+        {
+            continue;
+        }
+        RepoEntry kEntry;
+        kEntry.sName = kFind.cFileName;
+        kEntry.bDir = (kFind.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+        kOut.push_back(kEntry);
+    } while (FindNextFileA(hFind, &kFind));
+    FindClose(hFind);
     return true;
 }
 

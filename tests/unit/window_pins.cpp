@@ -16,19 +16,7 @@ namespace
 
 bool ReadSource(const char* pcPath, std::string& sOut)
 {
-    FILE* pFile = fopen(pcPath, "rb");
-    if (!pFile)
-    {
-        return false;
-    }
-    char acBuf[4096];
-    size_t uiRead;
-    while ((uiRead = fread(acBuf, 1, sizeof(acBuf), pFile)) > 0)
-    {
-        sOut.append(acBuf, uiRead);
-    }
-    fclose(pFile);
-    return true;
+    return ReadRepoBytes(pcPath, sOut);
 }
 
 std::string StripCr(const std::string& sIn)
@@ -187,13 +175,13 @@ TEST_CASE_NAMED(FWindowPinsTest1, "Unit::WindowPins::window mode source pins", "
     std::string sWindow;
     std::string sRenderer;
     std::string sAutoRaw;
-    if (!ReadSource("../src/Battlefront2/Source/pcMain.cpp", sMain) ||
-        !ReadSource("../src/RedEngineFL/input/pc/pcRedInputManager.cpp", sInput) ||
-        !ReadSource("../src/RedEngineFL/input/pc/pcRedMouse.cpp", sMouse) ||
-        !ReadSource("../src/Battlefront2/Source/PlayerProfile.cpp", sProfile) ||
-        !ReadSource("../src/RedEngineFL/Application/pc/pcWindow.cpp", sWindow) ||
-        !ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRenderer) ||
-        !ReadSource("../src/RedEngineFL/Graphics/PC/pcRedAutoSettings.cpp", sAutoRaw))
+    if (!ReadSource("src/Battlefront2/Source/pcMain.cpp", sMain) ||
+        !ReadSource("src/RedEngineFL/input/pc/pcRedInputManager.cpp", sInput) ||
+        !ReadSource("src/RedEngineFL/input/pc/pcRedMouse.cpp", sMouse) ||
+        !ReadSource("src/Battlefront2/Source/PlayerProfile.cpp", sProfile) ||
+        !ReadSource("src/RedEngineFL/Application/pc/pcWindow.cpp", sWindow) ||
+        !ReadSource("src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRenderer) ||
+        !ReadSource("src/RedEngineFL/Graphics/PC/pcRedAutoSettings.cpp", sAutoRaw))
     {
         SkipCase("source files not found");
     }
@@ -274,7 +262,7 @@ TEST_CASE_NAMED(FWindowPinsTest1, "Unit::WindowPins::window mode source pins", "
 TEST_CASE_NAMED(FWindowPinsTest2, "Unit::WindowPins::runtime reset restyle source pins", "[SmokeFilter]")
 {
     std::string sRenderer;
-    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRenderer))
+    if (!ReadSource("src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRenderer))
     {
         SkipCase("source files not found");
     }
@@ -295,8 +283,8 @@ TEST_CASE_NAMED(FWindowPinsTest3, "Unit::WindowPins::shadow quad reset source pi
 {
     std::string sQuadRaw;
     std::string sTextureRaw;
-    if (!ReadSource("../src/RedEngineFL/Application/pc/pcShadowQuadRenderable.cpp", sQuadRaw) ||
-        !ReadSource("../src/RedEngineFL/Graphics/PC/pcRedTexture.cpp", sTextureRaw))
+    if (!ReadSource("src/RedEngineFL/Application/pc/pcShadowQuadRenderable.cpp", sQuadRaw) ||
+        !ReadSource("src/RedEngineFL/Graphics/PC/pcRedTexture.cpp", sTextureRaw))
     {
         SkipCase("source files not found");
     }
@@ -342,8 +330,8 @@ TEST_CASE_NAMED(FWindowPinsTest4, "Unit::WindowPins::display apply target failur
 {
     std::string sTextureRaw;
     std::string sProfileRaw;
-    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedTexture.cpp", sTextureRaw) ||
-        !ReadSource("../src/Battlefront2/Source/PlayerProfile.cpp", sProfileRaw))
+    if (!ReadSource("src/RedEngineFL/Graphics/PC/pcRedTexture.cpp", sTextureRaw) ||
+        !ReadSource("src/Battlefront2/Source/PlayerProfile.cpp", sProfileRaw))
     {
         SkipCase("source files not found");
     }
@@ -391,8 +379,8 @@ TEST_CASE_NAMED(FWindowPinsTest5, "Unit::WindowPins::display apply snapshot sour
 {
     std::string sRendererRaw;
     std::string sProfileRaw;
-    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
-        !ReadSource("../src/Battlefront2/Source/PlayerProfile.cpp", sProfileRaw))
+    if (!ReadSource("src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
+        !ReadSource("src/Battlefront2/Source/PlayerProfile.cpp", sProfileRaw))
     {
         SkipCase("source files not found");
     }
@@ -447,8 +435,8 @@ TEST_CASE_NAMED(FWindowPinsTest6, "Unit::WindowPins::display apply cleanup sourc
 {
     std::string sRendererRaw;
     std::string sStateRaw;
-    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
-        !ReadSource("../src/Battlefront2/Source/GameState.cpp", sStateRaw))
+    if (!ReadSource("src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
+        !ReadSource("src/Battlefront2/Source/GameState.cpp", sStateRaw))
     {
         SkipCase("source files not found");
     }
@@ -477,10 +465,10 @@ TEST_CASE_NAMED(FWindowPinsTest7, "Unit::WindowPins::display apply source pins",
     std::string sLuaRaw;
     std::string sArgsRaw;
     std::string sScriptRaw;
-    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
-        !ReadSource("../src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw) ||
-        !ReadSource("../src/Battlefront2/Source/LuaVideoArgs.cpp", sArgsRaw) ||
-        !ReadSource("../src/Battlefront2/Source/LuaScript.cpp", sScriptRaw))
+    if (!ReadSource("src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
+        !ReadSource("src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw) ||
+        !ReadSource("src/Battlefront2/Source/LuaVideoArgs.cpp", sArgsRaw) ||
+        !ReadSource("src/Battlefront2/Source/LuaScript.cpp", sScriptRaw))
     {
         SkipCase("source files not found");
     }
@@ -574,11 +562,11 @@ TEST_CASE_NAMED(FWindowPinsTest8, "Unit::WindowPins::display menu lua source pin
     std::string sUtilRaw;
     std::string sRoundRaw;
     std::string sVideoRaw;
-    REQUIRE(ReadSource("../data/scripts/common/ifelem_form.lua", sFormRaw));
-    REQUIRE(ReadSource("../data/scripts/common/ifelem_tabmanager.lua", sTabRaw));
-    REQUIRE(ReadSource("../data/scripts/common/interface_util.lua", sUtilRaw));
-    REQUIRE(ReadSource("../data/scripts/common/ifelem_roundbutton.lua", sRoundRaw));
-    REQUIRE(ReadSource("../data/scripts/common/ifs_opt_pcvideo.lua", sVideoRaw));
+    REQUIRE(ReadSource("data/scripts/common/ifelem_form.lua", sFormRaw));
+    REQUIRE(ReadSource("data/scripts/common/ifelem_tabmanager.lua", sTabRaw));
+    REQUIRE(ReadSource("data/scripts/common/interface_util.lua", sUtilRaw));
+    REQUIRE(ReadSource("data/scripts/common/ifelem_roundbutton.lua", sRoundRaw));
+    REQUIRE(ReadSource("data/scripts/common/ifs_opt_pcvideo.lua", sVideoRaw));
     const std::string sForm = StripCr(sFormRaw);
     const std::string sTab = StripCr(sTabRaw);
     const std::string sUtil = StripCr(sUtilRaw);
@@ -673,7 +661,7 @@ TEST_CASE_NAMED(FWindowPinsTest8, "Unit::WindowPins::display menu lua source pin
 TEST_CASE_NAMED(FWindowPinsTest9, "Unit::WindowPins::display menu lua save failure waits", "[SmokeFilter]")
 {
     std::string sRaw;
-    REQUIRE(ReadSource("../data/scripts/common/ifs_opt_pcvideo.lua", sRaw));
+    REQUIRE(ReadSource("data/scripts/common/ifs_opt_pcvideo.lua", sRaw));
     const std::string sVideo = StripCr(sRaw);
     const char* apcFunctions[] = { "function ifs_opt_pcvideo_fnSaveFailed(fnNext)",
         "function ifs_opt_pcvideo_fnSaveDisplay(fnNext)", "function ifs_opt_pcvideo_fnLeaveTab()",
@@ -775,7 +763,7 @@ TEST_CASE_NAMED(FWindowPinsTest9, "Unit::WindowPins::display menu lua save failu
 TEST_CASE_NAMED(FWindowPinsTest10, "Unit::WindowPins::display menu lua confirm mark", "[SmokeFilter]")
 {
     std::string sRaw;
-    REQUIRE(ReadSource("../data/scripts/common/ifs_opt_pcvideo.lua", sRaw));
+    REQUIRE(ReadSource("data/scripts/common/ifs_opt_pcvideo.lua", sRaw));
     const std::string sVideo = StripCr(sRaw);
     const std::string sMark = LuaTopFunction(sVideo, "function ifs_opt_pcvideo_fnMark(this)");
     const std::string sUpdate = LuaTopFunction(sVideo, "function ifs_opt_pcvideo_fnConfirmUpdate(this)");
@@ -845,8 +833,8 @@ TEST_CASE_NAMED(FWindowPinsTest11, "Unit::WindowPins::display menu source pins",
 {
     std::string sLuaRaw;
     std::string sProfileRaw;
-    if (!ReadSource("../src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw) ||
-        !ReadSource("../src/Battlefront2/Source/PlayerProfile.cpp", sProfileRaw))
+    if (!ReadSource("src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw) ||
+        !ReadSource("src/Battlefront2/Source/PlayerProfile.cpp", sProfileRaw))
     {
         SkipCase("source files not found");
     }
@@ -950,10 +938,10 @@ TEST_CASE_NAMED(FWindowPinsTest12, "Unit::WindowPins::gamma pass source pins", "
     std::string sPassRaw;
     std::string sColorRaw;
     std::string sStateRaw;
-    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
-        !ReadSource("../src/RedEngineFL/Graphics/PC/pcGammaPass.cpp", sPassRaw) ||
-        !ReadSource("../src/Battlefront2/Platform/Pc/pcColorControl.cpp", sColorRaw) ||
-        !ReadSource("../src/Battlefront2/Source/GameState.cpp", sStateRaw))
+    if (!ReadSource("src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
+        !ReadSource("src/RedEngineFL/Graphics/PC/pcGammaPass.cpp", sPassRaw) ||
+        !ReadSource("src/Battlefront2/Platform/Pc/pcColorControl.cpp", sColorRaw) ||
+        !ReadSource("src/Battlefront2/Source/GameState.cpp", sStateRaw))
     {
         SkipCase("source files not found");
     }
@@ -1033,7 +1021,7 @@ TEST_CASE_NAMED(FWindowPinsTest12, "Unit::WindowPins::gamma pass source pins", "
 TEST_CASE_NAMED(FWindowPinsTest13, "Unit::WindowPins::shell stretch source pins", "[SmokeFilter]")
 {
     std::string sRendererRaw;
-    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
+    if (!ReadSource("src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
     {
         SkipCase("source files not found");
     }
@@ -1064,7 +1052,7 @@ TEST_CASE_NAMED(FWindowPinsTest13, "Unit::WindowPins::shell stretch source pins"
 TEST_CASE_NAMED(FWindowPinsTest14, "Unit::WindowPins::display menu label format pins", "[SmokeFilter]")
 {
     std::string sLuaRaw;
-    if (!ReadSource("../src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw))
+    if (!ReadSource("src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw))
     {
         SkipCase("source files not found");
     }
@@ -1120,8 +1108,8 @@ TEST_CASE_NAMED(FWindowPinsTest16, "Unit::WindowPins::display msaa single query 
 {
     std::string sRendererRaw;
     std::string sLuaRaw;
-    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
-        !ReadSource("../src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw))
+    if (!ReadSource("src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw) ||
+        !ReadSource("src/Battlefront2/Source/LuaCallbacks_PC.cpp", sLuaRaw))
     {
         SkipCase("source files not found");
     }
@@ -1160,7 +1148,7 @@ TEST_CASE_NAMED(FWindowPinsTest16, "Unit::WindowPins::display msaa single query 
 TEST_CASE_NAMED(FWindowPinsTest17, "Unit::WindowPins::present watch wiring pins", "[SmokeFilter]")
 {
     std::string sRendererRaw;
-    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
+    if (!ReadSource("src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
     {
         SkipCase("source files not found");
     }
@@ -1188,7 +1176,7 @@ TEST_CASE_NAMED(FWindowPinsTest17, "Unit::WindowPins::present watch wiring pins"
 TEST_CASE_NAMED(FWindowPinsTest18, "Unit::WindowPins::desktop mode source pins", "[SmokeFilter]")
 {
     std::string sRendererRaw;
-    if (!ReadSource("../src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
+    if (!ReadSource("src/RedEngineFL/Graphics/PC/pcRedRenderer.cpp", sRendererRaw))
     {
         SkipCase("source files not found");
     }
@@ -1234,7 +1222,7 @@ TEST_CASE_NAMED(FWindowPinsTest18, "Unit::WindowPins::desktop mode source pins",
 TEST_CASE_NAMED(FWindowPinsTest19, "Unit::WindowPins::frame cap vsync source pins", "[SmokeFilter]")
 {
     std::string sStateRaw;
-    if (!ReadSource("../src/Battlefront2/Source/GameState.cpp", sStateRaw))
+    if (!ReadSource("src/Battlefront2/Source/GameState.cpp", sStateRaw))
     {
         SkipCase("source files not found");
     }
@@ -1257,11 +1245,11 @@ TEST_CASE_NAMED(FWindowPinsTest20, "Unit::WindowPins::hardware cursor source pin
     std::string sCrashRaw;
     std::string sRenderRaw;
     std::string sJoyRaw;
-    if (!ReadSource("../src/RedEngineFL/input/pc/pcRedMouse.cpp", sMouseRaw) ||
-        !ReadSource("../src/Battlefront2/Source/pcMain.cpp", sMainRaw) ||
-        !ReadSource("../src/Battlefront2/Source/pcCrash.cpp", sCrashRaw) ||
-        !ReadSource("../src/RedEngineFL/Application/pc/pcFLRender.cpp", sRenderRaw) ||
-        !ReadSource("../src/RedEngineFL/input/pc/pcRedJoystick.cpp", sJoyRaw))
+    if (!ReadSource("src/RedEngineFL/input/pc/pcRedMouse.cpp", sMouseRaw) ||
+        !ReadSource("src/Battlefront2/Source/pcMain.cpp", sMainRaw) ||
+        !ReadSource("src/Battlefront2/Source/pcCrash.cpp", sCrashRaw) ||
+        !ReadSource("src/RedEngineFL/Application/pc/pcFLRender.cpp", sRenderRaw) ||
+        !ReadSource("src/RedEngineFL/input/pc/pcRedJoystick.cpp", sJoyRaw))
     {
         SkipCase("source files not found");
     }
@@ -1305,7 +1293,7 @@ TEST_CASE_NAMED(FWindowPinsTest20, "Unit::WindowPins::hardware cursor source pin
     CHECK(sTerminate.find("HwCursor::ReleaseClip();") < sTerminate.find("FrameLimiter::EndPeriod();"));
     CHECK(!Has(sTerminate, "FrameLimiter::Shutdown();"));
     std::string sLimiterRaw;
-    REQUIRE(ReadSource("../src/RedEngineFL/Application/pc/pcFrameLimiter.cpp", sLimiterRaw));
+    REQUIRE(ReadSource("src/RedEngineFL/Application/pc/pcFrameLimiter.cpp", sLimiterRaw));
     const std::string sLimiter = StripCr(sLimiterRaw);
     const std::string sEndPeriod = FunctionBody(sLimiter, "void EndPeriod()");
     REQUIRE(!sEndPeriod.empty());

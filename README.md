@@ -27,7 +27,7 @@ Repo where I'm playing around with new features and modernization. Nothing here 
 "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" BattlefrontII.sln /p:Configuration={Config} /p:Platform={Platform}
 ```
 
-Use the MSBuild of whichever VS2022 edition is installed; `tests\vstools.ps1` finds it through `vswhere`.
+Use the MSBuild of whichever VS2022 edition is installed; `vswhere` finds it.
 
 The exe is written to `bin\{Platform}\{Config}\BattlefrontII.exe`.
 

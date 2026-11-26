@@ -199,6 +199,8 @@ int FloatCorpusGenerate(const char* pcOutDir);
 int D3dxRefWriteFile(const char* pcPath);
 int CrtTrigRefWriteFile(const char* pcPath);
 int RunExpectProbe(const char* pcKind);
+int RepinMain(int argc, char** argv);
+int CaptureCommitMain(int argc, char** argv);
 
 int main(int argc, char** argv)
 {
@@ -254,6 +256,14 @@ int main(int argc, char** argv)
         {
             return RunnerMain(argc, argv);
         }
+        if (strcmp(argv[i], "--repin") == 0)
+        {
+            return RepinMain(argc, argv);
+        }
+        if (strcmp(argv[i], "--capture-commit") == 0)
+        {
+            return CaptureCommitMain(argc, argv);
+        }
         if (strncmp(argv[i], "--expect-probe=", 15) == 0)
         {
             strncpy(gCurrentCase, "expect probe", sizeof(gCurrentCase) - 1);
@@ -294,7 +304,7 @@ int main(int argc, char** argv)
         {
             strncpy(gFuzzOutPath, pcArg + 11, sizeof(gFuzzOutPath) - 1);
         }
-        else if (GameRunArg(pcArg))
+        else if (GameRunArg(pcArg) || RunnerArg(pcArg))
         {
         }
         else if (strstr(pcArg, "list-test") || strcmp(pcArg, "-ltc") == 0 || strcmp(pcArg, "-lts") == 0

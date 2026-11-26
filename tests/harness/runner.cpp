@@ -140,6 +140,22 @@ static bool IsChildParam(const std::string& sParam)
     return true;
 }
 
+static bool IsChildName(const std::string& sName)
+{
+    if (sName.empty() || sName[0] == '-')
+    {
+        return false;
+    }
+    for (size_t i = 0; i < sName.size(); ++i)
+    {
+        if (!isalnum((unsigned char)sName[i]) && sName[i] != '_' && sName[i] != '-')
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool ExpandCases(const std::vector<RunnerCase>& kRegistered, const std::vector<ComplexTest>& kComplex,
                  std::vector<RunnerCase>& kOut, std::string& sError)
 {
@@ -190,9 +206,9 @@ bool ExpandCases(const std::vector<RunnerCase>& kRegistered, const std::vector<C
         }
         for (size_t j = 0; j < kParams.size(); ++j)
         {
-            if (!IsChildParam(kParams[j]))
+            if (!IsChildName(kParams[j]))
             {
-                sError = kCase.sName + ": child '" + kParams[j] + "' is not a name of letters, digits and '_'";
+                sError = kCase.sName + ": child '" + kParams[j] + "' is not a name of letters, digits, '_' and '-'";
                 return false;
             }
             RunnerCase kChild = kCase;
@@ -250,6 +266,10 @@ bool IsSelected(const RunnerCase& kCase, const std::string& sTagFilter, const st
 {
     std::vector<std::string> kTags;
     ParseTags(kCase.sTags, kTags);
+    if (HasTag(kTags, "[AfterAll]"))
+    {
+        return false;
+    }
     if (HasTag(kTags, "[OnRequest]") && Lower(sTagFilter).find("[onrequest]") == std::string::npos)
     {
         return false;
@@ -259,6 +279,131 @@ bool IsSelected(const RunnerCase& kCase, const std::string& sTagFilter, const st
         return false;
     }
     return MatchesFilter(kCase.sTags, sTagFilter) && MatchesFilter(kCase.sName, sNameFilter);
+}
+
+bool IsAfterAllCase(const RunnerCase& kCase)
+{
+    std::vector<std::string> kTags;
+    ParseTags(kCase.sTags, kTags);
+    return HasTag(kTags, "[AfterAll]");
+}
+
+static bool IsFilterTag(const std::string& sTag)
+{
+    for (size_t i = 0; i < sizeof(sapcFilterTags) / sizeof(sapcFilterTags[0]); ++i)
+    {
+        if (sTag == sapcFilterTags[i])
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AfterAllSelected(const RunnerCase& kCase, const std::string& sTagFilter, const std::string& sNameFilter)
+{
+    std::vector<std::string> kTags;
+    ParseTags(kCase.sTags, kTags);
+    if (!HasTag(kTags, "[AfterAll]") || sTagFilter.empty() || !MatchesFilter(kCase.sName, sNameFilter))
+    {
+        return false;
+    }
+    const std::string sFilter = Lower(sTagFilter);
+    for (size_t i = 0; i < kTags.size(); ++i)
+    {
+        if (kTags[i] != "[AfterAll]" && kTags[i] != "[OnRequest]" && !IsFilterTag(kTags[i]) &&
+            sFilter.find(Lower(kTags[i])) != std::string::npos)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void SelectRunCases(const std::vector<RunnerCase>& kAll, const std::string& sTagFilter, const std::string& sNameFilter,
+                    bool bGameDir, bool bData, std::vector<RunnerCase>& kOrdinary, std::vector<RunnerCase>& kAfterAll)
+{
+    kOrdinary.clear();
+    kAfterAll.clear();
+    for (size_t i = 0; i < kAll.size(); ++i)
+    {
+        if (AfterAllSelected(kAll[i], sTagFilter, sNameFilter))
+        {
+            kAfterAll.push_back(kAll[i]);
+        }
+        else if (!bData && IsSelected(kAll[i], sTagFilter, sNameFilter, bGameDir))
+        {
+            kOrdinary.push_back(kAll[i]);
+        }
+    }
+}
+
+namespace
+{
+
+struct RunnerContext
+{
+    std::string sPlatform;
+    std::string sConfig;
+    std::string sOut;
+    std::string sData;
+    std::string sParam;
+};
+
+RunnerContext& RunContext()
+{
+    static RunnerContext sContext;
+    return sContext;
+}
+
+}
+
+bool RunnerArg(const char* pcArg)
+{
+    const struct
+    {
+        const char* pcPrefix;
+        std::string* psValue;
+    } kArgs[] = {{"--run-platform=", &RunContext().sPlatform},
+                 {"--run-config=", &RunContext().sConfig},
+                 {"--run-out=", &RunContext().sOut},
+                 {"--run-data=", &RunContext().sData},
+                 {"--run-param=", &RunContext().sParam}};
+    for (size_t i = 0; i < sizeof(kArgs) / sizeof(kArgs[0]); ++i)
+    {
+        const size_t uLen = strlen(kArgs[i].pcPrefix);
+        if (strncmp(pcArg, kArgs[i].pcPrefix, uLen) == 0)
+        {
+            *kArgs[i].psValue = pcArg + uLen;
+            return true;
+        }
+    }
+    return false;
+}
+
+const std::string& RunnerPlatform()
+{
+    return RunContext().sPlatform;
+}
+
+const std::string& RunnerConfig()
+{
+    return RunContext().sConfig;
+}
+
+const std::string& RunnerOut()
+{
+    return RunContext().sOut;
+}
+
+const std::string& RunnerData()
+{
+    return RunContext().sData;
+}
+
+const std::string& RunnerParam()
+{
+    return RunContext().sParam;
 }
 
 static std::string CanaryKind(const std::vector<std::string>& kTags)
@@ -717,6 +862,7 @@ struct RunnerOptions
     std::string sPassThrough;
     std::string sSoak;
     std::string sParam;
+    std::string sData;
     int iJobs;
 };
 
@@ -774,6 +920,10 @@ bool ParseOptions(int argc, char** argv, RunnerOptions& k, std::string& sError)
         {
             k.sParam = sValue;
         }
+        else if (sKey == "--data")
+        {
+            k.sData = sValue;
+        }
         else if (sKey == "--fuzz-seed" || sKey == "--fuzz-iter" || sKey == "--fuzz-count" || sKey == "--fuzz-out" ||
                  sArg == "--fuzz-dump")
         {
@@ -821,6 +971,15 @@ bool ParseOptions(int argc, char** argv, RunnerOptions& k, std::string& sError)
         if (uAttr == INVALID_FILE_ATTRIBUTES || !(uAttr & FILE_ATTRIBUTE_DIRECTORY))
         {
             sError = "--game-dir " + k.sGameDir + " is not a folder";
+            return false;
+        }
+    }
+    if (!k.sData.empty())
+    {
+        const DWORD uAttr = GetFileAttributesA(k.sData.c_str());
+        if (uAttr == INVALID_FILE_ATTRIBUTES || !(uAttr & FILE_ATTRIBUTE_DIRECTORY))
+        {
+            sError = "--data " + k.sData + " is not a folder";
             return false;
         }
     }
@@ -987,14 +1146,8 @@ bool RunChild(const std::string& sCmdLine, const std::string& sOutFile, const st
     return true;
 }
 
-int RunnerMain(int argc, char** argv)
+static std::vector<RunnerCase> DeclaredCases()
 {
-    RunnerOptions kOpt;
-    std::string sError;
-    if (!ParseOptions(argc, argv, kOpt, sError))
-    {
-        return Harness(sError);
-    }
     std::vector<RunnerCase> kDeclared;
     const std::set<doctest::detail::TestCase>& kRegistered = doctest::detail::getRegisteredTests();
     for (std::set<doctest::detail::TestCase>::const_iterator it = kRegistered.begin(); it != kRegistered.end(); ++it)
@@ -1005,8 +1158,83 @@ int RunnerMain(int argc, char** argv)
         kCase.sFile = it->m_file ? it->m_file : "";
         kDeclared.push_back(kCase);
     }
+    return kDeclared;
+}
+
+bool RegisteredCases(std::vector<RunnerCase>& kAll, std::string& sError)
+{
+    return ExpandCases(DeclaredCases(), ComplexTests(), kAll, sError);
+}
+
+bool ComplexNeeded(const RunnerCase& kParent, const std::string& sTagFilter, bool bGameDir, bool bData,
+                   const std::string& sExcludeText)
+{
+    if (sExcludeText.find(kParent.sName + "::") != std::string::npos)
+    {
+        return true;
+    }
+    return AfterAllSelected(kParent, sTagFilter, "") || (!bData && IsSelected(kParent, sTagFilter, "", bGameDir));
+}
+
+int RunnerMain(int argc, char** argv)
+{
+    RunnerOptions kOpt;
+    std::string sError;
+    if (!ParseOptions(argc, argv, kOpt, sError))
+    {
+        return Harness(sError);
+    }
+    RunContext().sPlatform = kOpt.sPlatform;
+    RunContext().sConfig = kOpt.sConfig;
+    RunContext().sOut = kOpt.sOut;
+    RunContext().sData = kOpt.sData.empty() ? kOpt.sOut : kOpt.sData;
+    RunContext().sParam = kOpt.sParam;
+    std::string sExcludeText;
+    if (!kOpt.sExclude.empty() && !ReadTextFile(kOpt.sExclude, sExcludeText))
+    {
+        return Harness("cannot read the exclude list " + kOpt.sExclude);
+    }
+    const std::vector<RunnerCase> kDeclared = DeclaredCases();
+    const std::vector<ComplexTest>& kAllComplex = ComplexTests();
+    std::vector<RunnerCase> kKept;
+    std::vector<ComplexTest> kComplex;
+    for (size_t i = 0; i < kAllComplex.size(); ++i)
+    {
+        bool bFound = false;
+        for (size_t j = 0; j < kDeclared.size() && !bFound; ++j)
+        {
+            if (kDeclared[j].sName == kAllComplex[i].pcName)
+            {
+                bFound = true;
+                if (ComplexNeeded(kDeclared[j], kOpt.sTags, !kOpt.sGameDir.empty(), !kOpt.sData.empty(), sExcludeText))
+                {
+                    kComplex.push_back(kAllComplex[i]);
+                }
+            }
+        }
+        if (!bFound)
+        {
+            return Harness(std::string("complex test '") + kAllComplex[i].pcName + "' has no test case");
+        }
+    }
+    for (size_t i = 0; i < kDeclared.size(); ++i)
+    {
+        bool bDropped = false;
+        for (size_t j = 0; j < kAllComplex.size() && !bDropped; ++j)
+        {
+            bDropped = kDeclared[i].sName == kAllComplex[j].pcName;
+        }
+        for (size_t j = 0; j < kComplex.size() && bDropped; ++j)
+        {
+            bDropped = kDeclared[i].sName != kComplex[j].pcName;
+        }
+        if (!bDropped)
+        {
+            kKept.push_back(kDeclared[i]);
+        }
+    }
     std::vector<RunnerCase> kAll;
-    if (!ExpandCases(kDeclared, ComplexTests(), kAll, sError))
+    if (!ExpandCases(kKept, kComplex, kAll, sError))
     {
         return Harness(sError);
     }
@@ -1022,28 +1250,25 @@ int RunnerMain(int argc, char** argv)
     std::vector<ExcludeRow> kExcluded;
     if (!kOpt.sExclude.empty())
     {
-        std::string sText;
-        if (!ReadTextFile(kOpt.sExclude, sText))
-        {
-            return Harness("cannot read the exclude list " + kOpt.sExclude);
-        }
+        const std::string& sText = sExcludeText;
         if (!ParseExcludeList(sText, kNames, kOpt.sPlatform, kOpt.sConfig, kExcluded, sError))
         {
             return Harness(kOpt.sExclude + ": " + sError);
         }
     }
+    std::vector<RunnerCase> kSelected;
+    std::vector<RunnerCase> kAfter;
+    SelectRunCases(kAll, kOpt.sTags, kOpt.sName, !kOpt.sGameDir.empty(), !kOpt.sData.empty(), kSelected, kAfter);
+    const size_t uOrdinary = kSelected.size();
+    kSelected.insert(kSelected.end(), kAfter.begin(), kAfter.end());
     std::vector<CaseRun> kRuns;
-    for (size_t i = 0; i < kAll.size(); ++i)
+    for (size_t i = 0; i < kSelected.size(); ++i)
     {
-        if (!IsSelected(kAll[i], kOpt.sTags, kOpt.sName, !kOpt.sGameDir.empty()))
-        {
-            continue;
-        }
         CaseRun kRun;
-        kRun.kCase = kAll[i];
-        ParseTags(kAll[i].sTags, kRun.kTags);
+        kRun.kCase = kSelected[i];
+        ParseTags(kSelected[i].sTags, kRun.kTags);
         kRun.bFailed = false;
-        const ExcludeRow* pRow = FindExclusion(kExcluded, kAll[i].sName, kOpt.sPlatform, kOpt.sConfig);
+        const ExcludeRow* pRow = FindExclusion(kExcluded, kSelected[i].sName, kOpt.sPlatform, kOpt.sConfig);
         if (pRow)
         {
             kRun.sNotRun = pRow->sReason;
@@ -1086,6 +1311,7 @@ int RunnerMain(int argc, char** argv)
     const bool bAsan = kOpt.sConfig == "Asan";
     std::mutex kPrintLock;
     std::atomic<size_t> uNext(0);
+    size_t uEnd = uOrdinary;
     std::atomic<bool> bHarness(false);
     const double fRunStart = NowMs();
     Report kReport;
@@ -1096,7 +1322,7 @@ int RunnerMain(int argc, char** argv)
         for (;;)
         {
             const size_t uIndex = uNext++;
-            if (uIndex >= kRuns.size())
+            if (uIndex >= uEnd)
             {
                 return;
             }
@@ -1133,6 +1359,13 @@ int RunnerMain(int argc, char** argv)
                 {
                     sCmd += " " + QuoteArg("--game-param=" + sParam);
                 }
+            }
+            sCmd += " " + QuoteArg("--run-platform=" + kOpt.sPlatform) + " " + QuoteArg("--run-config=" + kOpt.sConfig) +
+                    " " + QuoteArg("--run-out=" + kOpt.sOut) + " " + QuoteArg("--run-data=" + RunnerData());
+            const std::string sRunParam = kRun.kCase.sParam.empty() ? kOpt.sParam : kRun.kCase.sParam;
+            if (!sRunParam.empty())
+            {
+                sCmd += " " + QuoteArg("--run-param=" + sRunParam);
             }
             std::string sAsanOptions;
             if (bAsan)
@@ -1237,16 +1470,23 @@ int RunnerMain(int argc, char** argv)
         }
     };
 
-    std::vector<std::thread> kThreads;
-    const size_t uJobs = (size_t)kOpt.iJobs < kRuns.size() ? (size_t)kOpt.iJobs : kRuns.size();
-    for (size_t i = 1; i < uJobs; ++i)
+    for (int iPhase = 0; iPhase < 2; ++iPhase)
     {
-        kThreads.push_back(std::thread(fnWork));
-    }
-    fnWork();
-    for (size_t i = 0; i < kThreads.size(); ++i)
-    {
-        kThreads[i].join();
+        const size_t uBegin = iPhase == 0 ? 0 : uOrdinary;
+        uEnd = iPhase == 0 ? uOrdinary : kRuns.size();
+        uNext = uBegin;
+        const size_t uCount = uEnd - uBegin;
+        std::vector<std::thread> kThreads;
+        const size_t uJobs = (size_t)kOpt.iJobs < uCount ? (size_t)kOpt.iJobs : uCount;
+        for (size_t i = 1; i < uJobs; ++i)
+        {
+            kThreads.push_back(std::thread(fnWork));
+        }
+        fnWork();
+        for (size_t i = 0; i < kThreads.size(); ++i)
+        {
+            kThreads[i].join();
+        }
     }
     if (hSlots)
     {

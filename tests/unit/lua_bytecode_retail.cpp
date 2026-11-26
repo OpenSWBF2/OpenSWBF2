@@ -93,24 +93,24 @@ void ListFilesRecursive(const std::string& sDir, const std::string& sRel, const 
     FindClose(hFind);
 }
 
-bool ReadWholeFile(const std::string& sPath, std::string& sOut)
+void ListRepoFilesRecursive(const std::string& sDir, const std::string& sRel, const char* pcExt,
+                            std::vector<std::string>& asOut)
 {
-    sOut.clear();
-    FILE* pFile = fopen(sPath.c_str(), "rb");
-    if (!pFile)
+    std::vector<RepoEntry> akEntries;
+    ListRepoFolder(sDir, "*", akEntries);
+    for (size_t i = 0; i < akEntries.size(); ++i)
     {
-        return false;
+        const std::string& sName = akEntries[i].sName;
+        std::string sChildRel = sRel.empty() ? sName : sRel + "/" + sName;
+        if (akEntries[i].bDir)
+        {
+            ListRepoFilesRecursive(sDir + "\\" + sName, sChildRel, pcExt, asOut);
+        }
+        else if (EndsWithNoCase(sName.c_str(), pcExt))
+        {
+            asOut.push_back(sChildRel);
+        }
     }
-    bool bOk = fseek(pFile, 0, SEEK_END) == 0;
-    long lSize = bOk ? ftell(pFile) : -1;
-    bOk = lSize >= 0 && fseek(pFile, 0, SEEK_SET) == 0;
-    if (bOk && lSize > 0)
-    {
-        sOut.resize((size_t)lSize);
-        bOk = fread(&sOut[0], 1, (size_t)lSize, pFile) == (size_t)lSize;
-    }
-    fclose(pFile);
-    return bOk;
 }
 
 struct RetailState
@@ -184,10 +184,10 @@ bool NextJsonString(const std::string& sText, const char* pcKey, size_t& uPos, s
     return true;
 }
 
-bool ReadRetailIndex(const std::string& sRoot, std::vector<RetailScript>& akOut)
+bool ReadRetailIndex(std::vector<RetailScript>& akOut)
 {
     std::string sText;
-    if (!ReadWholeFile(sRoot + "\\data\\scripts\\index.json", sText))
+    if (!ReadRepoBytes("data\\scripts\\index.json", sText))
     {
         return false;
     }
@@ -205,12 +205,12 @@ bool ReadRetailIndex(const std::string& sRoot, std::vector<RetailScript>& akOut)
     return !akOut.empty();
 }
 
-bool DumpDataScripts(lua_State* L, const std::string& sRoot, bool bStrip, std::vector<std::string>& asChunks,
+bool DumpDataScripts(lua_State* L, bool bStrip, std::vector<std::string>& asChunks,
                      std::vector<std::string>& asNames)
 {
-    std::string sDir = sRoot + "\\data\\scripts";
+    std::string sDir = "data\\scripts";
     std::vector<std::string> asFiles;
-    ListFilesRecursive(sDir, std::string(), ".lua", asFiles);
+    ListRepoFilesRecursive(sDir, std::string(), ".lua", asFiles);
     if (asFiles.empty())
     {
         return false;
@@ -218,7 +218,7 @@ bool DumpDataScripts(lua_State* L, const std::string& sRoot, bool bStrip, std::v
     for (size_t i = 0; i < asFiles.size(); ++i)
     {
         std::string sText;
-        if (!ReadWholeFile(sDir + "\\" + asFiles[i], sText))
+        if (!ReadRepoBytes(sDir + "\\" + asFiles[i], sText))
         {
             return false;
         }
@@ -403,7 +403,7 @@ std::vector<std::string> LuaFuzzBases()
     std::vector<std::string> asNames;
     lua_State* L = lua_open();
     REQUIRE(L);
-    bool bOk = DumpDataScripts(L, sRoot, false, asBases, asNames) && DumpDataScripts(L, sRoot, true, asBases, asNames);
+    bool bOk = DumpDataScripts(L, false, asBases, asNames) && DumpDataScripts(L, true, asBases, asNames);
     lua_close(L);
     REQUIRE(bOk);
     REQUIRE(!asBases.empty());
@@ -554,7 +554,7 @@ TEST_CASE_NAMED(FLuaBytecodeRetailTest1, "Unit::LuaBytecodeRetail::lua retail sc
     const std::string sRoot = RetailRepoRoot();
     SKIP_IF(sRoot.empty(), "data/scripts not found");
     std::vector<RetailScript> akIndex;
-    REQUIRE(ReadRetailIndex(sRoot, akIndex));
+    REQUIRE(ReadRetailIndex(akIndex));
     RetailState kState;
     lua_State* L = kState.L;
     REQUIRE(L);
@@ -563,7 +563,7 @@ TEST_CASE_NAMED(FLuaBytecodeRetailTest1, "Unit::LuaBytecodeRetail::lua retail sc
         std::vector<std::string> asChunks;
         std::vector<std::string> asNames;
         INFO("strip " << iStrip);
-        REQUIRE(DumpDataScripts(L, sRoot, iStrip != 0, asChunks, asNames));
+        REQUIRE(DumpDataScripts(L, iStrip != 0, asChunks, asNames));
         CHECK(asChunks.size() == akIndex.size());
         std::set<std::string> sListed;
         for (size_t i = 0; i < asNames.size(); ++i)
@@ -594,7 +594,7 @@ TEST_CASE_NAMED(FLuaBytecodeRetailTest2, "Unit::LuaBytecodeRetail::lua retail lv
     const std::string sRoot = RetailRepoRoot();
     SKIP_IF(sRoot.empty(), "data/scripts not found");
     std::vector<RetailScript> akIndex;
-    REQUIRE(ReadRetailIndex(sRoot, akIndex));
+    REQUIRE(ReadRetailIndex(akIndex));
     std::string sDir = std::string(FindGameDataRoot()) + "\\data\\_lvl_pc";
     std::vector<std::string> asFiles;
     ListFilesRecursive(sDir, std::string(), ".lvl", asFiles);

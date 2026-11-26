@@ -12,22 +12,9 @@ namespace
 
 std::string ReadSource(const std::string& sPath)
 {
-    FILE* pFile = fopen(sPath.c_str(), "rb");
-    REQUIRE(pFile != (FILE*)0);
     std::string sOut;
-    char acBuf[4096];
-    size_t uiRead;
-    while ((uiRead = fread(acBuf, 1, sizeof(acBuf), pFile)) > 0)
-    {
-        for (size_t i = 0; i < uiRead; ++i)
-        {
-            if (acBuf[i] != '\r')
-            {
-                sOut += acBuf[i];
-            }
-        }
-    }
-    fclose(pFile);
+    const bool bRead = ReadRepoText(sPath.c_str(), sOut);
+    REQUIRE(bRead);
     return sOut;
 }
 
@@ -86,7 +73,7 @@ int GuardedSetPropertyCount(const std::string& sText, const std::string& sGuard)
 
 TEST_CASE_NAMED(FOdfCallsitesTest1, "Unit::OdfCallsites::odf value guard covers every property call site", "[SmokeFilter]")
 {
-    const std::string sRoot = RepoRoot() + "\\src\\Battlefront2\\Source\\";
+    const std::string sRoot = "src\\Battlefront2\\Source\\";
     const std::string sGuard = "OdfValue::Sanitize(uProperty, pcValue);";
     const std::string sInclude = "#include \"OdfValue.h\"";
 
