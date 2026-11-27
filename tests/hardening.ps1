@@ -865,6 +865,19 @@ function Get-MiCrtHookCheck([string]$mapText) {
     return New-Object PSObject -Property @{ Name = 'mimalloc-crt-hooks'; Ok = ($bad.Count -eq 0); Detail = ($bad -join '; ') }
 }
 
+function Get-RiderLinkMapCheck([string]$mapText, [string]$config) {
+    $bad = @()
+    if (-not $mapText) { $bad += 'no map' }
+    else {
+        $hits = @(($mapText -split "`r?`n") -cmatch '@RiderLink(?:Protocol)?@@|\?g_fnLineTap@')
+        if ($config -eq 'Release') {
+            if ($hits.Count) { $bad += "link code in Release: $(($hits | Select-Object -First 3 | ForEach-Object { $_.Trim() }) -join ' | ')" }
+        }
+        elseif ($hits.Count -eq 0) { $bad += "no link symbol in the $config map" }
+    }
+    return New-Object PSObject -Property @{ Name = 'riderlink-map'; Ok = ($bad.Count -eq 0); Detail = ($bad -join '; ') }
+}
+
 $script:FFmpegLicenceRules = @(
     @('licence flag', '(?m)^#define CONFIG_(?:GPL|NONFREE|GPLV3|VERSION3|LGPLV3) 1\b[^\r\n]*'),
     @('configure line', '(?m)^#define FFMPEG_CONFIGURATION "[^\r\n]*--enable-(?:gpl|nonfree|version3)\b[^\r\n]*'),

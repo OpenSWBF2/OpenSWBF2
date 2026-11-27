@@ -10,6 +10,7 @@
 #include "RedEngineFL/Util/RedWarning.h"
 
 #include "CommandLine.h"
+#include "RiderLink.h"
 #include "LocalLimits.h"
 #include "FLInputManager.h"
 #include "GameLoop.h"
@@ -70,6 +71,9 @@ static char const* const sapcTestOnlyArgs[] = { "perturbheap", "repeatmission", 
     "movieskip", "moviefault", "autotest" };
 bool gAutoTestRequested;
 char gAutoTestFilter[512];
+#ifndef OPENSWBF2_RIDERLINK
+bool gLinkSwitchIgnored;
+#endif
 // GLOBAL: SWBF2 0x007e6310
 int gBootLaggerPing = 300;
 
@@ -519,6 +523,9 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
     gMissionOnCommandLine = false;
     sbNoVictoryNetLogged = false;
     suTestOnlyIgnored = 0;
+#ifndef OPENSWBF2_RIDERLINK
+    gLinkSwitchIgnored = false;
+#endif
     bool bNamed = false;
 
     for (int i = 1; i < iArgc; ++i)
@@ -670,6 +677,40 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
             continue;
         }
 
+        if (_stricmp(apcArgv[i] + 1, "riderlink") == 0)
+        {
+#ifdef OPENSWBF2_RIDERLINK
+            RiderLink::NoteSwitch();
+#else
+            gLinkSwitchIgnored = true;
+#endif
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "riderlinkdir") == 0)
+        {
+            if (i + 1 < iArgc)
+            {
+                ++i;
+#ifdef OPENSWBF2_RIDERLINK
+                RiderLink::SetPublishDir(apcArgv[i]);
+#endif
+            }
+#ifndef OPENSWBF2_RIDERLINK
+            gLinkSwitchIgnored = true;
+#endif
+            continue;
+        }
+
+        if (_stricmp(apcArgv[i] + 1, "riderlinkhold") == 0 || _stricmp(apcArgv[i] + 1, "riderlinkpause") == 0)
+        {
+#ifdef OPENSWBF2_RIDERLINK
+            RiderLink::NoteHold(_stricmp(apcArgv[i] + 1, "riderlinkpause") == 0);
+#else
+            gLinkSwitchIgnored = true;
+#endif
+            continue;
+        }
         if (_stricmp(apcArgv[i] + 1, "factorylog") == 0)
         {
             gFactoryLog = true;
@@ -797,6 +838,9 @@ void ParseCommandLine(int iArgc, char** const apcArgv)
         if (_stricmp(apcArgv[i] + 1, "handsoff") == 0)
         {
             NoteTestOnlyArg(6);
+#ifdef OPENSWBF2_RIDERLINK
+            RiderLink::NoteHandsOff();
+#endif
             continue;
         }
 

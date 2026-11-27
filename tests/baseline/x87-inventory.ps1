@@ -225,6 +225,7 @@ function Convert-Function($F, [long]$End) {
     $dataStart = $End
     foreach ($line in $F.Lines) {
         $addr = [Convert]::ToInt64($line.Substring(2, 8), 16)
+        if ($addr -ge $dataStart) { break }
         $rest = $line.Substring(12)
         $sp = $rest.IndexOf(' ')
         if ($sp -lt 0) { $mn = $rest; $ops = '' } else { $mn = $rest.Substring(0, $sp); $ops = $rest.Substring($sp).Trim() }

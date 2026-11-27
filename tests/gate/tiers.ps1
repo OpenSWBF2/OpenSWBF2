@@ -74,6 +74,7 @@ $GateSteps = @(
     (New-GateRefBuild 'build-Test-game-ref' 'Test' $close -Game),
     @{ Name = 'gate-tests'; Tiers = $all; Platform = @('Win32'); Kind = 'script'; Config = 'Default'; Exe = 'powershell'; Args = $ps + @('tests\gate\gate.tests.ps1'); Inputs = @('tests\gate.ps1', 'tests\gate\keys.ps1', 'tests\gate\gate.tests.ps1', 'tests\common.ps1', 'tests\hardening.ps1', 'tests\vstools.ps1', 'tests\hardening\allow.ps1') },
     @{ Name = 'hardening-tests'; Tiers = $all; Platform = @('Win32'); Kind = 'script'; Config = 'Default'; Exe = 'powershell'; Args = $ps + @('tests\hardening.tests.ps1'); Inputs = @('tests\hardening.ps1', 'tests\hardening\', 'tests\hardening.tests.ps1', 'tests\common.ps1', 'BattlefrontII.vcxproj', 'lib\vendor-pins.props', 'tests\baseline\v143\', 'tests\baseline\v143-x64\', 'tests\baseline\compare-tables.ps1', 'tests\baseline\capture-vs2013.ps1', 'tests\unit\memory_baseline.cpp', 'tests\unit\movie_retail.cpp', 'tests\game\crash.cpp', 'tests\game\standard.cpp', 'tests\game\standard_case.cpp') },
+    @{ Name = 'rider-link'; Tiers = $all; Platform = @('Win32'); Kind = 'script'; Config = 'Default'; Exe = 'powershell'; Args = $psc + @('& tools\rider-link\gradlew.bat -p tools\rider-link --offline --no-daemon test buildPlugin; exit $LASTEXITCODE'); Inputs = @('tools\rider-link\') },
     (New-GateHardening 'hardening-Release' $planWin32 'Release' @('-Configuration', 'Release')),
     (New-GateHardening 'hardening-Test' $planWin32 'Test' @('-Configuration', 'Test')),
     (New-GateHardening 'hardening-Asan' $close 'Asan' @('-Asan')),

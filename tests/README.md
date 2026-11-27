@@ -8,6 +8,7 @@ Tests are C++ and are declared the way Unreal Engine declares them. One exe, `Op
 - `vcruntime140.dll` and `msvcp140.dll` in `C:\Windows\SysWOW64`, and `d3dx9_43.dll` for the tests exe. Win32 game runs that expect Galaxy also need `msvcr120.dll` and `msvcp120.dll`.
 - Game-run tests need the retail GameData (`SWBF2_GAMEDATA` or the Steam install). Without it they skip.
 - Import `tools\wer-localdumps.reg` once as administrator so a `/GS` fast-fail still leaves a dump. Run `tests\firewall.ps1` once from an elevated PowerShell so game runs can use the local network.
+- The `rider-link` gate step needs Rider 2026.1, a JDK 21 and one online Gradle run, as `tools\rider-link\README.md` says.
 
 ## Build and run
 

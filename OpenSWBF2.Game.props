@@ -59,6 +59,11 @@
       <PreprocessorDefinitions>OPENSWBF2_TEST;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'!='Release'">
+    <ClCompile>
+      <PreprocessorDefinitions>OPENSWBF2_RIDERLINK=$(Configuration);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <Target Name="MakeMasmObjectDirs" BeforeTargets="_MASM" Condition="'@(MASM)' != ''">
     <MakeDir Directories="@(MASM->Metadata('ObjectFileName')->DirectoryName()->Distinct()->ClearMetadata())" />
   </Target>

@@ -1,0 +1,137 @@
+package org.openswbf2.riderlink
+
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.components.BaseState
+import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.SimplePersistentStateComponent
+import com.intellij.openapi.components.State
+import com.intellij.openapi.components.Storage
+import com.intellij.openapi.components.StoragePathMacros
+import com.intellij.openapi.components.service
+import com.intellij.openapi.project.Project
+import com.intellij.util.EventDispatcher
+import java.util.EventListener
+
+
+@Service(Service.Level.PROJECT)
+@State(name = "OpenSWBF2LogPanelSettings", storages = [Storage(StoragePathMacros.WORKSPACE_FILE)])
+class OpenSWBF2LogPanelSettings(private val project: Project) : SimplePersistentStateComponent<OpenSWBF2LogPanelSettings.State>(State()) {
+    companion object {
+        fun getInstance(project: Project): OpenSWBF2LogPanelSettings = project.service()
+    }
+
+    var clearOnStart: Boolean
+        get() = state.clearOnStart
+        set(value) {
+            state.clearOnStart = value
+        }
+    var focusOnStart: Boolean
+        get() = state.focusOnStart
+        set(value) {
+            state.focusOnStart = value
+        }
+
+    var showMessages: Boolean
+        get() = state.showMessages
+        set(value) {
+            if (state.showMessages != value) {
+                state.showMessages = value
+                fireSettingsChanged()
+            }
+        }
+    var showWarnings: Boolean
+        get() = state.showWarnings
+        set(value) {
+            if (state.showWarnings != value) {
+                state.showWarnings = value
+                fireSettingsChanged()
+            }
+        }
+    var showErrors: Boolean
+        get() = state.showErrors
+        set(value) {
+            if (state.showErrors != value) {
+                state.showErrors = value
+                fireSettingsChanged()
+            }
+        }
+    var showAllCategories: Boolean
+        get() = state.showAllCategories
+        set(value) {
+            if (state.showAllCategories != value) {
+                state.showAllCategories = value
+                fireSettingsChanged()
+            }
+        }
+
+    var showTimestamps: Boolean
+        get() = state.showTimestamps
+        set(value) {
+            if (state.showTimestamps != value) {
+                state.showTimestamps = value
+                fireSettingsChanged()
+            }
+        }
+    var showVerbosity: Boolean
+        get() = state.showVerbosity
+        set(value) {
+            if (state.showVerbosity != value) {
+                state.showVerbosity = value
+                fireSettingsChanged()
+            }
+        }
+    var alignMessages: Boolean
+        get() = state.alignMessages
+        set(value) {
+            if (state.alignMessages != value) {
+                state.alignMessages = value
+                fireSettingsChanged()
+            }
+        }
+    var categoryWidth: Int
+        get() = state.categoryWidth
+        set(value) {
+            if (state.categoryWidth != value) {
+                state.categoryWidth = value
+                fireSettingsChanged()
+            }
+        }
+
+    var showPlayButtons: Boolean
+        get() = state.showPlayButtons
+        set(value) {
+            state.showPlayButtons = value
+        }
+
+    fun interface SettingsChangedListener : EventListener {
+        fun settingsChanged()
+    }
+
+    private val settingsChangedDispatcher: EventDispatcher<SettingsChangedListener> =
+            EventDispatcher.create(SettingsChangedListener::class.java)
+
+    fun addSettingsChangedListener(listener: SettingsChangedListener, disposable: Disposable) {
+        settingsChangedDispatcher.addListener(listener, disposable)
+    }
+
+    private fun fireSettingsChanged() {
+        settingsChangedDispatcher.multicaster.settingsChanged()
+    }
+
+    class State : BaseState() {
+        var clearOnStart by property(defaultValue = false)
+        var focusOnStart by property(defaultValue = true)
+
+        var showMessages by property(defaultValue = true)
+        var showWarnings by property(defaultValue = true)
+        var showErrors by property(defaultValue = true)
+        var showAllCategories by property(defaultValue = true)
+
+        var showTimestamps by property(defaultValue = false)
+        var showVerbosity by property(defaultValue = true)
+        var alignMessages by property(defaultValue = true)
+        var categoryWidth by property(defaultValue = 25)
+
+        var showPlayButtons by property(defaultValue = true)
+    }
+}

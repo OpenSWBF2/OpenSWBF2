@@ -7,6 +7,7 @@
 
 #include "LoadUtil.h"
 #include "DataFileName.h"
+#include "DownloadableContent.h"
 #include "SkyManager.h"
 
 #include "BoundaryManager.h"
@@ -197,6 +198,154 @@ void LoadUtil::LoadSoundBank(PblFileChunk& chunk, char const* pName, void* pData
     }
 }
 
+static bool LvlWanted(unsigned int uiLvlId, unsigned int const* puiHashes, unsigned int uiCount,
+                      unsigned int& uiFound)
+{
+    uiFound = 256;
+    if (uiCount == 1 && puiHashes[0] == 0x2F0C9F3D)
+    {
+        return true;
+    }
+    for (unsigned int i = 0; i < uiCount; ++i)
+    {
+        if (puiHashes[i] == uiLvlId)
+        {
+            uiFound = i;
+            return true;
+        }
+    }
+    return false;
+}
+
+static void MakeDataFilePath(char const* pcFileName, char const* pcContent, char* pcFullName)
+{
+    if (!_stricmp(pcFileName, "mission.lvl") && pcContent)
+    {
+        strlcpy(pcFullName, pcContent, 0x100);
+        strlcat(pcFullName, "\\Data\\_lvl_pc\\", 0x100);
+        strlcat(pcFullName, pcFileName, 0x100);
+    }
+    else if (!_strnicmp(pcFileName, "dc:", 3))
+    {
+        strlcpy(pcFullName, pcContent, 0x100);
+        strlcat(pcFullName, "\\Data\\_lvl_pc\\", 0x100);
+        strlcat(pcFullName, pcFileName + 3, 0x100);
+    }
+    else if (!_strnicmp(pcFileName, "raw:", 4))
+    {
+        strlcpy(pcFullName, pcFileName, 0x100);
+    }
+    else
+    {
+        strlcpy(pcFullName, "data\\_lvl_pc\\", 0x100);
+        strlcat(pcFullName, pcFileName, 0x100);
+    }
+}
+
+static bool ReadChunkHeader(HANDLE hFile, unsigned int uiAt, unsigned int& uiId, unsigned int& uiSize)
+{
+    if (uiAt > 0x7FFFFFE0u || SetFilePointer(hFile, (LONG)uiAt, 0, FILE_BEGIN) != uiAt)
+    {
+        return false;
+    }
+    unsigned int auiHeader[2];
+    DWORD uiRead = 0;
+    if (!ReadFile(hFile, auiHeader, sizeof(auiHeader), &uiRead, 0) || uiRead != sizeof(auiHeader))
+    {
+        return false;
+    }
+    uiId = auiHeader[0];
+    uiSize = auiHeader[1];
+    return uiSize <= 0x7FFFFFF0u - uiAt - 8;
+}
+
+static unsigned int AlignChunk(unsigned int uiAt)
+{
+    return uiAt + ((0u - uiAt) & 3u);
+}
+
+static bool MissionLvlHolds(char const* pcPath, unsigned int uiHash)
+{
+    HANDLE hFile = CreateFileA(pcPath, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return false;
+    }
+    bool bFound = false;
+    unsigned int uiId = 0;
+    unsigned int uiSize = 0;
+    if (ReadChunkHeader(hFile, 0, uiId, uiSize))
+    {
+        const unsigned int uiEnd = 8 + uiSize;
+        unsigned int uiNext = 8;
+        while (!bFound && AlignChunk(uiNext) < uiEnd && ReadChunkHeader(hFile, AlignChunk(uiNext), uiId, uiSize))
+        {
+            const unsigned int uiBody = AlignChunk(uiNext) + 8;
+            if (uiId == CHUNK_ID('l', 'v', 'l', '_'))
+            {
+                const unsigned int uiLvlEnd = uiBody + uiSize;
+                unsigned int uiLvlNext = uiBody;
+                unsigned int uiLvlId = 0;
+                unsigned int uiLvlSize = 0;
+                while (AlignChunk(uiLvlNext) < uiLvlEnd &&
+                       ReadChunkHeader(hFile, AlignChunk(uiLvlNext), uiLvlId, uiLvlSize))
+                {
+                    unsigned int uiFound;
+                    if (LvlWanted(uiLvlId, &uiHash, 1, uiFound))
+                    {
+                        bFound = true;
+                        break;
+                    }
+                    uiLvlNext = AlignChunk(uiLvlNext) + 8 + uiLvlSize;
+                }
+            }
+            uiNext = uiBody + uiSize;
+        }
+    }
+    CloseHandle(hFile);
+    return bFound;
+}
+
+bool LoadUtil::HasMission(char const* pcName)
+{
+    const unsigned int uiHash = PblHash(pcName);
+    char const* pcContent = 0;
+    if (DownloadableContent::IsMissionDownloaded(uiHash))
+    {
+        for (unsigned int i = 0; i < sizeof(DownloadableContent::mMissions) / sizeof(DownloadableContent::mMissions[0]);
+             ++i)
+        {
+            if (DownloadableContent::mMissions[i].mMissionName == uiHash)
+            {
+                pcContent = DownloadableContent::mMissions[i].mDir;
+                break;
+            }
+        }
+    }
+    char acPath[256];
+    MakeDataFilePath("MISSION.lvl", pcContent, acPath);
+    if (MissionLvlHolds(acPath, uiHash))
+    {
+        return true;
+    }
+    char acName[256] = { 0 };
+    _snprintf(acName, sizeof(acName) - 1, "MISSION\\%s.lvl", pcName);
+    char acFile[256];
+    char acLvl[256];
+    if (!SplitDataFileName(acName, acFile, acLvl, sizeof(acFile)))
+    {
+        return false;
+    }
+    MakeDataFilePath(acFile, pcContent, acPath);
+    HANDLE hFile = CreateFileA(acPath, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return false;
+    }
+    CloseHandle(hFile);
+    return true;
+}
+
 // FUNCTION: SWBF2 0x00579210
 bool LoadUtil::ReadDataFileChunk(char const* pName, PblFileChunk& chunk,
                                  unsigned int const* puiIds, unsigned int uiIdCount,
@@ -205,12 +354,6 @@ bool LoadUtil::ReadDataFileChunk(char const* pName, PblFileChunk& chunk,
 {
     unsigned int uiLvlsRead = 0;
     bool abFound[256];
-
-    bool bAllLvls = false;
-    if (uiCount == 1 && puiHashes[0] == 0x2F0C9F3D)
-    {
-        bAllLvls = true;
-    }
 
     while (!chunk.IsDone())
     {
@@ -343,24 +486,13 @@ bool LoadUtil::ReadDataFileChunk(char const* pName, PblFileChunk& chunk,
             while (!child.IsDone())
             {
                 PblFileChunk lvl = child.ReadNextChild();
-                bool bRead = bAllLvls;
-                if (uiCount && !bAllLvls)
+                unsigned int uiFound;
+                if (LvlWanted(lvl._iId, puiHashes, uiCount, uiFound))
                 {
-                    for (unsigned int i = 0; i < uiCount; ++i)
+                    if (uiFound < 256)
                     {
-                        bRead = puiHashes[i] == lvl._iId;
-                        if (bRead == true)
-                        {
-                            if (i < 256)
-                            {
-                                abFound[i] = true;
-                            }
-                            break;
-                        }
+                        abFound[uiFound] = true;
                     }
-                }
-                if (bRead)
-                {
                     ++uiLvlsRead;
                     sLoadNestedLevels = false;
                     const bool bOk = ReadDataFileChunk(pName, lvl, puiIds, uiIdCount, 0, 0, ppNames);
@@ -448,27 +580,7 @@ bool LoadUtil::ReadDataFileOnHeap(char const* pName, int iHeap,
         return false;
     }
 
-    if (!_stricmp(pcFileName, "mission.lvl") && DownloadableContent::IsDownloadableContent())
-    {
-        strlcpy(pcFullName, DownloadableContent::GetContentDirectory(), 0x100);
-        strlcat(pcFullName, "\\Data\\_lvl_pc\\", 0x100);
-        strlcat(pcFullName, pcFileName, 0x100);
-    }
-    else if (!_strnicmp(pcFileName, "dc:", 3))
-    {
-        strlcpy(pcFullName, DownloadableContent::GetContentDirectory(), 0x100);
-        strlcat(pcFullName, "\\Data\\_lvl_pc\\", 0x100);
-        strlcat(pcFullName, pcFileName + 3, 0x100);
-    }
-    else if (!_strnicmp(pcFileName, "raw:", 4))
-    {
-        strlcpy(pcFullName, pcFileName, 0x100);
-    }
-    else
-    {
-        strlcpy(pcFullName, "data\\_lvl_pc\\", 0x100);
-        strlcat(pcFullName, pcFileName, 0x100);
-    }
+    MakeDataFilePath(pcFileName, DownloadableContent::GetContentDirectory(), pcFullName);
 
     int iOldHeap = 0;
     if (iHeap != -1)

@@ -1,0 +1,42 @@
+OpenSWBF2 Link
+
+This plugin contains code and icons adapted from UnrealLink
+(https://github.com/JetBrains/UnrealLink), commit a4c20e00f70180e411294c489b91aff75d180a22,
+Copyright 2000-2024 JetBrains s.r.o., licensed under the Apache License, Version 2.0.
+The licence text is in LICENSE-UnrealLink.txt.
+
+All files listed below were modified from the UnrealLink originals: they were renamed, moved to the
+org.openswbf2.riderlink package, and changed to read the OpenSWBF2 game's line protocol instead of
+UnrealLink's rd model and to drop features that have no counterpart in OpenSWBF2.
+
+Our file (src/main/...)                                   UnrealLink file (src/rider/main/...)
+kotlin/.../OpenSWBF2ToolWindowFactory.kt                   kotlin/.../toolWindow/UnrealToolWindowFactory.kt
+kotlin/.../OpenSWBF2LogPanel.kt                            kotlin/.../toolWindow/log/UnrealLogPanel.kt
+kotlin/.../LogLineText.kt                                  kotlin/.../toolWindow/log/UnrealLogPanel.kt (printInfo)
+kotlin/.../OpenSWBF2LogFilter.kt                           kotlin/.../toolWindow/log/UnrealLogFilter.kt
+kotlin/.../OpenSWBF2LogCategoryFilterComboBox.kt           kotlin/.../toolWindow/log/UnrealLogCategoryFilterComboBox.kt
+kotlin/.../OpenSWBF2LogVerbosityFilterComboBox.kt          kotlin/.../toolWindow/log/UnrealLogVerbosityFilterComboBox.kt
+kotlin/.../OpenSWBF2LogConsoleActionsPostProcessor.kt      kotlin/.../toolWindow/log/UnrealLogConsoleActionsPostProcessor.kt
+kotlin/.../OpenSWBF2LogConsoleViewContentType.kt           kotlin/.../toolWindow/log/UnrealLogConsoleViewContentType.kt
+kotlin/.../OpenSWBF2LogPanelSettings.kt                    kotlin/.../toolWindow/log/UnrealLogPanelSettings.kt
+kotlin/.../OpenSWBF2LogSettings.kt                         kotlin/.../toolWindow/log/UnrealLogSettings.kt
+kotlin/.../PlayActions.kt                                  kotlin/.../actions/PlayActions.kt
+kotlin/.../PlayButtons.kt                                  kotlin/.../actions/PlayActions.kt (update rules)
+kotlin/.../PlaySettingsActions.kt                          kotlin/.../actions/PlaySettingsActions.kt, actions/UnrealHostOperations.kt
+kotlin/.../FilterCheckboxAction.kt                         kotlin/.../actions/FilterCheckboxAction.kt
+kotlin/.../ActionsUtils.kt                                 kotlin/.../actions/ActionsUtils.kt
+kotlin/.../OpenSWBF2LogColorSettingsPage.kt                kotlin/com/jetbrains/rider/settings/UnrealLogColorSettingsPage.kt
+kotlin/.../OpenSWBF2LogSettingsConfigurable.kt             kotlin/com/jetbrains/rider/settings/UnrealLogSettingsConfigurable.kt
+kotlin/.../OpenSWBF2LinkBundle.kt                          kotlin/com/jetbrains/rider/UnrealLinkBundle.kt
+kotlin/.../OpenSWBF2Icons.kt                               kotlin/icons/UnrealIcons.kt
+resources/META-INF/plugin.xml                              resources/META-INF/plugin.xml
+resources/messages/OpenSWBF2LinkBundle.properties          resources/messages/UnrealLinkBundle.properties
+resources/OpenSWBF2IconMappings.json                       resources/UnrealIconMappings.json
+resources/icons/run/unrealStatusPlay*.svg,
+  unrealStatusPause*.svg, unrealStatusStop*.svg,
+  unrealFrameSkip*.svg (classic and expui sets)            resources/icons/run/..., resources/icons/expui/run/... (copied unchanged)
+
+The icons resources/icons/toolWindows/toolWindowPandemicLog*.svg, resources/icons/expui/toolWindows/toolWindowPandemicLog*.svg,
+resources/icons/run/pandemic*.svg, resources/icons/expui/run/pandemic*.svg and resources/META-INF/pluginIcon*.svg take their
+canvas sizes, colours and state badges from UnrealLink's toolWindowUnrealLog*.svg, unrealEngineConnected*.svg,
+unrealEngineDisconnected*.svg and pluginIcon*.svg; the Unreal Engine logo in those files was replaced by the Pandemic logo.

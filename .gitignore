@@ -10,3 +10,7 @@ ipch/
 reports/
 BattlefrontII_Steam.exe
 tests/baseline/census/
+tools/rider-link/build/
+tools/rider-link/.gradle/
+tools/rider-link/.intellijPlatform/
+tools/rider-link/.kotlin/
