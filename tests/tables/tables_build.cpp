@@ -447,7 +447,7 @@ BuildResult BuildSmokeAllTables(const std::vector<CaseLog>& kCases, const std::s
         {
             sScore = "none";
         }
-        kRows.push_back(kSorted[i].sName + "\t" + sDigest + "\t" + sScore);
+        kRows.push_back(DigestRowName(kSorted[i].sName) + "\t" + sDigest + "\t" + sScore);
     }
     if (kRows.empty())
     {

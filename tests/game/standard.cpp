@@ -263,7 +263,8 @@ TEST_CASE_NAMED(FStandardTest19, "Game::Standard::shell-first", "[ProductFilter]
 TEST_CASE_NAMED(FStandardTest20, "Game::Standard::commit-flat", "[ProductFilter][Standard]")
 {
     GameRun kRun("commit-flat");
-    kRun.AddArg(StandardArgs("commit-flat", Mission(kStandard, "-repeatmission 16")));
+    const std::string sArgs = StandardArgs("commit-flat", Mission(kStandard, "-repeatmission 16"));
+    kRun.AddArg(sArgs);
     AddStandardTests(kRun);
     const bool bSteam = SteamRunning();
     kRun.Start();
@@ -276,8 +277,10 @@ TEST_CASE_NAMED(FStandardTest20, "Game::Standard::commit-flat", "[ProductFilter]
     std::string sTable;
     if (GameRun::Platform() == "x64")
     {
+        bool bHog = false;
+        REQUIRE_MESSAGE(CommitHogMode(GameRun::Platform(), sArgs, bHog, sWhy), "commit-flat: " << sWhy);
         REQUIRE(ReadRepoText("tests\\baseline\\v143-x64\\commit.txt", sTable));
-        CHECK_MESSAGE(CompareCommitRows(sLog, sTable, bSteam, true, 8, sWhy), "commit-flat against v143-x64\\commit.txt: " << sWhy);
+        CHECK_MESSAGE(CompareCommitRows(sLog, sTable, bSteam, bHog, 8, sWhy), "commit-flat against v143-x64\\commit.txt: " << sWhy);
     }
 }
 

@@ -532,6 +532,29 @@ static std::vector<std::string> Words(const std::string& sLine)
     return kWords;
 }
 
+bool HasArgWord(const std::string& sArgs, const std::string& sArg)
+{
+    const std::vector<std::string> kWords = Words(sArgs);
+    return std::find(kWords.begin(), kWords.end(), sArg) != kWords.end();
+}
+
+std::string DigestRowName(const std::string& sCase)
+{
+    return sCase == "crash-delayload-x64" ? std::string("crash-delayload") : sCase;
+}
+
+bool CommitHogMode(const std::string& sPlatform, const std::string& sArgs, bool& bHog, std::string& sWhy)
+{
+    bHog = HasArgWord(sArgs, "-hogaddrspace");
+    if (sPlatform == "x64" && !bHog)
+    {
+        sWhy = "an x64 commit-flat run needs -hogaddrspace: v143-x64\\commit.txt holds hog=1 rows only "
+               "(C-X64-COMMIT-TABLE)";
+        return false;
+    }
+    return true;
+}
+
 static bool IsMissionName(const std::string& sName)
 {
     if (sName.empty())

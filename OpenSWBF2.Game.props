@@ -64,6 +64,30 @@
       <PreprocessorDefinitions>OPENSWBF2_RIDERLINK=$(Configuration);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Platform)'=='x64' and '$(Configuration)'=='Release'">
+    <ClCompile>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+    </ClCompile>
+    <Link>
+      <CETCompat>true</CETCompat>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Platform)'=='x64' and '$(Configuration)'=='Test'">
+    <ClCompile>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+    </ClCompile>
+    <Link>
+      <CETCompat>true</CETCompat>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Platform)'=='x64' and '$(Configuration)'=='Asan'">
+    <ClCompile>
+      <ControlFlowGuard>Guard</ControlFlowGuard>
+    </ClCompile>
+    <Link>
+      <CETCompat>true</CETCompat>
+    </Link>
+  </ItemDefinitionGroup>
   <Target Name="MakeMasmObjectDirs" BeforeTargets="_MASM" Condition="'@(MASM)' != ''">
     <MakeDir Directories="@(MASM->Metadata('ObjectFileName')->DirectoryName()->Distinct()->ClearMetadata())" />
   </Target>

@@ -612,6 +612,22 @@ struct PrivateRegion
 
 const unsigned int kMaxPrivateRegions = 16384;
 PrivateRegion sPrivateRegions[kMaxPrivateRegions];
+unsigned int sPrivateRegionCount;
+CommitSet sCommitThreads;
+CommitSet sCommitHeaps;
+
+unsigned int CommitKind(const void* pBase)
+{
+    if (HasCommitBase(sCommitThreads, pBase))
+    {
+        return kRedCommitThread;
+    }
+    if (HasCommitBase(sCommitHeaps, pBase))
+    {
+        return kRedCommitHeap;
+    }
+    return kRedCommitRest;
+}
 }
 
 extern "C" bool RedCommitParts(unsigned int* puPrivate, unsigned int* puHeaps, unsigned int* puThreads,
@@ -622,13 +638,12 @@ extern "C" bool RedCommitParts(unsigned int* puPrivate, unsigned int* puHeaps, u
         return false;
     }
     memset(sPrivateRegions, 0, sizeof(sPrivateRegions));
-    CommitSet kThreads;
-    InitCommitSet(kThreads);
-    CommitSet kHeaps;
-    InitCommitSet(kHeaps);
+    sPrivateRegionCount = 0;
+    InitCommitSet(sCommitThreads);
+    InitCommitSet(sCommitHeaps);
     unsigned int uThreads = 0;
-    const bool bThreadsBefore = CollectThreadCommit(kThreads, &uThreads);
-    const bool bHeapsBefore = CollectHeapsCommit(kHeaps);
+    const bool bThreadsBefore = CollectThreadCommit(sCommitThreads, &uThreads);
+    const bool bHeapsBefore = CollectHeapsCommit(sCommitHeaps);
     if (!bThreadsBefore || !bHeapsBefore)
     {
         return false;
@@ -663,8 +678,8 @@ extern "C" bool RedCommitParts(unsigned int* puPrivate, unsigned int* puHeaps, u
     {
         return false;
     }
-    const bool bThreadsAfter = CollectThreadCommit(kThreads, &uThreads);
-    const bool bHeapsAfter = CollectHeapsCommit(kHeaps);
+    const bool bThreadsAfter = CollectThreadCommit(sCommitThreads, &uThreads);
+    const bool bHeapsAfter = CollectHeapsCommit(sCommitHeaps);
     if (!bThreadsAfter || !bHeapsAfter)
     {
         return false;
@@ -676,15 +691,17 @@ extern "C" bool RedCommitParts(unsigned int* puPrivate, unsigned int* puHeaps, u
     {
         const PrivateRegion& rRegion = sPrivateRegions[i];
         uPrivate += rRegion.uSize;
-        if (HasCommitBase(kThreads, rRegion.pBase))
+        const unsigned int uKind = CommitKind(rRegion.pBase);
+        if (uKind == kRedCommitThread)
         {
             uThreadBytes += rRegion.uSize;
         }
-        else if (HasCommitBase(kHeaps, rRegion.pBase))
+        else if (uKind == kRedCommitHeap)
         {
             uHeaps += rRegion.uSize;
         }
     }
+    sPrivateRegionCount = uRegions;
     *puPrivate = uPrivate;
     *puHeaps = uHeaps;
     *puThreads = uThreadBytes;
@@ -697,6 +714,20 @@ extern "C" const void* RedCommitPartsBuffer(unsigned int* puBytes)
 {
     *puBytes = (unsigned int)sizeof(sPrivateRegions);
     return sPrivateRegions;
+}
+
+extern "C" unsigned int RedCommitPartsKind(const void* pBase, unsigned int* puBytes)
+{
+    unsigned int uBytes = 0;
+    for (unsigned int i = 0; i < sPrivateRegionCount; ++i)
+    {
+        if (sPrivateRegions[i].pBase == pBase)
+        {
+            uBytes += sPrivateRegions[i].uSize;
+        }
+    }
+    *puBytes = uBytes;
+    return CommitKind(pBase);
 }
 #endif
 

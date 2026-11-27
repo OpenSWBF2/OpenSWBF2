@@ -94,8 +94,11 @@ std::string JoinedLines(const std::string& sText);
 std::string DelayHalf(const std::string& sImports, std::string& sStatic);
 bool WildcardNoCase(const std::string& sText, const std::string& sPattern);
 
-std::vector<BinaryRow> HardeningChecks(const std::string& sHeaders, const std::string& sLoadConfig, int iClTotal,
-                                       int iClGsMinus, int iClSdl, std::string& sError);
+std::vector<BinaryRow> HardeningChecks(const std::string& sHeaders, const std::string& sLoadConfig,
+                                       const std::string& sPlatform, int iClTotal, int iClGsMinus, int iClSdl,
+                                       std::string& sError);
+std::vector<BinaryRow> GuardChecks(const std::string& sHeaders, const std::string& sLoadConfig, bool bWantCfg,
+                                   bool bWantCet, std::string& sError);
 bool CountClText(const std::string& sText, ClCounts& kCounts, std::string& sError);
 bool CountClTlogs(const BuildFiles& kFiles, const std::vector<std::string>& kDirs, ClCounts& kCounts,
                   std::string& sError);
@@ -124,7 +127,7 @@ bool LinkedObjects(const std::string& sLinkTlog, std::vector<std::string>& kObje
 BinaryRow Fma3OffCheck(const std::string& sDisasm, std::string& sError);
 bool Fma3OffRanges(const std::string& sMap, std::vector<std::pair<unsigned long long, unsigned long long> >& kRanges,
                    std::string& sError);
-BinaryRow MiCrtHookCheck(const std::string& sMap, std::string& sError);
+BinaryRow MiCrtHookCheck(const std::string& sMap, const std::string& sPlatform, std::string& sError);
 BinaryRow RiderLinkMapCheck(const std::string& sMap, const std::string& sConfig, std::string& sError);
 std::string PeAslr(const std::string& sBytes);
 
@@ -134,7 +137,7 @@ BinaryRow FFmpegFlagCheck(const FlagMap& kFlags, const std::string& sConfig, con
                           std::string& sError);
 bool ReadClFlags(const std::string& sText, FlagMap& kFlags);
 BinaryRow FFmpegDllCheck(const std::string& sHeaders, const std::string& sLoadConfig, const std::string& sPlatform,
-                         std::string& sError);
+                         bool bWantCfg, bool bWantCet, std::string& sError);
 std::vector<BinaryRow> FFmpegImportChecks(const std::string& sImports, const std::string& sPlatform,
                                           const std::string& sConfig, const std::vector<std::string>& kAsanHeap,
                                           std::string& sError);

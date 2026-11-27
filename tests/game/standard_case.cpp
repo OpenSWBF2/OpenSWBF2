@@ -14,12 +14,6 @@ static bool IsX64()
     return GameRun::Platform() == "x64";
 }
 
-static bool HasArg(const std::string& sArgs, const char* pcArg)
-{
-    const std::string sWord = std::string(pcArg) + " ";
-    return sArgs.compare(0, sWord.size(), sWord) == 0 || sArgs.find(" " + sWord) != std::string::npos;
-}
-
 std::string StandardTail(bool bSound)
 {
     return GameRunTail(bSound) + (IsX64() ? " -hogaddrspace" : "");
@@ -55,11 +49,11 @@ std::string StandardArgs(const char* pcName, const std::string& sArgs)
 {
     std::string sOut = sArgs;
     std::string sRow;
-    if (DigestRow(pcName, sRow) && !HasArg(sOut, "-digesttrace"))
+    if (DigestRow(pcName, sRow) && !HasArgWord(sOut, "-digesttrace"))
     {
         sOut += " -digesttrace 1500";
     }
-    if (!HasArg(sOut, "-soakturns"))
+    if (!HasArgWord(sOut, "-soakturns"))
     {
         char acCap[32];
         _snprintf(acCap, sizeof(acCap) - 1, " -soakturns %u", kStandardTurnCap);
@@ -165,7 +159,8 @@ void CheckGroupRows(const GameRun& kRun, const char* pcRow)
     if (GameRun::Config() == "Release")
     {
         REQUIRE(ReadRepoText("tests\\baseline\\v143\\smoke-all-digests.txt", sTable));
-        REQUIRE_MESSAGE(FindTableRow(sTable, 0, pcRow, sRow), "no single smoke-all-digests row for " << pcRow);
+        const std::string sDigestRow = DigestRowName(pcRow);
+        REQUIRE_MESSAGE(FindTableRow(sTable, 0, sDigestRow, sRow), "no single smoke-all-digests row for " << sDigestRow);
         CHECK_MESSAGE(CompareSmokeAllRow(ReadRunLog(kRun), ReadRunFile(kRun, "finalscore.log"), sRow, sWhy),
                       pcRow << ": " << sWhy);
     }

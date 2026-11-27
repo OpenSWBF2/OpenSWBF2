@@ -140,6 +140,41 @@ TEST_CASE_NAMED(FHarnessCompareTest8, "Unit::HarnessCompare::commit rows after t
     CHECK(!CompareCommitRows(CommitLog(allFlat, 4), "steam\thog\tstate\tarena\trest\r\n", true, true, 2, sWhy));
 }
 
+TEST_CASE_NAMED(FHarnessCompareTest10, "Unit::HarnessCompare::an argument is a whole word anywhere in the string", "[SmokeFilter]")
+{
+    CHECK(HasArgWord("a -hogaddrspace b", "-hogaddrspace"));
+    CHECK(HasArgWord("-hogaddrspace b", "-hogaddrspace"));
+    CHECK(HasArgWord("a -hogaddrspace", "-hogaddrspace"));
+    CHECK(!HasArgWord("a -hogaddrspacex b", "-hogaddrspace"));
+    CHECK(!HasArgWord("a x-hogaddrspace", "-hogaddrspace"));
+    CHECK(!HasArgWord("", "-hogaddrspace"));
+}
+
+TEST_CASE_NAMED(FHarnessCompareTestDigestRow, "Unit::HarnessCompare::only crash-delayload-x64 names the crash-delayload digest row", "[SmokeFilter]")
+{
+    CHECK(DigestRowName("crash-delayload-x64") == "crash-delayload");
+    CHECK(DigestRowName("crash-delayload") == "crash-delayload");
+    CHECK(DigestRowName("geo1c_con") == "geo1c_con");
+    CHECK(DigestRowName("dedicated") == "dedicated");
+    CHECK(DigestRowName("") == "");
+}
+
+TEST_CASE_NAMED(FHarnessCompareTest11, "Unit::HarnessCompare::an x64 commit-flat run needs -hogaddrspace", "[SmokeFilter]")
+{
+    std::string sWhy;
+    bool bHog = false;
+    CHECK(CommitHogMode("x64", "geo1c_con -nosound -hogaddrspace -repeatmission 16", bHog, sWhy));
+    CHECK(bHog);
+    bHog = true;
+    CHECK(!CommitHogMode("x64", "geo1c_con -nosound -repeatmission 16", bHog, sWhy));
+    CHECK(!bHog);
+    CHECK(sWhy.find("-hogaddrspace") != std::string::npos);
+    CHECK(sWhy.find("C-X64-COMMIT-TABLE") != std::string::npos);
+    bHog = true;
+    CHECK(CommitHogMode("Win32", "geo1c_con -nosound -repeatmission 16", bHog, sWhy));
+    CHECK(!bHog);
+}
+
 TEST_CASE_NAMED(FHarnessCompareTest9, "Unit::HarnessCompare::save files must be byte identical", "[SmokeFilter]")
 {
     std::string sWhy;
