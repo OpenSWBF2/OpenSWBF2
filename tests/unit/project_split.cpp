@@ -66,32 +66,23 @@ bool StartsWith(const std::string& s, const std::string& sPrefix)
     return Lower(s).compare(0, sPrefix.size(), Lower(sPrefix)) == 0;
 }
 
-void FindProjects(const std::string& sRoot, const std::string& sRel, std::vector<std::string>& vOut)
+void FindProjects(const std::string& sRel, std::vector<std::string>& vOut)
 {
-    WIN32_FIND_DATAA kData;
-    HANDLE hFind = FindFirstFileA((sRoot + "\\" + sRel + "\\*").c_str(), &kData);
-    if (hFind == INVALID_HANDLE_VALUE)
+    std::vector<RepoEntry> vEntries;
+    ListRepoFolder(sRel, "*", vEntries);
+    for (size_t i = 0; i < vEntries.size(); ++i)
     {
-        return;
-    }
-    do
-    {
-        const std::string sName = kData.cFileName;
-        if (sName == "." || sName == "..")
-        {
-            continue;
-        }
+        const std::string& sName = vEntries[i].sName;
         const std::string sChild = sRel + "\\" + sName;
-        if (kData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        if (vEntries[i].bDir)
         {
-            FindProjects(sRoot, sChild, vOut);
+            FindProjects(sChild, vOut);
         }
         else if (sName.size() > 8 && Lower(sName.substr(sName.size() - 8)) == ".vcxproj")
         {
             vOut.push_back(Lower(sChild));
         }
-    } while (FindNextFileA(hFind, &kData));
-    FindClose(hFind);
+    }
 }
 
 }
@@ -153,7 +144,7 @@ TEST_CASE_NAMED(FProjectSplitTest3, "Unit::ProjectSplit::each library project co
 TEST_CASE_NAMED(FProjectSplitTest4, "Unit::ProjectSplit::every game project imports the shared props and the exe links library objects", "[EngineFilter]")
 {
     std::vector<std::string> vFound;
-    FindProjects(RepoRoot(), "src", vFound);
+    FindProjects("src", vFound);
     std::sort(vFound.begin(), vFound.end());
     std::vector<std::string> vExpected;
     for (const LibProject& kLib : kLibs)

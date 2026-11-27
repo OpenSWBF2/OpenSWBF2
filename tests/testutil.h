@@ -55,7 +55,18 @@ private:
 };
 
 std::string RepoRoot();
+std::string RepoPath(const std::string& sRelPath);
 bool ReadRepoText(const char* pcRelPath, std::string& sOut);
+bool ReadRepoBytes(const std::string& sRelPath, std::string& sOut);
+FILE* OpenRepoFile(const std::string& sRelPath);
+
+struct RepoEntry
+{
+    std::string sName;
+    bool bDir;
+};
+
+bool ListRepoFolder(const std::string& sRelDir, const char* pcPattern, std::vector<RepoEntry>& kOut);
 bool RunWin32Child(const char* pcMode, const char* pcPrefix, std::string& sExe, std::string& sOutPath,
                    std::string& sWhy);
 

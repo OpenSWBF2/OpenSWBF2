@@ -27,6 +27,9 @@ struct ComplexTestRegistrar
 const std::vector<ComplexTest>& ComplexTests();
 bool ExpandCases(const std::vector<RunnerCase>& kRegistered, const std::vector<ComplexTest>& kComplex,
                  std::vector<RunnerCase>& kOut, std::string& sError);
+bool RegisteredCases(std::vector<RunnerCase>& kAll, std::string& sError);
+bool ComplexNeeded(const RunnerCase& kParent, const std::string& sTagFilter, bool bGameDir, bool bData,
+                   const std::string& sExcludeText);
 
 struct ChildResult
 {
@@ -77,6 +80,17 @@ bool MatchesFilter(const std::string& sText, const std::string& sFilters);
 bool IsGameRunCase(const RunnerCase& kCase);
 bool IsSelected(const RunnerCase& kCase, const std::string& sTagFilter, const std::string& sNameFilter,
                 bool bGameDir = false);
+bool IsAfterAllCase(const RunnerCase& kCase);
+bool AfterAllSelected(const RunnerCase& kCase, const std::string& sTagFilter, const std::string& sNameFilter);
+void SelectRunCases(const std::vector<RunnerCase>& kAll, const std::string& sTagFilter, const std::string& sNameFilter,
+                    bool bGameDir, bool bData, std::vector<RunnerCase>& kOrdinary, std::vector<RunnerCase>& kAfterAll);
+
+bool RunnerArg(const char* pcArg);
+const std::string& RunnerPlatform();
+const std::string& RunnerConfig();
+const std::string& RunnerOut();
+const std::string& RunnerData();
+const std::string& RunnerParam();
 bool AsanReportMatchesCanary(const std::string& sReport, const CanaryExpect& kCanary, std::string& sWhy);
 Judgement JudgeCase(const ChildResult& kChild, bool bAsanRun, const CanaryExpect* pCanary);
 std::string QuoteArg(const std::string& sArg);

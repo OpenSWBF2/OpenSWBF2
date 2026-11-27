@@ -268,3 +268,124 @@ TEST_CASE_NAMED(FHarnessRunnerTest11, "Unit::HarnessRunner::a complex test expan
     kComplex[0].pfnGetTests = TwoMissions;
     CHECK(!ExpandCases(kNoCase, kComplex, kOut, sError));
 }
+
+namespace
+{
+
+std::vector<RunnerCase> GroupCases()
+{
+    std::vector<RunnerCase> k;
+    k.push_back(Case("Tables::All::cloth", "[EngineFilter][All][AfterAll]"));
+    k.push_back(Case("Game::All::geo1c_con", "[ProductFilter][All]"));
+    k.push_back(Case("Tables::DebugDigests", "[EngineFilter][Twice][AfterAll]"));
+    k.push_back(Case("Game::Twice::twice-digest", "[ProductFilter][Twice]"));
+    k.push_back(Case("Game::All::nab2g_c", "[ProductFilter][All]"));
+    k.push_back(Case("Tables::All::digests", "[EngineFilter][All][AfterAll]"));
+    k.push_back(Case("Unit::A::one", "[SmokeFilter]"));
+    k.push_back(Case("Tables::Capture::map", "[EngineFilter][Map][OnRequest]"));
+    k.push_back(Case("Tables::Map::initializers", "[EngineFilter][Map][AfterAll]"));
+    return k;
+}
+
+std::string Names(const std::vector<RunnerCase>& kCases)
+{
+    std::string s;
+    for (size_t i = 0; i < kCases.size(); ++i)
+    {
+        s += (s.empty() ? "" : "|") + kCases[i].sName;
+    }
+    return s;
+}
+
+}
+
+TEST_CASE_NAMED(FRunnerTest1, "Unit::Runner::after-all cases run last and only for the group the filter names", "[SmokeFilter]")
+{
+    const std::vector<RunnerCase> kAll = GroupCases();
+    std::vector<RunnerCase> kOrdinary;
+    std::vector<RunnerCase> kAfter;
+    SUBCASE("a tag filter for one group selects its ordinary cases and then its after-all cases")
+    {
+        SelectRunCases(kAll, "*[All]*", "", true, false, kOrdinary, kAfter);
+        CHECK(Names(kOrdinary) == "Game::All::geo1c_con|Game::All::nab2g_c");
+        CHECK(Names(kAfter) == "Tables::All::cloth|Tables::All::digests");
+        SelectRunCases(kAll, "*[twice]*", "", true, false, kOrdinary, kAfter);
+        CHECK(Names(kOrdinary) == "Game::Twice::twice-digest");
+        CHECK(Names(kAfter) == "Tables::DebugDigests");
+    }
+    SUBCASE("an on-request filter names the group of its after-all cases")
+    {
+        SelectRunCases(kAll, "*[Map]*[OnRequest]*", "", false, false, kOrdinary, kAfter);
+        CHECK(Names(kOrdinary) == "Tables::Capture::map");
+        CHECK(Names(kAfter) == "Tables::Map::initializers");
+    }
+    SUBCASE("no tag filter selects no after-all case")
+    {
+        SelectRunCases(kAll, "", "", false, false, kOrdinary, kAfter);
+        CHECK(Names(kOrdinary) == "Unit::A::one");
+        CHECK(kAfter.empty());
+        SelectRunCases(kAll, "", "Tables::*", false, false, kOrdinary, kAfter);
+        CHECK(kOrdinary.empty());
+        CHECK(kAfter.empty());
+    }
+    SUBCASE("an after-all case is never an ordinary case")
+    {
+        for (size_t i = 0; i < kAll.size(); ++i)
+        {
+            if (IsAfterAllCase(kAll[i]))
+            {
+                CHECK(!IsSelected(kAll[i], "*[AfterAll]*", "", false));
+                CHECK(!IsSelected(kAll[i], "*[AfterAll]*", "", true));
+                CHECK(!IsSelected(kAll[i], "", "", false));
+            }
+        }
+        CHECK(!AfterAllSelected(Case("Tables::All::cloth", "[EngineFilter][All][AfterAll]"), "*[EngineFilter]*", ""));
+        CHECK(!AfterAllSelected(Case("Tables::All::cloth", "[EngineFilter][All][AfterAll]"), "*[AfterAll]*", ""));
+        CHECK(!AfterAllSelected(Case("Game::All::x", "[ProductFilter][All]"), "*[All]*", ""));
+    }
+    SUBCASE("a name filter narrows the after-all cases too")
+    {
+        SelectRunCases(kAll, "*[All]*", "Game::All::*,Tables::All::digests", true, false, kOrdinary, kAfter);
+        CHECK(Names(kOrdinary) == "Game::All::geo1c_con|Game::All::nab2g_c");
+        CHECK(Names(kAfter) == "Tables::All::digests");
+    }
+    SUBCASE("a game folder does not exclude an after-all case")
+    {
+        SelectRunCases(kAll, "*[All]*", "", false, false, kOrdinary, kAfter);
+        CHECK(kOrdinary.empty());
+        CHECK(Names(kAfter) == "Tables::All::cloth|Tables::All::digests");
+    }
+}
+
+TEST_CASE_NAMED(FRunnerTest3, "Unit::Runner::a complex test is expanded only when the run can select its children",
+                "[SmokeFilter]")
+{
+    const RunnerCase kGame = Case("Game::All", "[ProductFilter][All]");
+    const RunnerCase kTables = Case("Tables::All", "[EngineFilter][All][AfterAll]");
+    CHECK(ComplexNeeded(kGame, "*[All]*", true, false, ""));
+    CHECK(!ComplexNeeded(kGame, "*[All]*", false, false, ""));
+    CHECK(!ComplexNeeded(kGame, "", false, false, ""));
+    CHECK(!ComplexNeeded(kGame, "*[Map]*[OnRequest]*", false, false, ""));
+    CHECK(!ComplexNeeded(kGame, "*[All]*", true, true, ""));
+    CHECK(ComplexNeeded(kGame, "", false, false, "Game::All::geo1c_con\tWin32\t*\twhy\n"));
+    CHECK(ComplexNeeded(kTables, "*[All]*", false, true, ""));
+    CHECK(ComplexNeeded(kTables, "*[All]*", true, false, ""));
+    CHECK(!ComplexNeeded(kTables, "", false, false, ""));
+    CHECK(!ComplexNeeded(kTables, "*[Twice]*", true, false, ""));
+}
+
+TEST_CASE_NAMED(FRunnerTest2, "Unit::Runner::a data folder runs after-all cases only", "[SmokeFilter]")
+{
+    const std::vector<RunnerCase> kAll = GroupCases();
+    std::vector<RunnerCase> kOrdinary;
+    std::vector<RunnerCase> kAfter;
+    SelectRunCases(kAll, "*[All]*", "", true, true, kOrdinary, kAfter);
+    CHECK(kOrdinary.empty());
+    CHECK(Names(kAfter) == "Tables::All::cloth|Tables::All::digests");
+    SelectRunCases(kAll, "*[Map]*", "", false, true, kOrdinary, kAfter);
+    CHECK(kOrdinary.empty());
+    CHECK(Names(kAfter) == "Tables::Map::initializers");
+    SelectRunCases(kAll, "", "", false, true, kOrdinary, kAfter);
+    CHECK(kOrdinary.empty());
+    CHECK(kAfter.empty());
+}

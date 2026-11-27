@@ -706,7 +706,7 @@ float SimEval(unsigned int uFn, float fX, float fY)
 bool ReadPinLines(const char* pcPath, std::vector<std::string>& vLines)
 {
     vLines.clear();
-    FILE* pFile = fopen(pcPath, "rb");
+    FILE* pFile = OpenRepoFile(pcPath);
     if (!pFile)
     {
         return false;
@@ -729,7 +729,7 @@ bool ReadPinLines(const char* pcPath, std::vector<std::string>& vLines)
 TEST_CASE_NAMED(FCrtTrigTest2, "Unit::CrtTrig::sim math corpus", "[ProductFilter]")
 {
     WatchdogArm("sim math corpus pins");
-    const char* const pcPins = "corpus\\simmath\\crt.txt";
+    const char* const pcPins = "tests\\corpus\\simmath\\crt.txt";
     std::vector<std::string> vLines;
     const bool bRead = ReadPinLines(pcPins, vLines);
     if (!bRead)

@@ -211,6 +211,13 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="testutil.cpp" />
     <ClCompile Include="harness\*.cpp" />
+    <ClCompile Include="gate\*.cpp" Exclude="gate\gate_main.cpp" />
+    <ClCompile Include="tables\*.cpp" />
+    <ClCompile Include="hardening\*.cpp" />
+    <ClCompile Include="x87\*.cpp" />
+    <ClCompile Include="third_party\pcre2\src\*.c">
+      <PreprocessorDefinitions>HAVE_CONFIG_H;PCRE2_CODE_UNIT_WIDTH=8;PCRE2_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="nettest.cpp" />
     <ClCompile Include="stubs\*.cpp" />
     <ClCompile Include="unit\*.cpp" Exclude="unit\movie_corpus.cpp;unit\fma3_x64.cpp;unit\d3dx_ref_win32.cpp;unit\d3dx_ref_x64.cpp;unit\d3dx_x87_win32.cpp;unit\d3dx_x87_x64.cpp;unit\crt_trig_ref_win32.cpp;unit\crt_trig_ref_strict_win32.cpp;unit\crt_trig_ref_x64.cpp" />
@@ -242,6 +249,10 @@
     <ClInclude Include="testutil.h" />
     <ClInclude Include="nettest.h" />
     <ClInclude Include="harness\*.h" />
+    <ClInclude Include="gate\*.h" />
+    <ClInclude Include="tables\*.h" />
+    <ClInclude Include="hardening\*.h" />
+    <ClInclude Include="x87\*.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\src\FFmpegFL\FFmpegFL.vcxproj">

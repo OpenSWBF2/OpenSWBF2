@@ -13,19 +13,7 @@ namespace
 
 bool ReadSource(const char* pcPath, std::string& sOut)
 {
-    FILE* pFile = fopen(pcPath, "rb");
-    if (!pFile)
-    {
-        return false;
-    }
-    char acBuf[4096];
-    size_t uiRead;
-    while ((uiRead = fread(acBuf, 1, sizeof(acBuf), pFile)) > 0)
-    {
-        sOut.append(acBuf, uiRead);
-    }
-    fclose(pFile);
-    return true;
+    return ReadRepoBytes(pcPath, sOut);
 }
 
 }
@@ -69,7 +57,7 @@ TEST_CASE_NAMED(FVoiceChatSlotsTest1, "Unit::VoiceChatSlots::voice chat mixer cl
 TEST_CASE_NAMED(FVoiceChatSlotsTest2, "Unit::VoiceChatSlots::voice chat decoder clears through the helper", "[EngineFilter]")
 {
     std::string sDecoder;
-    if (!ReadSource("../src/Battlefront2/Source/GameVoiceChatDecoder.cpp", sDecoder))
+    if (!ReadSource("src/Battlefront2/Source/GameVoiceChatDecoder.cpp", sDecoder))
     {
         SkipCase("source not found");
     }

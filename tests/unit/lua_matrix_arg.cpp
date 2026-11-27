@@ -126,22 +126,17 @@ int CountOf(const std::string& sText, const char* pcNeedle)
     return iCount;
 }
 
-void ListSources(const std::string& sDir, const char* pcPattern, std::vector<std::string>& vOut)
+void ListSources(const std::string& sRelDir, const char* pcPattern, std::vector<std::string>& vOut)
 {
-    WIN32_FIND_DATAA kFind;
-    HANDLE hFind = FindFirstFileA((sDir + pcPattern).c_str(), &kFind);
-    if (hFind == INVALID_HANDLE_VALUE)
+    std::vector<RepoEntry> vEntries;
+    ListRepoFolder(sRelDir, pcPattern, vEntries);
+    for (size_t i = 0; i < vEntries.size(); ++i)
     {
-        return;
-    }
-    do
-    {
-        if (!(kFind.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        if (!vEntries[i].bDir)
         {
-            vOut.push_back(kFind.cFileName);
+            vOut.push_back(vEntries[i].sName);
         }
-    } while (FindNextFileA(hFind, &kFind));
-    FindClose(hFind);
+    }
 }
 
 }
@@ -150,8 +145,8 @@ TEST_CASE_NAMED(FLuaMatrixArgTest2, "Unit::LuaMatrixArg::lua matrix sites route 
 {
     const std::string sRel = "src\\Battlefront2\\Source\\";
     std::vector<std::string> vFiles;
-    ListSources(RepoRoot() + "\\" + sRel, "*.cpp", vFiles);
-    ListSources(RepoRoot() + "\\" + sRel, "*.h", vFiles);
+    ListSources("src\\Battlefront2\\Source", "*.cpp", vFiles);
+    ListSources("src\\Battlefront2\\Source", "*.h", vFiles);
     REQUIRE(vFiles.size() > 100);
 
     bool bSawAccessor = false;

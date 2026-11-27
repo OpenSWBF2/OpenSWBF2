@@ -19,21 +19,16 @@ static const int MAX_RECORDS = 128;
 std::vector<std::string> ListCorpus(const char* pcReader, bool bKnownBug)
 {
     std::vector<std::string> names;
-    std::string sDir = std::string("corpus\\") + pcReader + (bKnownBug ? "\\known_bug\\" : "\\");
-    WIN32_FIND_DATAA find;
-    HANDLE hFind = FindFirstFileA((sDir + "*.bin").c_str(), &find);
-    if (hFind == INVALID_HANDLE_VALUE)
+    std::string sDir = std::string("tests\\corpus\\") + pcReader + (bKnownBug ? "\\known_bug" : "");
+    std::vector<RepoEntry> entries;
+    ListRepoFolder(sDir, "*.bin", entries);
+    for (size_t i = 0; i < entries.size(); ++i)
     {
-        return names;
-    }
-    do
-    {
-        if (!(find.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        if (!entries[i].bDir)
         {
-            names.push_back(sDir + find.cFileName);
+            names.push_back(sDir + "\\" + entries[i].sName);
         }
-    } while (FindNextFileA(hFind, &find));
-    FindClose(hFind);
+    }
     std::sort(names.begin(), names.end());
     return names;
 }
@@ -41,7 +36,7 @@ std::vector<std::string> ListCorpus(const char* pcReader, bool bKnownBug)
 bool LoadCorpusFile(const std::string& sPath, ByteVec& bytes)
 {
     bytes.clear();
-    FILE* pFile = fopen(sPath.c_str(), "rb");
+    FILE* pFile = OpenRepoFile(sPath);
     if (!pFile)
     {
         return false;
