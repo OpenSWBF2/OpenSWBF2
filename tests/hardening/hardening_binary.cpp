@@ -584,9 +584,34 @@ bool WildcardNoCase(const std::string& sText, const std::string& sPattern)
     return WildFrom(sText, 0, sPattern, 0);
 }
 
-std::vector<BinaryRow> HardeningChecks(const std::string& sHeaders, const std::string& sLoadConfig, int iClTotal,
-                                       int iClGsMinus, int iClSdl, std::string& sError)
+namespace
 {
+bool X64UnwindFacts(const std::string& sHeaders, std::string& sDetail, std::string& sError)
+{
+    static const RegexPattern kHeva("(?m)^\\s+High Entropy Virtual Addresses\\s*$", true);
+    static const RegexPattern kExceptionDir("(?m)^\\s+[0-9A-F]+ \\[\\s*([0-9A-F]+)\\] RVA \\[size\\] of Exception Directory",
+                                            true);
+    static const RegexPattern kPdata("(?m)^\\s+\\.pdata name\\s*$", true);
+    Scan k(sError);
+    std::vector<std::string> g;
+    long long iExceptionSize = 0;
+    if (k.First(kExceptionDir, sHeaders, g, 1))
+    {
+        iExceptionSize = HexValue(g[1]);
+    }
+    const bool bHeva = k.Has(kHeva, sHeaders);
+    const bool bPdata = k.Has(kPdata, sHeaders);
+    sDetail = "x64: high-entropy-va=" + BoolText(bHeva) + " exception-dir-size=" + std::to_string(iExceptionSize) +
+              " .pdata=" + BoolText(bPdata);
+    return bHeva && iExceptionSize > 0 && bPdata;
+}
+}
+
+std::vector<BinaryRow> HardeningChecks(const std::string& sHeaders, const std::string& sLoadConfig,
+                                       const std::string& sPlatform, int iClTotal, int iClGsMinus, int iClSdl,
+                                       std::string& sError)
+{
+    const bool bX64 = Gate::EqualNoCase(sPlatform, "x64");
     static const RegexPattern kRelocDir("(?m)^\\s+[0-9A-F]+ \\[\\s*([0-9A-F]+)\\] RVA \\[size\\] of Base Relocation Directory",
                                         true);
     static const RegexPattern kSeh("(?m)^\\s+([0-9A-F]+) Safe Exception Handler Count", true);
@@ -604,7 +629,7 @@ std::vector<BinaryRow> HardeningChecks(const std::string& sHeaders, const std::s
         iRelocSize = HexValue(g[1]);
     }
     long long iSeh = 0;
-    if (k.First(kSeh, sLoadConfig, g, 1))
+    if (!bX64 && k.First(kSeh, sLoadConfig, g, 1))
     {
         iSeh = HexValue(g[1]);
     }
@@ -613,6 +638,8 @@ std::vector<BinaryRow> HardeningChecks(const std::string& sHeaders, const std::s
     {
         iCookie = HexValue(g[1]);
     }
+    std::string sUnwind;
+    const bool bUnwind = bX64 && X64UnwindFacts(sHeaders, sUnwind, sError);
     const bool bHasReloc = k.Has(kRelocName, sHeaders);
     const bool bStripped = k.Has(kStripped, sHeaders);
     std::vector<BinaryRow> kRows;
@@ -623,12 +650,48 @@ std::vector<BinaryRow> HardeningChecks(const std::string& sHeaders, const std::s
     kRows.push_back(Row("reloc", bHasReloc && iRelocSize > 0 && !bStripped,
                         ".reloc=" + BoolText(bHasReloc) + " reloc-dir-size=" + std::to_string(iRelocSize) +
                             " stripped=" + BoolText(bStripped)));
-    kRows.push_back(Row("safeseh", iSeh > 0, "Safe Exception Handler Count=" + std::to_string(iSeh)));
+    if (bX64)
+    {
+        kRows.push_back(Row("safeseh", bUnwind, sUnwind));
+    }
+    else
+    {
+        kRows.push_back(Row("safeseh", iSeh > 0, "Safe Exception Handler Count=" + std::to_string(iSeh)));
+    }
     kRows.push_back(Row("gs", iClTotal > 0 && iClGsMinus == 0 && iCookie != 0,
                         "cl entries=" + std::to_string(iClTotal) + " /GS-=" + std::to_string(iClGsMinus) +
                             " security-cookie=0x" + Hex(static_cast<unsigned long long>(iCookie), 8)));
     kRows.push_back(Row("sdl", iClTotal > 0 && iClSdl == iClTotal,
                         "cl entries=" + std::to_string(iClTotal) + " /sdl=" + std::to_string(iClSdl)));
+    return kRows;
+}
+
+std::vector<BinaryRow> GuardChecks(const std::string& sHeaders, const std::string& sLoadConfig, bool bWantCfg,
+                                   bool bWantCet, std::string& sError)
+{
+    static const RegexPattern kCfg("(?m)^\\s+Control Flow Guard\\s*$", true);
+    static const RegexPattern kCet("(?m)^\\s+CET compatible\\s*$", true);
+    static const RegexPattern kFid("(?m)^\\s+FID table present\\s*$", true);
+    static const RegexPattern kCount("(?m)^\\s+([0-9A-F]+) Guard CF function count", true);
+    Scan k(sError);
+    std::vector<std::string> g;
+    long long iCount = 0;
+    if (k.First(kCount, sLoadConfig, g, 1))
+    {
+        iCount = HexValue(g[1]);
+    }
+    const bool bCfgLine = k.Has(kCfg, sHeaders);
+    const bool bFid = k.Has(kFid, sLoadConfig);
+    const bool bCet = k.Has(kCet, sHeaders);
+    const bool bCfgOn = bCfgLine && bFid && iCount > 0;
+    const bool bCfgOff = !bCfgLine && !bFid;
+    std::vector<BinaryRow> kRows;
+    kRows.push_back(Row("guard-cf", bWantCfg ? bCfgOn : bCfgOff,
+                        std::string("want=") + (bWantCfg ? "on" : "off") +
+                            " control-flow-guard=" + BoolText(bCfgLine) + " fid-table=" + BoolText(bFid) +
+                            " function-count=" + std::to_string(iCount)));
+    kRows.push_back(Row("cetcompat", bCet == bWantCet,
+                        std::string("want=") + (bWantCet ? "on" : "off") + " cet-compatible=" + BoolText(bCet)));
     return kRows;
 }
 
@@ -1603,8 +1666,9 @@ BinaryRow Fma3OffCheck(const std::string& sDisasm, std::string& sError)
     return Row("fma3-off", kBad.empty(), Join(kBad, "; "));
 }
 
-BinaryRow MiCrtHookCheck(const std::string& sMap, std::string& sError)
+BinaryRow MiCrtHookCheck(const std::string& sMap, const std::string& sPlatform, std::string& sError)
 {
+    const bool bX64 = Gate::EqualNoCase(sPlatform, "x64");
     static const RegexPattern kStatic("(^|:)static\\.obj$", true);
     std::vector<std::string> kBad;
     if (sMap.empty())
@@ -1614,16 +1678,21 @@ BinaryRow MiCrtHookCheck(const std::string& sMap, std::string& sError)
     else
     {
         Scan k(sError);
-        const char* const apcWant[][2] = {{".CRT$XIB", "__mi_crt_callback_init"},
-                                          {".CRT$XLB", "__mi_tls_callback_pre"},
-                                          {".CRT$XLY", "__mi_tls_callback_post"}};
+        const char* const apcWin32[][2] = {{".CRT$XIB", "__mi_crt_callback_init"},
+                                           {".CRT$XLB", "__mi_tls_callback_pre"},
+                                           {".CRT$XLY", "__mi_tls_callback_post"}};
+        const char* const apcX64[][2] = {{".CRT$XIB", "_mi_crt_callback_init"},
+                                         {".CRT$XLB", "_mi_tls_callback_pre"},
+                                         {".CRT$XLY", "_mi_tls_callback_post"}};
+        const char* const(*apcWant)[2] = bX64 ? apcX64 : apcWin32;
+        const std::string sRvaBase = bX64 ? "[0-9a-f]{16}" : "[0-9a-f]{8}";
         for (size_t w = 0; w < 3; ++w)
         {
             const RegexPattern kSec("(?m)^ ([0-9a-f]{4}):([0-9a-f]{8}) ([0-9a-f]{8})H " + RegexEscape(apcWant[w][0]) +
                                         "\\s",
                                     false);
-            const RegexPattern kSym("(?m)^ ([0-9a-f]{4}):([0-9a-f]{8})\\s+" + RegexEscape(apcWant[w][1]) +
-                                        "\\s+[0-9a-f]{8}\\s+(\\S+)\\s*$",
+            const RegexPattern kSym("(?m)^ ([0-9a-f]{4}):([0-9a-f]{8})\\s+" + RegexEscape(apcWant[w][1]) + "\\s+" +
+                                        sRvaBase + "\\s+(\\S+)\\s*$",
                                     false);
             std::vector<std::string> kS;
             std::vector<std::string> kY;
@@ -1993,7 +2062,7 @@ BinaryRow FFmpegFlagCheck(const FlagMap& kFlags, const std::string& sConfig, con
 }
 
 BinaryRow FFmpegDllCheck(const std::string& sHeaders, const std::string& sLoadConfig, const std::string& sPlatform,
-                         std::string& sError)
+                         bool bWantCfg, bool bWantCet, std::string& sError)
 {
     static const RegexPattern kDll("(?m)^\\s+DLL\\s*$", true);
     static const RegexPattern kDynamic("(?m)^\\s+Dynamic base\\s*$", true);
@@ -2047,6 +2116,22 @@ BinaryRow FFmpegDllCheck(const std::string& sHeaders, const std::string& sLoadCo
         if (iSeh <= 0)
         {
             kBad.push_back("Safe Exception Handler Count=" + std::to_string(iSeh));
+        }
+    }
+    else if (Gate::EqualNoCase(sPlatform, "x64"))
+    {
+        std::string sUnwind;
+        if (!X64UnwindFacts(sHeaders, sUnwind, sError))
+        {
+            kBad.push_back(sUnwind);
+        }
+    }
+    const std::vector<BinaryRow> kGuard = GuardChecks(sHeaders, sLoadConfig, bWantCfg, bWantCet, sError);
+    for (size_t i = 0; i < kGuard.size(); ++i)
+    {
+        if (kGuard[i].eStatus != kRowPass)
+        {
+            kBad.push_back(kGuard[i].sName + ": " + kGuard[i].sDetail);
         }
     }
     return Row("ffmpeg-dll", kBad.empty(), Join(kBad, "; "));
@@ -2226,6 +2311,8 @@ std::vector<std::string> BinaryRowNames(const std::string& sPlatform)
                                     "safeseh",
                                     "gs",
                                     "sdl",
+                                    "guard-cf",
+                                    "cetcompat",
                                     "flag-alignednew",
                                     "flag-inline",
                                     "flag-alignednew-tests",
@@ -2286,6 +2373,34 @@ bool IsOneOf(const std::string& sRow, const char* const* ppcNames, size_t uCount
         }
     }
     return false;
+}
+
+struct GuardWant
+{
+    const char* pcPlatform;
+    const char* pcConfig;
+    bool bCfg;
+    bool bCet;
+};
+
+const GuardWant kGuardWant[] = {
+    {"x64", "Release", true, true},
+    {"x64", "Test", true, true},
+    {"x64", "Asan", true, true},
+};
+
+void WantedGuard(const std::string& sPlatform, const std::string& sConfig, bool& bCfg, bool& bCet)
+{
+    bCfg = false;
+    bCet = false;
+    for (size_t i = 0; i < sizeof(kGuardWant) / sizeof(kGuardWant[0]); ++i)
+    {
+        if (sPlatform == kGuardWant[i].pcPlatform && sConfig == kGuardWant[i].pcConfig)
+        {
+            bCfg = kGuardWant[i].bCfg;
+            bCet = kGuardWant[i].bCet;
+        }
+    }
 }
 
 bool RequireExe(const RunContext& c, std::string& sError)
@@ -2593,8 +2708,6 @@ bool RunRow(const RunContext& c, const std::string& sRow, BinaryRow& kRow, std::
 {
     const bool bX64 = c.sPlatform == "x64";
     const char* const apcPe[] = {"dynamicbase", "nxcompat", "laa", "reloc", "safeseh", "gs", "sdl"};
-    const char* const apcPhase52[] = {"dynamicbase", "nxcompat",           "laa",     "reloc",        "safeseh",
-                                      "gs",          "mimalloc-crt-hooks", "aslr-pe", "aslr-pe-tests"};
     const char* const apcFlags[] = {"flag-alignednew", "flag-inline", "flag-alignednew-tests", "flag-banned",
                                     "mimalloc-defines", "x64-truncation"};
     const char* const apcImports[] = {"import-SetProcessDpiAwarenessContext",
@@ -2610,17 +2723,12 @@ bool RunRow(const RunContext& c, const std::string& sRow, BinaryRow& kRow, std::
                                       "unicows-staged",
                                       "bink-gone",
                                       "steam-api64-staged"};
-    if (bX64 && IsOneOf(sRow, apcPhase52, sizeof(apcPhase52) / sizeof(apcPhase52[0])))
-    {
-        kRow = SkipRow(sRow, "Phase 52");
-        return true;
-    }
     if (IsOneOf(sRow, apcPe, sizeof(apcPe) / sizeof(apcPe[0])))
     {
         std::string sHeaders;
         std::string sLoadConfig;
-        if (!bX64 && (!RequireExe(c, sError) || !GameDumpbin(c, "/headers", sHeaders, sError) ||
-                      !GameDumpbin(c, "/loadconfig", sLoadConfig, sError)))
+        if (!RequireExe(c, sError) || !GameDumpbin(c, "/headers", sHeaders, sError) ||
+            !GameDumpbin(c, "/loadconfig", sLoadConfig, sError))
         {
             return false;
         }
@@ -2630,7 +2738,22 @@ bool RunRow(const RunContext& c, const std::string& sRow, BinaryRow& kRow, std::
             return false;
         }
         const std::vector<BinaryRow> kRows =
-            HardeningChecks(sHeaders, sLoadConfig, kGame.iTotal, kGame.iGsMinus, kGame.iSdl, sError);
+            HardeningChecks(sHeaders, sLoadConfig, c.sPlatform, kGame.iTotal, kGame.iGsMinus, kGame.iSdl, sError);
+        return sError.empty() && PickRow(kRows, sRow, kRow, sError);
+    }
+    if (sRow == "guard-cf" || sRow == "cetcompat")
+    {
+        std::string sHeaders;
+        std::string sLoadConfig;
+        if (!RequireExe(c, sError) || !GameDumpbin(c, "/headers", sHeaders, sError) ||
+            !GameDumpbin(c, "/loadconfig", sLoadConfig, sError))
+        {
+            return false;
+        }
+        bool bCfg = false;
+        bool bCet = false;
+        WantedGuard(c.sPlatform, c.sConfig, bCfg, bCet);
+        const std::vector<BinaryRow> kRows = GuardChecks(sHeaders, sLoadConfig, bCfg, bCet, sError);
         return sError.empty() && PickRow(kRows, sRow, kRow, sError);
     }
     if (IsOneOf(sRow, apcFlags, sizeof(apcFlags) / sizeof(apcFlags[0])))
@@ -2653,7 +2776,8 @@ bool RunRow(const RunContext& c, const std::string& sRow, BinaryRow& kRow, std::
         }
         std::string sMap;
         ReadMap(c, sMap);
-        kRow = sRow == "riderlink-map" ? RiderLinkMapCheck(sMap, c.sConfig, sError) : MiCrtHookCheck(sMap, sError);
+        kRow = sRow == "riderlink-map" ? RiderLinkMapCheck(sMap, c.sConfig, sError)
+                                       : MiCrtHookCheck(sMap, c.sPlatform, sError);
         return sError.empty();
     }
     if (sRow == "aslr-pe" || sRow == "aslr-pe-tests")
@@ -2819,7 +2943,10 @@ bool RunFFmpegRow(const std::string& sRow, const std::string& sPlatform, const s
     }
     if (sRow == "ffmpeg-dll")
     {
-        kRow = FFmpegDllCheck(asText[0], asText[1], sPlatform, sError);
+        bool bCfg = false;
+        bool bCet = false;
+        WantedGuard(sPlatform, sConfig, bCfg, bCet);
+        kRow = FFmpegDllCheck(asText[0], asText[1], sPlatform, bCfg, bCet, sError);
         return FailLine(sRow, sError.empty(), sError);
     }
     std::vector<std::string> kAsanHeap;

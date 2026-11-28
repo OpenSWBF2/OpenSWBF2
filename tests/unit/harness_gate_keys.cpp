@@ -543,6 +543,17 @@ TEST_CASE_NAMED(FGateKeysTest7, "Unit::Gate::records the script wrote are read a
     CHECK_FALSE(RecordMatches(&kRow, kKey));
     CHECK_FALSE(RecordMatches(0, kKey));
 
+    const RecordRow& kRowX64 = kRecords.find("all-Release-short\tx64\tRelease")->second;
+    StepKey kX64RunKey;
+    kX64RunKey.bValid = true;
+    kX64RunKey.sPlatform = "Win32";
+    kX64RunKey.sRunKey = "14dd144c2034248a2cbace5dd729437f850540f86dbf6ca2ccbf51aa2b1e4c2a";
+    CHECK_FALSE(RecordMatches(&kRowX64, kX64RunKey));
+    kX64RunKey.sPlatform = "x64";
+    CHECK(RecordMatches(&kRowX64, kX64RunKey));
+    CHECK(kRecords.find("all-Release-short\tWin32\tRelease")->second.find("Platform")->second == "Win32");
+    CHECK(FormatRecord(kRecords.find("all-Release-short\tWin32\tRelease")->second, kColumns) == sRow1);
+
     const std::string sDir = TempDir("gaterecords");
     const std::string sLedger = JoinPath(sDir, "ledger.tsv");
     const std::string sLedgerOld = "Step\tPlatform\tConfig\tTier\tRunKey\tJudgeKey\tDecision\tResult\tEvidence\tWall_s\t"

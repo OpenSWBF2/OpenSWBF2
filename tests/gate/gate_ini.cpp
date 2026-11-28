@@ -404,6 +404,13 @@ void ValidateSteps(const StepTable& kTable, std::vector<std::string>& kProblems)
         {
             kProblems.push_back(n + ": Kind " + s.sKind + " needs Outputs");
         }
+        for (size_t o = 0; o < s.kOutputs.size(); ++o)
+        {
+            if (s.kPlatforms.size() != 1 && s.kOutputs[o].find("$Platform") == std::string::npos)
+            {
+                kProblems.push_back(n + ": Outputs '" + s.kOutputs[o] + "' needs $Platform on more than one platform");
+            }
+        }
         bool bRunArg = false;
         for (size_t a = 0; a < s.kArgs.size(); ++a)
         {

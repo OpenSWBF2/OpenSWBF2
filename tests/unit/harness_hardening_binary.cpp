@@ -146,6 +146,45 @@ const std::string kGoodCfg = kCookieCfg + "            008327F0 Safe Exception H
 const std::string kOldHdr = "    Characteristics\n         103 characteristics\n                   Relocations "
                             "stripped\n                   NX compatible\n         0 [       0] RVA [size] of Base "
                             "Relocation Directory\n";
+const std::string kX64Hdr = "              22 characteristics\n                   Executable\n                   Application "
+                            "can handle large (>2GB) addresses\n            8160 DLL characteristics\n                   "
+                            "High Entropy Virtual Addresses\n                   Dynamic base\n                   NX "
+                            "compatible\n         2418000 [   3F048] RVA [size] of Exception Directory\n         245A000 "
+                            "[    A340] RVA [size] of Base Relocation Directory\n  .pdata name\n  .reloc name\n";
+const std::string kX64Cfg = "    00000001405D8740 Security Cookie\n";
+const std::string kX64DllHdr = "                   DLL\n                   High Entropy Virtual Addresses\n                "
+                               "   Dynamic base\n                   NX compatible\n          1CD000 [    477C] RVA [size] "
+                               "of Exception Directory\n          1D2000 [    2894] RVA [size] of Base Relocation "
+                               "Directory\n  .pdata name\n  .reloc name\n";
+const std::string kX64DllCfg = "    00000001800BA0C0 Security Cookie\n";
+const std::string kX64DllCfgBase = kX64DllCfg + "                   0 Guard CF function count\n            00000100 Guard "
+                                                "Flags\n                       CF instrumented\n";
+const std::string kX64DllHdrOn = "                   DLL\n            4160 DLL characteristics\n                   High "
+                                 "Entropy Virtual Addresses\n                   Dynamic base\n                   NX "
+                                 "compatible\n                   Control Flow Guard\n          1CE000 [    474C] RVA "
+                                 "[size] of Exception Directory\n          1D3000 [    2874] RVA [size] of Base Relocation "
+                                 "Directory\n        00000001 extended DLL characteristics\n                   CET "
+                                 "compatible\n  .pdata name\n  .reloc name\n";
+const std::string kX64DllCfgOn = "    00000001800BB0C0 Security Cookie\n                 1E3 Guard CF function count\n  "
+                                 "          10017500 Guard Flags\n                       CF instrumented\n           "
+                                 "            FID table present\n";
+const std::string kGuardOnHdr = "            C160 DLL characteristics\n                   High Entropy Virtual Addresses\n  "
+                                "                 Dynamic base\n                   NX compatible\n                   "
+                                "Control Flow Guard\n        00000001 extended DLL characteristics\n                   "
+                                "CET compatible\n";
+const std::string kGuardOnCfg = "    00000001405F3740 Security Cookie\n                2104 Guard CF function count\n    "
+                                "        10017500 Guard Flags\n                       CF instrumented\n                 "
+                                "      FID table present\n";
+const std::string kGuardOffHdr = "            8160 DLL characteristics\n                   High Entropy Virtual "
+                                 "Addresses\n                   Dynamic base\n                   NX compatible\n";
+const std::string kGuardOffCfg = "    00000001405D8740 Security Cookie\n                   0 Guard CF function count\n   "
+                                 "         00000100 Guard Flags\n                       CF instrumented\n";
+const std::string kGuardWin32Hdr = "            8140 DLL characteristics\n                   Dynamic base\n                "
+                                   "   NX compatible\n                   Terminal Server Aware\n";
+const std::string kGuardWin32Cfg = "            0087A758 Guard CF address of check-function pointer\n            00000000 "
+                                   "Guard CF address of dispatch-function pointer\n            00000000 Guard CF function "
+                                   "table\n                   0 Guard CF function count\n            00000100 Guard "
+                                   "Flags\n                       CF instrumented\n";
 
 const std::string kImpGood = "Dump of file C:\\X\\BattlefrontII.exe\n\n  Section contains the following imports:\n\n    "
                              "KERNEL32.dll\n              1000 Import Address Table\n                 1A0 "
@@ -167,6 +206,7 @@ TEST_CASE_NAMED(FHardeningBinaryTest1, "Unit::Hardening::dynamicbase nxcompat la
     struct Scenario
     {
         const char* pcName;
+        const char* pcPlatform;
         std::string sHdr;
         std::string sCfg;
         int iTotal;
@@ -176,22 +216,37 @@ TEST_CASE_NAMED(FHardeningBinaryTest1, "Unit::Hardening::dynamicbase nxcompat la
         std::vector<std::string> kFail;
     };
     const Scenario akScenarios[] = {
-        {"hardening good text passes all", kGoodHdr, kGoodCfg, 736, 0, 736,
+        {"hardening good text passes all", "Win32", kGoodHdr, kGoodCfg, 736, 0, 736,
          {"laa", "dynamicbase", "nxcompat", "reloc", "safeseh", "gs", "sdl"}, {}},
-        {"hardening old exe fails dynamicbase and reloc", kOldHdr, kGoodCfg, 736, 0, 736,
+        {"hardening old exe fails dynamicbase and reloc", "Win32", kOldHdr, kGoodCfg, 736, 0, 736,
          {"nxcompat", "safeseh", "gs", "sdl"}, {"dynamicbase", "reloc", "laa"}},
-        {"hardening safeseh count 0 fails", kGoodHdr, kCookieCfg + "                 0 Safe Exception Handler Count\n", 736,
-         0, 736, {"laa", "dynamicbase", "nxcompat", "reloc", "gs", "sdl"}, {"safeseh"}},
-        {"hardening missing security cookie fails gs", kGoodHdr, "                 7CF Safe Exception Handler Count\n", 736,
-         0, 736, {"laa", "dynamicbase", "nxcompat", "reloc", "safeseh", "sdl"}, {"gs"}},
-        {"hardening /GS- entries fail gs", kGoodHdr, kGoodCfg, 736, 3, 736,
+        {"hardening safeseh count 0 fails", "Win32", kGoodHdr,
+         kCookieCfg + "                 0 Safe Exception Handler Count\n", 736, 0, 736,
+         {"laa", "dynamicbase", "nxcompat", "reloc", "gs", "sdl"}, {"safeseh"}},
+        {"hardening missing security cookie fails gs", "Win32", kGoodHdr,
+         "                 7CF Safe Exception Handler Count\n", 736, 0, 736,
          {"laa", "dynamicbase", "nxcompat", "reloc", "safeseh", "sdl"}, {"gs"}},
-        {"hardening empty tlog fails gs and sdl", kGoodHdr, kGoodCfg, 0, 0, 0, {"laa", "reloc", "safeseh"}, {"gs", "sdl"}},
-        {"hardening missing /sdl entry fails sdl", kGoodHdr, kGoodCfg, 736, 0, 735,
+        {"hardening /GS- entries fail gs", "Win32", kGoodHdr, kGoodCfg, 736, 3, 736,
+         {"laa", "dynamicbase", "nxcompat", "reloc", "safeseh", "sdl"}, {"gs"}},
+        {"hardening empty tlog fails gs and sdl", "Win32", kGoodHdr, kGoodCfg, 0, 0, 0, {"laa", "reloc", "safeseh"},
+         {"gs", "sdl"}},
+        {"hardening missing /sdl entry fails sdl", "Win32", kGoodHdr, kGoodCfg, 736, 0, 735,
          {"laa", "dynamicbase", "nxcompat", "reloc", "safeseh", "gs"}, {"sdl"}},
-        {"hardening non-LAA header fails laa",
+        {"hardening non-LAA header fails laa", "Win32",
          Replace(kGoodHdr, "Application can handle large (>2GB) addresses", "Something else"), kGoodCfg, 736, 0, 736,
          {"dynamicbase", "nxcompat", "reloc", "safeseh", "gs", "sdl"}, {"laa"}},
+        {"x64 good text passes all", "x64", kX64Hdr, kX64Cfg, 736, 0, 736,
+         {"laa", "dynamicbase", "nxcompat", "reloc", "safeseh", "gs", "sdl"}, {}},
+        {"x64 without high entropy va fails safeseh", "x64",
+         Replace(kX64Hdr, "                   High Entropy Virtual Addresses\n", ""), kX64Cfg, 736, 0, 736,
+         {"laa", "dynamicbase", "nxcompat", "reloc", "gs", "sdl"}, {"safeseh"}},
+        {"x64 empty exception directory fails safeseh", "x64",
+         Replace(kX64Hdr, "2418000 [   3F048] RVA [size] of Exception", "      0 [       0] RVA [size] of Exception"),
+         kX64Cfg, 736, 0, 736, {"laa", "dynamicbase", "nxcompat", "reloc", "gs", "sdl"}, {"safeseh"}},
+        {"x64 without .pdata fails safeseh", "x64", Replace(kX64Hdr, "  .pdata name\n", ""), kX64Cfg, 736, 0, 736,
+         {"laa", "dynamicbase", "nxcompat", "reloc", "gs", "sdl"}, {"safeseh"}},
+        {"x64 text judged as Win32 fails safeseh", "Win32", kX64Hdr, kX64Cfg, 736, 0, 736,
+         {"laa", "dynamicbase", "nxcompat", "reloc", "gs", "sdl"}, {"safeseh"}},
     };
     for (size_t s = 0; s < sizeof(akScenarios) / sizeof(akScenarios[0]); ++s)
     {
@@ -199,7 +254,7 @@ TEST_CASE_NAMED(FHardeningBinaryTest1, "Unit::Hardening::dynamicbase nxcompat la
         CAPTURE(k.pcName);
         std::string sError;
         const std::vector<BinaryRow> kRows =
-            Hardening::HardeningChecks(k.sHdr, k.sCfg, k.iTotal, k.iGsMinus, k.iSdl, sError);
+            Hardening::HardeningChecks(k.sHdr, k.sCfg, k.pcPlatform, k.iTotal, k.iGsMinus, k.iSdl, sError);
         REQUIRE_MESSAGE(sError.empty(), sError);
         for (size_t i = 0; i < k.kPass.size(); ++i)
         {
@@ -211,10 +266,69 @@ TEST_CASE_NAMED(FHardeningBinaryTest1, "Unit::Hardening::dynamicbase nxcompat la
         }
     }
     std::string sError;
-    const std::vector<BinaryRow> kGood = Hardening::HardeningChecks(kGoodHdr, kGoodCfg, 736, 0, 736, sError);
+    const std::vector<BinaryRow> kGood = Hardening::HardeningChecks(kGoodHdr, kGoodCfg, "Win32", 736, 0, 736, sError);
     CHECK(Find(kGood, "gs")->sDetail == "cl entries=736 /GS-=0 security-cookie=0x0085C930");
     CHECK(Find(kGood, "reloc")->sDetail == ".reloc=True reloc-dir-size=232760 stripped=False");
     CHECK(Find(kGood, "safeseh")->sDetail == "Safe Exception Handler Count=1999");
+    const std::vector<BinaryRow> kX64 = Hardening::HardeningChecks(kX64Hdr, kX64Cfg, "x64", 736, 0, 736, sError);
+    REQUIRE_MESSAGE(sError.empty(), sError);
+    CHECK(Find(kX64, "safeseh")->sDetail == "x64: high-entropy-va=True exception-dir-size=258120 .pdata=True");
+    CHECK(Find(kX64, "gs")->sDetail == "cl entries=736 /GS-=0 security-cookie=0x1405D8740");
+    CHECK(Find(kX64, "reloc")->sDetail == ".reloc=True reloc-dir-size=41792 stripped=False");
+    const std::vector<BinaryRow> kNoHeva = Hardening::HardeningChecks(
+        Replace(kX64Hdr, "                   High Entropy Virtual Addresses\n", ""), kX64Cfg, "x64", 736, 0, 736, sError);
+    CHECK(Find(kNoHeva, "safeseh")->sDetail == "x64: high-entropy-va=False exception-dir-size=258120 .pdata=True");
+}
+
+TEST_CASE_NAMED(FHardeningBinaryTest27, "Unit::Hardening::guard-cf cetcompat", "[EngineFilter]")
+{
+    struct Scenario
+    {
+        const char* pcName;
+        std::string sHdr;
+        std::string sCfg;
+        bool bWantCfg;
+        bool bWantCet;
+        bool bCfgPass;
+        bool bCetPass;
+    };
+    const Scenario akScenarios[] = {
+        {"wanted on: x64 on-text passes both", kGuardOnHdr, kGuardOnCfg, true, true, true, true},
+        {"wanted on: x64 off-text fails both", kGuardOffHdr, kGuardOffCfg, true, true, false, false},
+        {"wanted on: CF instrumented without Control Flow Guard, FID table or count fails guard-cf", kGuardWin32Hdr,
+         kGuardWin32Cfg, true, false, false, true},
+        {"wanted on: Control Flow Guard with function count 0 fails guard-cf", kGuardOnHdr,
+         Replace(kGuardOnCfg, "2104 Guard CF function count", "   0 Guard CF function count"), true, true, false, true},
+        {"wanted off: Win32 text passes both", kGuardWin32Hdr, kGuardWin32Cfg, false, false, true, true},
+        {"wanted off: x64 off-text passes both", kGuardOffHdr, kGuardOffCfg, false, false, true, true},
+        {"wanted off: on-text fails both", kGuardOnHdr, kGuardOnCfg, false, false, false, false},
+    };
+    for (size_t s = 0; s < sizeof(akScenarios) / sizeof(akScenarios[0]); ++s)
+    {
+        const Scenario& k = akScenarios[s];
+        CAPTURE(k.pcName);
+        std::string sError;
+        const std::vector<BinaryRow> kRows = Hardening::GuardChecks(k.sHdr, k.sCfg, k.bWantCfg, k.bWantCet, sError);
+        REQUIRE_MESSAGE(sError.empty(), sError);
+        REQUIRE(kRows.size() == 2);
+        CHECK(Passes(kRows, "guard-cf") == k.bCfgPass);
+        CHECK(Passes(kRows, "cetcompat") == k.bCetPass);
+    }
+    std::string sError;
+    const std::vector<BinaryRow> kOn = Hardening::GuardChecks(kGuardOnHdr, kGuardOnCfg, true, true, sError);
+    CHECK(Find(kOn, "guard-cf")->sDetail == "want=on control-flow-guard=True fid-table=True function-count=8452");
+    CHECK(Find(kOn, "cetcompat")->sDetail == "want=on cet-compatible=True");
+    const std::vector<BinaryRow> kWin32 = Hardening::GuardChecks(kGuardWin32Hdr, kGuardWin32Cfg, false, false, sError);
+    CHECK(Find(kWin32, "guard-cf")->sDetail == "want=off control-flow-guard=False fid-table=False function-count=0");
+    CHECK(Find(kWin32, "cetcompat")->sDetail == "want=off cet-compatible=False");
+    const std::vector<std::string> kWin32Names = Hardening::BinaryRowNames("Win32");
+    const std::vector<std::string> kX64Names = Hardening::BinaryRowNames("x64");
+    CHECK(kWin32Names.size() == 28);
+    CHECK(kX64Names.size() == 35);
+    CHECK(std::count(kWin32Names.begin(), kWin32Names.end(), "guard-cf") == 1);
+    CHECK(std::count(kWin32Names.begin(), kWin32Names.end(), "cetcompat") == 1);
+    CHECK(std::count(kX64Names.begin(), kX64Names.end(), "guard-cf") == 1);
+    CHECK(std::count(kX64Names.begin(), kX64Names.end(), "cetcompat") == 1);
 }
 
 TEST_CASE_NAMED(FHardeningBinaryTest2, "Unit::Hardening::flag-alignednew flag-inline flag-alignednew-tests flag-banned", "[EngineFilter]")
@@ -393,7 +507,7 @@ TEST_CASE_NAMED(FHardeningBinaryTest5, "Unit::Hardening::library tlogs", "[Engin
         std::string sError;
         std::vector<BinaryRow> kRows = Hardening::FlagChecks(kBag, 0, "Debug", "Debug", 0, "Win32", kAllow, sError);
         const std::vector<BinaryRow> kHard =
-            Hardening::HardeningChecks(kGoodHdr, kGoodCfg, kBag.iTotal, kBag.iGsMinus, kBag.iSdl, sError);
+            Hardening::HardeningChecks(kGoodHdr, kGoodCfg, "Win32", kBag.iTotal, kBag.iGsMinus, kBag.iSdl, sError);
         REQUIRE_MESSAGE(sError.empty(), sError);
         kRows.insert(kRows.end(), kHard.begin(), kHard.end());
         for (size_t j = 0; j < kJudged.size(); ++j)
@@ -685,29 +799,49 @@ TEST_CASE_NAMED(FHardeningBinaryTest10, "Unit::Hardening::mimalloc-crt-hooks", "
     const std::string sGood = JoinLines(kGood, "\r\n");
     std::vector<std::string> kNoInit = kGood;
     kNoInit.erase(kNoInit.begin() + 3);
+    const std::vector<std::string> kX64Good = {
+        " 0002:00002ac8 00000008H .CRT$XIB                DATA",
+        " 0002:00002ae0 00000008H .CRT$XLB                DATA",
+        " 0002:00002ae8 00000008H .CRT$XLY                DATA",
+        " 0002:00002ac8       _mi_crt_callback_init      00000001404ccac8     static.obj",
+        " 0002:00002ae0       _mi_tls_callback_pre       00000001404ccae0     static.obj",
+        " 0002:00002ae8       _mi_tls_callback_post      00000001404ccae8     static.obj"};
+    const std::string sX64Good = JoinLines(kX64Good, "\r\n");
     struct Scenario
     {
         const char* pcName;
+        const char* pcPlatform;
         std::string sMap;
         bool bOk;
     };
     const Scenario akScenarios[] = {
-        {"good map", sGood, true},
-        {"no __mi_crt_callback_init", JoinLines(kNoInit, "\r\n"), false},
-        {"XIB symbol outside .CRT$XIB",
+        {"good map", "Win32", sGood, true},
+        {"no __mi_crt_callback_init", "Win32", JoinLines(kNoInit, "\r\n"), false},
+        {"XIB symbol outside .CRT$XIB", "Win32",
          Replace(sGood, "0002:0000156c       __mi_crt_callback_init", "0002:00001570       __mi_crt_callback_init"), false},
-        {"XLY symbol from another object", Replace(sGood, "0085457c     static.obj", "0085457c     other.obj"), false},
-        {"no map", "", false},
+        {"XLY symbol from another object", "Win32", Replace(sGood, "0085457c     static.obj", "0085457c     other.obj"),
+         false},
+        {"no map", "Win32", "", false},
+        {"x64 good map", "x64", sX64Good, true},
+        {"x86 map judged as x64", "x64", sGood, false},
+        {"x64 map with x86 names", "x64", Replace(sX64Good, "_mi_", "__mi_"), false},
+        {"x64 map with 8-digit Rva+Base", "x64", Replace(sX64Good, "00000001404ccac8", "404ccac8"), false},
+        {"x64 map judged as Win32", "Win32", sX64Good, false},
     };
     for (size_t s = 0; s < sizeof(akScenarios) / sizeof(akScenarios[0]); ++s)
     {
         CAPTURE(akScenarios[s].pcName);
         std::string sError;
-        const BinaryRow kRow = Hardening::MiCrtHookCheck(akScenarios[s].sMap, sError);
+        const BinaryRow kRow = Hardening::MiCrtHookCheck(akScenarios[s].sMap, akScenarios[s].pcPlatform, sError);
         REQUIRE_MESSAGE(sError.empty(), sError);
         CHECK(kRow.sName == "mimalloc-crt-hooks");
         CHECK_MESSAGE((kRow.eStatus == Hardening::kRowPass) == akScenarios[s].bOk, kRow.sDetail);
     }
+    std::string sError;
+    CHECK(Hardening::MiCrtHookCheck(sGood, "x64", sError).sDetail ==
+          "_mi_crt_callback_init missing; _mi_tls_callback_pre missing; _mi_tls_callback_post missing");
+    CHECK(Hardening::MiCrtHookCheck(Replace(sX64Good, "00000001404ccac8", "404ccac8"), "x64", sError).sDetail ==
+          "_mi_crt_callback_init missing");
 }
 
 TEST_CASE_NAMED(FHardeningBinaryTest11, "Unit::Hardening::riderlink-map", "[EngineFilter]")
@@ -1258,11 +1392,33 @@ TEST_CASE_NAMED(FHardeningBinaryTest26, "Unit::Hardening::ffmpeg rows", "[Engine
     const std::string sDllHdr = "                   DLL\n                   Dynamic base\n                   NX "
                                 "compatible\n   1B1000 [    4AA8] RVA [size] of Base Relocation Directory\n  .reloc name\n";
     const std::string sDllCfg = "            1009E080 Security Cookie\n                   1 Safe Exception Handler Count\n";
-    CHECK(Hardening::FFmpegDllCheck(sDllHdr, sDllCfg, "Win32", sError).eStatus == Hardening::kRowPass);
-    CHECK(Hardening::FFmpegDllCheck(sDllHdr, "            1009E080 Security Cookie\n", "Win32", sError).sDetail ==
-          "Safe Exception Handler Count=0");
-    CHECK(Hardening::FFmpegDllCheck(sDllHdr, "            1009E080 Security Cookie\n", "x64", sError).eStatus ==
-          Hardening::kRowPass);
+    CHECK(Hardening::FFmpegDllCheck(sDllHdr, sDllCfg, "Win32", false, false, sError).eStatus == Hardening::kRowPass);
+    CHECK(Hardening::FFmpegDllCheck(sDllHdr, "            1009E080 Security Cookie\n", "Win32", false, false, sError)
+              .sDetail == "Safe Exception Handler Count=0");
+    const Hardening::BinaryRow kX64Dll = Hardening::FFmpegDllCheck(kX64DllHdr, kX64DllCfg, "x64", false, false, sError);
+    CHECK_MESSAGE(kX64Dll.eStatus == Hardening::kRowPass, kX64Dll.sDetail);
+    const Hardening::BinaryRow kX64NoHeva =
+        Hardening::FFmpegDllCheck(Replace(kX64DllHdr, "                   High Entropy Virtual Addresses\n", ""),
+                                  kX64DllCfg, "x64", false, false, sError);
+    CHECK(kX64NoHeva.eStatus == Hardening::kRowFail);
+    CHECK(kX64NoHeva.sDetail == "x64: high-entropy-va=False exception-dir-size=18300 .pdata=True");
+    CHECK(Hardening::FFmpegDllCheck(sDllHdr, "            1009E080 Security Cookie\n", "x64", false, false, sError)
+              .sDetail == "x64: high-entropy-va=False exception-dir-size=0 .pdata=False");
+    CHECK(Hardening::FFmpegDllCheck(Replace(kX64DllHdr, "  .pdata name\n", ""), kX64DllCfg, "x64", false, false, sError)
+              .eStatus == Hardening::kRowFail);
+    const Hardening::BinaryRow kX64DllOn =
+        Hardening::FFmpegDllCheck(kX64DllHdrOn, kX64DllCfgOn, "x64", true, true, sError);
+    CHECK_MESSAGE(kX64DllOn.eStatus == Hardening::kRowPass, kX64DllOn.sDetail);
+    const Hardening::BinaryRow kX64DllBaseWantOn =
+        Hardening::FFmpegDllCheck(kX64DllHdr, kX64DllCfgBase, "x64", true, true, sError);
+    CHECK(kX64DllBaseWantOn.eStatus == Hardening::kRowFail);
+    CHECK(kX64DllBaseWantOn.sDetail == "guard-cf: want=on control-flow-guard=False fid-table=False function-count=0; "
+                                       "cetcompat: want=on cet-compatible=False");
+    const Hardening::BinaryRow kX64DllOnWantOff =
+        Hardening::FFmpegDllCheck(kX64DllHdrOn, kX64DllCfgOn, "x64", false, false, sError);
+    CHECK(kX64DllOnWantOff.eStatus == Hardening::kRowFail);
+    CHECK(kX64DllOnWantOff.sDetail == "guard-cf: want=off control-flow-guard=True fid-table=True function-count=483; "
+                                      "cetcompat: want=off cet-compatible=True");
     const std::string sImp = "  Section contains the following imports:\n\n    KERNEL32.dll\n                   0 Sleep\n\n "
                              "   bcrypt.dll\n                   0 BCryptGenRandom\n\n    api-ms-win-crt-heap-l1-1-0.dll\n "
                              "                  0 malloc\n                   0 free\n\n  Summary\n";

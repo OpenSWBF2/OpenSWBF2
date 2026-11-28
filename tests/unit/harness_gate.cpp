@@ -896,7 +896,7 @@ TEST_CASE_NAMED(FGateRunTest16, "Unit::Gate::a direct step is started in its wor
 TEST_CASE_NAMED(FGateRunTest17, "Unit::Gate::the judge command runs after a run and on archived evidence", "[EngineFilter]")
 {
     Fixture f;
-    f.sTable = "[Step cap]\r\nTiers=plan\r\nKind=capture\r\nConfig=Debug\r\nJudgeKinds=compare\r\n"
+    f.sTable = "[Step cap]\r\nTiers=plan\r\nPlatforms=Win32\r\nKind=capture\r\nConfig=Debug\r\nJudgeKinds=compare\r\n"
                "Outputs=artifacts\\gate\\$Stamp\\cap\r\nExe=stub\r\nArg=cap\r\nArg=capture\r\n"
                "Arg=$Root\\artifacts\\gate\\$Stamp\\cap\r\nJudgeExe=judge\r\nJudgeArg=$Out\r\nReads=src\\a.cpp\r\n";
     SUBCASE("after a run and on a carry")

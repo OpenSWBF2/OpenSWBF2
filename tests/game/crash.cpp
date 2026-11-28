@@ -197,7 +197,7 @@ TEST_CASE_NAMED(FCrashTest9, "Game::Crash::crash-delayload-x64", "[ProductFilter
     ExpectFatalLine(kRun, "^FATAL: exception 0xC06D007E at 0x[0-9A-F]+ \\([^)]+\\) dll=steam_api64\\.dll build .*\\.dmp");
     kRun.AddExpectedMessage("^Vendor steam off: steam_api64\\.dll missing", RedLog::Warning,
                             EAutomationExpectedMessageFlags::Contains, 1);
-    Finish(kRun, "crash-delayload");
+    Finish(kRun, "crash-delayload-x64");
 }
 
 TEST_CASE_NAMED(FCrashTest10, "Game::Crash::crash-early", "[ProductFilter][Crash]")

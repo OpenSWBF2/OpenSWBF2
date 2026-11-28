@@ -19,6 +19,9 @@ bool CompareSmokeAllRow(const std::string& sLog, const std::string& sFinalScore,
 bool CompareOffThreadRow(const std::string& sLog, const std::string& sRow, std::string& sWhy);
 bool IniHasLine(const std::string& sIni, const char* pcLine);
 bool IniHasKey(const std::string& sIni, const char* pcKey);
+bool HasArgWord(const std::string& sArgs, const std::string& sArg);
+std::string DigestRowName(const std::string& sCase);
+bool CommitHogMode(const std::string& sPlatform, const std::string& sArgs, bool& bHog, std::string& sWhy);
 
 struct MissionLine
 {

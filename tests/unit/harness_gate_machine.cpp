@@ -283,9 +283,18 @@ TEST_CASE_NAMED(FGateMachineTest1, "Unit::Gate::a step with no Reads is a defini
     }
     SUBCASE("a compare judge kind with no judge command")
     {
-        const std::string sText = Replace(kGoodTable, "MustRun=", "JudgeKinds=compare\r\nOutputs=artifacts\\x\r\nMustRun=");
+        const std::string sText = Replace(kGoodTable, "MustRun=", "JudgeKinds=compare\r\nOutputs=artifacts\\$Platform\\x\r\nMustRun=");
         CHECK(Has(Problems(sText), "standard-Release: JudgeKinds compare needs JudgeExe"));
         CHECK(Problems(Replace(sText, "MustRun=", "JudgeExe=judge\r\nJudgeArg=--data\r\nMustRun=")).empty());
+    }
+    SUBCASE("an output folder shared by two platforms")
+    {
+        const std::string sText =
+            Replace(kGoodTable, "MustRun=", "JudgeKinds=compare\r\nOutputs=artifacts\\x\r\nJudgeExe=judge\r\nMustRun=");
+        CHECK(Has(Problems(sText), "standard-Release: Outputs 'artifacts\\x' needs $Platform on more than one platform"));
+        CHECK(Has(Problems(Replace(sText, "Platforms=Win32 x64\r\nKind=run", "Kind=run")),
+                  "standard-Release: Outputs 'artifacts\\x' needs $Platform on more than one platform"));
+        CHECK(Problems(Replace(sText, "Platforms=Win32 x64\r\nKind=run", "Platforms=Win32\r\nKind=run")).empty());
     }
 }
 

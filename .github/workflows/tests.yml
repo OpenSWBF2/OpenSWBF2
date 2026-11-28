@@ -31,10 +31,14 @@ jobs:
       - name: ASan T1, corpus, Standard and Dedicated smoke
         shell: cmd
         run: call tests\gate.cmd -Tier phase -Platform Win32 -Step t1-Asan,standard-Asan,dedicated-Asan,corpus-Asan
+      - name: ASan T1, corpus, Standard, Dedicated and Boot smoke on x64
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: call tests\gate.cmd -Tier phase -Platform x64 -Step t1-Asan,standard-Asan,dedicated-Asan,corpus-Asan,boot-Asan
       - name: Clean staged output
         if: always()
         shell: cmd
-        run: call tests\gate.cmd clean -Config Asan
+        run: call tests\gate.cmd clean -Platform Win32,x64 -Config Asan
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: failure() || cancelled()
         with:
@@ -99,18 +103,58 @@ jobs:
         if: ${{ !cancelled() }}
         shell: cmd
         run: call tests\gate.cmd -Tier milestone -Platform Win32 -Step hardening-binary-Asan
+      - name: All smoke on x64
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: call tests\gate.cmd -Tier milestone -Platform x64 -Step all-Release
+      - name: Perturb smoke on x64
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: call tests\gate.cmd -Tier milestone -Platform x64 -Step perturb-Test
+      - name: Test All smoke on x64
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: call tests\gate.cmd -Tier milestone -Platform x64 -Step all-Test-short
+      - name: ASan T1 on x64
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: call tests\gate.cmd -Tier milestone -Platform x64 -Step t1-Asan
+      - name: ASan Standard smoke on x64
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: call tests\gate.cmd -Tier milestone -Platform x64 -Step standard-Asan
+      - name: ASan soak on x64
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: call tests\gate.cmd -Tier milestone -Platform x64 -Step soak-Asan
+      - name: ASan Dedicated smoke on x64
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: call tests\gate.cmd -Tier milestone -Platform x64 -Step dedicated-Asan
+      - name: Hardening Release on x64
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: call tests\gate.cmd -Tier milestone -Platform x64 -Step hardening-binary-Release
+      - name: Hardening Test on x64
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: call tests\gate.cmd -Tier milestone -Platform x64 -Step hardening-binary-Test
+      - name: Hardening ASan on x64
+        if: ${{ !cancelled() }}
+        shell: cmd
+        run: call tests\gate.cmd -Tier milestone -Platform x64 -Step hardening-binary-Asan
       - name: Clean staged output
         if: always()
         shell: cmd
-        run: call tests\gate.cmd clean
+        run: call tests\gate.cmd clean -Platform Win32,x64
       - name: Clean staged ASan output
         if: always()
         shell: cmd
-        run: call tests\gate.cmd clean -Config Asan
+        run: call tests\gate.cmd clean -Platform Win32,x64 -Config Asan
       - name: Clean staged Test output
         if: always()
         shell: cmd
-        run: call tests\gate.cmd clean -Config Test
+        run: call tests\gate.cmd clean -Platform Win32,x64 -Config Test
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: failure() || cancelled()
         with:

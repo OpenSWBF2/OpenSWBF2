@@ -2,6 +2,7 @@
 #include "harness/tags.h"
 
 #include <windows.h>
+#include <intrin.h>
 #include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,9 +25,31 @@ struct CapThreadArgs
     HANDLE hRelease;
 };
 
-DWORD WINAPI WaitThreadProc(void* pArg)
+const void* AllocBase(const void* p)
 {
-    WaitForSingleObject((HANDLE)pArg, INFINITE);
+    MEMORY_BASIC_INFORMATION kInfo;
+    if (VirtualQuery(p, &kInfo, sizeof(kInfo)) != sizeof(kInfo))
+    {
+        return 0;
+    }
+    return kInfo.AllocationBase;
+}
+
+struct OwnThread
+{
+    HANDLE hStarted;
+    HANDLE hRelease;
+    const void* pStack;
+    const void* pTeb;
+};
+
+DWORD WINAPI OwnThreadProc(void* pArg)
+{
+    OwnThread& rOwn = *(OwnThread*)pArg;
+    rOwn.pStack = AllocBase(_AddressOfReturnAddress());
+    rOwn.pTeb = AllocBase(NtCurrentTeb());
+    SetEvent(rOwn.hStarted);
+    WaitForSingleObject(rOwn.hRelease, INFINITE);
     return 0;
 }
 
@@ -35,7 +58,7 @@ const unsigned int kWalkHeapCommit = 1024 * 1024;
 
 struct WalkHook
 {
-    HANDLE hRelease;
+    OwnThread* pOwn;
     HANDLE hThread;
     HANDLE hHeap;
 };
@@ -43,7 +66,7 @@ struct WalkHook
 void CreateDuringWalk(void* pArg)
 {
     WalkHook& rHook = *(WalkHook*)pArg;
-    rHook.hThread = CreateThread(0, kWalkStackCommit, WaitThreadProc, rHook.hRelease, 0, 0);
+    rHook.hThread = CreateThread(0, kWalkStackCommit, OwnThreadProc, rHook.pOwn, 0, 0);
     rHook.hHeap = HeapCreate(0, kWalkHeapCommit, 0);
 }
 
@@ -412,6 +435,7 @@ bool ReadCommitParts(CommitParts& rParts)
 struct MovedStackBaseArgs
 {
     void* pStackBase;
+    const void* pStack;
     HANDLE hMoved;
     HANDLE hRelease;
 };
@@ -419,6 +443,7 @@ struct MovedStackBaseArgs
 DWORD WINAPI MovedStackBaseProc(void* pArg)
 {
     MovedStackBaseArgs* pArgs = (MovedStackBaseArgs*)pArg;
+    pArgs->pStack = AllocBase(_AddressOfReturnAddress());
     NT_TIB* pTib = (NT_TIB*)NtCurrentTeb();
     void* pOwnBase = pTib->StackBase;
     pTib->StackBase = pArgs->pStackBase;
@@ -432,35 +457,43 @@ DWORD WINAPI MovedStackBaseProc(void* pArg)
 TEST_CASE_NAMED(FOffthreadTest8, "Unit::Offthread::thread commit counts the stack and teb pages of a live thread", "[EngineFilter]")
 {
     const unsigned int kStackCommit = 512 * 1024;
-    CommitParts k0;
-    REQUIRE(ReadCommitParts(k0));
-    CHECK(k0.uCount >= 1);
-    HANDLE hRelease = CreateEventA(0, TRUE, FALSE, 0);
-    REQUIRE(hRelease);
-    HANDLE hThread = CreateThread(0, kStackCommit, WaitThreadProc, hRelease, 0, 0);
+    OwnThread kOwn = { CreateEventA(0, TRUE, FALSE, 0), CreateEventA(0, TRUE, FALSE, 0), 0, 0 };
+    REQUIRE(kOwn.hStarted);
+    REQUIRE(kOwn.hRelease);
+    HANDLE hThread = CreateThread(0, kStackCommit, OwnThreadProc, &kOwn, 0, 0);
     REQUIRE(hThread);
+    REQUIRE(WaitForSingleObject(kOwn.hStarted, INFINITE) == WAIT_OBJECT_0);
+    REQUIRE(kOwn.pStack);
+    REQUIRE(kOwn.pTeb);
+    CHECK(kOwn.pStack != kOwn.pTeb);
     CommitParts k;
     REQUIRE(ReadCommitParts(k));
-    CHECK(k.uCount >= k0.uCount + 1);
-    CHECK(k.uThreads >= k0.uThreads + kStackCommit);
-    SetEvent(hRelease);
+    CHECK(k.uCount >= 2);
+    unsigned int uStack = 0;
+    CHECK(RedCommitPartsKind(kOwn.pStack, &uStack) == kRedCommitThread);
+    CHECK(uStack >= kStackCommit);
+    unsigned int uTeb = 0;
+    CHECK(RedCommitPartsKind(kOwn.pTeb, &uTeb) == kRedCommitThread);
+    CHECK(uTeb > 0);
+    SetEvent(kOwn.hRelease);
     WaitForSingleObject(hThread, INFINITE);
     CloseHandle(hThread);
-    CloseHandle(hRelease);
+    CloseHandle(kOwn.hRelease);
+    CloseHandle(kOwn.hStarted);
     REQUIRE(ReadCommitParts(k));
-    CHECK(k.uThreads < k0.uThreads + kStackCommit);
+    const bool bCounted = RedCommitPartsKind(kOwn.pStack, &uStack) == kRedCommitThread && uStack >= kStackCommit;
+    CHECK(!bCounted);
 }
 
 TEST_CASE_NAMED(FOffthreadTest9, "Unit::Offthread::thread commit counts the thread's own stack and not the block at its stack base", "[EngineFilter]")
 {
     const unsigned int kStackCommit = 512 * 1024;
     const unsigned int kDecoy = 8 * 1024 * 1024;
-    CommitParts k0;
-    REQUIRE(ReadCommitParts(k0));
     char* pDecoy = (char*)VirtualAlloc(0, kDecoy, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     REQUIRE(pDecoy != (char*)0);
     MovedStackBaseArgs kArgs;
     kArgs.pStackBase = pDecoy;
+    kArgs.pStack = 0;
     kArgs.hMoved = CreateEventA(0, TRUE, FALSE, 0);
     kArgs.hRelease = CreateEventA(0, TRUE, FALSE, 0);
     REQUIRE(kArgs.hMoved);
@@ -468,10 +501,15 @@ TEST_CASE_NAMED(FOffthreadTest9, "Unit::Offthread::thread commit counts the thre
     HANDLE hThread = CreateThread(0, kStackCommit, MovedStackBaseProc, &kArgs, 0, 0);
     REQUIRE(hThread);
     REQUIRE(WaitForSingleObject(kArgs.hMoved, INFINITE) == WAIT_OBJECT_0);
+    REQUIRE(kArgs.pStack);
     CommitParts k;
     REQUIRE(ReadCommitParts(k));
-    CHECK(k.uThreads >= k0.uThreads + kStackCommit);
-    CHECK(k.uThreads < k0.uThreads + kDecoy);
+    unsigned int uStack = 0;
+    CHECK(RedCommitPartsKind(kArgs.pStack, &uStack) == kRedCommitThread);
+    CHECK(uStack >= kStackCommit);
+    unsigned int uDecoy = 0;
+    CHECK(RedCommitPartsKind(pDecoy, &uDecoy) == kRedCommitRest);
+    CHECK(uDecoy == kDecoy);
     SetEvent(kArgs.hRelease);
     WaitForSingleObject(hThread, INFINITE);
     CloseHandle(hThread);
@@ -483,25 +521,32 @@ TEST_CASE_NAMED(FOffthreadTest9, "Unit::Offthread::thread commit counts the thre
 TEST_CASE_NAMED(FOffthreadTest10, "Unit::Offthread::heaps committed counts the segments and large blocks of every process heap", "[EngineFilter]")
 {
     const unsigned int kInitial = 1024 * 1024;
-    CommitParts k0;
-    REQUIRE(ReadCommitParts(k0));
     HANDLE hHeap = HeapCreate(0, kInitial, 0);
     REQUIRE(hHeap);
+    const void* pHeap = AllocBase(hHeap);
+    REQUIRE(pHeap);
     CommitParts k;
     REQUIRE(ReadCommitParts(k));
-    CHECK(k.uHeaps >= k0.uHeaps + kInitial);
+    unsigned int uHeap = 0;
+    CHECK(RedCommitPartsKind(pHeap, &uHeap) == kRedCommitHeap);
+    CHECK(uHeap >= kInitial);
 #if !defined(__SANITIZE_ADDRESS__)
     const unsigned int kLarge = 2 * 1024 * 1024;
     void* pLarge = HeapAlloc(hHeap, 0, kLarge);
     REQUIRE(pLarge != (void*)0);
-    CommitParts kLargeParts;
-    REQUIRE(ReadCommitParts(kLargeParts));
-    CHECK(kLargeParts.uHeaps >= k.uHeaps + kLarge);
+    const void* pLargeBase = AllocBase(pLarge);
+    REQUIRE(pLargeBase);
+    CHECK(pLargeBase != pHeap);
+    REQUIRE(ReadCommitParts(k));
+    unsigned int uLarge = 0;
+    CHECK(RedCommitPartsKind(pLargeBase, &uLarge) == kRedCommitHeap);
+    CHECK(uLarge >= kLarge);
     HeapFree(hHeap, 0, pLarge);
 #endif
     HeapDestroy(hHeap);
     REQUIRE(ReadCommitParts(k));
-    CHECK(k.uHeaps < k0.uHeaps + kInitial);
+    const bool bCounted = RedCommitPartsKind(pHeap, &uHeap) == kRedCommitHeap && uHeap >= kInitial;
+    CHECK(!bCounted);
 }
 
 TEST_CASE_NAMED(FOffthreadTest11, "Unit::Offthread::private committed counts committed private pages", "[EngineFilter]")
@@ -509,16 +554,22 @@ TEST_CASE_NAMED(FOffthreadTest11, "Unit::Offthread::private committed counts com
     const unsigned int kPage = 4096;
     char* pBase = (char*)VirtualAlloc(0, 64 * kPage, MEM_RESERVE, PAGE_NOACCESS);
     REQUIRE(pBase != (char*)0);
-    CommitParts k0;
-    REQUIRE(ReadCommitParts(k0));
-    REQUIRE(VirtualAlloc(pBase + 4 * kPage, 5 * kPage, MEM_COMMIT, PAGE_READWRITE) != (void*)0);
     CommitParts k;
     REQUIRE(ReadCommitParts(k));
-    CHECK(k.uPrivate >= k0.uPrivate + 5 * kPage);
+    unsigned int uBytes = 1;
+    CHECK(RedCommitPartsKind(pBase, &uBytes) == kRedCommitRest);
+    CHECK(uBytes == 0);
+    REQUIRE(VirtualAlloc(pBase + 4 * kPage, 5 * kPage, MEM_COMMIT, PAGE_READWRITE) != (void*)0);
+    REQUIRE(ReadCommitParts(k));
+    CHECK(RedCommitPartsKind(pBase, &uBytes) == kRedCommitRest);
+    CHECK(uBytes == 5 * kPage);
+    CHECK(k.uPrivate >= uBytes);
+    REQUIRE(VirtualFree(pBase + 4 * kPage, 5 * kPage, MEM_DECOMMIT));
+    REQUIRE(ReadCommitParts(k));
+    uBytes = 1;
+    CHECK(RedCommitPartsKind(pBase, &uBytes) == kRedCommitRest);
+    CHECK(uBytes == 0);
     VirtualFree(pBase, 0, MEM_RELEASE);
-    CommitParts kReleased;
-    REQUIRE(ReadCommitParts(kReleased));
-    CHECK(kReleased.uPrivate + 5 * kPage <= k.uPrivate);
 }
 
 TEST_CASE_NAMED(FOffthreadTest12, "Unit::Offthread::commit parts count a thread and a heap made during the walk as thread and heap memory", "[EngineFilter]")
@@ -535,16 +586,24 @@ TEST_CASE_NAMED(FOffthreadTest12, "Unit::Offthread::commit parts count a thread 
     REQUIRE(RedCommitParts(&uPrivate, &uHeaps, &uThreads, &uCount, 0, 0));
     const unsigned int uRest0 = uPrivate0 - uHeaps0 - uThreads0;
     CHECK(uPrivate - uHeaps - uThreads == uRest0);
-    CHECK(uCount == uCount0);
 
-    WalkHook kHook = { CreateEventA(0, TRUE, FALSE, 0), 0, 0 };
-    REQUIRE(kHook.hRelease);
+    OwnThread kOwn = { CreateEventA(0, TRUE, FALSE, 0), CreateEventA(0, TRUE, FALSE, 0), 0, 0 };
+    REQUIRE(kOwn.hStarted);
+    REQUIRE(kOwn.hRelease);
+    WalkHook kHook = { &kOwn, 0, 0 };
     REQUIRE(RedCommitParts(&uPrivate, &uHeaps, &uThreads, &uCount, CreateDuringWalk, &kHook));
     REQUIRE(kHook.hThread);
     REQUIRE(kHook.hHeap);
-    CHECK(uCount == uCount0 + 1);
-    CHECK(uThreads >= uThreads0 + kWalkStackCommit);
-    CHECK(uHeaps >= uHeaps0 + kWalkHeapCommit);
+    REQUIRE(WaitForSingleObject(kOwn.hStarted, INFINITE) == WAIT_OBJECT_0);
+    REQUIRE(kOwn.pStack);
+    const void* pHeap = AllocBase(kHook.hHeap);
+    REQUIRE(pHeap);
+    unsigned int uStack = 0;
+    CHECK(RedCommitPartsKind(kOwn.pStack, &uStack) == kRedCommitThread);
+    CHECK(uStack >= kWalkStackCommit);
+    unsigned int uHeap = 0;
+    CHECK(RedCommitPartsKind(pHeap, &uHeap) == kRedCommitHeap);
+    CHECK(uHeap >= kWalkHeapCommit);
 #if !defined(__SANITIZE_ADDRESS__)
     CHECK(uPrivate - uHeaps - uThreads == uRest0);
 #endif
@@ -552,10 +611,11 @@ TEST_CASE_NAMED(FOffthreadTest12, "Unit::Offthread::commit parts count a thread 
            uThreads0, uThreads, uHeaps0, uHeaps);
     fflush(stdout);
 
-    SetEvent(kHook.hRelease);
+    SetEvent(kOwn.hRelease);
     WaitForSingleObject(kHook.hThread, INFINITE);
     CloseHandle(kHook.hThread);
-    CloseHandle(kHook.hRelease);
+    CloseHandle(kOwn.hRelease);
+    CloseHandle(kOwn.hStarted);
     HeapDestroy(kHook.hHeap);
     CHECK(!RedCommitParts(0, &uHeaps, &uThreads, &uCount, 0, 0));
 }

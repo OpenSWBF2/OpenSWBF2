@@ -5,7 +5,7 @@ Tests are C++ and are declared the way Unreal Engine declares them. One exe, `Op
 ## Requirements
 
 - VS2022 with the x86 C++ tools, Windows SDK 10.0.26100.0 and DirectX SDK June 2010. The gate finds them with `vswhere`.
-- `vcruntime140.dll` and `msvcp140.dll` in `C:\Windows\SysWOW64`, and `d3dx9_43.dll` for the tests exe. Win32 game runs that expect Galaxy also need `msvcr120.dll` and `msvcp120.dll`.
+- For Win32, `vcruntime140.dll` and `msvcp140.dll` in `C:\Windows\SysWOW64`; for x64, `vcruntime140.dll`, `msvcp140.dll` and `vcruntime140_1.dll` in `C:\Windows\System32`. The tests exe also needs `d3dx9_43.dll`. Win32 game runs that expect Galaxy also need `msvcr120.dll` and `msvcp120.dll`.
 - Game-run tests need the retail GameData (`SWBF2_GAMEDATA` or the Steam install). Without it they skip.
 - Import `tools\wer-localdumps.reg` once as administrator so a `/GS` fast-fail still leaves a dump. Run `tests\gate.cmd firewall` once from an elevated prompt so game runs can use the local network.
 - The `rider-link` gate step needs Rider 2026.1, a JDK 21 and one online Gradle run, as `tools\rider-link\README.md` says.
@@ -76,11 +76,13 @@ A gate step writes `results.txt`, `run-params.txt` and the runner's `index.json`
     tests\gate.cmd clean [-Platform Win32,x64] [-Config Debug,Release,Test,Asan]
     tests\gate.cmd firewall [--list]
 
-| Tier | When |
-|------|------|
-| `plan` | each plan runs the steps it names with `-Step` |
-| `phase` | once, when a phase closes: every build on both platforms, hardening, unit tests, the game-run groups and Asan |
-| `milestone` | before a release: the phase steps plus the long All run, Perturb, Soak, the captures and `laa-compare` |
+`-Platform` defaults to `Win32`.
+
+| Tier | When | Platforms |
+|------|------|-----------|
+| `plan` | each plan runs the steps it names with `-Step` | the named Win32 steps, plus the x64 `build-Test` |
+| `phase` | once, when a phase closes: every build, hardening, unit tests, the game-run groups and Asan | Win32 and x64 |
+| `milestone` | before a release: the phase steps plus the long All run, Perturb, Soak, the captures and `laa-compare` | Win32 and x64 |
 
 `tests\gate.cmd` finds Visual Studio, builds `bin\Tools\OpenSWBF2Gate.exe` from `tests\gate\OpenSWBF2Gate.vcxproj` and runs it. The steps are in `tests\gate\steps.ini`. A step's key holds the binaries it lists in `Hashes`, the test sources it lists in `Sources` with their include closure from the compiler's tlog, and the repo files it lists in `Reads`; a step that reads a repo file outside `Reads` fails. A step runs only when no passing record has the same key. The records are in `steps.tsv` and `ledger.tsv` in the evidence root (`OPENSWBF2_EVIDENCE_DIR`, default `%LOCALAPPDATA%\OpenSWBF2\evidence`), with the archived output of each step. The gate keeps the three newest folders under `artifacts\gate`. Before any step it checks that Steam is running with the overlay off for app 6060, the firewall rules, the WER key, free memory and disk space.
 
@@ -90,7 +92,7 @@ The `Unit::Gate::*` tests test the gate.
 
 ## Hardening
 
-Each hardening row is a test of the same name. `Hardening::Source::*` checks source patterns, project files and vendor pins once, in the `hardening-source` step. `Hardening::Binary::*` and `Hardening::FFmpeg::*` check each build's exe and DLL flags, imports, compiler flags and map, in the `hardening-binary-<Config>` steps; `Hardening::Binary::d3dx9-staged` checks the staged `d3dx9_43.dll` after the `vendor-Release` runs. The allow-lists are in `tests\hardening\allow.txt`, one entry per allowed site, with the reason in the entry. The `Unit::Hardening::*` tests check the rows on fixture text.
+Each hardening row is a test of the same name. `Hardening::Source::*` checks source patterns, project files and vendor pins once, in the `hardening-source` step. `Hardening::Binary::*` and `Hardening::FFmpeg::*` check each build's exe and DLL flags, imports, compiler flags and map, in the `hardening-binary-<Config>` steps; `Hardening::Binary::d3dx9-staged` checks the staged `d3dx9_43.dll` after the `vendor-Release` runs. Every Win32 binary row also runs on x64 under the same name, with an x64 form where the x86 check does not exist, and x64 adds rows of its own. The allow-lists are in `tests\hardening\allow.txt`, one entry per allowed site, with the reason in the entry. The `Unit::Hardening::*` tests check the rows on fixture text.
 
 ## Staged output
 

@@ -547,6 +547,12 @@ TEST_CASE_NAMED(FTablesBuildTest, "Unit::Tables::tables are built from run logs"
         CHECK(Lines(Table(k, "cloth-headroom.txt")->kLines) ==
               "# commit abc123|mission\tfree\tenabled\tlow\thigh|geo1c_con\t12\t1\t-2\t9|nab2g_c\t-\t-\t-\t-");
     }
+    SUBCASE("an x64 crash-delayload-x64 folder writes the crash-delayload digest row")
+    {
+        const BuildResult k = BuildSmokeAllTables({NoLog("crash-delayload-x64"), NoLog("crash-abort")}, "", "c");
+        REQUIRE(k.bOk);
+        CHECK(Lines(Table(k, "smoke-all-digests.txt")->kLines) == "crash-abort\tnone\tnone|crash-delayload\tnone\tnone");
+    }
     SUBCASE("smoke-all failures")
     {
         CHECK(BuildSmokeAllTables({}, "", "c").sWhy == "no case dirs under -SmokeAllDir\\smoke");

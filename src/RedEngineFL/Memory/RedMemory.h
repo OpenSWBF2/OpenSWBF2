@@ -19,6 +19,9 @@ const int kRedOffThreadFrames = 8;
 const unsigned int kRedPerturbPad = 1;
 const unsigned int kRedPerturbFill = 4;
 const unsigned int kRedPerturbPool = 8;
+const unsigned int kRedCommitRest = 0;
+const unsigned int kRedCommitThread = 1;
+const unsigned int kRedCommitHeap = 2;
 
 struct RedOffThreadSource
 {
@@ -71,6 +74,7 @@ extern "C"
     bool RedCommitParts(unsigned int* puPrivate, unsigned int* puHeaps, unsigned int* puThreads,
                         unsigned int* puThreadCount, void (*pfnBeforeWalk)(void*), void* pArg);
     const void* RedCommitPartsBuffer(unsigned int* puBytes);
+    unsigned int RedCommitPartsKind(const void* pBase, unsigned int* puBytes);
     void RedVmLedgerAdd(const void* p);
     void RedVmLedgerRemove(const void* p);
     bool RedVmLedgerCommitted(const void* pSkip, size_t uSkipSize, unsigned int* puBytes);
